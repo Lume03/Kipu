@@ -55,6 +55,7 @@ class DashboardEmptyStateTest {
         compose.onNodeWithText("DINERO REAL DISPONIBLE").assertIsDisplayed()
         compose.onAllNodesWithText("S/ 0.00").assertCountEquals(1)
         compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed()
+        compose.onNodeWithText("Agrega una cuenta o efectivo para ver tu saldo aquí.").assertDoesNotExist()
         compose.onNodeWithText("Cupo Free").assertDoesNotExist()
         compose.onNodeWithText("En cuentas").assertDoesNotExist()
         compose.onNodeWithText("En efectivo").assertDoesNotExist()

@@ -414,11 +414,6 @@ internal fun EmptyDashboardContent(
                         ),
                         color = Color.White,
                     )
-                    Text(
-                        text = "Agrega una cuenta o efectivo para ver tu saldo aquí.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.82f),
-                    )
                 }
             }
         }
