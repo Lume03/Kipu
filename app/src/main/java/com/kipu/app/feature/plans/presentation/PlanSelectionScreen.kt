@@ -88,7 +88,7 @@ fun PlanSelectionScreen(
 
         Column(
             modifier = Modifier.fillMaxWidth().selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PremiumOptionCard(
                 option = CommercialOption.ANNUAL,
@@ -249,12 +249,12 @@ private fun PremiumOptionCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         border = BorderStroke(borderWidth, borderColor),
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
             RadioButton(selected = selected, onClick = null)
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     badge?.let { PlanBadge(it) }
                 }
                 Text(
