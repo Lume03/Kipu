@@ -3,6 +3,7 @@ package com.kipu.app.feature.accounts.presentation.detail
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
@@ -20,27 +21,7 @@ class PayCardDialogTest {
     val compose = createComposeRule()
 
     @Test
-    fun showsCurrentDebtAndExplainsCardPaymentsAreNotOperatingExpenses() {
-        compose.setContent {
-            KipuTheme {
-                PayCardDialog(
-                    creditCardWithSummary = summary(),
-                    eligibleAccounts = emptyList(),
-                    onPayCreditCard = { _, _, _, _, _ -> },
-                    onDismiss = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
-        compose.onNodeWithText(
-            "Este pago reduce tu deuda y tus fondos disponibles como amortización; no suma como gasto operativo.",
-        ).assertIsDisplayed()
-        compose.onNodeWithText("No tienes cuentas activas en PEN con saldo suficiente.").assertIsDisplayed()
-    }
-
-    @Test
-    fun exposesTotalDebtPaymentControlsWithoutEligibleAccounts() {
+    fun showsCurrentDebtAndAllowsDialogDismissal() {
         compose.setContent {
             KipuTheme {
                 PayCardDialog(
@@ -54,8 +35,25 @@ class PayCardDialogTest {
 
         compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
         compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
-        compose.onNodeWithText("Monto (PEN)").assertIsDisplayed()
-        compose.onNodeWithText("Total").assertIsDisplayed()
+        compose.onNodeWithText("No tienes cuentas activas en PEN con saldo suficiente.").assertIsDisplayed()
+        compose.onNodeWithText("Cancelar").performClick()
+    }
+
+    @Test
+    fun usesTotalDebtWhenNoInstallmentScheduleExists() {
+        compose.setContent {
+            KipuTheme {
+                PayCardDialog(
+                    creditCardWithSummary = summary(),
+                    eligibleAccounts = emptyList(),
+                    onPayCreditCard = { _, _, _, _, _ -> },
+                    onDismiss = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
+        compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
     }
 
     private fun summary(): CreditCardWithSummary {

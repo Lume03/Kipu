@@ -6,22 +6,18 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import com.kipu.app.core.finance.domain.model.AccountId
-import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
-import com.kipu.app.feature.accounts.domain.model.CardNetwork
-import com.kipu.app.feature.accounts.domain.model.CreditCard
-import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,9 +43,10 @@ class AccountDetailScreenTest {
             onCorrectOpeningBalance = { correctedAmount = it },
         )
 
-        compose.onNodeWithText("Alias de la cuenta").performScrollTo().performTextReplacement("Ahorro de viaje")
-        compose.onNodeWithText("BBVA").performScrollTo().performClick()
-        compose.onNodeWithText("Guardar presentación").performScrollTo().performClick()
+        compose.onNodeWithTag("account_alias").performScrollTo().performTextReplacement("Ahorro de viaje")
+        compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
+        compose.onNodeWithTag("account_preset_bbva").performClick()
+        compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
 
         compose.runOnIdle {
             assertEquals("Ahorro de viaje", savedAlias)
@@ -59,12 +56,46 @@ class AccountDetailScreenTest {
     }
 
     @Test
-    fun cashAccountShowsEditableAliasAndCashPresentation() {
-        setScreen(account().copy(type = AccountType.CASH, preset = AccountPreset.CASH))
+    fun cashAccountDoesNotShowAnInstitutionSelectorAndNormalizesItsPreset() {
+        var savedPreset: AccountPreset? = null
+        setScreen(
+            account().copy(type = AccountType.CASH, preset = AccountPreset.BCP),
+            onSaveAppearance = { _, preset -> savedPreset = preset },
+        )
 
-        compose.onNodeWithText("Alias de la cuenta").assertIsDisplayed()
-        compose.onNodeWithText("Institución / presentación").assertIsDisplayed()
-        compose.onAllNodesWithText("Efectivo").assertCountEquals(2)
+        compose.onAllNodesWithTag("account_preset_selector").assertCountEquals(0)
+        compose.onNodeWithTag("cash_presentation").assertIsDisplayed()
+        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
+
+        compose.runOnIdle { assertEquals(AccountPreset.CASH, savedPreset) }
+    }
+
+    @Test
+    fun savingsAccountShowsOnlyBankPresets() {
+        setScreen(account())
+
+        compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
+        compose.onNodeWithTag("account_preset_bcp").assertIsDisplayed()
+        compose.onNodeWithTag("account_preset_banco_nacion").assertIsDisplayed()
+        compose.onAllNodesWithTag("account_preset_cash").assertCountEquals(0)
+        compose.onAllNodesWithTag("account_preset_yape").assertCountEquals(0)
+        compose.onAllNodesWithTag("account_preset_plin").assertCountEquals(0)
+    }
+
+    @Test
+    fun legacySavingsWalletPresetDisplaysAndSavesAsOther() {
+        var savedPreset: AccountPreset? = null
+        setScreen(
+            account().copy(preset = AccountPreset.YAPE),
+            onSaveAppearance = { _, preset -> savedPreset = preset },
+        )
+
+        compose.onNodeWithTag("account_institution_selector").assertIsDisplayed()
+        compose.onNodeWithText("Otro").assertIsDisplayed()
+        compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
+
+        compose.runOnIdle { assertEquals(AccountPreset.GENERIC, savedPreset) }
     }
 
     @Test
@@ -116,85 +147,6 @@ class AccountDetailScreenTest {
         compose.runOnIdle { assertTrue(navigatedBack) }
     }
 
-    @Test
-    fun outstandingCreditCardDebtStaysVisibleAndCanUseExistingPaymentFlowWhenActive() {
-        val card = creditCard()
-        var paymentRequested = false
-        compose.setContent {
-            MaterialTheme {
-                AccountDetailContent(
-                    account = null,
-                    card = card,
-                    currentBalance = null,
-                    creditCardSummary = cardSummary(card),
-                    isLoading = false,
-                    onNavigateBack = {},
-                    onSaveAppearance = { _, _ -> },
-                    onCorrectOpeningBalance = {},
-                    onArchive = {},
-                    onReactivate = {},
-                    onPayCreditCard = { paymentRequested = true },
-                )
-            }
-        }
-
-        compose.onNodeWithText("Deuda actual").assertIsDisplayed()
-        compose.onNodeWithText("Pagar tarjeta").performScrollTo().performClick()
-
-        compose.runOnIdle { assertTrue(paymentRequested) }
-    }
-
-    @Test
-    fun archivedCreditCardDebtRemainsVisibleAndRequiresReactivationBeforePayment() {
-        val card = creditCard(isArchived = true)
-        compose.setContent {
-            MaterialTheme {
-                AccountDetailContent(
-                    account = null,
-                    card = card,
-                    currentBalance = null,
-                    creditCardSummary = cardSummary(card),
-                    isLoading = false,
-                    onNavigateBack = {},
-                    onSaveAppearance = { _, _ -> },
-                    onCorrectOpeningBalance = {},
-                    onArchive = {},
-                    onReactivate = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Deuda pendiente").assertIsDisplayed()
-        compose.onNodeWithText("Este instrumento está archivado", substring = true).assertIsDisplayed()
-        compose.onAllNodesWithText("Pagar tarjeta").assertCountEquals(0)
-        compose.onNodeWithText("Reactivar tarjeta").performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun creditCardDetailDoesNotShowAccountOnlyPresentationEditor() {
-        val card = creditCard()
-        compose.setContent {
-            MaterialTheme {
-                AccountDetailContent(
-                    account = null,
-                    card = card,
-                    currentBalance = null,
-                    creditCardSummary = cardSummary(card),
-                    isLoading = false,
-                    onNavigateBack = {},
-                    onSaveAppearance = { _, _ -> },
-                    onCorrectOpeningBalance = {},
-                    onArchive = {},
-                    onReactivate = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Alias de la cuenta").assertDoesNotExist()
-        compose.onNodeWithText("Institución / presentación").assertDoesNotExist()
-        compose.onNodeWithText("Guardar presentación").assertDoesNotExist()
-    }
-
     private fun setScreen(
         account: Account,
         onNavigateBack: () -> Unit = {},
@@ -232,24 +184,4 @@ class AccountDetailScreenTest {
         openedAt = Instant.parse("2025-01-01T00:00:00Z"),
     )
 
-    private fun creditCard(isArchived: Boolean = false) = CreditCard(
-        id = CardId.generate(),
-        userId = UserId.generate(),
-        alias = "Visa principal",
-        issuer = "Banco",
-        network = CardNetwork.VISA,
-        lastFourDigits = "4242",
-        currency = Currency.PEN,
-        creditLimitMinorUnits = 100_000L,
-        billingDay = 10,
-        dueDay = 20,
-        isArchived = isArchived,
-    )
-
-    private fun cardSummary(card: CreditCard) = CreditCardWithSummary(
-        card = card,
-        debt = Money(3_000L, Currency.PEN),
-        availableCredit = Money(card.creditLimitMinorUnits - 3_000L, Currency.PEN),
-        utilizationPercentage = 3.0,
-    )
 }

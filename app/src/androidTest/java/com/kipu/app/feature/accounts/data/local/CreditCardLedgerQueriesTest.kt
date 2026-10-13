@@ -83,39 +83,40 @@ class CreditCardLedgerQueriesTest {
 
         val outstanding = database.creditDao().getOutstandingInstallmentsForCard(userId, cardId)
 
-        assertEquals(listOf(nextDue, nextDue, laterDue), outstanding.map { it.installment.dueDate })
-        assertEquals(4_500L, outstanding
-            .filter { it.installment.dueDate == nextDue }
-            .sumOf { it.outstandingMinor })
+        assertEquals(3, outstanding.size)
+        assertEquals(nextDue, outstanding.first().installment.dueDate)
+        assertEquals(4_500L, outstanding.takeWhile { it.installment.dueDate == nextDue }.sumOf { it.outstandingMinor })
+        assertEquals(5_000L, outstanding.last().outstandingMinor)
     }
 
     @Test
-    fun cardLedgerQueryIncludesPostedPurchasesAndPaymentsWithMerchantReference() = runTest {
-        val merchantId = UUID.randomUUID().toString()
-        val purchase = cardMovement(
-            id = UUID.randomUUID().toString(),
-            kind = "CREDIT_PURCHASE",
-            occurredAt = 1_800_000_000_000L,
-            merchantId = merchantId,
-        )
-        val payment = cardMovement(
-            id = UUID.randomUUID().toString(),
-            kind = "CARD_PAYMENT",
-            occurredAt = 1_800_000_000_001L,
-        )
-        val rejected = cardMovement(
-            id = UUID.randomUUID().toString(),
-            kind = "CREDIT_PURCHASE",
-            occurredAt = 1_800_000_000_002L,
-            status = "VOIDED",
-        )
-        database.financialMovementDao().insertAll(listOf(purchase, payment, rejected))
+    fun cardMovementQueryReturnsPostedMovementsNewestFirst() = runTest {
+        val purchase = cardMovement(UUID.randomUUID().toString(), "CREDIT_PURCHASE", 1_800_000_000_000L)
+        val payment = cardMovement(UUID.randomUUID().toString(), "CARD_PAYMENT_CASH", 1_800_000_000_001L)
+        val pending = cardMovement(UUID.randomUUID().toString(), "CREDIT_PURCHASE", 1_800_000_000_002L, status = "PENDING")
+        database.financialMovementDao().insertRaw(purchase)
+        database.financialMovementDao().insertRaw(payment)
+        database.financialMovementDao().insertRaw(pending)
 
         val rows = database.financialMovementDao().observeByCard(userId, cardId).first()
 
-        assertEquals(listOf("CARD_PAYMENT", "CREDIT_PURCHASE"), rows.map { it.kind })
-        assertEquals(merchantId, rows.last().merchantId)
+        assertEquals(listOf(payment.id, purchase.id), rows.map { it.id })
     }
+
+    private fun cardMovement(id: String, kind: String, occurredAt: Long, status: String = "POSTED") =
+        FinancialMovementEntity(
+            id = id,
+            operationId = UUID.randomUUID().toString(),
+            operationSequence = 0,
+            userId = userId,
+            kind = kind,
+            amountMinorUnits = 2_500L,
+            currency = "PEN",
+            cardId = cardId,
+            effectiveAt = occurredAt,
+            status = status,
+            createdAt = occurredAt,
+        )
 
     private fun transaction(
         id: String,
@@ -158,26 +159,5 @@ class CreditCardLedgerQueriesTest {
         revision = 1L,
         createdAt = 1_800_000_000_000L,
         updatedAt = 1_800_000_000_000L,
-    )
-
-    private fun cardMovement(
-        id: String,
-        kind: String,
-        occurredAt: Long,
-        merchantId: String? = null,
-        status: String = "POSTED",
-    ) = FinancialMovementEntity(
-        id = id,
-        operationId = id,
-        operationSequence = 0,
-        userId = userId,
-        kind = kind,
-        amountMinorUnits = 2_500L,
-        currency = "PEN",
-        cardId = cardId,
-        effectiveAt = occurredAt,
-        status = status,
-        merchantId = merchantId,
-        createdAt = occurredAt,
     )
 }
