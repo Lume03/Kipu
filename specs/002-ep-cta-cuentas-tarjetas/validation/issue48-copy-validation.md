@@ -16,6 +16,24 @@ Base normativa: EP-CTA (SC-004, SC-009, SC-013, SC-015), el contrato UI EP-CTA S
 | Tipos principales | **Gasto**, **Ingreso**, **Transferencia** | Registro y filtros de movimientos | Una transferencia entre cuentas propias no es ingreso ni gasto. Se conservan los labels y contratos existentes. |
 | Pago de tarjeta | **Pago de tarjeta** / **abono a la deuda** en contexto de crédito | Historial y flujo especializado | Reduce efectivo y principal; no agrega un segundo gasto. No se recategoriza como transferencia genérica en copy de tipo. |
 
+## Antes → Después (copy de interfaz)
+
+| Pantalla/elemento | Antes | Después |
+|---|---|---|
+| Dashboard, encabezado (vacío y con saldos) | `TOTAL DISPONIBLE` | `DINERO REAL DISPONIBLE` |
+| Dashboard, aclaración del total | `Activos líquidos reales · Excluye líneas de crédito` | `Dinero propio en cuentas y efectivo · No incluye crédito` |
+| Dashboard, encabezado de tarjetas | `Líneas de crédito (no suman al saldo disponible)` | `Crédito disponible, no es dinero propio` |
+| Dashboard, cupo (vacío y con instrumentos) | `Cupo Free · n de 4 cuentas y tarjetas` | `Cupo Free de instrumentos · n de 4` |
+| Dashboard, espacios restantes / lleno | `n cuentas y tarjetas disponibles` / `Cupo de cuentas y tarjetas completo` | `n espacios para cuentas y tarjetas` / `Cupo de instrumentos completo` |
+| Formulario de cuenta | `Esta cuenta consumirá 1 cupo de los 4 permitidos en el plan Free.` | `Esta cuenta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.` |
+| Formulario de tarjeta | `Esta tarjeta consumirá 1 cupo de los 4 permitidos en el plan Free.` | `Esta tarjeta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.` |
+| Alta/detalle de tarjeta, límite | `Línea total` / `Línea:` | `Línea total de crédito` / `Línea total de crédito:` |
+| Detalle de tarjeta, capacidad restante | `Línea liberada` / `Disponible de crédito` / `Crédito disponible`; se mostraba además `Línea total` bajo el monto disponible | `Crédito disponible, no es dinero propio`; se retiró la etiqueta `Línea total` que no correspondía a ese monto |
+| Resumen de tarjeta | `Disponible en línea` | `Crédito disponible, no es dinero propio` |
+| Selector de tarjeta en movimientos | `Disp:` / descripción accesible `Disponible:` | `Créd. disp.:` / `Crédito disponible, no es dinero propio:` |
+
+Estos pares documentan los cambios de texto del código; **no son capturas de pantalla** y no sustituyen las capturas Antes/Después exigidas por la issue.
+
 ## Revisión de estados
 
 - **Dashboard vacío:** mantiene el monto de PEN en cero y el CTA existente; el encabezado identifica que se trata de dinero propio disponible.
