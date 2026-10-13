@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -111,6 +112,18 @@ class PlanSelectionScreenTest {
     }
 
     @Test
+    fun featureChecksAndTrialInfoHaveReadableIconSpacing() {
+        setScreen()
+
+        assertIconTextGapAtLeast8Dp("Incluido", "Núcleo manual de registro")
+        compose.onNodeWithText("7 días de acceso completo sin costo.", substring = true).performScrollTo()
+        assertIconTextGapAtLeast8Dp(
+            "Información del periodo de prueba",
+            "7 días de acceso completo sin costo.",
+        )
+    }
+
+    @Test
     fun twoHundredPercentFontScaleScrollsThroughFooterAndBothActions() {
         compose.setContent {
             val density = LocalDensity.current
@@ -171,5 +184,13 @@ class PlanSelectionScreenTest {
                 assertTrue("height was ${bounds.height.toDp()}", bounds.height.toDp() >= 48.dp)
             }
         }
+    }
+
+    private fun assertIconTextGapAtLeast8Dp(iconDescription: String, text: String) {
+        val icon = compose.onAllNodesWithContentDescription(iconDescription).fetchSemanticsNodes().first()
+        val label = compose.onNodeWithText(text, substring = true).fetchSemanticsNode()
+        val gapPx = label.boundsInRoot.left - icon.boundsInRoot.right
+        val minimumGapPx = with(compose.density) { 8.dp.toPx() }
+        assertTrue("Expected at least 8dp between '$iconDescription' and '$text', got ${gapPx / compose.density.density}dp", gapPx >= minimumGapPx - 1f)
     }
 }

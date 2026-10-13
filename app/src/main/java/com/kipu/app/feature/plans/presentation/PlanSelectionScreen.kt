@@ -190,7 +190,10 @@ private fun FreePlanCard() {
 @Composable
 private fun FreeFeatureRow(@StringRes feature: Int) {
     val included = stringResource(R.string.plan_included_content_description)
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Box(
             modifier = Modifier.size(24.dp).semantics { contentDescription = included },
             contentAlignment = Alignment.Center,
@@ -281,7 +284,11 @@ private fun CommercialInfoNote() {
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = ControlShape,
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Box(
                 modifier = Modifier.size(24.dp).semantics { contentDescription = description },
                 contentAlignment = Alignment.Center,
