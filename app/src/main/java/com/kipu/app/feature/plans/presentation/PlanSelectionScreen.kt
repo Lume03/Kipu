@@ -73,14 +73,14 @@ fun PlanSelectionScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.plan_selection_title), style = MaterialTheme.typography.displayMedium)
+        Text(stringResource(R.string.plan_selection_title), style = MaterialTheme.typography.headlineMedium)
         Text(
             stringResource(R.string.plan_selection_subtitle),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
         )
 
         FreePlanCard()
