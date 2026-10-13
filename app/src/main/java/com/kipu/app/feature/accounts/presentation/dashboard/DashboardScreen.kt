@@ -367,7 +367,7 @@ fun DashboardScreen(
  * State 1: Empty Dashboard Content
  */
 @Composable
-private fun EmptyDashboardContent(
+internal fun EmptyDashboardContent(
     quotaCount: Int,
     maxQuota: Int,
     onNavigateToNewAccount: () -> Unit,
