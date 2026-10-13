@@ -64,6 +64,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -458,16 +459,17 @@ internal fun EmptyDashboardContent(
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
+            OutlinedButton(
+                onClick = onNavigateToNewCard,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("dashboard_empty_add_card"),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = emeraldColors.primaryDeep),
             ) {
-                TextButton(
-                    onClick = onNavigateToNewCard,
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("dashboard_empty_add_card"),
-                ) {
-                    Text("También puedes agregar una tarjeta de crédito")
-                }
+                Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Agregar tarjeta de crédito")
             }
         }
 

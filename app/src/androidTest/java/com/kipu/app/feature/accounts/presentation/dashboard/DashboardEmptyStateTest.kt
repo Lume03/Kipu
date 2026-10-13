@@ -40,7 +40,8 @@ class DashboardEmptyStateTest {
         var navigatedToCardCreation = false
         setEmptyDashboard(onNavigateToNewCard = { navigatedToCardCreation = true })
 
-        compose.onNodeWithText("También puedes agregar una tarjeta de crédito")
+        compose.onNodeWithText("Agregar tarjeta de crédito").assertIsDisplayed()
+        compose.onNodeWithTag("dashboard_empty_add_card")
             .assertIsDisplayed()
             .performClick()
 
