@@ -80,11 +80,16 @@ class DebtReminderWorker @AssistedInject constructor(
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
-        NotificationManagerCompat.from(applicationContext).notify(
-            "debt-reminder:$userId:$debtId:$installmentId",
-            0,
-            notification,
-        )
+        try {
+            NotificationManagerCompat.from(applicationContext).notify(
+                "debt-reminder:$userId:$debtId:$installmentId",
+                0,
+                notification,
+            )
+        } catch (_: SecurityException) {
+            // Android may revoke this optional permission after the checks above.
+            // Losing a reminder must not fail the worker or affect financial records.
+        }
         return Result.success()
     }
 
