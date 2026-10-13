@@ -412,7 +412,7 @@ private fun EmptyDashboardContent(
                         ) {
                             Surface(shape = CircleShape, color = Color(0xFF6EE7B7), modifier = Modifier.size(7.dp)) {}
                             Text(
-                                text = "TOTAL DISPONIBLE",
+                                text = "DINERO REAL DISPONIBLE",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp),
                                 color = Color(0xFFA7F3D0),
                             )
@@ -501,12 +501,12 @@ private fun EmptyDashboardContent(
                         }
                         Column {
                             Text(
-                                text = "Cupo Free · $quotaCount de $maxQuota cuentas y tarjetas",
+                                text = "Cupo Free de instrumentos · $quotaCount de $maxQuota",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = emeraldColors.primaryText,
                             )
                             Text(
-                                text = "Te quedan ${(maxQuota - quotaCount).coerceAtLeast(0)} cuentas y tarjetas disponibles",
+                                text = "Te quedan ${(maxQuota - quotaCount).coerceAtLeast(0)} espacios para cuentas y tarjetas",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -898,7 +898,7 @@ private fun ActiveDashboardContent(
                                 modifier = Modifier.size(7.dp),
                             ) {}
                             Text(
-                                text = "TOTAL DISPONIBLE",
+                                text = "DINERO REAL DISPONIBLE",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 0.6.sp,
@@ -1022,7 +1022,7 @@ private fun ActiveDashboardContent(
 
                     // Clear Truthful Subtitle
                     Text(
-                        text = "Activos líquidos reales · Excluye líneas de crédito",
+                        text = "Dinero propio en cuentas y efectivo · No incluye crédito",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = Color.White.copy(alpha = 0.8f),
                     )
@@ -1115,10 +1115,10 @@ private fun ActiveDashboardContent(
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(if (LocalDensity.current.fontScale > 1.3f) Modifier.fillMaxWidth()
                         else Modifier.widthIn(min = 180.dp).weight(1f)) {
-                        Text("Cupo Free · $computableCount de $maxQuota",
+                        Text("Cupo Free de instrumentos · $computableCount de $maxQuota",
                             style = MaterialTheme.typography.labelLarge, color = emeraldColors.primaryText)
-                        Text(if (isQuotaReached) "Cupo de cuentas y tarjetas completo"
-                            else "${(maxQuota - computableCount).coerceAtLeast(0)} espacios disponibles",
+                        Text(if (isQuotaReached) "Cupo de instrumentos completo"
+                            else "${(maxQuota - computableCount).coerceAtLeast(0)} espacios para cuentas y tarjetas",
                             style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
                     }
                     TextButton(onClick = onNavigateToPlans, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -1177,7 +1177,7 @@ private fun ActiveDashboardContent(
                     "+ Tarjeta", onNavigateToNewCard, "Ver detalle",
                     { activeCreditCards.firstOrNull()?.let { onCardClick(it.card.id.value) } }, activeCreditCards.isNotEmpty())
                 Text(
-                    text = "Líneas de crédito (no suman al saldo disponible)",
+                    text = "Crédito disponible, no es dinero propio",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     color = emeraldColors.secondaryMuted,
                 )

@@ -327,7 +327,7 @@ fun CreditCardSummaryCard(
 
                         Column {
                             Text(
-                                text = "Disponible en línea",
+                                text = "Crédito disponible, no es dinero propio",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -366,7 +366,7 @@ fun CreditCardSummaryCard(
 
                         Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
                             Text(
-                                text = "Disponible en línea",
+                                text = "Crédito disponible, no es dinero propio",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )

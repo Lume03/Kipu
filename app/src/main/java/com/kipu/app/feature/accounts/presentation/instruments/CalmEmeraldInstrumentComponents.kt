@@ -2324,7 +2324,7 @@ fun CalmEmeraldSuccessBottomSheet(
             ) {
                 Column {
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        // Cell 1: Línea total
+                        // Cell 1: Línea total de crédito
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -2332,7 +2332,7 @@ fun CalmEmeraldSuccessBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
-                                text = "Línea total",
+                                text = "Línea total de crédito",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = calmColors.secondaryMuted,
                             )

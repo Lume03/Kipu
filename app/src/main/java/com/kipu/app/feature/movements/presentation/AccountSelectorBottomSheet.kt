@@ -644,7 +644,7 @@ private fun CreditCardItemRow(
         append(cardTitle)
         append(". ")
         append(cardSubtitle)
-        append(". Disponible: ")
+        append(". Crédito disponible, no es dinero propio: ")
         append(availableCredit?.let { "${card.currency.symbol()} ${formatMinorUnits(it.minorUnits)}" } ?: "no cargado")
         append(". Deuda: ")
         append(debt?.let { "${card.currency.symbol()} ${formatMinorUnits(it.minorUnits)}" } ?: "no cargada")
@@ -713,7 +713,7 @@ private fun CreditCardItemRow(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Disp: ",
+                        text = "Créd. disp.: ",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = TextSecondarySlate,
                             fontSize = 11.sp,

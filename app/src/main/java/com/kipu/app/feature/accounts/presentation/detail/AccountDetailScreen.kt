@@ -792,7 +792,7 @@ fun AccountDetailScreen(
                     if (availableBefore != null) {
                         val availableAfter = (availableBefore - savedPurchase.amount.minorUnits).coerceAtLeast(0L)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Crédito disponible")
+                            Text("Crédito disponible, no es dinero propio")
                             MoneyText(money = Money(availableAfter, card.currency))
                         }
                     } else {
@@ -1760,7 +1760,7 @@ private fun CreditCardPeriodPanel(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = "Línea liberada",
+                            text = "Crédito disponible, no es dinero propio",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1769,11 +1769,6 @@ private fun CreditCardPeriodPanel(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = "Línea total",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
                     }
                 }
@@ -1995,7 +1990,7 @@ private fun CreditCardPeriodPanel(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = "Disponible de crédito",
+                        text = "Crédito disponible, no es dinero propio",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2081,7 +2076,7 @@ private fun CreditCardPeriodPanel(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Utilización de línea total:",
+                        text = "Uso de la línea total de crédito:",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2125,7 +2120,7 @@ private fun CreditCardPeriodPanel(
                 }
 
                 Text(
-                    text = "Línea: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                    text = "Línea total de crédito: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2936,7 +2931,7 @@ private fun InstrumentSummary(
                     fontWeight = FontWeight.Bold,
                     color = if (summary.debt.minorUnits > 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
                 )
-                Text("Crédito disponible", style = MaterialTheme.typography.labelMedium)
+                Text("Crédito disponible, no es dinero propio", style = MaterialTheme.typography.labelMedium)
                 MoneyText(money = summary.availableCredit, style = MaterialTheme.typography.titleMedium)
             }
             card?.let { target ->

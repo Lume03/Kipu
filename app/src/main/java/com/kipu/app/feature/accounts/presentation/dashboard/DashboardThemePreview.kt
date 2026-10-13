@@ -29,7 +29,7 @@ private fun DashboardThemePreviewContent() {
         Text("Mi Dinero Real", style = MaterialTheme.typography.titleLarge, color = colors.inkPrimary)
         KipuCard(shape = RoundedCornerShape(16.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("TOTAL DISPONIBLE", style = MaterialTheme.typography.labelSmall, color = colors.inkSecondary)
+                Text("DINERO REAL DISPONIBLE", style = MaterialTheme.typography.labelSmall, color = colors.inkSecondary)
                 MoneyText(minorUnits = 521000L, style = MaterialTheme.typography.headlineMedium, color = colors.inkPrimary)
                 Surface(shape = RoundedCornerShape(14.dp), color = colors.surfaceVariant) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
