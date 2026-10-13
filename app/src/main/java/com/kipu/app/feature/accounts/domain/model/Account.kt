@@ -74,6 +74,8 @@ data class Account(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
     val isPlanLocked: Boolean = false,
+    /** Bank account whose funds are represented by this wallet, when affiliated. */
+    val linkedAccountId: AccountId? = null,
 ) {
     init {
         require(alias.isNotBlank() && alias.trim().length in 1..80) {
@@ -84,6 +86,9 @@ data class Account(
         }
         require(initialBalance.minorUnits >= 0) {
             "Initial balance cannot be negative"
+        }
+        require(linkedAccountId == null || type == AccountType.DIGITAL_WALLET) {
+            "Only digital wallets can be affiliated with a bank account"
         }
     }
 

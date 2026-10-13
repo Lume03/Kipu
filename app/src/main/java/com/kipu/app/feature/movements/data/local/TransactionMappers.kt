@@ -26,4 +26,5 @@ internal fun TransactionEntity.toDomain(): Transaction = Transaction(
     syncStatus = MovementSyncStatus.fromString(syncStatus),
     createdAt = createdAt,
     updatedAt = updatedAt,
+    paymentChannel = source,
 )

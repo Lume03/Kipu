@@ -39,6 +39,8 @@ data class TransactionDto(
     val occurredAt: String,
     @SerialName("note")
     val note: String? = null,
+    @SerialName("payment_channel")
+    val paymentChannel: String? = null,
 )
 
 @Serializable

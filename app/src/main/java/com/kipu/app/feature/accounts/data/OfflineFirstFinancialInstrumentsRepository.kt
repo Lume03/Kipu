@@ -122,16 +122,36 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             return Result.failure(IllegalArgumentException("Credit liability accounts are managed by their card"))
         }
         val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
+        if (account.linkedAccountId != null) {
+            if (account.type != AccountType.DIGITAL_WALLET) {
+                return Result.failure(IllegalArgumentException("Only digital wallets can be affiliated"))
+            }
+            val parent = accountDao.getById(userId, account.linkedAccountId.value)
+                ?: return Result.failure(IllegalArgumentException("Linked bank account not found"))
+            val hasDebitCard = cardDao.getActive(userId).any {
+                it.accountId == parent.id && it.type == "DEBIT"
+            }
+            val requiredPreset = when (account.preset) {
+                AccountPreset.YAPE -> AccountPreset.BCP
+                AccountPreset.PLIN -> AccountPreset.BBVA
+                else -> return Result.failure(IllegalArgumentException("Only Yape or Plin can be affiliated"))
+            }
+            if (!hasDebitCard || parent.isArchived || parent.type !in setOf(AccountType.SAVINGS.name, AccountType.BANK.name) ||
+                AccountPreset.fromId(parent.presetId) != requiredPreset || parent.currency != account.currency.name) {
+                return Result.failure(IllegalArgumentException("Wallet can only link to an active compatible debit account in the same currency"))
+            }
+        }
         val nowMicros = System.currentTimeMillis() * 1000L
         val movementId = MovementId.generate().value
 
-        val payloadHash = sha256("${operationId.value}:${account.id.value}:${account.initialBalance.minorUnits}")
+        val linkedAccountId = account.linkedAccountId?.value
+        val payloadHash = sha256("${operationId.value}:${account.id.value}:${account.initialBalance.minorUnits}:${linkedAccountId.orEmpty()}")
         val payload = CreateAccountRequestDto(
             operationId = operationId.value,
             accountId = account.id.value,
             openingMovementId = movementId,
             alias = account.alias,
-            type = account.type.name,
+            type = if (account.type == AccountType.DIGITAL_WALLET) "WALLET" else account.type.name,
             currency = account.currency.name,
             presetId = account.preset?.name,
             color = account.colorToken,
@@ -139,6 +159,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             initialBalanceMinorUnits = account.initialBalance.minorUnits,
             openedAt = account.openedAt.toString(),
             payloadHash = payloadHash,
+            linkedAccountId = linkedAccountId,
         )
         val payloadJson = json.encodeToString(payload)
 
@@ -162,6 +183,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         remoteRevision = 0L,
                         createdAt = nowMicros,
                         updatedAt = nowMicros,
+                        linkedAccountId = linkedAccountId,
                     )
                 )
 
@@ -1468,6 +1490,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             createdAt = Instant.ofEpochMilli(createdAt / 1000L),
             updatedAt = Instant.ofEpochMilli(updatedAt / 1000L),
             isPlanLocked = isPlanLocked,
+            linkedAccountId = linkedAccountId?.let(::AccountId),
         )
     }
 
@@ -1553,14 +1576,15 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         return sessionCoordinator.localAccess.flatMapLatest { access ->
             when (access) {
                 is LocalAccess.Available -> {
-                    combine(
-                        accountDao.observeById(access.userId, accountId.value),
-                        movementDao.observeAccountBalance(access.userId, accountId.value),
-                    ) { account, balanceMinorUnits ->
-                        if (account == null) {
-                            Money(0L, Currency.PEN)
-                        } else {
-                            Money(balanceMinorUnits, Currency.fromCode(account.currency))
+                    accountDao.observeById(access.userId, accountId.value).flatMapLatest { account ->
+                        if (account == null) return@flatMapLatest flowOf(Money(0L, Currency.PEN))
+                        val balanceAccountId = account.linkedAccountId ?: account.id
+                        combine(
+                            accountDao.observeById(access.userId, balanceAccountId),
+                            movementDao.observeAccountBalance(access.userId, balanceAccountId),
+                        ) { balanceAccount, balanceMinorUnits ->
+                            if (balanceAccount == null) Money(0L, Currency.fromCode(account.currency))
+                            else Money(balanceMinorUnits, Currency.fromCode(balanceAccount.currency))
                         }
                     }
                 }

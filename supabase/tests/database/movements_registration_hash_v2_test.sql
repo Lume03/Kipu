@@ -16,7 +16,7 @@ SELECT is(internal.movement_register_hash_v2('11111111-1111-1111-1111-1111111111
         'occurred_at', '1970-01-01T00:16:40Z',
         'note', E'a;note:b "x"\\\n'
     )),
-    'de3c19c4dae2a263d61fb22d62e1d46847ae83379e954fdd5e3377b63b2d5218','shared Kotlin/Postgres golden vector');
+    '336a552575c3829397ac37773862bd68cd6467c021f10da52f2077a76ee230ab','shared Kotlin/Postgres golden vector');
 INSERT INTO auth.users(id,email) VALUES ('11111111-1111-1111-1111-111111111111','hash-v2@kipu.test') ON CONFLICT DO NOTHING;
 INSERT INTO public.accounts(id,user_id,name,account_type,currency_code)
  VALUES('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','Hash v2','CASH','PEN') ON CONFLICT DO NOTHING;

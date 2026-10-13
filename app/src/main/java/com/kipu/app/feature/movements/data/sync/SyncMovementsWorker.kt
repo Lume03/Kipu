@@ -203,8 +203,10 @@ class SyncMovementsWorker @AssistedInject constructor(
             if (remote.type == "CREDIT_LIABILITY" && remote.initialBalanceMinorUnits != 0L) {
                 return@withTransaction false
             }
+            if (remote.linkedAccountId != null && remote.type != "WALLET") return@withTransaction false
             val existing = accountDao.getById(userId, remote.id)
-            if (existing != null && (existing.type != remote.type || existing.currency != remote.currency)) {
+            val localType = if (remote.type == "WALLET") "DIGITAL_WALLET" else remote.type
+            if (existing != null && (existing.type != localType || existing.currency != remote.currency)) {
                 return@withTransaction false
             }
             if (existing == null) {
@@ -212,11 +214,12 @@ class SyncMovementsWorker @AssistedInject constructor(
                 accountDao.insertIfAbsent(AccountEntity(
                     id = remote.id, userId = userId,
                     creationOperationId = remote.creationOperationId ?: "remote:${remote.id}",
-                    alias = remote.alias, type = remote.type, currency = remote.currency,
-                    presetId = null, color = null, icon = null,
+                    alias = remote.alias, type = if (remote.type == "WALLET") "DIGITAL_WALLET" else remote.type, currency = remote.currency,
+                    presetId = remote.presetId, color = null, icon = null,
                     initialBalanceMinorUnits = remote.initialBalanceMinorUnits,
                     openedAt = openedAt, remoteRevision = revision,
                     createdAt = openedAt, updatedAt = System.currentTimeMillis(),
+                    linkedAccountId = remote.linkedAccountId,
                 ))
                 if (remote.initialBalanceMinorUnits != 0L) {
                     movementDao.insertPulledLedgerEntries(listOf(LedgerEntryEntity(
@@ -228,6 +231,12 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
             }
             if (remote.isArchived) accountDao.setArchived(userId, remote.id, true, System.currentTimeMillis() * 1_000L)
+            if (existing != null && remote.linkedAccountId != null) {
+                accountDao.applyRemoteAffiliation(
+                    userId, remote.id, remote.linkedAccountId, remote.presetId, revision,
+                    System.currentTimeMillis() * 1_000L,
+                )
+            }
             accountDao.updateRemoteRevision(userId, remote.id, revision, System.currentTimeMillis() * 1_000L)
             val account = accountDao.getById(userId, remote.id) ?: return@withTransaction false
             val balance = movementDao.calculateLedgerSumForAccount(userId, remote.id)
@@ -449,6 +458,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             cardId = remote.cardId,
             operationKind = remote.operationKind,
             installmentCount = remote.installmentCount,
+            source = remote.paymentChannel,
         ))
         if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
         if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false

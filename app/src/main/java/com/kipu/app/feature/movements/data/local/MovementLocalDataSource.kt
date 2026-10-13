@@ -92,6 +92,16 @@ class MovementLocalDataSource @Inject constructor(
         requestHash: String,
     ): RegisterTransactionResult {
         return database.withTransaction {
+            if (command.paymentChannel != null) {
+                if (command.paymentChannel !in setOf("YAPE", "PLIN") ||
+                    database.accountDao().getActiveAffiliatedWallet(
+                        command.userId, command.sourceAccountId.orEmpty(), command.paymentChannel,
+                    ) == null) {
+                    return@withTransaction RegisterTransactionResult.ValidationError(
+                        "payment_channel", "La billetera no está afiliada a la cuenta de origen seleccionada",
+                    )
+                }
+            }
             // 1. Check existing receipt for idempotency
             val existingReceipt = movementDao.getReceipt(command.userId, command.idempotencyKey)
             if (existingReceipt != null) {
@@ -227,6 +237,7 @@ class MovementLocalDataSource @Inject constructor(
                 revision = 1L,
                 acknowledgedRevision = null,
                 currentRevisionId = null,
+                source = command.paymentChannel,
                 createdAt = now,
                 updatedAt = now,
             )
