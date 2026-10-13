@@ -50,7 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-private val KipuTeal = Color(0xFF0F766E)
+private val KipuTeal: Color @Composable get() = MaterialTheme.colorScheme.primary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

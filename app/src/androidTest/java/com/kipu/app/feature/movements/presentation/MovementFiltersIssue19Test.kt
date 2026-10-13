@@ -213,7 +213,8 @@ class MovementFiltersIssue19Test {
     }
 
     private fun saveCompactEvidence(name: String, matcher: SemanticsMatcher) {
-        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue-19").apply { mkdirs() }
+        val folder = InstrumentationRegistry.getArguments().getString("evidenceDirectory") ?: "issue-19"
+        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), folder).apply { mkdirs() }
         val bitmap = compose.onNode(matcher).captureToImage().asAndroidBitmap()
         File(directory, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }

@@ -1,5 +1,6 @@
 package com.kipu.app.feature.categories.presentation.categories
 
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -162,7 +163,7 @@ fun CategoryPresentationEditor(
                             Icon(
                                 Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = readableContentColor(parseColor(state.color)),
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -223,7 +224,7 @@ fun CategoryPresentationEditor(
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = "Color seleccionado",
-                                    tint = Color.White,
+                                    tint = readableContentColor(parseColor(hexColor)),
                                     modifier = Modifier.size(20.dp),
                                 )
                             }

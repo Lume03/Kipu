@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -244,7 +245,7 @@ fun SelectedCategoryCard(
                 Icon(
                     if (categoryItem.category.isRoot) Icons.Default.Folder else Icons.Default.Label,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = readableContentColor(parseCategoryColor(categoryItem.color)),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -356,7 +357,7 @@ fun CategoryPickerRow(
                 Icon(
                     if (isSubcategory) Icons.Default.Label else Icons.Default.Folder,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = readableContentColor(parseCategoryColor(item.color)),
                     modifier = Modifier.size(14.dp),
                 )
             }

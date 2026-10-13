@@ -52,9 +52,9 @@ internal fun PurchasePriceShimmer(modifier: Modifier = Modifier, reduceMotion: B
         animatedPhase
     }
     val colors = listOf(
-        Color(0xFFE6E8EA),
-        Color(0xFFF2F4F6),
-        Color(0xFFE6E8EA),
+        androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+        androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest,
+        androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
     )
     val brush = if (reduceMotion) Brush.horizontalGradient(colors) else Brush.linearGradient(
         colors = colors,

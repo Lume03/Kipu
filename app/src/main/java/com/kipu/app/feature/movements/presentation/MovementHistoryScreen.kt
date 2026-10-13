@@ -367,14 +367,14 @@ fun MovementHistoryRoute(
                         )
                         CalmEmeraldTypeChip(
                             label = "Gastos",
-                            dotColor = emeraldColors.expenseCoral,
+                            dotColor = emeraldColors.expenseText,
                             selected = uiState.selectedFilterType == MovementType.EXPENSE,
                             onClick = { viewModel.onFilterTypeSelected(MovementType.EXPENSE) },
                             modifier = Modifier.testTag("chip_filter_expense"),
                         )
                         CalmEmeraldTypeChip(
                             label = "Ingresos",
-                            dotColor = emeraldColors.incomeEmerald,
+                            dotColor = emeraldColors.incomeText,
                             selected = uiState.selectedFilterType == MovementType.INCOME,
                             onClick = { viewModel.onFilterTypeSelected(MovementType.INCOME) },
                             modifier = Modifier.testTag("chip_filter_income"),
@@ -407,7 +407,7 @@ fun MovementHistoryRoute(
                                     Text(
                                         text = stringResource(R.string.movements_filter_clear),
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = emeraldColors.expenseCoral,
+                                        color = emeraldColors.expenseText,
                                     )
                                 }
                             }
@@ -445,7 +445,7 @@ fun MovementHistoryRoute(
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontSize = 10.sp,
                                         ),
-                                        color = emeraldColors.secondaryMuted.copy(alpha = 0.8f),
+                                        color = emeraldColors.secondaryMuted,
                                     )
                                 }
                                 Surface(
@@ -487,8 +487,8 @@ fun MovementHistoryRoute(
                                         else -> currency
                                     }
                                     val netColor = when {
-                                        netMinor > BigInteger.ZERO -> emeraldColors.incomeEmerald
-                                        netMinor < BigInteger.ZERO -> emeraldColors.expenseCoral
+                                        netMinor > BigInteger.ZERO -> emeraldColors.incomeText
+                                        netMinor < BigInteger.ZERO -> emeraldColors.expenseText
                                         else -> emeraldColors.primaryText
                                     }
 
@@ -827,8 +827,8 @@ fun TransactionRow(
 
     val (iconBg, iconTint) = when {
         isVoided -> emeraldColors.pillTrack to emeraldColors.secondaryMuted
-        tx.type == MovementType.INCOME -> emeraldColors.incomeBg to emeraldColors.incomeEmerald
-        tx.type == MovementType.EXPENSE -> emeraldColors.expenseBg to emeraldColors.expenseCoral
+        tx.type == MovementType.INCOME -> emeraldColors.incomeBg to emeraldColors.incomeText
+        tx.type == MovementType.EXPENSE -> emeraldColors.expenseBg to emeraldColors.expenseText
         tx.type == MovementType.TRANSFER -> emeraldColors.transferBg to emeraldColors.transferBlue
         else -> emeraldColors.pillTrack to emeraldColors.primaryDeep
     }
@@ -836,8 +836,8 @@ fun TransactionRow(
     val amountColor = if (isVoided) {
         emeraldColors.secondaryMuted
     } else when (tx.type) {
-        MovementType.INCOME -> emeraldColors.incomeEmerald
-        MovementType.EXPENSE -> emeraldColors.expenseCoral
+        MovementType.INCOME -> emeraldColors.incomeText
+        MovementType.EXPENSE -> emeraldColors.expenseText
         MovementType.TRANSFER -> emeraldColors.transferBlue
     }
 
@@ -917,7 +917,7 @@ fun TransactionRow(
                             Text(
                                 text = stringResource(R.string.movement_void_status_badge),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
@@ -929,7 +929,7 @@ fun TransactionRow(
                             Text(
                                 text = "Requiere revisión",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                                color = emeraldColors.warningAmber,
+                                color = emeraldColors.warningText,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
@@ -1029,8 +1029,8 @@ private fun CalmEmeraldTypeChip(
     val container = if (selected) {
         if (hasCheck) emeraldColors.primaryDeep
         else when (dotColor) {
-            emeraldColors.expenseCoral -> emeraldColors.expenseBg
-            emeraldColors.incomeEmerald -> emeraldColors.incomeBg
+            emeraldColors.expenseText -> emeraldColors.expenseBg
+            emeraldColors.incomeText -> emeraldColors.incomeBg
             emeraldColors.transferBlue -> emeraldColors.transferBg
             else -> emeraldColors.incomeBg
         }
@@ -1133,7 +1133,7 @@ fun SyncStatusIcon(
             Icon(
                 imageVector = Icons.Rounded.ErrorOutline,
                 contentDescription = stringResource(R.string.movements_sync_error),
-                tint = emeraldColors.expenseCoral,
+                tint = emeraldColors.expenseText,
                 modifier = modifier.size(13.dp)
             )
         }
@@ -1185,7 +1185,7 @@ fun CalmEmeraldEmptyMovementsState(
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ReceiptLong,
                         contentDescription = null,
-                        tint = emeraldColors.incomeEmerald,
+                        tint = emeraldColors.incomeText,
                         modifier = Modifier.size(32.dp),
                     )
                 }

@@ -1,5 +1,7 @@
 package com.kipu.app.feature.settings.presentation
 
+import com.kipu.app.ui.theme.rememberKipuColors
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -95,6 +97,8 @@ fun ProfileSettingsScreen(
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var currencyDropdownExpanded by remember { mutableStateOf(false) }
@@ -177,7 +181,7 @@ fun ProfileSettingsScreen(
                                     ) {
                                         Text(
                                             text = state.currencyCode,
-                                            color = Color.White,
+                                            color = themeColors.onPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -397,7 +401,7 @@ fun ProfileSettingsScreen(
                                 viewModel.savePreferences()
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
+                                checkedThumbColor = themeColors.onPrimary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                             ),
                         )
@@ -520,8 +524,8 @@ fun ProfileSettingsScreen(
                         onClick = viewModel::requestSignOut,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFDE8E8),
-                            contentColor = Color(0xFFE53935),
+                            containerColor = semanticColors.expenseBg,
+                            contentColor = semanticColors.expenseText,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()

@@ -1,6 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
 import androidx.compose.ui.graphics.Color
+import com.kipu.app.ui.theme.colorContrastRatio
+import com.kipu.app.ui.theme.readableContentColor
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
@@ -140,4 +142,8 @@ val bankChoices = listOf(
         subtitle = "Banco Ripley Perú",
         logoAcronym = "R",
     ),
-)
+).map { bank ->
+    // Preserve bank identity while keeping names/acronyms readable on the brand color.
+    bank.copy(textColor = if (colorContrastRatio(bank.textColor, bank.color) >= 4.5f)
+        bank.textColor else readableContentColor(bank.color))
+}

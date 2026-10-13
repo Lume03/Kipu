@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 
-private val KipuTeal = Color(0xFF0F766E)
+private val KipuTeal: Color @Composable get() = MaterialTheme.colorScheme.primary
 
 @Composable
 fun LockScreenOverlay(

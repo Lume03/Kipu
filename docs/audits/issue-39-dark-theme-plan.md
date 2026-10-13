@@ -2,8 +2,8 @@
 
 Fecha: 2026-10-13, America/Lima.
 Origen: [Lume03/Kipu #39](https://github.com/Lume03/Kipu/issues/39).
-Estado: planificación basada en lectura del código de `main`; implementación y validación runtime pendientes.
-Rama propuesta para la implementación: `fix/dark-mode-filters-theme-audit`.
+Estado: implementación realizada en la rama indicada; resultados y límites en [auditoría](issue-39-dark-theme-audit.md) y [evidencia](evidence/issue-39/README.md). Revisión independiente y aceptación humana pendientes.
+Rama de implementación: `fix/dark-mode-filters-theme-audit`.
 
 ## 1. Resultado esperado y alcance
 
@@ -251,11 +251,11 @@ Salida: resultados JVM/build/lint, pruebas runtime, ratios y revisión visual. U
 7. Preparar descripción de PR con problema, comportamiento resultante, archivos/recorridos, validación, excepciones y capturas. Incluir `Closes #39` solo cuando estén satisfechos todos sus criterios.
 8. Realizar revisión de código por otro revisor y resolver hallazgos antes de considerar terminada la corrección.
 
-Salida: cambio revisable y evidence-backed. Este documento no autoriza ni realiza implementación, publicación o merge.
+Salida: cambio revisable con evidencia. El responsable autorizó posteriormente ejecutar el plan, usar el dispositivo conectado y guardar/subir la rama. El merge queda fuera de esta entrega.
 
 ## 5. Tareas y dependencias
 
-Todas las tareas siguen pendientes; los hallazgos de la sección 2 son insumos de planificación.
+I39-01 a I39-18 implementadas y verificadas con las pruebas aplicables registradas. I39-19 e I39-20 tienen inventario, revisión de capturas y evidencia de dispositivo; sus límites de accesibilidad manual/API mínima figuran en el README. I39-21 prepara la entrega y su trazabilidad. I39-22 permanece pendiente de revisión independiente y aceptación humana. Los hallazgos de la sección 2 conservan el inventario inicial.
 
 | ID | Trabajo | Depende de | Criterio de terminación |
 |---|---|---|---|
@@ -300,20 +300,20 @@ Las tareas 09–14 comparten la dependencia de roles, pero pueden resolverse sec
 
 ## 7. Criterios de cierre
 
-- [ ] Filtros oscuro integrado: contenedor, tarjetas, campos, iconos, chips, pie y modales anidados.
+- [x] Filtros oscuro integrado: contenedor, tarjetas, campos, iconos, chips, pie y modales anidados.
 - [ ] Textos habilitados cumplen el requisito de contraste en claro y oscuro; controles e iconos necesarios también tienen contraste medido.
-- [ ] Claro/oscuro/SYSTEM siguen la preferencia efectiva de la app.
-- [ ] Todas las pantallas implementadas fueron revisadas y los defectos de tema encontrados fueron corregidos.
-- [ ] Metas/presupuestos tienen resultado verificable de revisión o no aplicable, según la base final.
-- [ ] Excepciones cromáticas justificadas; colores personalizados persistidos conservados.
-- [ ] Previews claras/oscuras de componentes reales intervenidos.
-- [ ] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada.
-- [ ] Build/JVM/lint y pruebas de dispositivo aplicables con resultados registrados.
-- [ ] Capturas comparativas y tabla de contraste adjuntas/referenciadas en el PR.
+- [x] Claro/oscuro/SYSTEM siguen la preferencia efectiva de la app.
+- [x] Todas las pantallas implementadas fueron revisadas y los defectos de tema encontrados fueron corregidos.
+- [x] Metas/presupuestos tienen resultado verificable de revisión o no aplicable, según la base final.
+- [x] Excepciones cromáticas justificadas; colores personalizados persistidos conservados.
+- [x] Previews claras/oscuras de componentes reales intervenidos.
+- [x] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada.
+- [x] Build/JVM/lint y pruebas de dispositivo aplicables con resultados registrados.
+- [x] Capturas comparativas y tabla de contraste preparadas para el PR.
 - [ ] Trazabilidad de la corrección y revisión de código completas.
 
-## 8. Estado de esta entrega de planificación
+## 8. Registro inicial y ejecución
 
 Se leyó el issue y se inspeccionaron tema, archivos candidatos, navegación disponible, configuración de pruebas y evidencia existente. Se calcularon cuatro parejas preliminares de contraste.
 
-No se ejecutaron builds ni suites para esta entrega, porque el trabajo solicitado es el plan. La matriz exhaustiva, la reproducción en dispositivo, los colores finales, las capturas y las pruebas quedan para las fases de implementación descritas.
+En la entrega inicial de planificación no se ejecutaron builds ni suites. Después de la autorización de ejecución se completaron implementación, compilación, lint, regresiones JVM y pruebas instrumentadas en el dispositivo físico. La [auditoría](issue-39-dark-theme-audit.md) y el [README de evidencia](evidence/issue-39/README.md) registran resultados finales y límites. Las parejas de contraste medidas pasan AA; no se declara certificada toda la accesibilidad de la aplicación ni la revisión independiente todavía pendiente.

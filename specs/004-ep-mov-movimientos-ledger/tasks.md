@@ -340,3 +340,15 @@ El responsable acepta el resumen/retirada de filtros aplicados y el comportamien
 - [x] T116 Mejorar el selector de referencias con lista perezosa acotada, búsqueda, resumen por nombres y retirada de referencias históricas ausentes del catálogo visible, conservando IDs y selección al buscar (FR-034; criterios 2/3).
 - [x] T117 Verificar T115/T116 en JVM y dispositivo mediante fixtures sintéticos: listas extensas, cancelación, restauración, cambio de propietario/acceso, privacidad, teclado, pantalla reducida y temas; adjuntar comparación visual y registrar comandos/resultados reales (criterios 4/7/8).
 - [x] T118 Realizar commits del alcance, subir `feat/movimientos-filtros-ux` y abrir PR con `Closes #19`, sin merge; excluir carpeta local `Borrar-NoSubir` y configuración privada (depende de T117). Entrega vigente autorizada tras la limpieza: [PR #31](https://github.com/LeonidasGarcia/Kipu/pull/31); PR #30 cerrado sin merge.
+
+## Issue #39 — Tema oscuro y auditoría de presentación (2026-10-13)
+
+Corrección autorizada en `fix/dark-mode-filters-theme-audit`; detalle en `docs/audits/issue-39-dark-theme-plan.md`. Mantener FR-034/039 y SC-014–017, sin modificar procedencia canónica ni cerrar T110.
+
+- [x] T119 Inventariar superficies reales y clasificar colores, con base sintética `f8e7ea3` y excepciones de marcas/colores personalizados documentadas (I39-01–03).
+- [x] T120 Corregir roles compartidos y tematizar filtros, calendario, upsell y selector de referencias; conservar borrador, validaciones y acceso (I39-04–08).
+- [x] T121 Auditar cuentas, registro/editor/historial, categorías/comercios, instrumentos/tasas, deudas, ajustes/acceso/planes/notificaciones y corregir presentación (I39-09–14; metas/presupuestos no aplicables).
+- [x] T122 Agregar previews de componentes reales y pruebas de contraste/tema efectivo/cambio con borrador abierto (I39-15–17).
+- [x] T123 Ejecutar build/JVM/lint y regresiones instrumentadas, registrar comparativas claras/oscuras y contexto compacto con teclado/texto ampliado (I39-18–20; límites manuales explícitos).
+- [x] T124 Registrar auditoría, resultados por método, imágenes sintéticas y trazabilidad; preparar entrega revisable (I39-21).
+- [ ] T125 Obtener revisión independiente y aceptación visual humana, resolver hallazgos y verificar criterios finales antes de cerrar #39 (I39-22; depende de T124).

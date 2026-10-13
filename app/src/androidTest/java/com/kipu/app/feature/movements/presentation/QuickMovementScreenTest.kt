@@ -3,6 +3,7 @@ package com.kipu.app.feature.movements.presentation
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -106,8 +107,9 @@ class QuickMovementScreenTest {
         compose.onNodeWithText("Categoría *").assertDoesNotExist()
         compose.onNodeWithTag("category_picker_open").assertDoesNotExist()
 
-        val saveBounds = compose.onNodeWithContentDescription("Guardar transacción")
+        val saveBounds = compose.onNodeWithTag("btn_save_transaction")
             .assertHasClickAction()
+            .assertContentDescriptionEquals("✓ Confirmar transferencia")
             .fetchSemanticsNode().boundsInRoot
         with(compose.density) {
             assertTrue("Save action height must meet the 48dp touch target", saveBounds.height.toDp() >= 48.dp)
