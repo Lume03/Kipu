@@ -94,6 +94,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -736,7 +737,7 @@ private fun EmptyDashboardContent(
  * State 2, 3, 4: Active Dashboard Content
  */
 @Composable
-private fun ActiveDashboardContent(
+internal fun ActiveDashboardContent(
     data: com.kipu.app.feature.accounts.domain.model.FinancialDashboardData?,
     instruments: com.kipu.app.feature.accounts.presentation.InstrumentsUiState,
     creditNotifications: List<com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification>,
@@ -1291,42 +1292,9 @@ private fun ActiveDashboardContent(
             }
         }
 
-        // Financial Health Banner (Images 2, 3, 4, 5)
-        item(key = "financial_health_banner") {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = emeraldColors.incomeBg,
-                border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = emeraldColors.incomeEmerald,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = "Tus cuentas están sincronizadas. El nivel de deuda en tarjeta se mantiene en rango saludable (inferior al 30%).",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                        ),
-                        color = emeraldColors.incomeEmerald,
-                    )
-                }
-            }
-        }
-
         // Bottom space above floating nav bar
         item(key = "bottom_space") {
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.height(72.dp).testTag("dashboard_bottom_space"))
         }
     }
 }
