@@ -173,7 +173,7 @@ private fun FreePlanCard() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.plan_free_title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 PlanBadge(R.string.plan_free_badge)
@@ -190,7 +190,7 @@ private fun FreeFeatureRow(@StringRes feature: Int) {
     val included = stringResource(R.string.plan_included_content_description)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            modifier = Modifier.size(48.dp).semantics { contentDescription = included },
+            modifier = Modifier.size(24.dp).semantics { contentDescription = included },
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
