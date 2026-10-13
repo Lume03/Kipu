@@ -21,6 +21,10 @@ class DashboardEmptyStatePolicyTest {
     @Test
     fun emptyDashboardIsFirstUseOnlyWhenLoadingHasFinished() {
         assertTrue(shouldShowEmptyDashboard(
+            DashboardUiState(isLoading = false, dashboardData = emptyDashboard()),
+            InstrumentsUiState(isLoading = false),
+        ))
+        assertFalse(shouldShowEmptyDashboard(
             DashboardUiState(isLoading = false),
             InstrumentsUiState(isLoading = false),
         ))
@@ -31,6 +35,14 @@ class DashboardEmptyStatePolicyTest {
         assertFalse(shouldShowEmptyDashboard(
             DashboardUiState(isLoading = false),
             InstrumentsUiState(isLoading = true),
+        ))
+        assertFalse(shouldShowEmptyDashboard(
+            DashboardUiState(
+                isLoading = false,
+                dashboardData = emptyDashboard(),
+                errorMessage = "No se pudo cargar el dashboard",
+            ),
+            InstrumentsUiState(isLoading = false),
         ))
     }
 
@@ -69,6 +81,14 @@ class DashboardEmptyStatePolicyTest {
         initialBalance = Money(0L, Currency.PEN),
         openedAt = Instant.parse("2025-01-01T00:00:00Z"),
         isArchived = true,
+    )
+
+    private fun emptyDashboard() = com.kipu.app.feature.accounts.domain.model.FinancialDashboardData(
+        totalPen = Money(0L, Currency.PEN),
+        totalUsd = Money(0L, Currency.USD),
+        liquidAccounts = emptyList(),
+        creditCards = emptyList(),
+        activeComputableCount = 0,
     )
 
     private fun card() = CreditCard(

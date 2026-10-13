@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
@@ -164,12 +165,16 @@ class AccountDetailScreenTest {
 
     @Test
     fun archivedCreditCardDebtStaysVisibleAndRequiresReactivationBeforePayment() {
-        setCardScreen(creditCard(isArchived = true))
+        var reactivated = false
+        setCardScreen(creditCard(isArchived = true), onReactivate = { reactivated = true })
 
-        compose.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Este instrumento está archivado", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Deuda pendiente").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Tarjeta archivada · Solo lectura").assertIsDisplayed()
         compose.onAllNodesWithText("Pagar tarjeta").assertCountEquals(0)
-        compose.onNodeWithText("Reactivar tarjeta").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reactivar tarjeta").performScrollTo().performClick()
+        compose.runOnIdle { assertFalse(reactivated) }
+        compose.onNodeWithText("Reactivar").performClick()
+        compose.runOnIdle { assertTrue(reactivated) }
     }
 
     @Test
@@ -213,6 +218,7 @@ class AccountDetailScreenTest {
         card: CreditCard,
         onPayCreditCard: () -> Unit = {},
         onEditCreditCardTerms: () -> Unit = {},
+        onReactivate: () -> Unit = {},
     ) {
         compose.setContent {
             MaterialTheme {
@@ -226,7 +232,7 @@ class AccountDetailScreenTest {
                     onSaveAppearance = { _, _ -> },
                     onCorrectOpeningBalance = {},
                     onArchive = {},
-                    onReactivate = {},
+                    onReactivate = onReactivate,
                     onPayCreditCard = onPayCreditCard,
                     onEditCreditCardTerms = onEditCreditCardTerms,
                 )

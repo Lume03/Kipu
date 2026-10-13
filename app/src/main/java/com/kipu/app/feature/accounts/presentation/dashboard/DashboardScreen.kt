@@ -364,9 +364,9 @@ internal fun shouldShowEmptyDashboard(
     instruments: InstrumentsUiState,
 ): Boolean {
     val data = state.dashboardData
-    return !state.isLoading && !instruments.isLoading && state.errorMessage == null &&
-        data?.liquidAccounts.isNullOrEmpty() &&
-        data?.creditCards.isNullOrEmpty() &&
+    return data != null && !state.isLoading && !instruments.isLoading && state.errorMessage == null &&
+        data.liquidAccounts.isEmpty() &&
+        data.creditCards.isEmpty() &&
         instruments.activeAccounts.isEmpty() &&
         instruments.activeCards.isEmpty() &&
         instruments.archivedAccounts.isEmpty() &&
@@ -398,7 +398,7 @@ internal fun EmptyDashboardContent(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
-                        text = "DINERO REAL DISPONIBLE",
+                        text = "Saldo registrado",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.6.sp,
