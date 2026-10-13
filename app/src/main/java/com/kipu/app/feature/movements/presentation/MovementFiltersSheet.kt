@@ -338,7 +338,11 @@ private fun MovementFiltersSheetContent(
 
                         // Amount chip
                         if (draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()) {
-                            val amountLabel = "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}"
+                            val amountLabel = if (LocalBalanceMasked.current) {
+                                "Importe oculto"
+                            } else {
+                                "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}"
+                            }
                             ActiveFilterDismissChip(
                                 text = amountLabel,
                                 bgColor = Color(0xFFE6F4EA),
@@ -1350,7 +1354,11 @@ private fun AdvancedFiltersControls(
 
                     val hasCustomAmount = draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()
                     Text(
-                        text = if (hasCustomAmount) "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}" else "Monto mín. y máx.",
+                        text = when {
+                            !hasCustomAmount -> "Monto mín. y máx."
+                            LocalBalanceMasked.current -> "Importe oculto"
+                            else -> "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}"
+                        },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = if (hasCustomAmount) FontWeight.SemiBold else FontWeight.Normal
                         ),

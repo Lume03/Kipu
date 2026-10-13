@@ -1110,7 +1110,11 @@ fun UnifiedInstrumentFormScreen(
     CalmEmeraldBankSelectionSheet(
         visible = isBankSheetVisible,
         currentBankCode = bank.code,
-        bankChoices = if (kind == InstrumentKind.SAVINGS_DEBIT) bankChoices.filterNot { it.isRetail } else bankChoices,
+        bankChoices = if (kind == InstrumentKind.SAVINGS_DEBIT) {
+            bankChoices.filter { it.code in setOf("BCP", "BBVA", "INTERBANK", "SCOTIABANK", "BANCO_NACION", "OTHER") }
+        } else {
+            bankChoices
+        },
         onConfirm = { chosenBank ->
             bankCode = chosenBank.code
             isBankSheetVisible = false

@@ -5,7 +5,6 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kipu.app.core.database.KipuDatabase
-import com.kipu.app.feature.categories.data.local.MerchantCatalogEntity
 import com.kipu.app.feature.movements.data.local.TransactionEntity
 import java.time.LocalDate
 import java.util.UUID
@@ -13,7 +12,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -83,53 +81,42 @@ class CreditCardLedgerQueriesTest {
             ),
         )
 
-        val suggestion = database.creditDao()
-            .observeNextInstallmentDueForCard(userId, cardId)
-            .first()
+        val outstanding = database.creditDao().getOutstandingInstallmentsForCard(userId, cardId)
 
-        assertNotNull(suggestion)
-        assertEquals(nextDue, suggestion?.dueDateEpochDay)
-        assertEquals(4_500L, suggestion?.amountMinor)
+        assertEquals(3, outstanding.size)
+        assertEquals(nextDue, outstanding.first().installment.dueDate)
+        assertEquals(4_500L, outstanding.takeWhile { it.installment.dueDate == nextDue }.sumOf { it.outstandingMinor })
+        assertEquals(5_000L, outstanding.last().outstandingMinor)
     }
 
     @Test
-    fun cardMovementQueryIncludesLocalPurchasesPaymentsAndMerchantNames() = runTest {
-        val merchantId = UUID.randomUUID().toString()
-        val purchase = transaction(
-            id = UUID.randomUUID().toString(),
-            occurredAt = 1_800_000_000_000L,
-            operationKind = "CARD_PURCHASE",
-            merchantId = merchantId,
-        )
-        val payment = transaction(
-            id = UUID.randomUUID().toString(),
-            occurredAt = 1_800_000_000_001L,
-            operationKind = "CARD_PAYMENT",
-            type = "TRANSFER",
-        )
-        val rejected = transaction(
-            id = UUID.randomUUID().toString(),
-            occurredAt = 1_800_000_000_002L,
-            operationKind = "CARD_PURCHASE",
-            syncStatus = "FAILED_PERMANENT",
-        )
-        database.movementDao().insertTransactions(listOf(purchase, payment, rejected))
-        database.merchantCatalogDao().insertMerchants(
-            listOf(
-                MerchantCatalogEntity(
-                    id = merchantId,
-                    name = "Mercado Central",
-                    normalizedName = "mercado central",
-                    lastSyncedAt = 1_800_000_000_000L,
-                ),
-            ),
-        )
+    fun cardMovementQueryReturnsPostedMovementsNewestFirst() = runTest {
+        val purchase = cardMovement(UUID.randomUUID().toString(), "CREDIT_PURCHASE", 1_800_000_000_000L)
+        val payment = cardMovement(UUID.randomUUID().toString(), "CARD_PAYMENT_CASH", 1_800_000_000_001L)
+        val pending = cardMovement(UUID.randomUUID().toString(), "CREDIT_PURCHASE", 1_800_000_000_002L, status = "PENDING")
+        database.financialMovementDao().insertRaw(purchase)
+        database.financialMovementDao().insertRaw(payment)
+        database.financialMovementDao().insertRaw(pending)
 
-        val rows = database.movementDao().observeCardTransactions(userId, cardId).first()
+        val rows = database.financialMovementDao().observeByCard(userId, cardId).first()
 
-        assertEquals(listOf("CARD_PAYMENT", "CARD_PURCHASE"), rows.map { it.transaction.operationKind })
-        assertEquals("Mercado Central", rows.last().merchantName)
+        assertEquals(listOf(payment.id, purchase.id), rows.map { it.id })
     }
+
+    private fun cardMovement(id: String, kind: String, occurredAt: Long, status: String = "POSTED") =
+        FinancialMovementEntity(
+            id = id,
+            operationId = UUID.randomUUID().toString(),
+            operationSequence = 0,
+            userId = userId,
+            kind = kind,
+            amountMinorUnits = 2_500L,
+            currency = "PEN",
+            cardId = cardId,
+            effectiveAt = occurredAt,
+            status = status,
+            createdAt = occurredAt,
+        )
 
     private fun transaction(
         id: String,

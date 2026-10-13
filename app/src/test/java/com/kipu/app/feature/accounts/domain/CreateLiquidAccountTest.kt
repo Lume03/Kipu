@@ -36,6 +36,14 @@ open class FakeFinancialInstrumentsRepository : FinancialInstrumentsRepository {
     val recordedAdjustments = mutableListOf<Triple<AccountId, Money, Instant>>()
     val archivedInstruments = mutableListOf<String>()
     val reactivatedInstruments = mutableListOf<String>()
+    data class AppearanceUpdate(
+        val accountId: AccountId,
+        val alias: String,
+        val preset: AccountPreset?,
+        val colorToken: String?,
+        val iconToken: String?,
+    )
+    val appearanceUpdates = mutableListOf<AppearanceUpdate>()
     var activeComputableCount = 0
     data class ConfirmedPurchase(
         val cardId: CardId,
@@ -74,7 +82,10 @@ open class FakeFinancialInstrumentsRepository : FinancialInstrumentsRepository {
         colorToken: String?,
         iconToken: String?,
         operationId: OperationId
-    ): Result<Unit> = Result.success(Unit)
+    ): Result<Unit> {
+        appearanceUpdates += AppearanceUpdate(accountId, alias, preset, colorToken, iconToken)
+        return Result.success(Unit)
+    }
 
     override suspend fun registerDebitCard(card: DebitCard, operationId: OperationId): Result<DebitCard> = Result.success(card)
 
@@ -268,6 +279,42 @@ class CreateLiquidAccountTest {
     }
 
     @Test
+    fun `creating account rejects preset incompatible with its type`() = runTest {
+        val account = Account(
+            id = AccountId.generate(),
+            userId = testUserId,
+            alias = "Efectivo",
+            type = AccountType.CASH,
+            currency = Currency.PEN,
+            preset = AccountPreset.BCP,
+            initialBalance = Money(0L, Currency.PEN),
+            openedAt = Instant.now(),
+        )
+
+        val result = createLiquidAccount(account)
+
+        assertTrue(result.isFailure)
+        assertTrue(fakeRepository.createdAccounts.isEmpty())
+    }
+
+    @Test
+    fun `preset policy exposes only valid options for savings and wallets`() {
+        assertEquals(
+            listOf(
+                AccountPreset.BCP,
+                AccountPreset.BBVA,
+                AccountPreset.INTERBANK,
+                AccountPreset.SCOTIABANK,
+                AccountPreset.BANCO_NACION,
+                AccountPreset.GENERIC,
+            ),
+            AccountPreset.selectableFor(AccountType.SAVINGS),
+        )
+        assertEquals(listOf(AccountPreset.YAPE, AccountPreset.PLIN), AccountPreset.selectableFor(AccountType.DIGITAL_WALLET))
+        assertTrue(AccountPreset.selectableFor(AccountType.CASH).isEmpty())
+    }
+
+    @Test
     fun `recording opening adjustment with nonnegative amount succeeds`() = runTest {
         val accountId = AccountId.generate()
         val correctedAmount = Money(200_00L, Currency.PEN)
@@ -311,16 +358,67 @@ class CreateLiquidAccountTest {
 
     @Test
     fun `updating instrument appearance validates alias`() = runTest {
-        val accountId = AccountId.generate()
+        val account = Account(
+            id = AccountId.generate(),
+            userId = testUserId,
+            alias = "Mi cuenta",
+            type = AccountType.SAVINGS,
+            currency = Currency.PEN,
+            preset = AccountPreset.BCP,
+            initialBalance = Money(0L, Currency.PEN),
+            openedAt = Instant.now(),
+        )
+        fakeRepository.createdAccounts += account
 
-        val blankResult = updateAppearance(accountId, "   ", null, null, null)
+        val blankResult = updateAppearance(account.id, "   ", null, null, null)
         assertTrue(blankResult.isFailure)
 
         val longAlias = "a".repeat(81)
-        val longResult = updateAppearance(accountId, longAlias, null, null, null)
+        val longResult = updateAppearance(account.id, longAlias, null, null, null)
         assertTrue(longResult.isFailure)
 
-        val validResult = updateAppearance(accountId, "Mi Cuenta", AccountPreset.BCP, null, null)
+        val validResult = updateAppearance(account.id, "Mi Cuenta", AccountPreset.BCP, null, null)
         assertTrue(validResult.isSuccess)
+    }
+
+    @Test
+    fun `updating cash appearance normalizes historical bank preset`() = runTest {
+        val account = Account(
+            id = AccountId.generate(),
+            userId = testUserId,
+            alias = "Caja chica",
+            type = AccountType.CASH,
+            currency = Currency.PEN,
+            preset = AccountPreset.BCP,
+            initialBalance = Money(0L, Currency.PEN),
+            openedAt = Instant.now(),
+        )
+        fakeRepository.createdAccounts += account
+
+        val result = updateAppearance(account.id, "Efectivo oficina", AccountPreset.BCP, null, null)
+
+        assertTrue(result.isSuccess)
+        assertEquals(AccountPreset.CASH, fakeRepository.appearanceUpdates.single().preset)
+        assertEquals(AccountPreset.CASH.defaultColorToken, fakeRepository.appearanceUpdates.single().colorToken)
+    }
+
+    @Test
+    fun `updating savings appearance normalizes incompatible wallet preset to generic`() = runTest {
+        val account = Account(
+            id = AccountId.generate(),
+            userId = testUserId,
+            alias = "Ahorro",
+            type = AccountType.SAVINGS,
+            currency = Currency.PEN,
+            preset = AccountPreset.YAPE,
+            initialBalance = Money(0L, Currency.PEN),
+            openedAt = Instant.now(),
+        )
+        fakeRepository.createdAccounts += account
+
+        val result = updateAppearance(account.id, "Ahorro de viaje", AccountPreset.YAPE, null, null)
+
+        assertTrue(result.isSuccess)
+        assertEquals(AccountPreset.GENERIC, fakeRepository.appearanceUpdates.single().preset)
     }
 }
