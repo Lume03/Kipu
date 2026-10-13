@@ -221,7 +221,15 @@ class MovementFiltersIssue19Test {
     private fun selector(options: List<MovementReferenceOption>, selected: MutableState<Set<String>>,
         enabled: MutableState<Boolean> = mutableStateOf(true)) {
         compose.setContent { KipuTheme { Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.padding(16.dp)) { ReferenceSelector("Cuentas", options, selected.value, enabled.value, { selected.value = it }) }
+            Column(Modifier.padding(16.dp)) {
+                ReferenceSelector(
+                    title = "Cuentas",
+                    options = options,
+                    selected = selected.value,
+                    enabled = enabled.value,
+                    onChange = { selected.value = it },
+                )
+            }
         } } }
     }
 }

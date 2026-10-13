@@ -7,7 +7,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
@@ -21,7 +20,6 @@ import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
-import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import java.time.Instant
@@ -49,9 +47,8 @@ class AccountDetailScreenTest {
             onCorrectOpeningBalance = { correctedAmount = it },
         )
 
-        compose.onNodeWithText("Nombre de la cuenta").performScrollTo().performTextReplacement("Ahorro de viaje")
-        compose.onNodeWithTag("account_preset_selector").performScrollTo().performClick()
-        compose.onNodeWithTag("account_preset_bbva").performClick()
+        compose.onNodeWithText("Alias de la cuenta").performScrollTo().performTextReplacement("Ahorro de viaje")
+        compose.onNodeWithText("BBVA").performScrollTo().performClick()
         compose.onNodeWithText("Guardar presentación").performScrollTo().performClick()
 
         compose.runOnIdle {
@@ -62,11 +59,12 @@ class AccountDetailScreenTest {
     }
 
     @Test
-    fun cashAccountDoesNotShowAnInstitutionSelector() {
+    fun cashAccountShowsEditableAliasAndCashPresentation() {
         setScreen(account().copy(type = AccountType.CASH, preset = AccountPreset.CASH))
 
-        compose.onAllNodesWithTag("account_preset_selector").assertCountEquals(0)
-        compose.onNodeWithText("Nombre de la cuenta").assertIsDisplayed()
+        compose.onNodeWithText("Alias de la cuenta").assertIsDisplayed()
+        compose.onNodeWithText("Institución / presentación").assertIsDisplayed()
+        compose.onAllNodesWithText("Efectivo").assertCountEquals(2)
     }
 
     @Test
@@ -166,17 +164,15 @@ class AccountDetailScreenTest {
             }
         }
 
-        compose.onNodeWithText("Deuda actual").assertIsDisplayed()
+        compose.onNodeWithText("Deuda pendiente").assertIsDisplayed()
         compose.onNodeWithText("Este instrumento está archivado", substring = true).assertIsDisplayed()
         compose.onAllNodesWithText("Pagar tarjeta").assertCountEquals(0)
         compose.onNodeWithText("Reactivar tarjeta").performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun creditCardHasEditableVisibleNameAndPresentationWithoutFinancialEdits() {
+    fun creditCardDetailDoesNotShowAccountOnlyPresentationEditor() {
         val card = creditCard()
-        var savedAlias: String? = null
-        var savedPreset: CardPreset? = null
         compose.setContent {
             MaterialTheme {
                 AccountDetailContent(
@@ -187,10 +183,6 @@ class AccountDetailScreenTest {
                     isLoading = false,
                     onNavigateBack = {},
                     onSaveAppearance = { _, _ -> },
-                    onSaveCardAppearance = { alias, preset ->
-                        savedAlias = alias
-                        savedPreset = preset
-                    },
                     onCorrectOpeningBalance = {},
                     onArchive = {},
                     onReactivate = {},
@@ -198,17 +190,9 @@ class AccountDetailScreenTest {
             }
         }
 
-        compose.onNodeWithTag("card_presentation_card").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Nombre visible").performScrollTo().performTextReplacement("Viajes BCP")
-        compose.onNodeWithTag("card_preset_selector").performScrollTo().performClick()
-        compose.onNodeWithTag("card_preset_bcp_visa").performClick()
-        compose.onNodeWithTag("save_card_presentation").performScrollTo().performClick()
-
-        compose.runOnIdle {
-            assertEquals("Viajes BCP", savedAlias)
-            assertEquals(CardPreset.BCP_VISA, savedPreset)
-        }
-        compose.onNodeWithText("Los consumos, el límite y las fechas de pago no cambian.").assertIsDisplayed()
+        compose.onNodeWithText("Alias de la cuenta").assertDoesNotExist()
+        compose.onNodeWithText("Institución / presentación").assertDoesNotExist()
+        compose.onNodeWithText("Guardar presentación").assertDoesNotExist()
     }
 
     private fun setScreen(
