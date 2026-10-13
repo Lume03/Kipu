@@ -849,7 +849,9 @@ fun AccountDetailContent(
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
     var alias by remember(instrumentKey, account?.alias) { mutableStateOf(account?.alias.orEmpty()) }
-    var selectedPreset by remember(instrumentKey, account?.preset) { mutableStateOf(account?.preset) }
+    var selectedPreset by remember(instrumentKey, account?.type, account?.preset) {
+        mutableStateOf(account?.let { AccountPreset.normalizedFor(it.type, it.preset) })
+    }
     var showArchiveConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showReactivateConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showOpeningCorrection by remember(instrumentKey) { mutableStateOf(false) }
@@ -1059,6 +1061,7 @@ fun AccountDetailContent(
                     }
 
                     account?.let { target ->
+                        val selectablePresets = AccountPreset.selectableFor(target.type)
                         Text("Presentación", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         OutlinedTextField(
                             value = alias,
@@ -1071,21 +1074,42 @@ fun AccountDetailContent(
                             isError = aliasError != null,
                             supportingText = aliasError?.let { { Text(it) } },
                             shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().testTag("account_alias"),
                         )
-                        Text("Institución / presentación", style = MaterialTheme.typography.titleSmall)
-                        AccountPreset.entries.chunked(3).forEach { presetRow ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        if (target.type == AccountType.CASH) {
+                            Surface(
+                                color = emeraldColors.incomeBg,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth().testTag("cash_presentation"),
                             ) {
-                                presetRow.forEach { preset ->
-                                    FilterChip(
-                                        selected = selectedPreset == preset,
-                                        onClick = { selectedPreset = preset },
-                                        label = { Text(preset.defaultName) },
-                                        modifier = Modifier.weight(1f),
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(Icons.Rounded.Payments, contentDescription = null, tint = emeraldColors.incomeEmerald)
+                                    Text(
+                                        text = "Cuenta de efectivo",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = emeraldColors.incomeEmerald,
                                     )
+                                }
+                            }
+                        } else if (selectablePresets.isNotEmpty()) {
+                            Text("Institución", style = MaterialTheme.typography.titleSmall)
+                            selectablePresets.chunked(3).forEach { presetRow ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().testTag("account_preset_selector"),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    presetRow.forEach { preset ->
+                                        FilterChip(
+                                            selected = selectedPreset == preset,
+                                            onClick = { selectedPreset = preset },
+                                            label = { Text(preset.defaultName) },
+                                            modifier = Modifier.weight(1f).testTag("account_preset_${preset.name.lowercase()}"),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1098,7 +1122,7 @@ fun AccountDetailContent(
                                 }
                             },
                             enabled = !isSubmitting && alias.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("save_account_presentation"),
                         ) {
                             Text(if (isSubmitting) "Guardando..." else "Guardar presentación")
                         }
