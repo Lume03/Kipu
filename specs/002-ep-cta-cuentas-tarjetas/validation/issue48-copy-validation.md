@@ -32,7 +32,19 @@ Base normativa: EP-CTA (SC-004, SC-009, SC-013, SC-015), el contrato UI EP-CTA S
 | Resumen de tarjeta | `Disponible en línea` | `Crédito disponible, no es dinero propio` |
 | Selector de tarjeta en movimientos | `Disp:` / descripción accesible `Disponible:` | `Créd. disp.:` / `Crédito disponible, no es dinero propio:` |
 
-Estos pares documentan los cambios de texto del código; **no son capturas de pantalla** y no sustituyen las capturas Antes/Después exigidas por la issue.
+Los pares de texto anteriores ayudan a leer el diff; las capturas comparativas renderizadas a continuación muestran esos fragmentos en Compose.
+
+## Capturas comparativas de los fragmentos de copy
+
+Capturadas desde Compose en el mismo Pixel 8 AVD (API 36, viewport 1080×2400, densidad 420 dpi), tema claro y escala predeterminada. Los importes/estados son idénticos en ambas imágenes. Son capturas de fragmentos comparativos de copy, no pantallas completas de los recorridos de la aplicación.
+
+### Antes
+
+![Antes: etiquetas originales](issue48-before.png)
+
+### Después
+
+![Después: etiquetas unificadas](issue48-after.png)
 
 ## Revisión de estados
 
