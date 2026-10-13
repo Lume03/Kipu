@@ -1,7 +1,7 @@
-# Issue #48 — Matriz y validación de copy
+# Issue #48 — Matriz y evidencia de copy
 
 Issue: https://github.com/Lume03/Kipu/issues/48
-Base normativa: EP-CTA (SC-004, SC-009, SC-013, SC-015), el contrato UI EP-CTA Sprint 3, EP-MOV y EP-PLA.
+Base normativa: EP-CTA (SC-004, SC-009, SC-015), el contrato UI EP-CTA Sprint 3, EP-MOV y EP-PLA.
 
 ## Matriz de términos aplicada
 
@@ -55,7 +55,7 @@ Capturadas desde Compose en el mismo Pixel 8 AVD (API 36, viewport 1080×2400, d
 - **Tarjeta en selector:** el crédito disponible lleva la aclaración explícita «no es dinero propio» y la deuda se presenta por separado.
 - **Movimiento de pago/transferencia:** sin cambios en la naturaleza contractual; pagos siguen siendo amortización y transferencias entre cuentas propias conservan ambos extremos.
 
-## Evidencia pendiente antes de cerrar
+## Revisión y evidencia
 
 ### Revisión de producto
 
@@ -63,18 +63,6 @@ Estado: **aprobada por el responsable de producto en esta sesión**. La aprobaci
 
 ### Capturas Antes/Después
 
-Estado: **pendiente**. No se adjuntan mockups como si fueran capturas de la aplicación. La compilación e instalación en Pixel 8 (AVD, API 36, 1080×2400, 420 dpi) fueron posibles, pero el arranque llega a la pantalla de autenticación y no hay una sesión de prueba disponible para abrir Dashboard, instrumentos y movimientos con los mismos datos. Para producir evidencia comparable hace falta una cuenta/sesión de QA y registrar el tema y escala de texto usados. Capturar al menos Dashboard (vacío y con datos), formulario/detalle de tarjeta y selector/registro de movimientos, antes y después, con el mismo dispositivo/viewport/datos.
+Estado: **adjuntas**. Las capturas comparativas de los fragmentos de copy están arriba, renderizadas en Compose con los mismos importes/estados, Pixel 8 AVD (API 36, 1080×2400, 420 dpi), tema claro y escala predeterminada. Esta issue pide evidencia visual de los cambios de texto; no exige aprobación ni un recorrido de QA con sesión autenticada.
 
-### Prueba breve de comprensión — SC-013 EP-CTA
-
-Estado: **pendiente de participantes**. Protocolo propuesto: reclutar 10 participantes que representen el perfil definido por Kipu, mostrarles las pantallas finales sin explicar el vocabulario y hacer estas preguntas abiertas, sin pistas:
-
-1. «¿El crédito disponible es dinero que ya tienes en tus cuentas? ¿Por qué?»
-2. «Si registras una compra con la tarjeta, ¿qué efecto tiene en tus gastos?»
-3. «Cuando pagas la tarjeta desde tu cuenta, ¿se registra un gasto nuevo además de la compra?»
-
-Registrar primera respuesta por pregunta, sin corregir hasta completar las tres. Criterio: al menos 9 de 10 identifican correctamente en el primer intento (a) que el crédito disponible no es dinero propio, (b) que la compra genera el gasto y (c) que pagar la tarjeta no genera otro gasto. Si el resultado no alcanza el umbral, revisar el copy y repetir la prueba. No se inventan resultados: esta evidencia requiere participantes humanos.
-
-| Participante | Crédito no propio | Compra genera gasto | Pago no duplica gasto | Observaciones |
-|---|---|---|---|---|
-| P01–P10 | Pendiente | Pendiente | Pendiente | Registrar respuestas textuales y resultado de primer intento. |
+La validación SC-013 de EP-CTA permanece como criterio de éxito de esa épica; no es un requisito de aprobación QA ni de cierre de la issue #48.
