@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -41,15 +42,19 @@ class MerchantAliasRulesScreenTest {
             )
         }
 
+        composeTestRule.onNodeWithContentDescription("Volver").assertIsDisplayed().assertHasClickAction()
+        composeTestRule.onNodeWithText("Reglas de alias").assertIsDisplayed()
         composeTestRule.onNodeWithText("Texto fuente exacto").assertIsDisplayed()
         composeTestRule.onNodeWithText("Comercio confirmado").assertIsDisplayed()
         composeTestRule.onNode(hasText("Tambo") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
             .assertHasClickAction()
-        composeTestRule.onNodeWithText("Premium necesario para crear una regla nueva").assertIsDisplayed()
+        composeTestRule.onNodeWithText("PREMIUM").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Automatiza tus comercios frecuentes").assertIsDisplayed()
         composeTestRule.onNodeWithText("Si Premium o el consentimiento no están vigentes, puedes registrar el movimiento manualmente.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Sin coincidencia, el comercio no se asigna y el texto queda disponible para revisión.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Si las reglas apuntan a comercios distintos, la decisión requiere revisión manual.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Guardar alias").assertIsNotEnabled().assertHeightIsAtLeast(48.dp)
+        composeTestRule.onNodeWithText("Sin reglas de alias aún").assertIsDisplayed()
     }
 
     @Test

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,8 @@ class MerchantCategoryPreferenceScreenTest {
             )
         }
 
+        composeTestRule.onNodeWithContentDescription("Volver").assertIsDisplayed().assertHasClickAction()
+        composeTestRule.onNodeWithText("Categoría por comercio").assertIsDisplayed()
         composeTestRule.onNodeWithText("No necesitas Premium para guardar esta preferencia").assertIsDisplayed()
         composeTestRule.onNodeWithText("Solo afecta operaciones futuras; no cambia movimientos confirmados.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Alimentación").assertIsDisplayed().assertHasClickAction()
