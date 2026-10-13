@@ -6,6 +6,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.Currency
@@ -44,7 +45,35 @@ class AccountPresetScreenshotTest {
         capture(type = AccountType.SAVINGS, preset = AccountPreset.YAPE, dark = true, name = "savings-detail-dark")
     }
 
-    private fun capture(type: AccountType, preset: AccountPreset, dark: Boolean, name: String) {
+    @Test
+    fun capturesSavingsInstitutionOptionsInLightTheme() {
+        capture(
+            type = AccountType.SAVINGS,
+            preset = AccountPreset.YAPE,
+            dark = false,
+            name = "savings-options-light",
+            openInstitutionMenu = true,
+        )
+    }
+
+    @Test
+    fun capturesSavingsInstitutionOptionsInDarkTheme() {
+        capture(
+            type = AccountType.SAVINGS,
+            preset = AccountPreset.YAPE,
+            dark = true,
+            name = "savings-options-dark",
+            openInstitutionMenu = true,
+        )
+    }
+
+    private fun capture(
+        type: AccountType,
+        preset: AccountPreset,
+        dark: Boolean,
+        name: String,
+        openInstitutionMenu: Boolean = false,
+    ) {
         compose.setContent {
             KipuTheme(darkTheme = dark) {
                 AccountDetailContent(
@@ -62,8 +91,9 @@ class AccountPresetScreenshotTest {
             }
         }
 
-        val targetTag = if (type == AccountType.CASH) "cash_presentation" else "account_preset_banco_nacion"
+        val targetTag = if (type == AccountType.CASH) "cash_presentation" else "account_institution_selector"
         compose.onNodeWithTag(targetTag).performScrollTo()
+        if (openInstitutionMenu) compose.onNodeWithTag(targetTag).performClick()
         compose.waitForIdle()
 
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext

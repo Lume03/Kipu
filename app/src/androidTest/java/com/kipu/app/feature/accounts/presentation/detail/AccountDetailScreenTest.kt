@@ -44,7 +44,8 @@ class AccountDetailScreenTest {
         )
 
         compose.onNodeWithTag("account_alias").performScrollTo().performTextReplacement("Ahorro de viaje")
-        compose.onNodeWithTag("account_preset_bbva").performScrollTo().performClick()
+        compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
+        compose.onNodeWithTag("account_preset_bbva").performClick()
         compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
 
         compose.runOnIdle {
@@ -74,11 +75,27 @@ class AccountDetailScreenTest {
     fun savingsAccountShowsOnlyBankPresets() {
         setScreen(account())
 
-        compose.onNodeWithTag("account_preset_bcp").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
+        compose.onNodeWithTag("account_preset_bcp").assertIsDisplayed()
         compose.onNodeWithTag("account_preset_banco_nacion").assertIsDisplayed()
         compose.onAllNodesWithTag("account_preset_cash").assertCountEquals(0)
         compose.onAllNodesWithTag("account_preset_yape").assertCountEquals(0)
         compose.onAllNodesWithTag("account_preset_plin").assertCountEquals(0)
+    }
+
+    @Test
+    fun legacySavingsWalletPresetDisplaysAndSavesAsOther() {
+        var savedPreset: AccountPreset? = null
+        setScreen(
+            account().copy(preset = AccountPreset.YAPE),
+            onSaveAppearance = { _, preset -> savedPreset = preset },
+        )
+
+        compose.onNodeWithTag("account_institution_selector").assertIsDisplayed()
+        compose.onNodeWithText("Otro").assertIsDisplayed()
+        compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
+
+        compose.runOnIdle { assertEquals(AccountPreset.GENERIC, savedPreset) }
     }
 
     @Test

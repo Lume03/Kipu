@@ -67,6 +67,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -852,6 +855,7 @@ fun AccountDetailContent(
     var selectedPreset by remember(instrumentKey, account?.type, account?.preset) {
         mutableStateOf(account?.let { AccountPreset.normalizedFor(it.type, it.preset) })
     }
+    var isInstitutionMenuExpanded by remember(instrumentKey, account?.type) { mutableStateOf(false) }
     var showArchiveConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showReactivateConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showOpeningCorrection by remember(instrumentKey) { mutableStateOf(false) }
@@ -1096,18 +1100,37 @@ fun AccountDetailContent(
                                 }
                             }
                         } else if (selectablePresets.isNotEmpty()) {
-                            Text("Institución", style = MaterialTheme.typography.titleSmall)
-                            selectablePresets.chunked(3).forEach { presetRow ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().testTag("account_preset_selector"),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ExposedDropdownMenuBox(
+                                expanded = isInstitutionMenuExpanded,
+                                onExpandedChange = { isInstitutionMenuExpanded = it },
+                                modifier = Modifier.fillMaxWidth().testTag("account_preset_selector"),
+                            ) {
+                                OutlinedTextField(
+                                    value = selectablePresets.firstOrNull { it == selectedPreset }?.defaultName.orEmpty(),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Institución") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isInstitutionMenuExpanded)
+                                    },
+                                    shape = MaterialTheme.shapes.medium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
+                                        .testTag("account_institution_selector"),
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = isInstitutionMenuExpanded,
+                                    onDismissRequest = { isInstitutionMenuExpanded = false },
                                 ) {
-                                    presetRow.forEach { preset ->
-                                        FilterChip(
-                                            selected = selectedPreset == preset,
-                                            onClick = { selectedPreset = preset },
-                                            label = { Text(preset.defaultName) },
-                                            modifier = Modifier.weight(1f).testTag("account_preset_${preset.name.lowercase()}"),
+                                    selectablePresets.forEach { preset ->
+                                        DropdownMenuItem(
+                                            text = { Text(preset.defaultName) },
+                                            onClick = {
+                                                selectedPreset = preset
+                                                isInstitutionMenuExpanded = false
+                                            },
+                                            modifier = Modifier.testTag("account_preset_${preset.name.lowercase()}"),
                                         )
                                     }
                                 }
