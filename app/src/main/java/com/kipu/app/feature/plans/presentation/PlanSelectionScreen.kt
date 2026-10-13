@@ -207,7 +207,7 @@ private fun PremiumTrialCard() {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.plan_trial_title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 PlanBadge(R.string.plan_trial_badge)
@@ -281,7 +281,7 @@ private fun CommercialInfoNote() {
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
             Box(
-                modifier = Modifier.size(48.dp).semantics { contentDescription = description },
+                modifier = Modifier.size(24.dp).semantics { contentDescription = description },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
