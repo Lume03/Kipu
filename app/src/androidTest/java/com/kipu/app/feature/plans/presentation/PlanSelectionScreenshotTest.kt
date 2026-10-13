@@ -6,7 +6,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
@@ -21,16 +20,16 @@ class PlanSelectionScreenshotTest {
     val compose = createComposeRule()
 
     @Test
-    fun capturesCurrentPlanSelectionLightTheme() {
-        captureBaseline(dark = false, suffix = "light")
+    fun capturesUpdatedPlanSelectionLightTheme() {
+        captureAfter(dark = false, suffix = "after-light")
     }
 
     @Test
-    fun capturesCurrentPlanSelectionDarkTheme() {
-        captureBaseline(dark = true, suffix = "dark")
+    fun capturesUpdatedPlanSelectionDarkTheme() {
+        captureAfter(dark = true, suffix = "after-dark")
     }
 
-    private fun captureBaseline(dark: Boolean, suffix: String) {
+    private fun captureAfter(dark: Boolean, suffix: String) {
         compose.setContent {
             KipuTheme(darkTheme = dark) {
                 Surface(modifier = Modifier) {
@@ -44,11 +43,9 @@ class PlanSelectionScreenshotTest {
             }
         }
 
-        capture("plan-selection-before-$suffix-top")
-        compose.onNodeWithTag("plan-option-ANNUAL").performScrollTo()
-        capture("plan-selection-before-$suffix-options")
+        capture("plan-selection-$suffix-top")
         compose.onNodeWithText("Continuar con Plan Free").performScrollTo()
-        capture("plan-selection-before-$suffix-actions")
+        capture("plan-selection-$suffix-actions")
     }
 
     private fun capture(name: String) {
