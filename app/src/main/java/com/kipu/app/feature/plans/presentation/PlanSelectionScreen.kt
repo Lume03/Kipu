@@ -53,7 +53,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import com.kipu.app.R
 import com.kipu.app.feature.plans.domain.model.CommercialOption
-import com.kipu.app.ui.theme.KipuPrimaryContainer
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.ui.theme.KipuSelectionRing
 import com.kipu.app.ui.theme.KipuSurfaceContainerLowest
@@ -130,7 +129,10 @@ fun PlanSelectionScreen(
             enabled = !state.isConfirming,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = ControlShape,
-            colors = ButtonDefaults.buttonColors(containerColor = KipuPrimaryContainer),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
         ) {
             if (state.isConfirming) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
