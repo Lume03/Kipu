@@ -6,10 +6,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import com.kipu.app.ui.theme.KipuTheme
@@ -27,7 +30,7 @@ class DashboardEmptyStateTest {
         var navigatedToAccountCreation = false
         setEmptyDashboard(onNavigateToNewAccount = { navigatedToAccountCreation = true })
 
-        compose.onNodeWithText("+ Agregar primera cuenta").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed().performClick()
 
         compose.runOnIdle { assertTrue(navigatedToAccountCreation) }
     }
@@ -37,16 +40,32 @@ class DashboardEmptyStateTest {
         var navigatedToCardCreation = false
         setEmptyDashboard(onNavigateToNewCard = { navigatedToCardCreation = true })
 
-        compose.onNodeWithText("+ Vincular").performClick()
+        compose.onNodeWithText("También puedes agregar una tarjeta de crédito")
+            .assertIsDisplayed()
+            .performClick()
 
         compose.runOnIdle { assertTrue(navigatedToCardCreation) }
     }
 
     @Test
-    fun capturesCurrentEmptyDashboardLightTheme() = captureBefore(dark = false, name = "dashboard-empty-before-light")
+    fun emptyDashboardShowsSingleBalanceAndOneFirstStep() {
+        setEmptyDashboard()
+
+        compose.onNodeWithTag("dashboard_empty_balance").assertIsDisplayed()
+        compose.onNodeWithText("DINERO REAL DISPONIBLE").assertIsDisplayed()
+        compose.onAllNodesWithText("S/ 0.00").assertCountEquals(1)
+        compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed()
+        compose.onNodeWithText("Cupo Free").assertDoesNotExist()
+        compose.onNodeWithText("En cuentas").assertDoesNotExist()
+        compose.onNodeWithText("En efectivo").assertDoesNotExist()
+        compose.onNodeWithText("Tus datos permanecen privados y protegidos", substring = true).assertDoesNotExist()
+    }
 
     @Test
-    fun capturesCurrentEmptyDashboardDarkTheme() = captureBefore(dark = true, name = "dashboard-empty-before-dark")
+    fun capturesEmptyDashboardLightThemeAfter() = captureAfter(dark = false, name = "dashboard-empty-after-light")
+
+    @Test
+    fun capturesEmptyDashboardDarkThemeAfter() = captureAfter(dark = true, name = "dashboard-empty-after-dark")
 
     private fun setEmptyDashboard(
         onNavigateToNewAccount: () -> Unit = {},
@@ -57,18 +76,15 @@ class DashboardEmptyStateTest {
             KipuTheme(darkTheme = dark) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     EmptyDashboardContent(
-                        quotaCount = 0,
-                        maxQuota = 4,
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
-                        onNavigateToPlans = {},
                     )
                 }
             }
         }
     }
 
-    private fun captureBefore(dark: Boolean, name: String) {
+    private fun captureAfter(dark: Boolean, name: String) {
         setEmptyDashboard(dark = dark)
         compose.waitForIdle()
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
