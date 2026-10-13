@@ -254,3 +254,5 @@ Durante la verificación se actualizaron aserciones previas para textos/controle
 No se atribuye TalkBack hablado, runtime API 24, compra real, permiso manual ni prueba remota. T110 permanece abierto; no hay cambio de procedencia canónica. Las imágenes sintéticas y el código permiten revisión humana; no se realiza merge ni cierre automático de #39.
 
 Resultados instrumentados finales: 84 métodos distintos con último resultado PASS, incluido el caso nuevo de barras nativas de la ventana modal. La última tanda de tema, borrador, ventanas y contexto compacto termina `OK (7 tests)`; la comparativa clara adicional termina `OK (1 test)`. Se conserva y documenta la diferencia entre corrida conjunta, reejecuciones y recuento de métodos únicos.
+
+Entrega: commits `ef58d6e` (permiso del recordatorio) y `0118a19` (tema, pruebas y evidencia), subidos a `fix/dark-mode-filters-theme-audit`. [PR #55](https://github.com/Lume03/Kipu/pull/55) abierto en borrador hacia `main`, con `Refs #39`, revisión pendiente y sin merge. La copia `.preview` fue actualizada mediante install -r e inició con Status: ok; el ajuste de reposo quedó en su valor original 0.
