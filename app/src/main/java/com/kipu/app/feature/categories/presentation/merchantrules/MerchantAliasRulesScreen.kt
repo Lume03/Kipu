@@ -50,6 +50,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -67,6 +70,7 @@ import com.kipu.app.feature.categories.domain.model.MerchantAliasRuleId
 @Composable
 fun MerchantAliasRulesScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToPremium: () -> Unit,
     viewModel: MerchantAliasRulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -81,6 +85,7 @@ fun MerchantAliasRulesScreen(
         onDelete = viewModel::onDelete,
         onCancelEdit = viewModel::onCancelEdit,
         onNavigateBack = onNavigateBack,
+        onNavigateToPremium = onNavigateToPremium,
     )
 }
 
@@ -97,10 +102,12 @@ fun MerchantAliasRulesContent(
     onDelete: (MerchantAliasRuleId) -> Unit,
     onCancelEdit: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
+    onNavigateToPremium: () -> Unit = {},
 ) {
     val animationDuration = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !ValueAnimator.areAnimatorsEnabled()) 0 else 160
     }
+    var ruleDetailsExpanded by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -129,7 +136,35 @@ fun MerchantAliasRulesContent(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
 
-        Card(
+        if (!state.isPremiumVerified && state.editingRule == null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column {
+                            Text("PREMIUM", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("Automatiza tus comercios frecuentes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                    Text(
+                        "Crea reglas de alias con Premium. Tus movimientos confirmados nunca cambian.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Button(onClick = onNavigateToPremium, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Ver Premium")
+                    }
+                }
+            }
+        } else Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -137,50 +172,6 @@ fun MerchantAliasRulesContent(
         ) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Nueva regla", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                if (!state.isPremiumVerified && state.editingRule == null) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Icon(
-                                Icons.Default.WorkspacePremium,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(8.dp),
-                                ) {
-                                    Text(
-                                        "PREMIUM",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                                Text(
-                                    "Automatiza tus comercios frecuentes",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
-                                Text(
-                                    "Premium permite guardar reglas nuevas. Tus movimientos confirmados nunca cambian.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
-                            }
-                        }
-                    }
-                }
                 OutlinedTextField(
                     value = state.sourceText,
                     onValueChange = onSourceTextChange,
@@ -213,8 +204,8 @@ fun MerchantAliasRulesContent(
                     }
                 }
                 state.candidateMerchant?.let { candidate ->
-                    Button(onClick = onConfirmMerchant, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                        Text("Confirmar ${candidate.name}")
+                    OutlinedButton(onClick = onConfirmMerchant, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Seleccionar ${candidate.name}")
                     }
                 }
                 AnimatedVisibility(
@@ -242,7 +233,19 @@ fun MerchantAliasRulesContent(
                         }
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Usa el texto que aparece en la operación y elige su comercio canónico.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = { ruleDetailsExpanded = !ruleDetailsExpanded },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Text("Cómo funcionan las reglas")
+                }
+                AnimatedVisibility(visible = ruleDetailsExpanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         "Coincidencia exacta normalizada; la puntuación se conserva.",
                         style = MaterialTheme.typography.bodySmall,
@@ -263,6 +266,7 @@ fun MerchantAliasRulesContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    }
                 }
                 Button(
                     onClick = onSave,

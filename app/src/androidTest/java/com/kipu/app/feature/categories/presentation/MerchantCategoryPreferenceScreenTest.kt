@@ -6,9 +6,13 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.UserId
@@ -51,8 +55,11 @@ class MerchantCategoryPreferenceScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Volver").assertIsDisplayed().assertHasClickAction()
         composeTestRule.onNodeWithText("Categoría por comercio").assertIsDisplayed()
-        composeTestRule.onNodeWithText("No necesitas Premium para guardar esta preferencia").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Solo afecta operaciones futuras; no cambia movimientos confirmados.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Disponible también en Free.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Solo afecta operaciones futuras.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tambo ✓").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cambiar").assertHasClickAction()
+        composeTestRule.onNodeWithText("Filtrar categorías").assertIsDisplayed()
         composeTestRule.onNodeWithText("Alimentación").assertIsDisplayed().assertHasClickAction()
         composeTestRule.onNodeWithText("Categoría principal").assertIsDisplayed()
         composeTestRule.onNodeWithText("Guardar preferencia").assertHeightIsAtLeast(48.dp)
@@ -82,10 +89,33 @@ class MerchantCategoryPreferenceScreenTest {
         }
 
         composeTestRule.onNodeWithText("La categoría anterior ya no está disponible. Elige otra.").assertIsDisplayed()
-        composeTestRule.onNodeWithText("No necesitas Premium para guardar esta preferencia").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Disponible también en Free.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Otra categoría").assertIsDisplayed().assertHasClickAction()
         composeTestRule.onNodeWithText("Guardar preferencia").assertIsDisplayed().assertIsNotEnabled()
         assertTrue(composeTestRule.onNodeWithText("Guardar preferencia").fetchSemanticsNode().boundsInRoot.height > 0f)
+    }
+
+    @Test
+    fun categoryFilterKeepsTheBottomSaveActionAvailable() {
+        val owner = UserId.generate()
+        val merchant = MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo")
+        val food = category(owner, "Alimentación")
+        val transport = category(owner, "Transporte")
+        composeTestRule.setContent {
+            MerchantCategoryPreferenceContent(
+                state = MerchantCategoryPreferenceUiState(
+                    selectedMerchant = merchant,
+                    eligibleCategories = listOf(food, transport),
+                    selectedCategoryId = food.category.id,
+                ),
+                onSelectMerchant = {}, onSelectCategory = {}, onSave = {}, onClear = {},
+            )
+        }
+
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("trans")
+        composeTestRule.onNodeWithText("Transporte").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Alimentación").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Guardar preferencia").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
     }
 
     private fun category(owner: UserId, name: String) = MerchantCategoryChoice(
