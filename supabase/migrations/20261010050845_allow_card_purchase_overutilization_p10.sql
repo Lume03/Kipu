@@ -15,8 +15,12 @@ $old$;
 BEGIN
     v_definition := pg_catalog.pg_get_functiondef(v_function);
 
-    IF pg_catalog.strpos(v_definition, v_old_check) = 0
-       OR pg_catalog.length(v_definition) - pg_catalog.length(pg_catalog.replace(v_definition, v_old_check, '')) <> pg_catalog.length(v_old_check) THEN
+    IF pg_catalog.strpos(v_definition, v_old_check) = 0 THEN
+        -- A newer canonical registration function already removed the legacy rejection.
+        RETURN;
+    END IF;
+
+    IF pg_catalog.length(v_definition) - pg_catalog.length(pg_catalog.replace(v_definition, v_old_check, '')) <> pg_catalog.length(v_old_check) THEN
         RAISE EXCEPTION 'P10 migration expected exactly one credit-limit rejection in %', v_function;
     END IF;
 
