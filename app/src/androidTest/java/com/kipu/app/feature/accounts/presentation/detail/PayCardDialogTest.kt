@@ -1,23 +1,18 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
-import com.kipu.app.feature.accounts.domain.model.CardPaymentSuggestion
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.theme.KipuTheme
-import java.time.LocalDate
 import org.junit.Rule
 import org.junit.Test
 
@@ -26,15 +21,11 @@ class PayCardDialogTest {
     val compose = createComposeRule()
 
     @Test
-    fun suggestsNextInstallmentAndKeepsTotalDebtAvailable() {
+    fun showsCurrentDebtAndAllowsDialogDismissal() {
         compose.setContent {
             KipuTheme {
                 PayCardDialog(
                     creditCardWithSummary = summary(),
-                    nextInstallmentDue = CardPaymentSuggestion(
-                        dueDate = LocalDate.parse("2026-11-10"),
-                        amount = Money(2_500L, Currency.PEN),
-                    ),
                     eligibleAccounts = emptyList(),
                     onPayCreditCard = { _, _, _, _, _ -> },
                     onDismiss = {},
@@ -42,17 +33,10 @@ class PayCardDialogTest {
             }
         }
 
-        compose.onNodeWithText("Deuda total: PEN 90.00").assertIsDisplayed()
-        compose.onNodeWithTag("card_next_installment_suggestion")
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose.onNodeWithText("Vence", substring = true)
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose.onNodeWithTag("credit_card_payment_amount").assertTextContains("25.00")
-
-        compose.onNodeWithText("Total").performScrollTo().performClick()
-        compose.onNodeWithTag("credit_card_payment_amount").assertTextContains("90.00")
+        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
+        compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
+        compose.onNodeWithText("No tienes cuentas activas en PEN con saldo suficiente.").assertIsDisplayed()
+        compose.onNodeWithText("Cancelar").performClick()
     }
 
     @Test
@@ -68,7 +52,8 @@ class PayCardDialogTest {
             }
         }
 
-        compose.onNodeWithTag("credit_card_payment_amount").assertTextContains("90.00")
+        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
+        compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
     }
 
     private fun summary(): CreditCardWithSummary {
