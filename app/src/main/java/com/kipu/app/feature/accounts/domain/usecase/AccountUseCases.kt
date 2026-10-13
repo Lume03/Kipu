@@ -8,6 +8,7 @@ import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import java.time.Instant
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 
 class QuotaExceededException(message: String = "Límite de instrumentos activos alcanzado para el plan Free") :
     IllegalStateException(message)
@@ -21,6 +22,9 @@ class CreateLiquidAccount @Inject constructor(
     ): Result<Account> {
         if (account.type == com.kipu.app.feature.accounts.domain.model.AccountType.CREDIT_LIABILITY) {
             return Result.failure(IllegalArgumentException("Credit liability accounts are managed by their card"))
+        }
+        if (!AccountPreset.isCompatibleWith(account.type, account.preset)) {
+            return Result.failure(IllegalArgumentException("El tipo de cuenta no admite la presentación seleccionada"))
         }
         if (account.isComputableForQuota) {
             val currentCount = repository.getActiveComputableCount()
@@ -62,7 +66,22 @@ class UpdateInstrumentAppearance @Inject constructor(
         if (alias.isBlank() || alias.trim().length > 80) {
             return Result.failure(IllegalArgumentException("El alias debe tener entre 1 y 80 caracteres"))
         }
-        return repository.updateAccountAppearance(accountId, alias.trim(), preset, colorToken, iconToken, operationId)
+        val account = repository.observeAccountById(accountId).first()
+            ?: return Result.failure(IllegalArgumentException("Cuenta no encontrada"))
+        val normalizedPreset = AccountPreset.normalizedFor(account.type, preset)
+        if (!AccountPreset.isCompatibleWith(account.type, normalizedPreset)) {
+            return Result.failure(IllegalArgumentException("El tipo de cuenta no admite la presentación seleccionada"))
+        }
+        val normalizedColor = if (normalizedPreset != preset) normalizedPreset?.defaultColorToken else colorToken
+        val normalizedIcon = if (normalizedPreset != preset) normalizedPreset?.defaultIconToken else iconToken
+        return repository.updateAccountAppearance(
+            accountId,
+            alias.trim(),
+            normalizedPreset,
+            normalizedColor,
+            normalizedIcon,
+            operationId,
+        )
     }
 }
 

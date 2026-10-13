@@ -1252,7 +1252,8 @@ private fun CalmEmeraldAccountCard(
                     }
                 }
 
-                val issuerLabel = account.preset?.defaultName ?: account.type.toDashboardLabel()
+                val issuerLabel = AccountPreset.normalizedFor(account.type, account.preset)?.defaultName
+                    ?: account.type.toDashboardLabel()
                 val typeLabel = account.type.toDashboardLabel()
                 Text(
                     text = "$issuerLabel · $typeLabel · ${account.currency.name}",
@@ -1383,7 +1384,7 @@ private fun AccountType.toDashboardLabel(): String = when (this) {
 @Composable
 private fun resolveAccountBadgeColors(account: Account): Triple<Color, Color, String?> {
     val isDark = rememberCalmEmeraldColors().isDark
-    return when (account.preset) {
+    return when (AccountPreset.normalizedFor(account.type, account.preset)) {
         AccountPreset.BCP -> Triple(
             if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE),
             if (isDark) Color(0xFF7DD3FC) else Color(0xFF0284C7),

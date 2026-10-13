@@ -31,6 +31,30 @@ enum class AccountPreset(
 
     companion object {
         fun fromId(id: String?): AccountPreset? = entries.firstOrNull { it.name.equals(id, ignoreCase = true) }
+
+        fun selectableFor(accountType: AccountType): List<AccountPreset> = when (accountType) {
+            AccountType.CASH -> emptyList()
+            AccountType.SAVINGS,
+            AccountType.BANK -> listOf(BCP, BBVA, INTERBANK, SCOTIABANK, BANCO_NACION, GENERIC)
+            AccountType.DIGITAL_WALLET -> listOf(YAPE, PLIN)
+            AccountType.CREDIT_LIABILITY -> emptyList()
+        }
+
+        fun isCompatibleWith(accountType: AccountType, preset: AccountPreset?): Boolean = when (accountType) {
+            AccountType.CASH -> preset == CASH
+            AccountType.SAVINGS,
+            AccountType.BANK,
+            AccountType.DIGITAL_WALLET -> preset in selectableFor(accountType)
+            AccountType.CREDIT_LIABILITY -> preset == null
+        }
+
+        fun normalizedFor(accountType: AccountType, preset: AccountPreset?): AccountPreset? = when (accountType) {
+            AccountType.CASH -> CASH
+            AccountType.SAVINGS,
+            AccountType.BANK -> preset.takeIf { isCompatibleWith(accountType, it) } ?: GENERIC
+            AccountType.DIGITAL_WALLET -> preset
+            AccountType.CREDIT_LIABILITY -> null
+        }
     }
 }
 

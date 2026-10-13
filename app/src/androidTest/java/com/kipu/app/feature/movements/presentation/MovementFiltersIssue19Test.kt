@@ -165,7 +165,7 @@ class MovementFiltersIssue19Test {
         compose.onNodeWithTag("input_filter_max_amount", useUnmergedTree = true).assertContentDescriptionEquals("Importe máximo oculto")
     }
 
-    @Test fun compactDarkViewportWithLargeTextKeepsKeyboardActionsVisible() {
+    @Test fun compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible() {
         // Dialogs create their own Android density locals. Override only the fixture view's
         // context so sheet/calendar windows inherit the compact configuration as well.
         compose.setContent { AndroidView(modifier = Modifier.fillMaxSize(), factory = { context ->
@@ -185,6 +185,7 @@ class MovementFiltersIssue19Test {
                 } }
             }
         }) }
+        compose.onNodeWithTag("btn_close_filters").assertExists()
         compose.onNodeWithTag("input_filter_min_amount").performScrollTo().performClick().performTextInput("25")
         compose.onNodeWithTag("btn_apply_filters").assertIsDisplayed()
         saveCompactEvidence("after-compact-keyboard-dark.png", hasTestTag("panel_advanced_filters"))
@@ -193,7 +194,6 @@ class MovementFiltersIssue19Test {
         compose.onNodeWithTag("btn_reference_Cuentas").performScrollTo().performClick()
         compose.onNodeWithTag("input_reference_search").performClick().performTextInput("texto largo")
         compose.onNodeWithText("Listo").assertIsDisplayed().performClick()
-        compose.onNodeWithTag("btn_close_filters").assertIsDisplayed()
         compose.onNodeWithTag("btn_filter_dates").performScrollTo().performClick()
         compose.onNodeWithText("Seleccionar fechas").assertIsDisplayed()
         compose.onNodeWithText("Inicio").assertIsDisplayed()

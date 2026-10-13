@@ -172,10 +172,13 @@ fun AccountFormScreen(
                         selected = selectedType == type,
                         onClick = {
                             selectedType = type
-                            if (type == AccountType.CASH) {
-                                selectedPreset = AccountPreset.CASH
-                                if (alias.isBlank()) alias = "Efectivo"
+                            selectedPreset = when (type) {
+                                AccountType.CASH -> AccountPreset.CASH
+                                AccountType.SAVINGS, AccountType.BANK -> AccountPreset.GENERIC
+                                AccountType.DIGITAL_WALLET -> AccountPreset.YAPE
+                                AccountType.CREDIT_LIABILITY -> error("Credit liability accounts are internal")
                             }
+                            if (type == AccountType.CASH && alias.isBlank()) alias = "Efectivo"
                         },
                         label = { Text(label) },
                     )
@@ -199,26 +202,29 @@ fun AccountFormScreen(
                 }
             }
 
-            Text(
-                text = "Institución / Preset",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                AccountPreset.entries.chunked(3).forEach { rowPresets ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        rowPresets.forEach { preset ->
-                            FilterChip(
-                                selected = selectedPreset == preset,
-                                onClick = {
-                                    selectedPreset = preset
-                                    if (alias.isBlank()) alias = preset.defaultName
-                                },
-                                label = { Text(preset.defaultName) },
-                                modifier = Modifier.weight(1f),
-                            )
+            val selectablePresets = AccountPreset.selectableFor(selectedType)
+            if (selectablePresets.isNotEmpty()) {
+                Text(
+                    text = "Institución / Preset",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    selectablePresets.chunked(3).forEach { rowPresets ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowPresets.forEach { preset ->
+                                FilterChip(
+                                    selected = selectedPreset == preset,
+                                    onClick = {
+                                        selectedPreset = preset
+                                        if (alias.isBlank()) alias = preset.defaultName
+                                    },
+                                    label = { Text(preset.defaultName) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
                     }
                 }
