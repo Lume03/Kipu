@@ -61,14 +61,6 @@ BEGIN
     IF v_channel IS NOT NULL AND v_channel NOT IN ('YAPE','PLIN') THEN
         RETURN jsonb_build_object('status','REJECTED','error',jsonb_build_object('code','INVALID_PAYMENT_CHANNEL','field','payment_channel','retryable',false));
     END IF;
-    IF v_channel IS NOT NULL AND NOT EXISTS (
-        SELECT 1 FROM public.accounts wallet
-        WHERE wallet.user_id=v_owner AND wallet.account_type='WALLET'
-          AND wallet.preset_id=v_channel AND wallet.linked_account_id=(v_tx->>'source_account_id')::uuid
-          AND NOT wallet.is_archived
-    ) THEN
-        RETURN jsonb_build_object('status','REJECTED','error',jsonb_build_object('code','WALLET_NOT_AFFILIATED','field','payment_channel','retryable',false));
-    END IF;
     FOREACH v_field IN ARRAY ARRAY['id','type','currency_code'] LOOP
         IF jsonb_typeof(v_tx->v_field) IS DISTINCT FROM 'string' THEN
             RETURN jsonb_build_object('status','REJECTED','error',jsonb_build_object('code','INVALID_COMMAND','field',v_field,'retryable',false));
@@ -119,6 +111,16 @@ BEGIN
         WHERE user_id=v_owner AND idempotency_key=p_command->>'idempotency_key';
     IF FOUND AND v_existing_version <> 2 THEN
         RETURN jsonb_build_object('status','CONFLICT','error',jsonb_build_object('code','CONTRACT_VERSION_CONFLICT','retryable',false));
+    END IF;
+    -- The delegated V1 path performs the canonical hash comparison and returns
+    -- the stored result for a replay. Only new commands need current wallet state.
+    IF NOT FOUND AND v_channel IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM public.accounts wallet
+        WHERE wallet.user_id=v_owner AND wallet.account_type='WALLET'
+          AND wallet.preset_id=v_channel AND wallet.linked_account_id=(v_tx->>'source_account_id')::uuid
+          AND NOT wallet.is_archived
+    ) THEN
+        RETURN jsonb_build_object('status','REJECTED','error',jsonb_build_object('code','WALLET_NOT_AFFILIATED','field','payment_channel','retryable',false));
     END IF;
     v_response := internal.register_transaction_pre_hash_v2(
         jsonb_set(jsonb_set(p_command,'{contract_version}','1'::jsonb),'{transaction}',v_tx - 'payment_channel')

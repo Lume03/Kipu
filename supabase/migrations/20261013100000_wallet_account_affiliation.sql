@@ -7,6 +7,15 @@ CREATE INDEX IF NOT EXISTS idx_accounts_user_linked_account
     ON public.accounts(user_id, linked_account_id)
     WHERE linked_account_id IS NOT NULL;
 
+-- A linked account must belong to the same owner as its wallet.
+CREATE UNIQUE INDEX IF NOT EXISTS accounts_user_id_id_key ON public.accounts(user_id, id);
+ALTER TABLE public.accounts
+    DROP CONSTRAINT IF EXISTS accounts_linked_account_owner_fkey;
+ALTER TABLE public.accounts
+    ADD CONSTRAINT accounts_linked_account_owner_fkey
+    FOREIGN KEY (user_id, linked_account_id)
+    REFERENCES public.accounts(user_id, id);
+
 ALTER TABLE public.accounts
     DROP CONSTRAINT IF EXISTS accounts_wallet_link_shape_check;
 ALTER TABLE public.accounts
@@ -70,6 +79,13 @@ BEGIN
         RAISE EXCEPTION 'INVALID_REQUEST: Missing required UUIDs';
     END IF;
     IF v_initial_balance < 0 THEN RAISE EXCEPTION 'INVALID_AMOUNT: Initial balance cannot be negative'; END IF;
+    SELECT * INTO v_existing_receipt FROM internal.command_receipts
+    WHERE user_id = v_user_id AND idempotency_key = v_operation_id::text;
+    IF FOUND THEN
+        IF v_existing_receipt.request_hash = v_request_hash THEN RETURN v_existing_receipt.response_payload; END IF;
+        RAISE EXCEPTION 'OPERATION_COLLISION: Operation ID reused with differing payload';
+    END IF;
+
     IF v_linked_account_id IS NOT NULL THEN
         v_required_preset := CASE v_preset_id WHEN 'YAPE' THEN 'BCP' WHEN 'PLIN' THEN 'BBVA' ELSE NULL END;
         IF v_type <> 'WALLET' OR v_required_preset IS NULL OR v_initial_balance <> 0 OR NOT EXISTS (
@@ -82,13 +98,6 @@ BEGIN
         ) THEN
             RAISE EXCEPTION 'INVALID_WALLET_AFFILIATION: Wallet requires a compatible active bank account and zero own balance';
         END IF;
-    END IF;
-
-    SELECT * INTO v_existing_receipt FROM internal.command_receipts
-    WHERE user_id = v_user_id AND idempotency_key = v_operation_id::text;
-    IF FOUND THEN
-        IF v_existing_receipt.request_hash = v_request_hash THEN RETURN v_existing_receipt.response_payload; END IF;
-        RAISE EXCEPTION 'OPERATION_COLLISION: Operation ID reused with differing payload';
     END IF;
 
     IF v_type <> 'CASH' THEN

@@ -16,6 +16,8 @@
 
 **Refined**: 2026-10-06 - Seguimiento #25: la seleccion y la consulta comparten un mapeo oficial, exacto y verificable de producto/preset. Las tarjetas antiguas solo recuperan identidad con alias oficial exacto, emisor y red coincidentes; en otro caso permanecen sin referencia. No se alteran snapshot, ledger ni calculos.
 
+**Refined**: 2026-10-14 - Auditoria PR #53: se confirma la compatibilidad Yape→BCP y Plin→BBVA; la afiliacion requiere ownership compuesto, y los ultimos cuatro digitos de debito son opcionales cuando no se registra tarjeta asociada.
+
 ## Control de la Epica
 
 | Campo | Valor |
@@ -272,10 +274,11 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **RN-CTA-02 - Eliminacion y archivo**: Un instrumento solo PUEDE eliminarse fisicamente si nunca tuvo movimientos, no tiene deuda y no posee vinculos dependientes. En cualquier otro caso DEBE archivarse; el archivo impide nuevas operaciones y preserva relaciones y efectos previos.
 - **RN-CTA-03 - Cupo Free**: Un usuario Free PUEDE mantener hasta cuatro instrumentos activos que consumen cupo. Cada cuenta computable y cada tarjeta activa consumen un cupo independiente; por ello, una tarjeta de debito y su cuenta vinculada consumen dos cupos aunque compartan saldo. Solo el efectivo fisico y la Cuenta Metas virtual no consumen cupo. Los excedentes historicos se preservan y nunca se eliminan ni excluyen de calculos por una restriccion comercial.
 - **RN-CTA-04 - Propiedad exclusiva**: Toda cuenta, tarjeta, movimiento, alerta, tasa personal, pago, compra y simulacion DEBE pertenecer a un solo usuario y solo ser consultable o modificable bajo su sesion autorizada.
+- **RN-CTA-05 - Afiliacion de billeteras**: Yape DEBE afiliarse exclusivamente a una cuenta BCP y Plin exclusivamente a una cuenta BBVA. La cuenta vinculada DEBE pertenecer al mismo usuario; la relacion debe estar protegida por una clave foranea compuesta, ademas de la validacion del RPC.
 
 ### Functional Requirements
 
-- **RF-C01 - Alta de cuentas liquidas**: El sistema DEBE permitir crear cuentas de efectivo, ahorro o bancarias y billeteras digitales con alias, tipo, moneda PEN o USD, icono, color, saldo inicial y fecha y hora de apertura. PEN DEBE aparecer seleccionada inicialmente y el saldo inicial DEBE quedar representado por el movimiento exigido en RN-10. Tras el alta, importe, moneda y momento de apertura NO DEBEN editarse; toda correccion debe seguir el tratamiento auditable de RN-10.
+- **RF-C01 - Alta de cuentas liquidas**: El sistema DEBE permitir crear cuentas de efectivo, ahorro o bancarias y billeteras digitales con alias, tipo, moneda PEN o USD, icono, color, saldo inicial y fecha y hora de apertura. PEN DEBE aparecer seleccionada inicialmente y el saldo inicial DEBE quedar representado por el movimiento exigido en RN-10. Al crear una cuenta de ahorro/bancaria, registrar una tarjeta de debito asociada es opcional; si se registra, se solicitan sus ultimos cuatro digitos. Tras el alta, importe, moneda y momento de apertura NO DEBEN editarse; toda correccion debe seguir el tratamiento auditable de RN-10.
 - **RF-C02 - Registro tipado de tarjetas**: El sistema DEBE permitir registrar cada tarjeta como debito o credito, con alias visual opcional, entidad emisora, red Visa, Mastercard, Amex u Otra generica y ultimos cuatro digitos; el tipo confirmado determina si representa acceso a un activo existente o un pasivo potencial. Emisor, red y ultimos cuatro digitos NO DEBEN tratarse como clave unica: una coincidencia intencional se permite tras advertirla y exige un alias distinto para diferenciar las tarjetas. Otra no crea una marca nueva y usa identidad visual generica.
 - **RF-C03 - Vinculo de debito sin duplicacion**: Toda tarjeta de debito DEBE vincularse a una cuenta activa de ahorro o bancaria del mismo usuario y moneda, compartir su saldo disponible y NO crear un saldo, activo o movimiento adicional por el mero registro del plastico.
 - **RF-C04 - Linea y saldos de credito**: Para cada tarjeta de credito, el sistema DEBE mostrar linea total, deuda actual como credito utilizado, credito disponible igual al mayor valor entre linea menos deuda y cero, y porcentaje de utilizacion. Si la linea es cero, el porcentaje DEBE ser "No disponible". Los dias preferidos de corte y vencimiento entre 1 y 31 DEBEN conservarse, y su fecha efectiva DEBE ajustarse al ultimo dia valido de los meses cortos.
@@ -358,6 +361,7 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 ## Assumptions
 
 - PEN y USD se administran por separado. Esta epica no define tipos de cambio ni una suma patrimonial comun entre monedas.
+- Yape se afilia exclusivamente a BCP y Plin exclusivamente a BBVA; esta compatibilidad fue confirmada para PR #53 el 2026-10-14.
 - Los importes tienen precision de centimo; el rango monetario maximo permitido se definira en planificacion sin debilitar las pruebas de exactitud.
 - El saldo inicial de una cuenta de activo puede ser cero, pero no negativo.
 - Una tarjeta de debito y su cuenta vinculada cuentan como dos instrumentos activos para el cupo Free, aunque solo la cuenta represente dinero. Efectivo fisico y Cuenta Metas virtual son las unicas exclusiones de esta epica.

@@ -451,7 +451,8 @@ fun UnifiedInstrumentFormScreen(
     val cycleIsValid = billingDayInput.toIntOrNull() in 1..31 && dueDayInput.toIntOrNull() in 1..31
     val lastFourIsValid = when (kind) {
         InstrumentKind.CREDIT_CARD -> lastFourDigits.length == 4
-        InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.length == 4 && lastFourDigits.all(Char::isDigit)
+        InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.isEmpty() ||
+            (lastFourDigits.length == 4 && lastFourDigits.all(Char::isDigit))
         else -> true
     }
     val canSaveInstrument = alias.isNotBlank() && !Card.isForbiddenSensitiveCardInput(alias) &&
@@ -598,7 +599,8 @@ fun UnifiedInstrumentFormScreen(
             cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
-        } else if (kind == InstrumentKind.SAVINGS_DEBIT && (lastFourDigits.length != 4 || !lastFourDigits.all(Char::isDigit))) {
+        } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
+            (lastFourDigits.length != 4 || !lastFourDigits.all(Char::isDigit))) {
             cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
@@ -1081,7 +1083,7 @@ fun UnifiedInstrumentFormScreen(
                         }
                         Text("Modalidad", style = MaterialTheme.typography.labelLarge)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = !walletAffiliated, onClick = { walletAffiliated = false }, label = { Text("Saldo propio (DNI)") })
+                            FilterChip(selected = !walletAffiliated, onClick = { walletAffiliated = false }, label = { Text("Saldo propio de la billetera") })
                             FilterChip(selected = walletAffiliated, onClick = { walletAffiliated = true }, label = { Text("Afiliada a cuenta") })
                         }
                         if (walletAffiliated) {
@@ -1123,8 +1125,8 @@ fun UnifiedInstrumentFormScreen(
                     if (kind == InstrumentKind.SAVINGS_DEBIT) {
                         OutlinedTextField(value = lastFourDigits, onValueChange = {
                             lastFourDigits = it.filter(Char::isDigit).take(4); cardError = null
-                        }, label = { Text("Últimos 4 dígitos · Obligatorio") },
-                            supportingText = { Text(cardError ?: "Necesarios para identificar tu tarjeta de débito.") },
+                        }, label = { Text("Últimos 4 dígitos · Opcional") },
+                            supportingText = { Text(cardError ?: "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true,
                             isError = cardError != null,
                             modifier = Modifier.fillMaxWidth().bringIntoViewRequester(lastFourBringIntoViewRequester))
