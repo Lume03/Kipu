@@ -98,6 +98,8 @@ fun MerchantCategoryPreferenceContent(
     val filteredCategories = state.eligibleCategories.filter {
         it.displayName.contains(categoryQuery, ignoreCase = true)
     }
+    val selectedCategoryIsVisible = state.selectedCategoryId == null ||
+        filteredCategories.any { it.category.id == state.selectedCategoryId }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -122,7 +124,7 @@ fun MerchantCategoryPreferenceContent(
                 Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
                     Button(
                         onClick = onSave,
-                        enabled = !state.isSaving && selectedCategoryIsEligible && !state.needsNewChoice,
+                        enabled = !state.isSaving && selectedCategoryIsEligible && selectedCategoryIsVisible && !state.needsNewChoice,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 12.dp)
@@ -266,6 +268,13 @@ fun MerchantCategoryPreferenceContent(
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
                     )
+                    if (!selectedCategoryIsVisible) {
+                        Text(
+                            "La categoría seleccionada no coincide con el filtro.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (state.eligibleCategories.isEmpty()) {
                         Text(
                             "No hay categorías elegibles. Activa una categoría disponible o elige otro comercio más tarde.",

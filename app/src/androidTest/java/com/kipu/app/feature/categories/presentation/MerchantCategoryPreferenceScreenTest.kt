@@ -3,15 +3,15 @@ package com.kipu.app.feature.categories.presentation
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -112,10 +112,13 @@ class MerchantCategoryPreferenceScreenTest {
             )
         }
 
-        composeTestRule.onNode(hasSetTextAction()).performTextInput("trans")
+        val categoryFilter = composeTestRule.onAllNodes(hasSetTextAction())
+        categoryFilter.assertCountEquals(1)
+        categoryFilter[0].performTextInput("trans")
         composeTestRule.onNodeWithText("Transporte").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alimentación").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Guardar preferencia").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+        composeTestRule.onAllNodesWithText("Alimentación").assertCountEquals(0)
+        composeTestRule.onNodeWithText("La categoría seleccionada no coincide con el filtro.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Guardar preferencia").assertIsDisplayed().assertHeightIsAtLeast(48.dp).assertIsNotEnabled()
     }
 
     private fun category(owner: UserId, name: String) = MerchantCategoryChoice(

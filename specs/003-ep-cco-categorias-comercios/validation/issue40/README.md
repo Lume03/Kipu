@@ -25,10 +25,14 @@
 
 ## Intento de validación actual
 
-El 2026-10-13 se repitieron los mismos comandos después de los ajustes de revisión. Esta sesión de terminal no pudo iniciar Gradle porque el entorno bloqueó la conexión local requerida: `java.io.IOException: Unable to establish loopback connection`. El bloqueo ocurre antes de compilar o ejecutar pruebas, por lo que no sustituye los resultados reales anteriores ni confirma ejecución nueva. Debe repetirse desde Android Studio o una terminal con loopback disponible.
+| Comando | Resultado real |
+|---|---|
+| `./gradlew.bat :app:compileDebugAndroidTestKotlin --no-daemon` | La compilación llegó a Kotlin. No reportó errores en `MerchantAliasRulesScreenTest.kt` ni `MerchantCategoryPreferenceScreenTest.kt`; falló únicamente por errores preexistentes en otros archivos. |
+
+Los errores propios introducidos por el PR fueron corregidos. El bloqueo restante requiere un ticket o trabajo separado.
 
 ## Pruebas Android y evidencia visual
 
-`compileDebugAndroidTestKotlin` continúa bloqueado por pruebas Android preexistentes fuera del alcance de la issue #40, entre ellas `CreditCardLedgerQueriesTest`, `AccountDetailScreenTest`, `PayCardDialogTest` y `MovementFiltersIssue19Test`. No se modificaron esas pruebas ni existe un ticket asociado a este bloqueo en esta evidencia.
+Los únicos bloqueadores restantes de `compileDebugAndroidTestKotlin` son preexistentes y están fuera del alcance de la issue #40: `CreditCardLedgerQueriesTest.kt`, `AccountDetailScreenTest.kt`, `PayCardDialogTest.kt` y `MovementFiltersIssue19Test.kt`. No se modificaron esos archivos; deben registrarse en un ticket o abordarse en trabajo separado.
 
 Las pruebas de UI nuevas no se ejecutaron mientras ese paso de compilación siga bloqueado. Tampoco se registran aún capturas Light/Dark ni la verificación manual de fuente grande, teclado, cabecera y CTA; deben obtenerse desde el emulador indicado antes de cerrar el PR.

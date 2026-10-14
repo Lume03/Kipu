@@ -1,12 +1,13 @@
 package com.kipu.app.feature.categories.presentation
 
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
@@ -45,8 +46,8 @@ class MerchantAliasRulesScreenTest {
         composeTestRule.onNodeWithText("Automatiza tus comercios frecuentes").assertIsDisplayed()
         composeTestRule.onNodeWithText("Ver Premium").assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick()
         composeTestRule.runOnIdle { assert(openedPremium) }
-        composeTestRule.onNodeWithText("Texto fuente exacto").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Guardar alias").assertDoesNotExist()
+        composeTestRule.onAllNodesWithText("Texto fuente exacto").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Guardar alias").assertCountEquals(0)
         composeTestRule.onNodeWithText("Sin reglas de alias aún").performScrollTo().assertIsDisplayed()
     }
 
