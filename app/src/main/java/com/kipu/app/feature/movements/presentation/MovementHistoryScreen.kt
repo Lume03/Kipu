@@ -8,7 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -100,6 +102,8 @@ import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import coil3.compose.AsyncImage
+import com.kipu.app.BuildConfig
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -352,11 +356,13 @@ fun MovementHistoryRoute(
                             .testTag("input_search_movements"),
                     )
 
-                    // Type Filter Chips: Todos, Gastos, Ingresos, Transf.
-                    FlowRow(
+                    // Type Filter Chips: Todos, Gastos, Ingresos, Transferencias (Single horizontal row)
+                    Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                     ) {
                         CalmEmeraldTypeChip(
                             label = "Todos",
@@ -380,38 +386,12 @@ fun MovementHistoryRoute(
                             modifier = Modifier.testTag("chip_filter_income"),
                         )
                         CalmEmeraldTypeChip(
-                            label = "Transf.",
+                            label = "Transferencias",
                             dotColor = emeraldColors.transferBlue,
                             selected = uiState.selectedFilterType == MovementType.TRANSFER,
                             onClick = { viewModel.onFilterTypeSelected(MovementType.TRANSFER) },
                             modifier = Modifier.testTag("chip_filter_transfer"),
                         )
-
-                        if (uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null || uiState.searchQuery.isNotBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = emeraldColors.surfaceCard,
-                                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable(onClick = viewModel::onClearFilters)
-                                    .testTag("btn_clear_filters")
-                                    .semantics { contentDescription = "Limpiar todos los filtros" },
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .heightIn(min = 48.dp)
-                                        .padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.movements_filter_clear),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = emeraldColors.expenseCoral,
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     // Summary Card for Filtered Query (pre-computed in ViewModel)
@@ -862,32 +842,12 @@ fun TransactionRow(
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
-            // Tinted circle icon
-            Surface(
-                shape = CircleShape,
-                color = iconBg,
-                modifier = Modifier.size(40.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (item.categoryIcon != null) {
-                        Icon(
-                            imageVector = resolveCategoryIcon(item.categoryIcon),
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    } else {
-                        Text(
-                            text = title.take(1).uppercase(),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                            ),
-                            color = iconTint,
-                        )
-                    }
-                }
-            }
+            TransactionIconAvatar(
+                item = item,
+                isVoided = isVoided,
+                iconBg = iconBg,
+                iconTint = iconTint,
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -1070,7 +1030,7 @@ private fun CalmEmeraldTypeChip(
     ) {
         Row(
             modifier = Modifier
-                .heightIn(min = 48.dp)
+                .heightIn(min = 30.dp)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1092,9 +1052,9 @@ private fun CalmEmeraldTypeChip(
 
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium.copy(
+                style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                 ),
                 color = contentColor,
             )
@@ -1265,6 +1225,90 @@ private fun formatSignedBigIntegerMinor(minor: BigInteger): Pair<String, String>
         maximumFractionDigits = 2
     }.format(bd)
     return prefix to formatted
+}
+
+private val merchantLogoCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+@Composable
+fun TransactionIconAvatar(
+    item: TransactionItem,
+    isVoided: Boolean,
+    iconBg: Color,
+    iconTint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val tx = item.transaction
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    val drawableId = androidx.compose.runtime.remember(item.merchantLogoKey) {
+        val key = item.merchantLogoKey
+        if (key != null) {
+            merchantLogoCache.getOrPut(key) {
+                @Suppress("DiscouragedApi")
+                context.resources.getIdentifier(key, "drawable", context.packageName)
+            }
+        } else 0
+    }
+    
+    val remoteLogoUrl = androidx.compose.runtime.remember(item.merchantLogoKey) {
+        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+        item.merchantLogoKey
+            ?.takeIf { it.isNotBlank() && supabaseUrl.isNotBlank() }
+            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${android.net.Uri.encode(it, "/")}" }
+    }
+    
+    val hasMerchantProfile = !item.merchantName.isNullOrBlank()
+
+    Surface(
+        shape = CircleShape,
+        color = if (hasMerchantProfile && !isVoided && (drawableId != 0 || remoteLogoUrl != null)) Color.White else iconBg,
+        modifier = modifier.size(40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            when {
+                // 1. Logo de Comercio
+                !isVoided && drawableId != 0 -> {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(drawableId),
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                !isVoided && remoteLogoUrl != null -> {
+                    AsyncImage(
+                        model = remoteLogoUrl,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                // 2. Icono de Categoría
+                !item.categoryIcon.isNullOrBlank() -> {
+                    Icon(
+                        imageVector = resolveCategoryIcon(item.categoryIcon),
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                // 3. Fallback visual temático de MovementType
+                else -> {
+                    val fallbackIcon = when (tx.type) {
+                        MovementType.INCOME -> androidx.compose.material.icons.Icons.Rounded.Check
+                        MovementType.EXPENSE -> androidx.compose.material.icons.Icons.Rounded.Close
+                        MovementType.TRANSFER -> androidx.compose.material.icons.Icons.Rounded.Sync
+                    }
+                    Icon(
+                        imageVector = fallbackIcon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun movementReceiptPreferenceKey(item: TransactionItem): String =

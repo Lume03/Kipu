@@ -747,7 +747,7 @@ private fun MovementFiltersSheetContent(
                             onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
                         )
                         MovementTypeSegment(
-                            title = "Transf.",
+                            title = "Transferencias",
                             isSelected = draft.movementType == MovementType.TRANSFER,
                             bulletColor = Color(0xFF2563EB),
                             activeColor = Color(0xFF2563EB),
