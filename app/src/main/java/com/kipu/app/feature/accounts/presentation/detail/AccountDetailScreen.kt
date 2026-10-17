@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
+import android.net.Uri
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -98,6 +99,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -117,6 +119,9 @@ import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.FinancialMovement
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.MovementKind
+import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
+import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
@@ -2766,9 +2771,22 @@ private fun CreditCardMovementRow(
             Triple(Icons.Rounded.AccountBalance, emeraldColors.primaryDeep, emeraldColors.pillTrack)
     }
 
+    val hasMerchantIdentity = movement.kind == MovementKind.CREDIT_PURCHASE &&
+        (!movement.merchantName.isNullOrBlank() || !movement.merchantLogoKey.isNullOrBlank())
+    val context = LocalContext.current
+    val merchantDrawableId = remember(movement.merchantLogoKey) {
+        movement.merchantLogoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
+    }
+    val remoteMerchantLogoUrl = remember(movement.merchantLogoKey) {
+        val supabaseUrl = com.kipu.app.BuildConfig.SUPABASE_URL.trimEnd('/')
+        movement.merchantLogoKey
+            ?.takeIf { it.isNotBlank() && supabaseUrl.isNotBlank() }
+            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
+    }
+
     val title = when (movement.kind) {
         MovementKind.CARD_PAYMENT_LIABILITY, MovementKind.CARD_PAYMENT_CASH -> "Pago Tarjeta de Crédito"
-        MovementKind.CREDIT_PURCHASE -> "Consumo con tarjeta"
+        MovementKind.CREDIT_PURCHASE -> movement.merchantName?.takeIf { it.isNotBlank() } ?: "Consumo con tarjeta"
         MovementKind.ADJUSTMENT -> "Ajuste de crédito"
         MovementKind.REVERSAL -> "Reverso de movimiento"
         MovementKind.OPENING -> "Apertura"
@@ -2789,16 +2807,33 @@ private fun CreditCardMovementRow(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = boxBg,
+            color = if (hasMerchantIdentity) Color.Transparent else boxBg,
             modifier = Modifier.size(42.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp),
-                )
+                when {
+                    hasMerchantIdentity -> MerchantAvatar(
+                        drawableId = merchantDrawableId,
+                        remoteLogoUrl = remoteMerchantLogoUrl,
+                        profile = getMerchantVisualProfile(
+                            movement.merchantName ?: "Comercio",
+                            movement.merchantBrandColor,
+                        ),
+                        size = 42.dp,
+                    )
+                    movement.kind == MovementKind.CREDIT_PURCHASE && !movement.categoryIcon.isNullOrBlank() -> Icon(
+                        imageVector = resolveCategoryIcon(movement.categoryIcon),
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    else -> Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         }
 

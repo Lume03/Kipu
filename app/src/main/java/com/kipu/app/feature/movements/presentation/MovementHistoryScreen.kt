@@ -93,6 +93,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
+import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
 import com.kipu.app.feature.movements.domain.model.MovementType
@@ -102,7 +104,6 @@ import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
-import coil3.compose.AsyncImage
 import com.kipu.app.BuildConfig
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -392,6 +393,30 @@ fun MovementHistoryRoute(
                             onClick = { viewModel.onFilterTypeSelected(MovementType.TRANSFER) },
                             modifier = Modifier.testTag("chip_filter_transfer"),
                         )
+                        if (uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null || uiState.searchQuery.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = emeraldColors.surfaceCard,
+                                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(onClick = viewModel::onClearFilters)
+                                    .testTag("btn_clear_filters")
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = "Limpiar todos los filtros"
+                                    },
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.movements_filter_clear),
+                                    color = emeraldColors.expenseCoral,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier
+                                        .heightIn(min = 48.dp)
+                                        .padding(horizontal = 12.dp),
+                                )
+                            }
+                        }
                     }
 
                     // Summary Card for Filtered Query (pre-computed in ViewModel)
@@ -1030,7 +1055,7 @@ private fun CalmEmeraldTypeChip(
     ) {
         Row(
             modifier = Modifier
-                .heightIn(min = 30.dp)
+                .heightIn(min = 48.dp)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1259,41 +1284,29 @@ fun TransactionIconAvatar(
     
     val hasMerchantProfile = !item.merchantName.isNullOrBlank()
 
-    Surface(
-        shape = CircleShape,
-        color = if (hasMerchantProfile && !isVoided && (drawableId != 0 || remoteLogoUrl != null)) Color.White else iconBg,
-        modifier = modifier.size(40.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            when {
-                // 1. Logo de Comercio
-                !isVoided && drawableId != 0 -> {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(drawableId),
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-                !isVoided && remoteLogoUrl != null -> {
-                    AsyncImage(
-                        model = remoteLogoUrl,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-                // 2. Icono de Categoría
-                !item.categoryIcon.isNullOrBlank() -> {
+    if (!isVoided && (hasMerchantProfile || drawableId != 0 || remoteLogoUrl != null)) {
+        MerchantAvatar(
+            drawableId = drawableId,
+            remoteLogoUrl = remoteLogoUrl,
+            profile = getMerchantVisualProfile(item.merchantName ?: "Comercio", item.merchantBrandColor),
+            size = 40.dp,
+            modifier = modifier,
+        )
+    } else {
+        Surface(
+            shape = CircleShape,
+            color = iconBg,
+            modifier = modifier.size(40.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (!item.categoryIcon.isNullOrBlank()) {
                     Icon(
                         imageVector = resolveCategoryIcon(item.categoryIcon),
                         contentDescription = null,
                         tint = iconTint,
                         modifier = Modifier.size(20.dp),
                     )
-                }
-                // 3. Fallback visual temático de MovementType
-                else -> {
+                } else {
                     val fallbackIcon = when (tx.type) {
                         MovementType.INCOME -> androidx.compose.material.icons.Icons.Rounded.Check
                         MovementType.EXPENSE -> androidx.compose.material.icons.Icons.Rounded.Close

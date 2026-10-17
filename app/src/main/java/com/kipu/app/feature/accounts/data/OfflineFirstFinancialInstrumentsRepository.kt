@@ -1737,8 +1737,16 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     flow {
                         movementDao.backfillPostedCardPurchases(access.userId, cardId.value)
                         emitAll(
-                            movementDao.observeByCard(access.userId, cardId.value).map { list ->
+                            combine(
+                                movementDao.observeByCard(access.userId, cardId.value),
+                                database.categoryDao().observePresentationsForUser(access.userId),
+                                database.merchantCatalogDao().observeMerchants(),
+                            ) { list, presentations, merchants ->
+                                val presentationsById = presentations.associateBy { it.categoryId }
+                                val merchantsById = merchants.associateBy { it.id }
                                 list.map { entity ->
+                                    val merchant = entity.merchantId?.let(merchantsById::get)
+                                    val category = entity.categoryId?.let(presentationsById::get)
                                     FinancialMovement(
                                         id = MovementId(entity.id),
                                         operationId = OperationId(entity.operationId),
@@ -1754,6 +1762,10 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                                         reversesMovementId = entity.reversesMovementId?.let { MovementId(it) },
                                         adjustsMovementId = entity.adjustsMovementId?.let { MovementId(it) },
                                         createdAt = Instant.ofEpochMilli(entity.createdAt / 1000L),
+                                        merchantName = entity.merchantProvisionalText?.takeIf { it.isNotBlank() } ?: merchant?.name,
+                                        merchantLogoKey = merchant?.logoKey,
+                                        merchantBrandColor = merchant?.brandColor,
+                                        categoryIcon = category?.icon,
                                     )
                                 }
                             }
