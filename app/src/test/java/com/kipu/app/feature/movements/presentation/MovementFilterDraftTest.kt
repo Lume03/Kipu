@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.*
@@ -34,5 +35,13 @@ class MovementFilterDraftTest {
         assertEquals(setOf("bank"), draft.validate().filters?.accountIds)
         assertEquals(2000L, draft.validate().filters?.minAmountMinor)
         assertNotNull(MovementFilterDraft(fromDate = "2026-10-01").validate().filters)
+    }
+
+    @Test fun walletChannelSelectionSurvivesTheAppliedDraftRoundTrip() {
+        val filters = AdvancedFiltersState(paymentChannels = setOf(WalletPaymentChannel.PLIN))
+        val restored = MovementFilterDraft.fromApplied(filters)
+
+        assertEquals(setOf(WalletPaymentChannel.PLIN), restored.paymentChannels)
+        assertEquals(setOf(WalletPaymentChannel.PLIN), restored.validate().filters?.paymentChannels)
     }
 }

@@ -25,6 +25,21 @@ class MovementRoomMigrationTest {
     )
 
     @Test
+    fun walletAffiliationMigrationPreservesAccountsAndAddsNullableLink() {
+        val name = "wallet-affiliation-v20"
+        helper.createDatabase(name, 20).use { db ->
+            db.execSQL("""INSERT INTO accounts (id,user_id,creation_operation_id,alias,type,currency,preset_id,
+                initial_balance_minor_units,opened_at,is_archived,remote_revision,created_at,updated_at)
+                VALUES ('wallet','owner','create-wallet','Yape','DIGITAL_WALLET','PEN','YAPE',0,1,0,0,1,1)""")
+        }
+
+        helper.runMigrationsAndValidate(name, 21, true, MIGRATION_20_21).use { db ->
+            assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM accounts WHERE id='wallet' AND linked_account_id IS NULL"))
+            assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_accounts_user_id_linked_account_id'"))
+        }
+    }
+
+    @Test
     fun debtEventInterestLinkMigrationPreservesHistoryAndAddsOwnerScopedForeignKey() {
         val name = "debt-interest-link-v19"
         helper.createDatabase(name, 19).use { db ->

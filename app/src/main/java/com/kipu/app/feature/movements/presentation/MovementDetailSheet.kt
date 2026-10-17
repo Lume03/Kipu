@@ -278,6 +278,13 @@ fun MovementDetailSheet(
                                 color = emeraldColors.secondaryMuted,
                             )
                         }
+                        tx.paymentChannel?.let { channel ->
+                            Text(
+                                text = "Pagado con ${if (channel == "YAPE") "Yape" else "Plin"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = emeraldColors.secondaryMuted,
+                            )
+                        }
                     }
 
                     // Comprobante banner si es Gasto o si tiene archivo

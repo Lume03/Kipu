@@ -167,6 +167,7 @@ fun AccountDetailScreen(
     onReturnToDashboard: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToRateCatalog: (String) -> Unit = {},
+    onNavigateToMovements: (Account) -> Unit = {},
     cardMovements: List<CardMovementDisplay>? = null,
     startPurchaseOnOpen: Boolean = false,
 ) {
@@ -288,6 +289,7 @@ fun AccountDetailScreen(
         modifier = modifier,
         snackbarHostState = snackbarHostState,
         onNavigateBack = onNavigateBack,
+        onNavigateToMovements = onNavigateToMovements,
         onSaveAppearance = { alias, preset ->
             account?.let { target ->
                 isSubmitting = true
@@ -846,6 +848,7 @@ fun AccountDetailContent(
     onArchive: () -> Unit,
     onReactivate: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToMovements: (Account) -> Unit = {},
     creditNotifications: List<CreditUtilizationNotification> = emptyList(),
     onPayCreditCard: () -> Unit = {},
     onNavigateToRateCatalog: (String) -> Unit = {},
@@ -1071,6 +1074,22 @@ fun AccountDetailContent(
                     }
 
                     account?.let { target ->
+                        val canOpenMovementHistory = when (target.type) {
+                            AccountType.DIGITAL_WALLET -> target.preset == AccountPreset.YAPE || target.preset == AccountPreset.PLIN
+                            AccountType.CREDIT_LIABILITY -> false
+                            else -> true
+                        }
+                        if (canOpenMovementHistory) {
+                            OutlinedButton(
+                                onClick = { onNavigateToMovements(target) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("account_view_movements"),
+                            ) {
+                                Icon(Icons.AutoMirrored.Rounded.ReceiptLong, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Ver movimientos")
+                            }
+                        }
+
                         val selectablePresets = AccountPreset.selectableFor(target.type)
                         Text("Presentación", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         OutlinedTextField(

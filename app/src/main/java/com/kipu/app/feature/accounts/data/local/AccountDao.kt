@@ -23,6 +23,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND id = :id")
     suspend fun getById(userId: String, id: String): AccountEntity?
 
+    @Query("SELECT * FROM accounts WHERE user_id = :userId AND linked_account_id = :parentId AND preset_id = :provider AND type = 'DIGITAL_WALLET' AND is_archived = 0 LIMIT 1")
+    suspend fun getActiveAffiliatedWallet(userId: String, parentId: String, provider: String): AccountEntity?
+
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND id = :id")
     fun observeById(userId: String, id: String): Flow<AccountEntity?>
 
@@ -52,6 +55,9 @@ interface AccountDao {
 
     @Query("UPDATE accounts SET remote_revision = :revision, updated_at = :nowMicros WHERE user_id = :userId AND id = :id")
     suspend fun updateRemoteRevision(userId: String, id: String, revision: Long, nowMicros: Long): Int
+
+    @Query("UPDATE accounts SET linked_account_id = :linkedAccountId, preset_id = COALESCE(:presetId, preset_id), remote_revision = :revision, updated_at = :nowMicros WHERE user_id = :userId AND id = :id")
+    suspend fun applyRemoteAffiliation(userId: String, id: String, linkedAccountId: String?, presetId: String?, revision: Long, nowMicros: Long): Int
 
     @Query("DELETE FROM accounts WHERE user_id = :userId AND id = :id")
     suspend fun delete(userId: String, id: String)

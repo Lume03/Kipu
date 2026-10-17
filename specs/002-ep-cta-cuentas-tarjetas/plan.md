@@ -3,6 +3,8 @@
 
 # Implementation Plan: EP-CTA - Cuentas y Tarjetas
 
+**Propagated**: 2026-10-17 — Wallet-affiliation follow-up from spec.md; account details open correctly scoped shared movement history without changing ledger attribution.
+
 **Branch**: `002-ep-cta-cuentas-tarjetas` | **Date**: 2026-09-24 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/002-ep-cta-cuentas-tarjetas/spec.md` plus the requested Android, Room, Supabase and Stitch architecture constraints.
@@ -75,7 +77,7 @@ Room es la autoridad visible inmediata; PostgreSQL es la autoridad remota reconc
 | V. Freemium Cannot Alter Truth | PASS | El cupo bloquea nuevas altas/reactivaciones, pero nunca elimina ni excluye historia; offline solo un lease Premium acotado definido por EP-PLA puede levantar limites. Sin lease valido se aplica Free. |
 | VI. Lifecycles Preserve History | PASS | Cuentas creadas tienen apertura y por ello se archivan; ajustes/reversos son append-only; delete exige ausencia comprobada de historia/dependencias. |
 | VII. Native Android and Boundaries | PASS | Dominio Kotlin puro, puertos Repository, adaptadores Room/Supabase, ViewModels sin calculos financieros y Compose stateless. |
-| VIII. Specification-Driven | PASS | El plan conserva HU-07..HU-13, RF-C01..RF-C12 y separa S2/S3. |
+| VIII. Specification-Driven | PASS | El plan conserva HU-07..HU-13, RF-C01..RF-C13 y separa S2/S3. |
 | IX. Quality Is Correctness | PASS | Incluye dominio, migraciones, atomicidad, sync, RLS, privacidad, aislamiento, accesibilidad y pruebas reales. |
 | X. Product Boundary | PASS | Registra informacion; no mueve dinero, emite credito ni lee bancos/SMS/correo. |
 
@@ -210,6 +212,13 @@ Arquitectura remota:
 - `MaskedCardReference` muestra solo `•••• 1234` y nunca comparte semantica con masking monetario.
 
 Navegacion agrega `app/dashboard`, `app/instruments`, `app/instruments/create`, `app/instruments/{id}` y edit. Los argumentos contienen IDs internos, nunca montos, alias ni ultimos cuatro. Sesion restaurada y onboarding completo aterrizan en dashboard.
+
+### HU-07 Wallet-Affiliated Movement History (PR #53 follow-up)
+
+- Registering a movement from an affiliated wallet retains the linked bank account ID as the source; `payment_channel` identifies Yape or Plin as transaction metadata, not as a merchant or another financial account.
+- Movement rows show the channel. The account-detail action opens history with `accountId` for a bank account and with only `paymentChannel` for a Yape/Plin wallet; the latter never sends the wallet ID as a source account. The query argument is supported by internal navigation and the `kipu://movements/history` deep link, and initializes the same advanced criteria used by local pages, counts, and net-flow summaries. Room maps persisted channel metadata to `transactions.source`.
+- The bank-account view includes all movements attributed to that account, including Yape/Plin movements; a wallet view is scoped to its channel. Affiliation and filtering create no second transaction, ledger entry, balance, or budget effect, and do not add a wallet ID to each movement.
+- Both account and channel criteria keep the existing advanced-filter entitlement policy. The account-detail action does not bypass Premium access or alter fallback behavior.
 
 ### 8. Privacy Boundary
 

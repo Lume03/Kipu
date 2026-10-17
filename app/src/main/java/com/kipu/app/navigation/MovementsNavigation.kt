@@ -16,14 +16,20 @@ import com.kipu.app.feature.movements.presentation.MovementEditorRoute
 import com.kipu.app.feature.movements.presentation.MovementHistoryRoute
 
 const val MOVEMENTS_HISTORY_ROUTE = "movements/history"
-const val MOVEMENTS_HISTORY_PATTERN = "movements/history?accountId={accountId}&categoryId={categoryId}&query={query}"
+const val MOVEMENTS_HISTORY_PATTERN = "movements/history?accountId={accountId}&categoryId={categoryId}&query={query}&paymentChannel={paymentChannel}"
 const val MOVEMENT_EDITOR_ROUTE = "movements/editor/{transactionId}?merchantName={merchantName}"
 
-fun NavController.navigateToMovementHistory(accountId: String? = null, categoryId: String? = null, query: String? = null) {
+fun NavController.navigateToMovementHistory(
+    accountId: String? = null,
+    categoryId: String? = null,
+    query: String? = null,
+    paymentChannel: String? = null,
+) {
     val params = mutableListOf<String>()
     if (!accountId.isNullOrBlank()) params.add("accountId=${Uri.encode(accountId)}")
     if (!categoryId.isNullOrBlank()) params.add("categoryId=${Uri.encode(categoryId)}")
     if (!query.isNullOrBlank()) params.add("query=${Uri.encode(query)}")
+    if (!paymentChannel.isNullOrBlank()) params.add("paymentChannel=${Uri.encode(paymentChannel)}")
     val route = if (params.isEmpty()) MOVEMENTS_HISTORY_ROUTE else "$MOVEMENTS_HISTORY_ROUTE?${params.joinToString("&")}"
     navigate(route)
 }
@@ -56,9 +62,16 @@ fun NavGraphBuilder.movementsDestinations(
                 nullable = true
                 defaultValue = null
             },
+            navArgument("paymentChannel") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            },
         ),
         deepLinks = listOf(
-            navDeepLink { uriPattern = "kipu://movements/history?accountId={accountId}&categoryId={categoryId}&query={query}" }
+            navDeepLink { uriPattern = "kipu://movements/history?accountId={accountId}&categoryId={categoryId}&query={query}&paymentChannel={paymentChannel}" },
+            navDeepLink { uriPattern = "kipu://movements/history?accountId={accountId}" },
+            navDeepLink { uriPattern = "kipu://movements/history?paymentChannel={paymentChannel}" },
         )
     ) { historyEntry ->
         MovementHistoryContent(navController, historyEntry)

@@ -128,6 +128,7 @@ import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
@@ -265,6 +266,8 @@ fun UnifiedInstrumentFormScreen(
     var bankCode by rememberSaveable { mutableStateOf(bankChoices.first().code) }
     val bank = bankChoices.firstOrNull { it.code == bankCode } ?: bankChoices.first()
     var walletProvider by rememberSaveable { mutableStateOf(AccountPreset.YAPE) }
+    var walletAffiliated by rememberSaveable { mutableStateOf(false) }
+    var selectedWalletAccountId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedProductName by rememberSaveable {
         mutableStateOf(if (initialCreditCard) null else initialDebitPreset?.productName)
     }
@@ -436,12 +439,20 @@ fun UnifiedInstrumentFormScreen(
 
     val selectedProduct = productsForBank.firstOrNull { it.name == selectedProductName }
     val selectedStylePreset = selectedProduct?.stylePreset ?: CardStylePresets.byId(selectedStylePresetId)
-    val amountForValidation = if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput else balanceInput
+    val expectedWalletBank = if (walletProvider == AccountPreset.YAPE) AccountPreset.BCP else AccountPreset.BBVA
+    val activeDebitCards = instrumentsUiState.activeCards.filterIsInstance<DebitCard>()
+    val eligibleWalletAccounts = instrumentsUiState.activeAccounts.filter { account ->
+        account.type in setOf(AccountType.SAVINGS, AccountType.BANK) && account.preset == expectedWalletBank && account.currency == currency &&
+            activeDebitCards.any { it.linkedAccountId == account.id }
+    }
+    val amountForValidation = if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput
+        else if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput
     val parsedAmountForValidation = MoneyInputParser.parseMinorUnits(amountForValidation)
     val cycleIsValid = billingDayInput.toIntOrNull() in 1..31 && dueDayInput.toIntOrNull() in 1..31
     val lastFourIsValid = when (kind) {
-        InstrumentKind.CREDIT_CARD -> lastFourDigits.length == 4
-        InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.isEmpty() || lastFourDigits.length == 4
+        InstrumentKind.CREDIT_CARD -> Card.isValidLastFourDigits(lastFourDigits)
+        InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.isEmpty() ||
+            Card.isValidLastFourDigits(lastFourDigits)
         else -> true
     }
     val canSaveInstrument = alias.isNotBlank() && !Card.isForbiddenSensitiveCardInput(alias) &&
@@ -575,7 +586,7 @@ fun UnifiedInstrumentFormScreen(
         }
 
         val parsedBalance = MoneyInputParser.parseMinorUnits(
-            if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput else balanceInput
+            if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput else amountForValidation
         )
         if (parsedBalance == null || parsedBalance < 0L) {
             if (kind == InstrumentKind.CREDIT_CARD) limitError = "Ingresa una línea de crédito válida."
@@ -584,14 +595,21 @@ fun UnifiedInstrumentFormScreen(
             if (firstInvalidRequester == null) firstInvalidRequester = amountBringIntoViewRequester
         }
 
-        if (kind == InstrumentKind.CREDIT_CARD && lastFourDigits.length != 4) {
+        if (kind == InstrumentKind.CREDIT_CARD && !Card.isValidLastFourDigits(lastFourDigits)) {
             cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
-        } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() && lastFourDigits.length != 4) {
-            cardError = "Completa los cuatro dígitos o deja el campo vacío."
+        } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
+            !Card.isValidLastFourDigits(lastFourDigits)) {
+            cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
+        }
+
+        if (kind == InstrumentKind.WALLET && walletAffiliated &&
+            (selectedWalletAccountId == null || eligibleWalletAccounts.none { it.id.value == selectedWalletAccountId })) {
+            cardError = "Selecciona una cuenta bancaria compatible para afiliar la billetera."
+            valid = false
         }
 
         val billingDay = billingDayInput.toIntOrNull()
@@ -685,13 +703,14 @@ fun UnifiedInstrumentFormScreen(
                     type = type,
                     currency = currency,
                     preset = preset,
-                    initialBalanceMinorUnits = requireNotNull(parsedBalance),
+                    initialBalanceMinorUnits = if (walletAffiliated) 0L else requireNotNull(parsedBalance),
                     colorToken = if (selectedColor == "kipu") "custom_kipu_teal" else preset.defaultColorToken,
                     iconToken = iconToken,
+                    linkedAccountId = if (walletAffiliated) selectedWalletAccountId else null,
                 ) {
                     isSubmitting = false
                     finishInstrumentSave(
-                        if (type == AccountType.CASH) "Cuenta de efectivo creada." else "Billetera registrada como saldo independiente.",
+                        if (type == AccountType.CASH) "Cuenta de efectivo creada." else if (walletAffiliated) "Billetera afiliada a la cuenta bancaria." else "Billetera registrada como saldo independiente.",
                         onSaveSuccess,
                         onNavigateBack,
                         snackbarHostState,
@@ -1058,7 +1077,30 @@ fun UnifiedInstrumentFormScreen(
                                 FilterChip(selected = walletProvider == provider, onClick = {
                                     walletProvider = provider
                                     if (!hasAliasBeenEdited) alias = provider.defaultName
+                                    selectedWalletAccountId = null
                                 }, label = { Text(provider.defaultName) }, modifier = Modifier.heightIn(min = 48.dp))
+                            }
+                        }
+                        Text("Modalidad", style = MaterialTheme.typography.labelLarge)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = !walletAffiliated, onClick = { walletAffiliated = false }, label = { Text("Saldo propio de la billetera") })
+                            FilterChip(selected = walletAffiliated, onClick = { walletAffiliated = true }, label = { Text("Afiliada a cuenta") })
+                        }
+                        if (walletAffiliated) {
+                            cardError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (eligibleWalletAccounts.isEmpty()) {
+                                Text("Aún no tienes una cuenta ${expectedWalletBank.defaultName} en ${currency.name}. Crea primero una cuenta de ese banco.", color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("Cuenta ${expectedWalletBank.defaultName}", style = MaterialTheme.typography.labelLarge)
+                                eligibleWalletAccounts.forEach { candidate ->
+                                    val debitCard = activeDebitCards.firstOrNull { it.linkedAccountId == candidate.id }
+                                    FilterChip(
+                                        selected = selectedWalletAccountId == candidate.id.value,
+                                        onClick = { selectedWalletAccountId = candidate.id.value },
+                                        label = { Text(candidate.alias + (debitCard?.let { " · •••• ${it.lastFourDigits}" } ?: "")) },
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -1074,16 +1116,17 @@ fun UnifiedInstrumentFormScreen(
                                 label = { Text(option.name) }, modifier = Modifier.heightIn(min = 48.dp))
                         }
                     }
-                    OutlinedTextField(value = balanceInput, onValueChange = { balanceInput = it; balanceError = null },
+                    if (kind != InstrumentKind.WALLET || !walletAffiliated) OutlinedTextField(value = balanceInput, onValueChange = { balanceInput = it; balanceError = null },
                         label = { Text("Saldo inicial") }, shape = RoundedCornerShape(12.dp), prefix = { Text(currencySymbol(currency)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
                         isError = balanceError != null, supportingText = { balanceError?.let { Text(it) } },
                         modifier = Modifier.fillMaxWidth().bringIntoViewRequester(amountBringIntoViewRequester))
+                    else Text("El saldo se obtiene de la cuenta bancaria afiliada; no se registrará un saldo propio.")
                     if (kind == InstrumentKind.SAVINGS_DEBIT) {
                         OutlinedTextField(value = lastFourDigits, onValueChange = {
-                            lastFourDigits = it.filter(Char::isDigit).take(4); cardError = null
+                            lastFourDigits = it.filter { char -> Card.isAsciiDigit(char) }.take(4); cardError = null
                         }, label = { Text("Últimos 4 dígitos · Opcional") },
-                            supportingText = { Text(cardError ?: "Si los agregas, se vinculará tu tarjeta de débito a esta cuenta.") },
+                            supportingText = { Text(cardError ?: "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true,
                             isError = cardError != null,
                             modifier = Modifier.fillMaxWidth().bringIntoViewRequester(lastFourBringIntoViewRequester))

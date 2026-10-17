@@ -10,9 +10,11 @@ internal data class SyncAccountPayload(
     val alias: String,
     val type: String,
     val currency: String,
+    @SerialName("preset_id") val presetId: String? = null,
     @SerialName("initial_balance_minor_units") val initialBalanceMinorUnits: Long,
     @SerialName("opened_at") val openedAt: String,
     @SerialName("is_archived") val isArchived: Boolean = false,
+    @SerialName("linked_account_id") val linkedAccountId: String? = null,
 )
 
 @Serializable
@@ -54,6 +56,7 @@ internal data class SyncTransactionPayload(
     @SerialName("installment_count") val installmentCount: Int? = null,
     @SerialName("occurred_at") val occurredAt: String,
     val note: String? = null,
+    @SerialName("payment_channel") val paymentChannel: String? = null,
     val status: String,
     @SerialName("ledger_entries") val ledgerEntries: List<SyncLedgerEntryPayload> = emptyList(),
     val installments: List<SyncInstallmentPayload> = emptyList(),

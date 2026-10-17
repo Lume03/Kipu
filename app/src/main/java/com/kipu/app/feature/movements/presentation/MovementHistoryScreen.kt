@@ -100,6 +100,7 @@ import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.movements.domain.model.TransactionStatus
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.MoneyText
@@ -824,12 +825,14 @@ fun TransactionRow(
     }
 
     val cardLabel = item.cardAlias ?: item.cardLastFourDigits?.let { "•••• $it" } ?: "Tarjeta"
-    val subtitle = when {
+    val accountSubtitle = when {
         tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) -> cardLabel
         tx.operationKind.equals("CARD_PAYMENT", ignoreCase = true) -> "${item.sourceAccountAlias ?: "Cuenta"} → $cardLabel"
         tx.type == MovementType.TRANSFER -> "${item.sourceAccountAlias ?: "Origen"} → ${item.destinationAccountAlias ?: "Destino"}"
         else -> item.sourceAccountAlias ?: "Cuenta"
     }
+    val paymentChannel = WalletPaymentChannel.entries.firstOrNull { it.name == tx.paymentChannel }
+    val subtitle = paymentChannel?.let { "${it.label} · $accountSubtitle" } ?: accountSubtitle
 
     val (iconBg, iconTint) = when {
         isVoided -> emeraldColors.pillTrack to emeraldColors.secondaryMuted
@@ -931,6 +934,7 @@ fun TransactionRow(
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = emeraldColors.secondaryMuted,
                         maxLines = 1,
+                        modifier = if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier,
                     )
                     SyncStatusIcon(status = tx.syncStatus)
                 }
@@ -1265,7 +1269,7 @@ fun TransactionIconAvatar(
 ) {
     val tx = item.transaction
     val context = androidx.compose.ui.platform.LocalContext.current
-    
+
     val drawableId = androidx.compose.runtime.remember(item.merchantLogoKey) {
         val key = item.merchantLogoKey
         if (key != null) {
@@ -1275,7 +1279,7 @@ fun TransactionIconAvatar(
             }
         } else 0
     }
-    
+
     val remoteLogoUrl = item.merchantLogoUrl
     val categoryIcon = item.categoryIcon?.takeIf(String::isNotBlank)
     val avatarPresentation = movementAvatarPresentation(

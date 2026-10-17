@@ -7,6 +7,7 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
@@ -21,6 +22,35 @@ import org.junit.Test
 class ObserveFinancialDashboardTest {
 
     private val testUserId = UserId.generate()
+
+    @Test
+    fun `affiliated wallet reflects parent balance but is counted once in dashboard total`() = runTest {
+        val bankId = AccountId.generate()
+        val walletId = AccountId.generate()
+        val bank = Account(
+            id = bankId, userId = testUserId, alias = "BCP principal", type = AccountType.SAVINGS,
+            currency = Currency.PEN, preset = AccountPreset.BCP, initialBalance = Money(0L, Currency.PEN),
+            openedAt = java.time.Instant.now(),
+        )
+        val wallet = Account(
+            id = walletId, userId = testUserId, alias = "Yape", type = AccountType.DIGITAL_WALLET,
+            currency = Currency.PEN, preset = AccountPreset.YAPE, initialBalance = Money(0L, Currency.PEN),
+            openedAt = java.time.Instant.now(), linkedAccountId = bankId,
+        )
+        val repo = object : FakeFinancialInstrumentsRepository() {
+            override fun observeAccounts(activeOnly: Boolean): Flow<List<Account>> = flowOf(listOf(bank, wallet))
+            override fun observeAccountBalance(accountId: AccountId): Flow<Money> = when (accountId) {
+                bankId -> flowOf(Money(25_000L, Currency.PEN))
+                walletId -> flowOf(Money(0L, Currency.PEN))
+                else -> flowOf(Money(0L, Currency.PEN))
+            }
+        }
+
+        val dashboard = ObserveFinancialDashboard(repo)().first()
+
+        assertEquals(25_000L, dashboard.totalPen.minorUnits)
+        assertEquals(25_000L, dashboard.liquidAccounts.single { it.account.id == walletId }.balance.minorUnits)
+    }
 
     @Test
     fun `dashboard totals include archived account balances while liquidAccounts list filters them out`() = runTest {

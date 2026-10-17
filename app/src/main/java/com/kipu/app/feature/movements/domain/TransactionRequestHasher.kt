@@ -16,7 +16,7 @@ class TransactionRequestHasher {
             command.sourceAccountId?.lowercase(Locale.ROOT),
             command.destinationAccountId?.lowercase(Locale.ROOT),
             command.categoryId?.lowercase(Locale.ROOT), command.merchantId?.lowercase(Locale.ROOT),
-            command.merchantProvisionalText, command.occurredAt.toString(), command.note,
+            command.merchantProvisionalText, command.occurredAt.toString(), command.note, command.paymentChannel,
         )
         val canonical = JsonArray(values.map { it?.let(::JsonPrimitive) ?: JsonNull }).toString()
         val digest = MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray(Charsets.UTF_8))

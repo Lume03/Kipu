@@ -92,7 +92,8 @@ class MovementLocalDataSource @Inject constructor(
         requestHash: String,
     ): RegisterTransactionResult {
         return database.withTransaction {
-            // 1. Check existing receipt for idempotency
+            // Resolve a committed command before checking mutable resource state:
+            // an archived wallet must not turn a legitimate replay into a failure.
             val existingReceipt = movementDao.getReceipt(command.userId, command.idempotencyKey)
             if (existingReceipt != null) {
                 if (existingReceipt.requestHash == requestHash && existingReceipt.transactionId != null) {
@@ -112,7 +113,16 @@ class MovementLocalDataSource @Inject constructor(
                     )
                 }
             }
-
+            if (command.paymentChannel != null) {
+                if (command.paymentChannel !in setOf("YAPE", "PLIN") ||
+                    database.accountDao().getActiveAffiliatedWallet(
+                        command.userId, command.sourceAccountId.orEmpty(), command.paymentChannel,
+                    ) == null) {
+                    return@withTransaction RegisterTransactionResult.ValidationError(
+                        "payment_channel", "La billetera no está afiliada a la cuenta de origen seleccionada",
+                    )
+                }
+            }
             val sourceId = command.sourceAccountId
                 ?: return@withTransaction RegisterTransactionResult.ValidationError(
                     "source_account", "La cuenta es obligatoria"
@@ -227,6 +237,7 @@ class MovementLocalDataSource @Inject constructor(
                 revision = 1L,
                 acknowledgedRevision = null,
                 currentRevisionId = null,
+                source = command.paymentChannel,
                 createdAt = now,
                 updatedAt = now,
             )

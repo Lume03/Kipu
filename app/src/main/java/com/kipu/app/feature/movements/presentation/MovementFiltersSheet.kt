@@ -133,6 +133,7 @@ private fun MovementFiltersSheetContent(
         if (draft.categoryIds.isNotEmpty()) count++
         if (draft.cardIds.isNotEmpty()) count++
         if (draft.merchantIds.isNotEmpty()) count++
+        if (draft.paymentChannels.isNotEmpty()) count++
         if (draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()) count++
         if (draft.financialStates.isNotEmpty()) count++
         if (draft.syncStatuses.isNotEmpty()) count++
@@ -159,6 +160,10 @@ private fun MovementFiltersSheetContent(
             if (draft.categoryIds.isNotEmpty() && (tx.categoryId == null || tx.categoryId !in draft.categoryIds)) return@count false
             if (draft.cardIds.isNotEmpty() && (tx.cardId == null || tx.cardId !in draft.cardIds)) return@count false
             if (draft.merchantIds.isNotEmpty() && (tx.merchantId == null || tx.merchantId !in draft.merchantIds)) return@count false
+            if (draft.paymentChannels.isNotEmpty()) {
+                val channel = WalletPaymentChannel.entries.firstOrNull { it.name == tx.paymentChannel }
+                if (channel == null || channel !in draft.paymentChannels) return@count false
+            }
             if (minMinor != null && tx.amountMinor < minMinor) return@count false
             if (maxMinor != null && tx.amountMinor > maxMinor) return@count false
             if (draft.financialStates.isNotEmpty()) {
@@ -321,6 +326,16 @@ private fun MovementFiltersSheetContent(
                                 borderColor = Color(0xFFA7F3D0),
                                 textColor = Color(0xFF0F766E),
                                 onDismiss = { updateDraft(draft.copy(accountIds = draft.accountIds - accId)) }
+                            )
+                        }
+
+                        draft.paymentChannels.forEach { channel ->
+                            ActiveFilterDismissChip(
+                                text = "Billetera ${channel.label}",
+                                bgColor = Color(0xFFE6F4EA),
+                                borderColor = Color(0xFFA7F3D0),
+                                textColor = Color(0xFF0F766E),
+                                onDismiss = { updateDraft(draft.copy(paymentChannels = draft.paymentChannels - channel)) }
                             )
                         }
 
@@ -980,6 +995,7 @@ private fun MovementFiltersSheetContent(
                                 categoryIds = prev.categoryIds,
                                 cardIds = prev.cardIds,
                                 merchantIds = prev.merchantIds,
+                                paymentChannels = prev.paymentChannels,
                                 financialStates = prev.financialStates,
                                 syncStatuses = prev.syncStatuses,
                                 minAmount = prev.minAmount,
@@ -1309,6 +1325,19 @@ private fun AdvancedFiltersControls(
             enabled = allowed,
             onChange = { onDraftChange(draft.copy(accountIds = it)) }
         )
+
+        Text("Canal de pago", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            WalletPaymentChannel.entries.forEach { channel ->
+                KipuFilterChip(
+                    selected = channel in draft.paymentChannels,
+                    enabled = allowed,
+                    onClick = { onDraftChange(draft.copy(paymentChannels = draft.paymentChannels.toggle(channel))) },
+                    label = { Text(channel.label) },
+                    modifier = Modifier.testTag("chip_filter_wallet_${channel.name.lowercase()}")
+                )
+            }
+        }
 
         // Categorías
         ReferenceSelector(

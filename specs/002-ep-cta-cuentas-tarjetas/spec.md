@@ -16,6 +16,10 @@
 
 **Refined**: 2026-10-06 - Seguimiento #25: la seleccion y la consulta comparten un mapeo oficial, exacto y verificable de producto/preset. Las tarjetas antiguas solo recuperan identidad con alias oficial exacto, emisor y red coincidentes; en otro caso permanecen sin referencia. No se alteran snapshot, ledger ni calculos.
 
+**Refined**: 2026-10-14 - Auditoria PR #53: se confirma la compatibilidad Yape→BCP y Plin→BBVA; la afiliacion requiere ownership compuesto, y los ultimos cuatro digitos de debito son opcionales cuando no se registra tarjeta asociada.
+
+**Refined**: 2026-10-17 - Seguimiento PR #53: los movimientos de Yape/Plin se identifican y filtran por canal de pago, conservando la cuenta bancaria vinculada como unica cuenta contable.
+
 ## Control de la Epica
 
 | Campo | Valor |
@@ -24,7 +28,7 @@
 | Incremento Sprint 2 | HU-07 y HU-08, 10 puntos |
 | Evolucion Sprint 3 | HU-09 a HU-13, 29 puntos |
 | Historias cubiertas | HU-07, HU-08, HU-09, HU-10, HU-11, HU-12 y HU-13 |
-| Requisitos cubiertos | RF-C01 a RF-C12 |
+| Requisitos cubiertos | RF-C01 a RF-C13 |
 | Prioridad | Alta |
 | Estado del artefacto | V1.0 - Especificacion funcional completa |
 
@@ -37,6 +41,7 @@ Permitir que cada usuario modele su estructura financiera personal distinguiendo
 ### Alcance del Sprint 2
 
 - Alta, consulta, edicion visual y archivo de cuentas de efectivo, ahorro o bancarias y billeteras digitales.
+- Afiliacion de Yape/Plin compatible y consulta de sus movimientos por canal sobre la cuenta bancaria vinculada, sin un segundo efecto contable.
 - Registro atomico y auditable del saldo inicial como movimiento de apertura.
 - Presets visuales de BCP, BBVA, Interbank, Scotiabank y Banco de la Nacion, ademas de una opcion generica.
 - Registro de tarjetas de debito y credito sin solicitar ni conservar PAN completo o CVV.
@@ -119,6 +124,7 @@ Como usuario, quiero crear y mantener cuentas que representen mi dinero real, pa
 5. **Archivo con historia**: **Dado que** una cuenta tiene al menos un movimiento, **Cuando** solicita retirarla, **Entonces** queda archivada, deja de admitir operaciones nuevas y conserva todo su historial y participacion correcta en periodos pasados.
 6. **Alta offline y reinicio**: **Dado que** no hay conectividad, **Cuando** crea una cuenta y reinicia la aplicacion, **Entonces** la cuenta y su unico movimiento de apertura permanecen disponibles y una sincronizacion posterior no duplica el saldo.
 7. **Correccion de apertura**: **Dado que** la cuenta ya fue creada, **Cuando** el usuario detecta un importe o fecha de apertura incorrectos, **Entonces** registra un ajuste auditable sin editar el movimiento original; si la moneda es incorrecta, archiva la cuenta y crea otra en la moneda correcta.
+8. **Movimientos desde detalle de cuenta y billetera afiliada**: **Dado que** consulta el detalle de la cuenta bancaria o de una billetera Yape/Plin afiliada y tiene acceso vigente al historial avanzado, **Cuando** elige **Ver movimientos**, **Entonces** la cuenta bancaria abre el historial filtrado por su `accountId` y la billetera abre el historial filtrado solo por `paymentChannel` (`YAPE` o `PLIN`), sin pasar el ID de la billetera como cuenta de origen; la vista de la cuenta bancaria incluye sus movimientos atribuidos a billeteras, la vista Yape/Plin muestra los movimientos de ese canal, y cada movimiento conserva una sola transaccion y un solo efecto de ledger en la cuenta bancaria. Si no tiene ese acceso, se conserva el fallback definido por la politica de filtros avanzados.
 
 ---
 
@@ -272,10 +278,12 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **RN-CTA-02 - Eliminacion y archivo**: Un instrumento solo PUEDE eliminarse fisicamente si nunca tuvo movimientos, no tiene deuda y no posee vinculos dependientes. En cualquier otro caso DEBE archivarse; el archivo impide nuevas operaciones y preserva relaciones y efectos previos.
 - **RN-CTA-03 - Cupo Free**: Un usuario Free PUEDE mantener hasta cuatro instrumentos activos que consumen cupo. Cada cuenta computable y cada tarjeta activa consumen un cupo independiente; por ello, una tarjeta de debito y su cuenta vinculada consumen dos cupos aunque compartan saldo. Solo el efectivo fisico y la Cuenta Metas virtual no consumen cupo. Los excedentes historicos se preservan y nunca se eliminan ni excluyen de calculos por una restriccion comercial.
 - **RN-CTA-04 - Propiedad exclusiva**: Toda cuenta, tarjeta, movimiento, alerta, tasa personal, pago, compra y simulacion DEBE pertenecer a un solo usuario y solo ser consultable o modificable bajo su sesion autorizada.
+- **RN-CTA-05 - Afiliacion de billeteras**: Yape DEBE afiliarse exclusivamente a una cuenta BCP y Plin exclusivamente a una cuenta BBVA. La cuenta vinculada DEBE pertenecer al mismo usuario; la relacion debe estar protegida por una clave foranea compuesta, ademas de la validacion del RPC.
+- **RN-CTA-06 - Atribucion contable de billeteras**: Un movimiento registrado mediante Yape o Plin DEBE conservar como cuenta de origen la cuenta bancaria afiliada y DEBE identificar el canal en `payment_channel`. El detalle de la cuenta bancaria y el detalle de la billetera afiliada DEBEN ofrecer acceso directo a sus movimientos: la cuenta bancaria filtra por su `accountId` y Yape/Plin por solo `payment_channel`, sin usar el ID de billetera como origen. El historial DEBE permitir distinguir y filtrar ambos canales sin crear una transaccion ni un efecto de ledger adicional para la billetera.
 
 ### Functional Requirements
 
-- **RF-C01 - Alta de cuentas liquidas**: El sistema DEBE permitir crear cuentas de efectivo, ahorro o bancarias y billeteras digitales con alias, tipo, moneda PEN o USD, icono, color, saldo inicial y fecha y hora de apertura. PEN DEBE aparecer seleccionada inicialmente y el saldo inicial DEBE quedar representado por el movimiento exigido en RN-10. Tras el alta, importe, moneda y momento de apertura NO DEBEN editarse; toda correccion debe seguir el tratamiento auditable de RN-10.
+- **RF-C01 - Alta de cuentas liquidas**: El sistema DEBE permitir crear cuentas de efectivo, ahorro o bancarias y billeteras digitales con alias, tipo, moneda PEN o USD, icono, color, saldo inicial y fecha y hora de apertura. PEN DEBE aparecer seleccionada inicialmente y el saldo inicial DEBE quedar representado por el movimiento exigido en RN-10. Al crear una cuenta de ahorro/bancaria, registrar una tarjeta de debito asociada es opcional; si se registra, se solicitan sus ultimos cuatro digitos. Tras el alta, importe, moneda y momento de apertura NO DEBEN editarse; toda correccion debe seguir el tratamiento auditable de RN-10.
 - **RF-C02 - Registro tipado de tarjetas**: El sistema DEBE permitir registrar cada tarjeta como debito o credito, con alias visual opcional, entidad emisora, red Visa, Mastercard, Amex u Otra generica y ultimos cuatro digitos; el tipo confirmado determina si representa acceso a un activo existente o un pasivo potencial. Emisor, red y ultimos cuatro digitos NO DEBEN tratarse como clave unica: una coincidencia intencional se permite tras advertirla y exige un alias distinto para diferenciar las tarjetas. Otra no crea una marca nueva y usa identidad visual generica.
 - **RF-C03 - Vinculo de debito sin duplicacion**: Toda tarjeta de debito DEBE vincularse a una cuenta activa de ahorro o bancaria del mismo usuario y moneda, compartir su saldo disponible y NO crear un saldo, activo o movimiento adicional por el mero registro del plastico.
 - **RF-C04 - Linea y saldos de credito**: Para cada tarjeta de credito, el sistema DEBE mostrar linea total, deuda actual como credito utilizado, credito disponible igual al mayor valor entre linea menos deuda y cero, y porcentaje de utilizacion. Si la linea es cero, el porcentaje DEBE ser "No disponible". Los dias preferidos de corte y vencimiento entre 1 y 31 DEBEN conservarse, y su fecha efectiva DEBE ajustarse al ultimo dia valido de los meses cortos.
@@ -289,6 +297,8 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **RF-C10 - Pago amortizador**: El sistema DEBE registrar el pago confirmado desde una cuenta bancaria o de ahorros activa y de la misma moneda como una unica transferencia interna que debita dinero real y amortiza el pasivo por igual. NO DEBE aumentar ingreso, gasto operativo ni consumo mensual. El importe DEBE asignarse a cuotas pendientes en orden ascendente estricto por `due_date`; un pago parcial reduce el capital de la cuota mas antigua y no salta a cuotas posteriores mientras aquella tenga saldo. La suma de asignaciones DEBE coincidir con el importe del pago. Un pago superior a la deuda, con fondos insuficientes o moneda incompatible DEBE rechazarse sin efectos.
 - **RF-C11 - Compra de credito confirmada**: Toda compra detectada con tarjeta de credito DEBE permanecer como candidata sin efecto hasta confirmacion explicita. Al confirmarla, el sistema DEBE reconocer exactamente una vez el principal completo como gasto y deuda en la fecha de compra, con independencia del numero de cuotas.
 - **RF-C12 - Simulacion y cuotas exactas**: El sistema DEBE permitir simular de 1 a 36 cuotas usando primero la TEA personal valida y, si el usuario lo acepta, una tasa referencial identificada. La tasa en bps se convierte a decimal dividiendo entre 10,000; la TEM DEBE calcularse como `(1 + TEA)^(1/12) - 1` y la cuota teorica fija como `principal * TEM / (1 - (1 + TEM)^(-n))`, con `principal / n` si TEM es cero. DEBE mostrar metodo, tasa y procedencia, principal, interes estimado, total financiado, fechas e importes y advertencia visible de estimacion. Los importes DEBEN redondearse y distribuirse deterministamente en unidades menores, asignando el residuo a la cuota 1 y preservando la suma exacta. La primera fecha de vencimiento DEBE seguir el ciclo de cierre y vencimiento indicado en HU-13.8; las cuotas siguientes DEBEN ser mensuales y ajustar el dia efectivo al ultimo dia valido sin cambiar el preferido. Los intereses estimados NO DEBEN crear asientos ni modificar gasto o pasivo real. Sin tasa aplicable, DEBE mostrar solo la distribucion del principal y NO inventar intereses.
+
+- **RF-C13 - Visibilidad de movimientos por billetera**: El historial DEBE mostrar Yape o Plin como canal de pago cuando corresponda y permitir consultar por separado cada canal. Desde el detalle de una cuenta bancaria, la accion de movimientos DEBE abrir el historial filtrado por su `accountId`; desde el detalle de una billetera Yape/Plin, DEBE abrirlo filtrado solo por `payment_channel`, nunca por el ID de la billetera como cuenta de origen. El filtro DEBE aplicarse sobre la metadata del movimiento, sin reinterpretar el canal como comercio ni sustituir la cuenta bancaria de origen. La consulta DEBE respetar la politica de acceso existente para filtros avanzados, incluido su fallback cuando no haya entitlement vigente.
 
 ### Requisitos Transversales de Aceptacion
 
@@ -315,6 +325,7 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 | RF-C10 | HU-12 | Escenarios HU-12.1 a HU-12.6 |
 | RF-C11 | HU-13 | Escenarios HU-13.1 a HU-13.3 y HU-13.7 |
 | RF-C12 | HU-13 | Escenarios HU-13.4 a HU-13.6 y HU-13.8 |
+| RN-CTA-06, RF-C13 | HU-07 | Escenario HU-07.8; entrada desde detalle bancario por `accountId` y desde billetera por solo `payment_channel` |
 | RT-01 a RT-05 | Todas | Escenarios offline, reinicio, reintento, aislamiento y casos limite |
 | RT-06 | Todas | Escenarios de accesibilidad, SC-014 y evidencia de Pantallas 4/5 |
 
@@ -322,6 +333,7 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 
 - **Cuenta liquida**: Activo monetario del usuario. Contiene identidad estable, propietario, alias, tipo, moneda, apariencia, preset opcional, momento de apertura y estado activo o archivado. Su saldo se deriva de movimientos.
 - **Movimiento financiero**: Hecho auditable que cambia o explica un saldo. Incluye propietario, identidad estable, tipo, importe, moneda, fecha efectiva, estado y relaciones con las operaciones que origina, revierte o ajusta.
+- **Canal de pago de billetera**: Metadata Yape/Plin asociada al movimiento bancario que la origina; permite identificar y filtrar el historial, sin saldo ni efecto de ledger propios.
 - **Movimiento de apertura**: Primer movimiento inseparable de una cuenta; representa exactamente su saldo inicial y momento de apertura.
 - **Tarjeta**: Instrumento con identidad estable propia, propietario, tipo debito o credito, emisor, red, ultimos cuatro digitos, alias, apariencia y estado. Emisor, red y ultimos cuatro digitos no garantizan unicidad. Nunca contiene PAN completo ni CVV.
 - **Vinculo de debito**: Relacion entre una tarjeta de debito y una cuenta de ahorro o bancaria activa del mismo propietario y moneda; no posee saldo independiente.
@@ -354,10 +366,12 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **SC-013**: Al menos 90% de participantes identifica correctamente, al primer intento, que el credito disponible no es dinero propio, que una compra genera el gasto y que pagar la tarjeta no genera otro gasto.
 - **SC-014**: Al menos 90% de participantes completa los recorridos principales con las ayudas de accesibilidad admitidas. En la tarjeta fisica simulada, la compra en cuotas y el flujo de amortizacion, TalkBack anuncia correctamente etiquetas, roles, importes, moneda, estados, errores y acciones; los recorridos de revision, confirmacion y cancelacion se completan sin perdida de informacion esencial.
 - **SC-015**: En el plan Free, el 100% de intentos de crear o reactivar un quinto instrumento computable se bloquea sin perdida de historia; cada cuenta y tarjeta activa ocupa un cupo separado, mientras efectivo fisico y Cuenta Metas permanecen exentos.
+- **SC-016**: En el 100% de recorridos desde detalle, la cuenta bancaria abre el historial por su `accountId` y Yape/Plin lo abre por solo `payment_channel`; ambas vistas incluyen sus movimientos atribuidos y cada movimiento conserva una unica transaccion y un unico efecto de ledger en la cuenta bancaria afiliada.
 
 ## Assumptions
 
 - PEN y USD se administran por separado. Esta epica no define tipos de cambio ni una suma patrimonial comun entre monedas.
+- Yape se afilia exclusivamente a BCP y Plin exclusivamente a BBVA; esta compatibilidad fue confirmada para PR #53 el 2026-10-14.
 - Los importes tienen precision de centimo; el rango monetario maximo permitido se definira en planificacion sin debilitar las pruebas de exactitud.
 - El saldo inicial de una cuenta de activo puede ser cero, pero no negativo.
 - Una tarjeta de debito y su cuenta vinculada cuentan como dos instrumentos activos para el cupo Free, aunque solo la cuenta represente dinero. Efectivo fisico y Cuenta Metas virtual son las unicas exclusiones de esta epica.

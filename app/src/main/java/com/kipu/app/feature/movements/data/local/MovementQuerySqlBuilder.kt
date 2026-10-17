@@ -115,6 +115,12 @@ object MovementQuerySqlBuilder {
                 adv.merchantIds.forEach { args.add(it) }
                 adv.merchantIds.forEach { args.add(it) }
             }
+            if (adv.paymentChannels.isNotEmpty()) {
+                val channels = adv.paymentChannels.map { it.name }
+                val placeholders = channels.joinToString(",") { "?" }
+                sql.append(" AND source IN ($placeholders)")
+                channels.forEach(args::add)
+            }
             if (adv.minAmountMinor != null) {
                 sql.append(" AND amount_minor >= ?")
                 args.add(adv.minAmountMinor)

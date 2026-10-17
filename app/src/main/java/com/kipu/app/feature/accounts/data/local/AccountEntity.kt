@@ -11,6 +11,7 @@ import androidx.room.Index
         Index(value = ["user_id", "creation_operation_id"], unique = true),
         Index(value = ["user_id", "is_archived"]),
         Index(value = ["user_id", "type"]),
+        Index(value = ["user_id", "linked_account_id"]),
     ],
 )
 data class AccountEntity(
@@ -44,4 +45,6 @@ data class AccountEntity(
     val createdAt: Long,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long,
+    @ColumnInfo(name = "linked_account_id", defaultValue = "NULL")
+    val linkedAccountId: String? = null,
 )

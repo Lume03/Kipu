@@ -293,6 +293,7 @@ class AccountsViewModel @Inject constructor(
         initialBalanceMinorUnits: Long,
         colorToken: String?,
         iconToken: String?,
+        linkedAccountId: String? = null,
         onSuccess: (Account) -> Unit = {},
     ) {
         viewModelScope.launch {
@@ -309,6 +310,7 @@ class AccountsViewModel @Inject constructor(
                 iconToken = iconToken ?: preset?.defaultIconToken,
                 initialBalance = Money(initialBalanceMinorUnits, currency),
                 openedAt = Instant.now(),
+                linkedAccountId = linkedAccountId?.let(::AccountId),
             )
 
             createLiquidAccountUseCase(account).fold(

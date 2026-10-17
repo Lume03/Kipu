@@ -82,11 +82,16 @@ class ObserveFinancialDashboard @Inject constructor(
                     var totalUsdMinor = 0L
 
                     val accountsWithBalance = accounts.mapIndexed { index, account ->
-                        val balance = balances.getOrElse(index) { Money(0L, account.currency) }
-                        if (account.currency == Currency.PEN) {
-                            totalPenMinor = Math.addExact(totalPenMinor, balance.minorUnits)
-                        } else {
-                            totalUsdMinor = Math.addExact(totalUsdMinor, balance.minorUnits)
+                        val balance = if (account.linkedAccountId != null) {
+                            val parentIndex = accounts.indexOfFirst { it.id == account.linkedAccountId }
+                            balances.getOrElse(parentIndex) { Money(0L, account.currency) }
+                        } else balances.getOrElse(index) { Money(0L, account.currency) }
+                        if (account.linkedAccountId == null) {
+                            if (account.currency == Currency.PEN) {
+                                totalPenMinor = Math.addExact(totalPenMinor, balance.minorUnits)
+                            } else {
+                                totalUsdMinor = Math.addExact(totalUsdMinor, balance.minorUnits)
+                            }
                         }
 
                         val linkedCards = debitCards.filter { it.linkedAccountId == account.id }

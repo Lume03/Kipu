@@ -18,6 +18,7 @@ import com.kipu.app.feature.movements.domain.model.MovementMutationResult
 import com.kipu.app.feature.movements.domain.model.MovementRevisionCommand
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -86,7 +87,8 @@ data class MovementHistoryUiState(
             fromDate != null ||
             toDate != null ||
             selectedFinancialStates.isNotEmpty() || appliedFilters.cardIds.isNotEmpty() ||
-            appliedFilters.merchantIds.isNotEmpty() || appliedFilters.syncStatuses.isNotEmpty()
+            appliedFilters.merchantIds.isNotEmpty() || appliedFilters.syncStatuses.isNotEmpty() ||
+            appliedFilters.paymentChannels.isNotEmpty()
 }
 
 private data class VoidDialogState(
@@ -111,13 +113,15 @@ data class AdvancedFiltersState(
     val financialStates: Set<MovementFinancialState> = emptySet(),
     val cardIds: Set<String> = emptySet(),
     val merchantIds: Set<String> = emptySet(),
+    val paymentChannels: Set<WalletPaymentChannel> = emptySet(),
     val syncStatuses: Set<com.kipu.app.feature.movements.domain.model.MovementSyncStatus> = emptySet(),
     val currency: String? = null,
 ) {
     fun hasCriteria(): Boolean =
         accountIds.isNotEmpty() || categoryIds.isNotEmpty() || minAmountMinor != null ||
             maxAmountMinor != null || fromDate != null || toDate != null || financialStates.isNotEmpty() ||
-            cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty()
+            cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty() ||
+            paymentChannels.isNotEmpty()
 }
 
 @HiltViewModel
@@ -191,15 +195,24 @@ class MovementHistoryViewModel @Inject constructor(
         val initialQuery = savedStateHandle?.get<String>("query")
         val initialAccountId = savedStateHandle?.get<String>("accountId")
         val initialCategoryId = savedStateHandle?.get<String>("categoryId")
+        val initialPaymentChannel = savedStateHandle?.get<String>("paymentChannel")
+            ?.uppercase(Locale.ROOT)
+            ?.let { value -> WalletPaymentChannel.entries.firstOrNull { it.name == value } }
 
         if (!initialQuery.isNullOrBlank()) {
             _searchQuery.value = initialQuery
         }
-        if (!initialAccountId.isNullOrBlank() || !initialCategoryId.isNullOrBlank()) {
+        if (!initialAccountId.isNullOrBlank() || !initialCategoryId.isNullOrBlank() || initialPaymentChannel != null) {
             _advancedFilters.update { current ->
                 current.copy(
-                    accountIds = if (!initialAccountId.isNullOrBlank()) setOf(initialAccountId) else current.accountIds,
+                    // A wallet deep link is channel-scoped. Never reinterpret its wallet ID as a ledger account filter.
+                    accountIds = when {
+                        initialPaymentChannel != null -> emptySet()
+                        !initialAccountId.isNullOrBlank() -> setOf(initialAccountId)
+                        else -> current.accountIds
+                    },
                     categoryIds = if (!initialCategoryId.isNullOrBlank()) setOf(initialCategoryId) else current.categoryIds,
+                    paymentChannels = initialPaymentChannel?.let(::setOf) ?: current.paymentChannels,
                 )
             }
         }
@@ -411,6 +424,7 @@ class MovementHistoryViewModel @Inject constructor(
             "category" -> current.copy(categoryIds = current.categoryIds - id)
             "card" -> current.copy(cardIds = current.cardIds - id)
             "merchant" -> current.copy(merchantIds = current.merchantIds - id)
+            "channel" -> current.copy(paymentChannels = current.paymentChannels.filterNot { it.name == id }.toSet())
             "amount" -> current.copy(minAmountMinor = null, maxAmountMinor = null, currency = null)
             "dates" -> current.copy(fromDate = null, toDate = null)
             "state" -> current.copy(financialStates = current.financialStates.filterNot { it.name == id }.toSet())
@@ -700,7 +714,8 @@ class MovementHistoryViewModel @Inject constructor(
 private fun AdvancedFiltersState.hasPremiumOnlyCriteria(): Boolean =
     accountIds.isNotEmpty() || categoryIds.isNotEmpty() || minAmountMinor != null ||
         maxAmountMinor != null || financialStates.isNotEmpty() ||
-        cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty()
+        cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty() ||
+        paymentChannels.isNotEmpty()
 
 private fun AdvancedFiltersState.toHistoryCriteria() =
     com.kipu.app.feature.movements.domain.model.AdvancedHistoryCriteria(
@@ -708,6 +723,7 @@ private fun AdvancedFiltersState.toHistoryCriteria() =
         cardIds = cardIds,
         categoryIds = categoryIds,
         merchantIds = merchantIds,
+        paymentChannels = paymentChannels,
         minAmountMinor = minAmountMinor,
         maxAmountMinor = maxAmountMinor,
         currency = currency,

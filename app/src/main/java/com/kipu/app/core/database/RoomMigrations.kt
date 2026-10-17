@@ -1094,6 +1094,14 @@ val MIGRATION_19_20 = object : Migration(19, 20) {
     }
 }
 
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `accounts` ADD COLUMN `linked_account_id` TEXT DEFAULT NULL")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_accounts_user_id_linked_account_id` ON `accounts` (`user_id`, `linked_account_id`)")
+        db.execSQL("UPDATE `instrument_sync_outbox` SET `payload_json` = REPLACE(`payload_json`, '\"type\":\"DIGITAL_WALLET\"', '\"type\":\"WALLET\"') WHERE `command_type` = 'CREATE_ACCOUNT' AND `aggregate_type` = 'ACCOUNT'")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

@@ -11,11 +11,17 @@ data class MovementHistoryCursor(
     }
 }
 
+enum class WalletPaymentChannel(val label: String) {
+    YAPE("Yape"),
+    PLIN("Plin"),
+}
+
 data class AdvancedHistoryCriteria(
     val accountIds: Set<String> = emptySet(),
     val cardIds: Set<String> = emptySet(),
     val categoryIds: Set<String> = emptySet(),
     val merchantIds: Set<String> = emptySet(),
+    val paymentChannels: Set<WalletPaymentChannel> = emptySet(),
     val minAmountMinor: Long? = null,
     val maxAmountMinor: Long? = null,
     val currency: String? = null,
@@ -40,6 +46,7 @@ data class AdvancedHistoryCriteria(
             cardIds.isNotEmpty() ||
             categoryIds.isNotEmpty() ||
             merchantIds.isNotEmpty() ||
+            paymentChannels.isNotEmpty() ||
             minAmountMinor != null ||
             maxAmountMinor != null ||
             financialStates.isNotEmpty() ||

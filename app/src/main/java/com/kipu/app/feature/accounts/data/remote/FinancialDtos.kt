@@ -55,6 +55,7 @@ data class CreateAccountRequestDto(
     @SerialName("initial_balance_minor_units") val initialBalanceMinorUnits: Long,
     @SerialName("opened_at") val openedAt: String,
     @SerialName("payload_hash") val payloadHash: String,
+    @SerialName("linked_account_id") val linkedAccountId: String? = null,
 )
 
 @Serializable

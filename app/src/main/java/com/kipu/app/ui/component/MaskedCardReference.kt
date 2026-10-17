@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import com.kipu.app.feature.accounts.domain.model.Card
 
 /**
  * MaskedCardReference displays a secure, masked card identifier (e.g. "•••• 1234").
@@ -27,7 +28,7 @@ fun MaskedCardReference(
     fontWeight: FontWeight? = null,
 ) {
     val sanitized = lastFourDigits.trim()
-    require(sanitized.length == 4 && sanitized.all { it.isDigit() }) {
+    require(Card.isValidLastFourDigits(sanitized)) {
         "lastFourDigits must be exactly 4 digits: '$lastFourDigits'"
     }
 

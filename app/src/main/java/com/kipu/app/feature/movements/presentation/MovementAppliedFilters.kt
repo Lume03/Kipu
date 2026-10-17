@@ -28,6 +28,7 @@ fun MovementAppliedFilters(state: MovementHistoryUiState, onRemove: (String) -> 
         filters.categoryIds.forEach { id -> add("category:$id" to (rows.firstOrNull { it.transaction.categoryId == id }?.categoryName ?: "Categoría histórica")) }
         filters.cardIds.forEach { id -> add("card:$id" to (rows.firstOrNull { it.transaction.cardId == id }?.cardAlias ?: "Tarjeta histórica")) }
         filters.merchantIds.forEach { id -> add("merchant:$id" to (rows.firstOrNull { it.transaction.merchantId == id }?.merchantName ?: "Comercio histórico")) }
+        filters.paymentChannels.forEach { channel -> add("channel:${channel.name}" to "Billetera ${channel.label}") }
         if (filters.minAmountMinor != null || filters.maxAmountMinor != null) add("amount" to "Importe")
         filters.financialStates.forEach { add("state:${it.name}" to it.uiLabel()) }
         filters.syncStatuses.forEach { add("sync:${it.name}" to it.uiLabel()) }

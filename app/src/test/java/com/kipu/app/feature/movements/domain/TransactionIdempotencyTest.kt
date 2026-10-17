@@ -125,9 +125,19 @@ class TransactionIdempotencyTest {
     }
 
     @Test
+    fun `wallet payment channel is part of transaction identity`() {
+        val base = sample()
+        assertNotEquals(
+            hasher.computeHash(base.copy(paymentChannel = "YAPE")),
+            hasher.computeHash(base.copy(paymentChannel = "PLIN")),
+        )
+        assertNotEquals(hasher.computeHash(base), hasher.computeHash(base.copy(paymentChannel = "YAPE")))
+    }
+
+    @Test
     fun `unicode escapes and controls match shared golden vector`() {
         val command = sample().copy(merchantProvisionalText = "Bodega ñ 🦙", note = "a;note:b \"x\"\\\n")
-        assertEquals("de3c19c4dae2a263d61fb22d62e1d46847ae83379e954fdd5e3377b63b2d5218", hasher.computeHash(command))
+        assertEquals("336a552575c3829397ac37773862bd68cd6467c021f10da52f2077a76ee230ab", hasher.computeHash(command))
     }
 
     private fun sample() = RegisterTransactionCommand(
