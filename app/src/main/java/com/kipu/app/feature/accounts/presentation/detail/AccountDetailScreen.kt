@@ -101,6 +101,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -117,13 +118,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.Currency
-import com.kipu.app.core.finance.domain.model.FinancialMovement
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.MovementKind
+import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MovementCategoryIconAvatar
+import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card as FinancialCard
+import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
@@ -139,7 +143,9 @@ import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDia
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.movementAvatarPresentation
 import com.kipu.app.ui.component.symbol
 import java.time.Instant
 import java.time.LocalDate
@@ -162,7 +168,7 @@ fun AccountDetailScreen(
     onReturnToDashboard: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToRateCatalog: (String) -> Unit = {},
-    cardMovements: List<FinancialMovement>? = null,
+    cardMovements: List<CardMovementDisplay>? = null,
     startPurchaseOnOpen: Boolean = false,
 ) {
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
@@ -394,7 +400,7 @@ fun AccountDetailScreen(
                             text = "• Simulador",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
@@ -403,8 +409,8 @@ fun AccountDetailScreen(
                 // Banner: Simulación de consumo
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    color = emeraldColors.incomeBg,
+                    border = BorderStroke(1.dp, emeraldColors.incomeBorder),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -415,7 +421,7 @@ fun AccountDetailScreen(
                         Icon(
                             imageVector = Icons.Rounded.Info,
                             contentDescription = null,
-                            tint = Color(0xFF16A34A),
+                            tint = emeraldColors.incomeText,
                             modifier = Modifier.size(20.dp),
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -423,12 +429,12 @@ fun AccountDetailScreen(
                                 text = "Simulación de consumo",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF166534),
+                                color = emeraldColors.incomeText,
                             )
                             Text(
                                 text = "Este cálculo es referencial y no registra ningún gasto real en tu tarjeta.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF15803D),
+                                color = emeraldColors.incomeText,
                             )
                         }
                     }
@@ -847,7 +853,7 @@ fun AccountDetailContent(
     onNavigateToRateCatalog: (String) -> Unit = {},
     onStartCreditPurchase: () -> Unit = {},
     onEditCreditCardTerms: () -> Unit = {},
-    cardMovements: List<FinancialMovement> = emptyList(),
+    cardMovements: List<CardMovementDisplay> = emptyList(),
     isSubmitting: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
@@ -890,7 +896,7 @@ fun AccountDetailContent(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (card.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeEmerald),
+                                        .background(if (card.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeText),
                                 )
                                 Text(
                                     text = if (card.isArchived) "Tarjeta archivada · Solo lectura" else "Tarjeta de crédito activa",
@@ -907,7 +913,7 @@ fun AccountDetailContent(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (card.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeEmerald),
+                                        .background(if (card.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeText),
                                 )
                                 Text(
                                     text = if (card.isArchived) "Tarjeta de Débito archivada" else "Tarjeta de Débito activa",
@@ -924,7 +930,7 @@ fun AccountDetailContent(
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(if (account.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeEmerald),
+                                        .background(if (account.isArchived) MaterialTheme.colorScheme.outline else emeraldColors.incomeText),
                                 )
                                 Text(
                                     text = if (account.isArchived) "Cuenta archivada" else "Cuenta activa",
@@ -1093,11 +1099,11 @@ fun AccountDetailContent(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(Icons.Rounded.Payments, contentDescription = null, tint = emeraldColors.incomeEmerald)
+                                    Icon(Icons.Rounded.Payments, contentDescription = null, tint = emeraldColors.incomeText)
                                     Text(
                                         text = "Cuenta de efectivo",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = emeraldColors.incomeEmerald,
+                                        color = emeraldColors.incomeText,
                                     )
                                 }
                             }
@@ -1747,7 +1753,7 @@ private fun CreditCardPeriodPanel(
                             money = debt,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = if (debt.minorUnits > 0L) emeraldColors.expenseCoral else MaterialTheme.colorScheme.onSurface,
+                            color = if (debt.minorUnits > 0L) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = if (debt.minorUnits > 0L) "Pendiente de regularización" else "Sin deuda pendiente",
@@ -1854,9 +1860,9 @@ private fun CreditCardPeriodPanel(
     )
 
     val progressColorTarget = when {
-        utilization >= 80.0 -> emeraldColors.expenseCoral
-        utilization >= 50.0 -> emeraldColors.warningAmber
-        else -> emeraldColors.incomeEmerald
+        utilization >= 80.0 -> emeraldColors.expenseText
+        utilization >= 50.0 -> emeraldColors.warningText
+        else -> emeraldColors.incomeText
     }
     val progressColor = animateColorAsState(
         targetValue = progressColorTarget,
@@ -1885,9 +1891,9 @@ private fun CreditCardPeriodPanel(
         else -> emeraldColors.incomeBorder
     }
     val utilizationStatusTextTarget = when {
-        utilization >= 80.0 -> emeraldColors.expenseCoral
+        utilization >= 80.0 -> emeraldColors.expenseText
         utilization >= 50.0 -> emeraldColors.warningText
-        else -> emeraldColors.incomeEmerald
+        else -> emeraldColors.incomeText
     }
     val utilizationStatusBackground = animateColorAsState(
         utilizationStatusBackgroundTarget,
@@ -1934,7 +1940,7 @@ private fun CreditCardPeriodPanel(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(emeraldColors.incomeEmerald),
+                            .background(emeraldColors.incomeText),
                     )
                     Text(
                         text = "ESTADO DEL PERIODO ACTUAL",
@@ -1953,7 +1959,7 @@ private fun CreditCardPeriodPanel(
                         text = "Cierre en $daysUntilBilling días",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = emeraldColors.incomeEmerald,
+                        color = emeraldColors.incomeText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -1977,7 +1983,7 @@ private fun CreditCardPeriodPanel(
                         money = debt,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (debt.minorUnits > 0L) emeraldColors.expenseCoral else MaterialTheme.colorScheme.onSurface,
+                        color = if (debt.minorUnits > 0L) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "Facturado",
@@ -2058,7 +2064,7 @@ private fun CreditCardPeriodPanel(
                             text = if (daysUntilDue <= 2) "¡Vence en $daysUntilDue días!" else "En $daysUntilDue días",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (daysUntilDue <= 2) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (daysUntilDue <= 2) emeraldColors.expenseCoral else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (daysUntilDue <= 2) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
@@ -2139,7 +2145,7 @@ private fun CreditCardPeriodPanel(
                         Icon(
                             imageVector = Icons.Rounded.Warning,
                             contentDescription = null,
-                            tint = emeraldColors.expenseCoral,
+                            tint = emeraldColors.expenseText,
                             modifier = Modifier.size(20.dp),
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -2147,12 +2153,12 @@ private fun CreditCardPeriodPanel(
                                 text = "Alerta de riesgo financiero: Consumo crítico",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                             )
                             Text(
                         text = "Estás usando el ${"%.1f".format(Locale.US, utilization)}% de tu línea total de crédito. Superar el 50% puede afectar tu score crediticio y generar comisiones por sobregiro.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                             )
                         }
                     }
@@ -2293,7 +2299,7 @@ private fun CreditCardActionsSection(
                                 text = "${"%.1f".format(card.personalTeaBps / 100.0)}% TEA >",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = emeraldColors.incomeEmerald,
+                                color = emeraldColors.incomeText,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -2344,10 +2350,10 @@ private fun CreditCardActionsSection(
                     Icon(
                         imageVector = Icons.Rounded.Archive,
                         contentDescription = null,
-                        tint = emeraldColors.expenseCoral,
+                        tint = emeraldColors.expenseText,
                         modifier = Modifier.size(18.dp),
                     )
-                    Text("Archivar tarjeta", color = emeraldColors.expenseCoral, fontWeight = FontWeight.Medium)
+                    Text("Archivar tarjeta", color = emeraldColors.expenseText, fontWeight = FontWeight.Medium)
                 }
             }
         } else {
@@ -2381,11 +2387,11 @@ private fun CreditCardActionsSection(
                 Icon(
                     imageVector = Icons.Rounded.DeleteForever,
                     contentDescription = null,
-                    tint = emeraldColors.expenseCoral,
+                    tint = emeraldColors.expenseText,
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Eliminar tarjeta permanentemente", color = emeraldColors.expenseCoral, fontWeight = FontWeight.Medium)
+                Text("Eliminar tarjeta permanentemente", color = emeraldColors.expenseText, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -2394,7 +2400,7 @@ private fun CreditCardActionsSection(
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun CreditCardMovementsSection(
-    movements: List<FinancialMovement>,
+    movements: List<CardMovementDisplay>,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -2413,7 +2419,8 @@ private fun CreditCardMovementsSection(
     val filteredMovements = remember(movements, selectedTypeFilter, selectedPeriodFilter) {
         val now = java.time.Instant.now()
         val thirtyDaysAgo = now.minus(30, java.time.temporal.ChronoUnit.DAYS)
-        movements.filter { m ->
+        movements.filter { item ->
+            val m = item.movement
             val matchesType = when (selectedTypeFilter) {
                 "PURCHASES" -> m.kind == MovementKind.CREDIT_PURCHASE
                 "PAYMENTS" -> m.kind == MovementKind.CARD_PAYMENT_LIABILITY || m.kind == MovementKind.CARD_PAYMENT_CASH
@@ -2424,7 +2431,7 @@ private fun CreditCardMovementsSection(
                 else -> true
             }
             matchesType && matchesPeriod
-        }.sortedByDescending { it.effectiveAt }
+        }.sortedByDescending { it.movement.effectiveAt }
     }
 
     Column(
@@ -2774,7 +2781,7 @@ private fun CreditCardMovementsSection(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
             ) {
-                items(items = filteredMovements, key = { it.id.value }) { movement ->
+                items(items = filteredMovements, key = { it.movement.id.value }) { movement ->
                     CreditCardMovementRow(movement, dateFormatter, emeraldColors)
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 }
@@ -2785,29 +2792,50 @@ private fun CreditCardMovementsSection(
 
 @Composable
 private fun CreditCardMovementRow(
-    movement: FinancialMovement,
+    display: CardMovementDisplay,
     dateFormatter: DateTimeFormatter,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
 ) {
+    val movement = display.movement
     val isPayment = movement.kind == MovementKind.CARD_PAYMENT_LIABILITY || movement.kind == MovementKind.CARD_PAYMENT_CASH
     val isNegative = movement.kind == MovementKind.CREDIT_PURCHASE
 
     val (icon, iconTint, boxBg) = when (movement.kind) {
         MovementKind.CARD_PAYMENT_LIABILITY, MovementKind.CARD_PAYMENT_CASH ->
-            Triple(Icons.Rounded.Payments, emeraldColors.incomeEmerald, emeraldColors.incomeBg)
+            Triple(Icons.Rounded.Payments, emeraldColors.incomeText, emeraldColors.incomeBg)
         MovementKind.CREDIT_PURCHASE ->
-            Triple(Icons.Rounded.CreditCard, emeraldColors.expenseCoral, emeraldColors.expenseBg)
+            Triple(Icons.Rounded.CreditCard, emeraldColors.expenseText, emeraldColors.expenseBg)
         MovementKind.ADJUSTMENT ->
             Triple(Icons.Rounded.Refresh, emeraldColors.secondaryMuted, emeraldColors.pillTrack)
         MovementKind.REVERSAL ->
-            Triple(Icons.Rounded.Refresh, emeraldColors.expenseCoral, emeraldColors.expenseBg)
+            Triple(Icons.Rounded.Refresh, emeraldColors.expenseText, emeraldColors.expenseBg)
         MovementKind.OPENING ->
             Triple(Icons.Rounded.AccountBalance, emeraldColors.primaryDeep, emeraldColors.pillTrack)
     }
 
+    val merchantLogoKey = display.merchantLogoKey
+    val context = LocalContext.current
+    val merchantDrawableId = remember(merchantLogoKey) {
+        merchantLogoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
+    }
+    val remoteMerchantLogoUrl = display.merchantLogoUrl
+    val categoryIcon = if (movement.kind == MovementKind.CREDIT_PURCHASE) {
+        display.categoryIcon?.takeIf(String::isNotBlank)
+    } else {
+        null
+    }
+    val avatarPresentation = movementAvatarPresentation(
+        merchantAvatarAllowed = movement.kind == MovementKind.CREDIT_PURCHASE,
+        merchantName = display.merchantName,
+        hasUsableMerchantLogo = merchantDrawableId != 0 || remoteMerchantLogoUrl != null,
+        categoryIcon = categoryIcon,
+    )
+    val showMerchantAvatar = avatarPresentation == MovementAvatarPresentation.MERCHANT_AVATAR ||
+        avatarPresentation == MovementAvatarPresentation.MERCHANT_INITIALS
+
     val title = when (movement.kind) {
         MovementKind.CARD_PAYMENT_LIABILITY, MovementKind.CARD_PAYMENT_CASH -> "Pago Tarjeta de Crédito"
-        MovementKind.CREDIT_PURCHASE -> "Consumo con tarjeta"
+        MovementKind.CREDIT_PURCHASE -> display.merchantName?.takeIf { it.isNotBlank() } ?: "Consumo con tarjeta"
         MovementKind.ADJUSTMENT -> "Ajuste de crédito"
         MovementKind.REVERSAL -> "Reverso de movimiento"
         MovementKind.OPENING -> "Apertura"
@@ -2828,16 +2856,53 @@ private fun CreditCardMovementRow(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = boxBg,
+            color = if (showMerchantAvatar) Color.Transparent else boxBg,
             modifier = Modifier.size(42.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp),
-                )
+                when (avatarPresentation) {
+                    MovementAvatarPresentation.MERCHANT_AVATAR -> MerchantAvatar(
+                        drawableId = merchantDrawableId,
+                        remoteLogoUrl = remoteMerchantLogoUrl,
+                        profile = getMerchantVisualProfile(
+                            display.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
+                            display.merchantBrandColor,
+                        ),
+                        size = 42.dp,
+                        fallbackContent = categoryIcon?.let { iconKey ->
+                            {
+                                MovementCategoryIconAvatar(
+                                    iconKey = iconKey,
+                                    background = boxBg,
+                                    tint = iconTint,
+                                    shape = RoundedCornerShape(12.dp),
+                                    size = 42.dp,
+                                    iconSize = 22.dp,
+                                )
+                            }
+                        },
+                    )
+                    MovementAvatarPresentation.MERCHANT_INITIALS -> MerchantAvatar(
+                        drawableId = 0,
+                        remoteLogoUrl = null,
+                        profile = getMerchantVisualProfile(display.merchantName.orEmpty(), display.merchantBrandColor),
+                        size = 42.dp,
+                    )
+                    MovementAvatarPresentation.CATEGORY_ICON -> MovementCategoryIconAvatar(
+                        iconKey = categoryIcon.orEmpty(),
+                        background = boxBg,
+                        tint = iconTint,
+                        shape = RoundedCornerShape(12.dp),
+                        size = 42.dp,
+                        iconSize = 22.dp,
+                    )
+                    MovementAvatarPresentation.TYPE_ICON -> Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         }
 
@@ -2878,7 +2943,7 @@ private fun CreditCardMovementRow(
             currencySymbol = movement.currency.symbol(),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = if (isPayment) emeraldColors.incomeEmerald else MaterialTheme.colorScheme.onSurface,
+            color = if (isPayment) emeraldColors.incomeText else MaterialTheme.colorScheme.onSurface,
         )
     }
 }

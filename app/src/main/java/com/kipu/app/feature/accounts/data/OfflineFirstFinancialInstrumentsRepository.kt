@@ -48,6 +48,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
+import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditLiabilityAccountIds
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
@@ -1730,30 +1731,53 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         }.distinctUntilChanged()
     }
 
-    override fun observeMovementsByCard(cardId: CardId): Flow<List<FinancialMovement>> {
+    override fun observeMovementsByCard(cardId: CardId): Flow<List<CardMovementDisplay>> {
         return sessionCoordinator.localAccess.flatMapLatest { access ->
             when (access) {
                 is LocalAccess.Available -> {
                     flow {
                         movementDao.backfillPostedCardPurchases(access.userId, cardId.value)
                         emitAll(
-                            movementDao.observeByCard(access.userId, cardId.value).map { list ->
+                            combine(
+                                movementDao.observeByCard(access.userId, cardId.value),
+                                database.categoryDao().observePresentationsForUser(access.userId),
+                                database.merchantCatalogDao().observeMerchants(),
+                            ) { list, presentations, merchants ->
+                                val presentationsById = presentations.associateBy { it.categoryId }
+                                val merchantsById = merchants.associateBy { it.id }
                                 list.map { entity ->
-                                    FinancialMovement(
-                                        id = MovementId(entity.id),
-                                        operationId = OperationId(entity.operationId),
-                                        sequence = entity.operationSequence,
-                                        userId = UserId(entity.userId),
-                                        kind = MovementKind.valueOf(entity.kind),
-                                        amountMinorUnits = entity.amountMinorUnits,
-                                        currency = Currency.fromCode(entity.currency),
-                                        accountId = entity.accountId?.let { AccountId(it) },
-                                        cardId = entity.cardId?.let { CardId(it) },
-                                        effectiveAt = Instant.ofEpochMilli(entity.effectiveAt / 1000L),
-                                        status = MovementStatus.valueOf(entity.status),
-                                        reversesMovementId = entity.reversesMovementId?.let { MovementId(it) },
-                                        adjustsMovementId = entity.adjustsMovementId?.let { MovementId(it) },
-                                        createdAt = Instant.ofEpochMilli(entity.createdAt / 1000L),
+                                    val merchant = entity.merchantId?.let(merchantsById::get)
+                                    val category = entity.categoryId?.let(presentationsById::get)
+                                    val merchantName =
+                                        entity.merchantProvisionalText?.takeIf { it.isNotBlank() } ?: merchant?.name
+                                    CardMovementDisplay(
+                                        movement = FinancialMovement(
+                                            id = MovementId(entity.id),
+                                            operationId = OperationId(entity.operationId),
+                                            sequence = entity.operationSequence,
+                                            userId = UserId(entity.userId),
+                                            kind = MovementKind.valueOf(entity.kind),
+                                            amountMinorUnits = entity.amountMinorUnits,
+                                            currency = Currency.fromCode(entity.currency),
+                                            accountId = entity.accountId?.let { AccountId(it) },
+                                            cardId = entity.cardId?.let { CardId(it) },
+                                            effectiveAt = Instant.ofEpochMilli(entity.effectiveAt / 1000L),
+                                            status = MovementStatus.valueOf(entity.status),
+                                            reversesMovementId = entity.reversesMovementId?.let { MovementId(it) },
+                                            adjustsMovementId = entity.adjustsMovementId?.let { MovementId(it) },
+                                            createdAt = Instant.ofEpochMilli(entity.createdAt / 1000L),
+                                            merchantName = merchantName,
+                                        ),
+                                        merchantName = merchantName,
+                                        merchantLogoKey = merchant?.logoKey,
+                                        merchantLogoUrl = merchant?.logoKey?.let {
+                                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                                                com.kipu.app.BuildConfig.SUPABASE_URL,
+                                                it,
+                                            )
+                                        },
+                                        merchantBrandColor = merchant?.brandColor,
+                                        categoryIcon = category?.icon,
                                     )
                                 }
                             }

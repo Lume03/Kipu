@@ -1,5 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.platform.LocalDensity
@@ -1500,7 +1503,7 @@ private fun TreeBranchItem(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = rememberKipuColors().onPrimary,
                         modifier = Modifier.size(10.dp),
                     )
                 }
@@ -1745,6 +1748,7 @@ private fun R9CreditCardSuccessBottomSheet(
     )
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -1760,6 +1764,7 @@ private fun R9CreditCardSuccessBottomSheet(
             )
         },
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1994,7 +1999,7 @@ private fun R9CreditCardSuccessBottomSheet(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = KipuLightGreenContainer,
-                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                border = BorderStroke(1.dp, rememberCalmEmeraldColors().incomeBorder),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(

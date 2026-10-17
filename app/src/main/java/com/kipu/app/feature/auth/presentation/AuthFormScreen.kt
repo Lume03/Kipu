@@ -156,7 +156,7 @@ internal fun AuthFormScreen(
                         if (confirmation.isNotEmpty() && uiState.password.isNotEmpty()) {
                             val match = PasswordValidator.passwordsMatch(uiState.password, confirmation)
                             Text(if (match) "Las contraseñas coinciden" else "Las contraseñas no coinciden",
-                                color = if (match) colors.incomeEmerald else MaterialTheme.colorScheme.error,
+                                color = if (match) colors.incomeText else MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 6.dp))
                         }
@@ -222,7 +222,7 @@ internal fun AuthFormScreen(
 private fun PasswordRequirement(text: String, satisfied: Boolean, compact: Boolean, showErrors: Boolean) {
     val colors = rememberCalmEmeraldColors()
     // Brighter checks match the reference; the text keeps sufficient contrast on a light card.
-    val successText = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color(0xFF15803D) else colors.incomeEmerald
+    val successText = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color(0xFF15803D) else colors.incomeText
     val statusColor = when {
         satisfied -> successText
         showErrors -> MaterialTheme.colorScheme.error

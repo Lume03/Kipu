@@ -1,5 +1,7 @@
 package com.kipu.app.feature.categories.presentation.categories
 
+import com.kipu.app.ui.theme.KipuThemePreviews
+import com.kipu.app.ui.theme.KipuTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -260,7 +262,7 @@ fun CategoriesScreen(
             FloatingActionButton(
                 onClick = { viewModel.openCreateDialog(parentId = null) },
                 containerColor = colors.primary,
-                contentColor = Color.White,
+                contentColor = colors.onPrimary,
                 shape = CircleShape,
                 modifier = Modifier
                     .size(56.dp)
@@ -269,7 +271,7 @@ fun CategoriesScreen(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Agregar categoría raíz",
-                    tint = Color.White,
+                    tint = colors.onPrimary,
                     modifier = Modifier.size(26.dp),
                 )
             }
@@ -299,116 +301,7 @@ fun CategoriesScreen(
                 val expenseCount = CategoryTab.EXPENSE.filterCategories(state.categories).count { it.category.isRoot }
                 val incomeCount = CategoryTab.INCOME.filterCategories(state.categories).count { it.category.isRoot }
 
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = colors.surfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        // Gastos Tab
-                        val isExpenseSelected = state.selectedTab == CategoryTab.EXPENSE
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isExpenseSelected) colors.primary else Color.Transparent)
-                                .clickable { viewModel.onTabSelected(CategoryTab.EXPENSE) }
-                                .semantics {
-                                    role = Role.Tab
-                                    selected = isExpenseSelected
-                                }
-                                .padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDownward,
-                                    contentDescription = null,
-                                    tint = if (isExpenseSelected) Color.White else colors.inkSecondary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Gastos",
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isExpenseSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isExpenseSelected) Color.White else colors.inkSecondary,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isExpenseSelected) Color.White.copy(alpha = 0.25f) else colors.surfaceVariant,
-                                ) {
-                                    Text(
-                                        text = "$expenseCount",
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isExpenseSelected) Color.White else colors.inkSecondary,
-                                    )
-                                }
-                            }
-                        }
-
-                        // Ingresos Tab
-                        val isIncomeSelected = state.selectedTab == CategoryTab.INCOME
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isIncomeSelected) colors.primary else Color.Transparent)
-                                .clickable { viewModel.onTabSelected(CategoryTab.INCOME) }
-                                .semantics {
-                                    role = Role.Tab
-                                    selected = isIncomeSelected
-                                }
-                                .padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowUpward,
-                                    contentDescription = null,
-                                    tint = if (isIncomeSelected) Color.White else colors.inkSecondary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Ingresos",
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isIncomeSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isIncomeSelected) Color.White else colors.inkSecondary,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isIncomeSelected) Color.White.copy(alpha = 0.25f) else colors.surfaceVariant,
-                                ) {
-                                    Text(
-                                        text = "$incomeCount",
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isIncomeSelected) Color.White else colors.inkSecondary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                CategoryTypeTabs(state.selectedTab, expenseCount, incomeCount, viewModel::onTabSelected)
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -787,7 +680,7 @@ private fun CategoryQuotaProgressRow(
                     .background(
                         if (index < count) accent
                         else if (colors.isDark) colors.surfaceVariant
-                        else Color(0xFFE2E8F0)
+                        else colors.border
                     ),
             )
         }
@@ -810,7 +703,6 @@ fun CategoryRootCard(
 ) {
     val colors = rememberKipuColors()
     val isRootActive = item.category.isActive
-    val cardAlpha = if (isRootActive) 1f else 0.55f
     val reducedMotion = rememberReducedMotionEnabled()
     val rootAppearance = remember(item.category.id, item.displayName, item.icon, item.color) {
         categoryRootAppearance(item)
@@ -828,8 +720,7 @@ fun CategoryRootCard(
         border = BorderStroke(1.dp, colors.border.copy(alpha = 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = modifier
-            .fillMaxWidth()
-            .alpha(cardAlpha),
+            .fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header Row
@@ -1156,4 +1047,126 @@ private fun categoryRootAppearance(item: CategoryItem): CategoryRootAppearance {
         "servicios" -> CategoryRootAppearance("receipt", Color(0xFF7C3AED))
         else -> CategoryRootAppearance(item.icon, storedTint)
     }
+}
+
+
+@Composable
+internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incomeCount: Int, onSelected: (CategoryTab) -> Unit) {
+    val colors = rememberKipuColors()
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surfaceVariant.copy(alpha = 0.6f),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Gastos Tab
+            val isExpenseSelected = selectedTab == CategoryTab.EXPENSE
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isExpenseSelected) colors.primary else Color.Transparent)
+                    .clickable { onSelected(CategoryTab.EXPENSE) }
+                    .semantics {
+                        role = Role.Tab
+                        selected = isExpenseSelected
+                    }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = null,
+                        tint = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Gastos",
+                        fontSize = 14.sp,
+                        fontWeight = if (isExpenseSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isExpenseSelected) colors.onPrimary.copy(alpha = 0.25f) else colors.surfaceVariant,
+                    ) {
+                        Text(
+                            text = "$expenseCount",
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                        )
+                    }
+                }
+            }
+
+            // Ingresos Tab
+            val isIncomeSelected = selectedTab == CategoryTab.INCOME
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isIncomeSelected) colors.primary else Color.Transparent)
+                    .clickable { onSelected(CategoryTab.INCOME) }
+                    .semantics {
+                        role = Role.Tab
+                        selected = isIncomeSelected
+                    }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = null,
+                        tint = if (isIncomeSelected) colors.onPrimary else colors.inkSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Ingresos",
+                        fontSize = 14.sp,
+                        fontWeight = if (isIncomeSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isIncomeSelected) colors.onPrimary else colors.inkSecondary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isIncomeSelected) colors.onPrimary.copy(alpha = 0.25f) else colors.surfaceVariant,
+                    ) {
+                        Text(
+                            text = "$incomeCount",
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isIncomeSelected) colors.onPrimary else colors.inkSecondary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@KipuThemePreviews
+@Composable
+private fun CategoryTypeTabsThemePreview() = KipuTheme {
+    CategoryTypeTabs(CategoryTab.EXPENSE, 4, 2, {})
 }

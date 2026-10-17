@@ -36,7 +36,7 @@ class MovementUxRefinementTest {
 
     @Test fun voidedDetailIsReadableAndOffersNoFinancialActions() {
         compose.setContent { KipuTheme { MovementDetailSheet(item(TransactionStatus.VOIDED), emptyList(), false, false, {}, {}, {}) } }
-        compose.onNodeWithText("Movimiento anulado · Solo lectura").assertIsDisplayed()
+        compose.onNodeWithText("Este movimiento fue anulado.", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("detail_edit").assertDoesNotExist()
         compose.onNodeWithTag("detail_void").assertDoesNotExist()
     }
@@ -187,7 +187,7 @@ class MovementUxRefinementTest {
             compose.setContent { KipuTheme(darkTheme = dark.value) { MovementHistoryRoute(viewModel = model) } }
             compose.waitUntil(5_000) { model.uiState.value.allTransactions.size == 2 }
             compose.onNodeWithTag("tx_row_ux-voided").performScrollTo().performClick()
-            compose.onNodeWithText("Movimiento anulado · Solo lectura").assertIsDisplayed()
+            compose.onNodeWithText("Este movimiento fue anulado.", substring = true).performScrollTo().assertIsDisplayed()
             compose.onNodeWithTag("detail_edit").assertDoesNotExist()
             compose.onNodeWithText("Cerrar detalle").performScrollTo().performClick()
             compose.runOnIdle { model.onAccountFilterToggled("cash") }

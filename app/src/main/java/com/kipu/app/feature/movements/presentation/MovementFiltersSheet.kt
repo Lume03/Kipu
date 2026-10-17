@@ -1,5 +1,11 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
+import com.kipu.app.ui.theme.KipuThemePreviews
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -74,6 +80,10 @@ private fun MovementFiltersSheetContent(
     onViewPlans: () -> Unit = {},
     onDismissRecovery: () -> Unit = {},
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
+    val compactLayout = LocalConfiguration.current.screenWidthDp < 380 ||
+        LocalConfiguration.current.fontScale >= 1.3f
     var draft by rememberSaveable(state.ownerId, stateSaver = MovementFilterDraftSaver) {
         mutableStateOf(
             MovementFilterDraft.fromApplied(
@@ -225,13 +235,13 @@ private fun MovementFiltersSheetContent(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp
                             ),
-                            color = Color(0xFF0F172A)
+                            color = themeColors.inkPrimary
                         )
                         if (activeFilterCount > 0) {
                             Spacer(Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFDCFCE7),
+                                color = semanticColors.incomeBg,
                             ) {
                                 Text(
                                     text = "$activeFilterCount activos",
@@ -239,7 +249,7 @@ private fun MovementFiltersSheetContent(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp
                                     ),
-                                    color = Color(0xFF15803D),
+                                    color = semanticColors.incomeText,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
@@ -252,7 +262,7 @@ private fun MovementFiltersSheetContent(
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = stringResource(R.string.history_filter_cancel),
-                            tint = Color(0xFF64748B),
+                            tint = themeColors.inkSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -278,9 +288,9 @@ private fun MovementFiltersSheetContent(
                             }
                             ActiveFilterDismissChip(
                                 text = chipLabel,
-                                bgColor = Color(0xFFE6F4EA),
-                                borderColor = Color(0xFFA7F3D0),
-                                textColor = Color(0xFF0F766E),
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
                                 onDismiss = { updateDraft(draft.copy(fromDate = "", toDate = "")) }
                             )
                         }
@@ -288,9 +298,9 @@ private fun MovementFiltersSheetContent(
                         // Movement Type chip
                         draft.movementType?.let { type ->
                             val (typeLabel, bgCol, borderCol, textCol) = when (type) {
-                                MovementType.EXPENSE -> listOf("Gastos", Color(0xFFFEE2E2), Color(0xFFFECACA), Color(0xFFDC2626))
-                                MovementType.INCOME -> listOf("Ingresos", Color(0xFFDCFCE7), Color(0xFFA7F3D0), Color(0xFF16A34A))
-                                MovementType.TRANSFER -> listOf("Transferencias", Color(0xFFEFF6FF), Color(0xFFBFDBFE), Color(0xFF2563EB))
+                                MovementType.EXPENSE -> listOf("Gastos", semanticColors.expenseBg, semanticColors.expenseBorder, semanticColors.expenseText)
+                                MovementType.INCOME -> listOf("Ingresos", semanticColors.incomeBg, semanticColors.incomeBorder, semanticColors.incomeText)
+                                MovementType.TRANSFER -> listOf("Transferencias", semanticColors.transferBg, semanticColors.transferBorder, semanticColors.transferBlue)
                             }
                             ActiveFilterDismissChip(
                                 text = typeLabel as String,
@@ -305,9 +315,9 @@ private fun MovementFiltersSheetContent(
                         if (draft.comparePreviousMonth) {
                             ActiveFilterDismissChip(
                                 text = "Comparar mes",
-                                bgColor = Color(0xFFF1F5F9),
-                                borderColor = Color(0xFFCBD5E1),
-                                textColor = Color(0xFF475569),
+                                bgColor = themeColors.surfaceVariant,
+                                borderColor = themeColors.border,
+                                textColor = themeColors.inkSecondary,
                                 onDismiss = { updateDraft(draft.copy(comparePreviousMonth = false)) }
                             )
                         }
@@ -317,9 +327,9 @@ private fun MovementFiltersSheetContent(
                             val accName = accounts.firstOrNull { it.id == accId }?.label ?: "Cuenta"
                             ActiveFilterDismissChip(
                                 text = accName,
-                                bgColor = Color(0xFFE6F4EA),
-                                borderColor = Color(0xFFA7F3D0),
-                                textColor = Color(0xFF0F766E),
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
                                 onDismiss = { updateDraft(draft.copy(accountIds = draft.accountIds - accId)) }
                             )
                         }
@@ -329,9 +339,9 @@ private fun MovementFiltersSheetContent(
                             val catName = categories.firstOrNull { it.id == catId }?.label ?: "Categoría"
                             ActiveFilterDismissChip(
                                 text = catName,
-                                bgColor = Color(0xFFE6F4EA),
-                                borderColor = Color(0xFFA7F3D0),
-                                textColor = Color(0xFF0F766E),
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
                                 onDismiss = { updateDraft(draft.copy(categoryIds = draft.categoryIds - catId)) }
                             )
                         }
@@ -345,9 +355,9 @@ private fun MovementFiltersSheetContent(
                             }
                             ActiveFilterDismissChip(
                                 text = amountLabel,
-                                bgColor = Color(0xFFE6F4EA),
-                                borderColor = Color(0xFFA7F3D0),
-                                textColor = Color(0xFF0F766E),
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
                                 onDismiss = { updateDraft(draft.copy(minAmount = "", maxAmount = "", currency = null)) }
                             )
                         }
@@ -359,7 +369,7 @@ private fun MovementFiltersSheetContent(
         // Scrollable content body
         Column(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
@@ -368,9 +378,9 @@ private fun MovementFiltersSheetContent(
             // CARD 1: Periodo y Fecha
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF2FBF7),
-                border = BorderStroke(1.dp, Color(0xFFD1FAE5)),
-                modifier = Modifier.fillMaxWidth().animateContentSize()
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, semanticColors.incomeBorder),
+                modifier = Modifier.fillMaxWidth().animateContentSize().testTag("filter_period_card")
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -392,14 +402,14 @@ private fun MovementFiltersSheetContent(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isPeriodActive) Color(0xFF0F766E) else Color(0xFFCCFBF1),
+                                color = if (isPeriodActive) themeColors.primary else themeColors.primaryContainer,
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Rounded.CalendarMonth,
                                         contentDescription = null,
-                                        tint = if (isPeriodActive) Color.White else Color(0xFF0F766E),
+                                        tint = if (isPeriodActive) themeColors.onPrimary else themeColors.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -409,11 +419,11 @@ private fun MovementFiltersSheetContent(
                                     Text(
                                         text = "Periodo y Fecha",
                                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = Color(0xFF0F172A)
+                                        color = themeColors.inkPrimary
                                     )
                                     if (isPeriodActive) {
                                         Spacer(Modifier.width(6.dp))
-                                        Box(Modifier.size(6.dp).background(Color(0xFF0F766E), CircleShape))
+                                        Box(Modifier.size(6.dp).background(themeColors.primary, CircleShape))
                                     }
                                 }
                                 Row(
@@ -423,14 +433,14 @@ private fun MovementFiltersSheetContent(
                                     Text(
                                         text = periodSubtitle,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF64748B),
+                                        color = themeColors.inkSecondary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     if (!showPeriodOptions && periodDurationDays != null) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFDCFCE7)
+                                            color = semanticColors.incomeBg
                                         ) {
                                             Text(
                                                 text = "${periodDurationDays}d",
@@ -438,7 +448,7 @@ private fun MovementFiltersSheetContent(
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 10.sp
                                                 ),
-                                                color = Color(0xFF15803D),
+                                                color = semanticColors.incomeText,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                             )
                                         }
@@ -450,7 +460,7 @@ private fun MovementFiltersSheetContent(
                         Icon(
                             imageVector = if (showPeriodOptions) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = themeColors.inkSecondary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -521,8 +531,8 @@ private fun MovementFiltersSheetContent(
                                         Surface(
                                             onClick = { dates = true },
                                             shape = RoundedCornerShape(12.dp),
-                                            color = Color.White,
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            color = themeColors.surface,
+                                            border = BorderStroke(1.dp, themeColors.border),
                                             modifier = Modifier.weight(1f).testTag("btn_filter_dates")
                                         ) {
                                             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -532,21 +542,21 @@ private fun MovementFiltersSheetContent(
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 10.sp
                                                     ),
-                                                    color = Color(0xFF64748B)
+                                                    color = themeColors.inkSecondary
                                                 )
                                                 Spacer(Modifier.height(4.dp))
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
                                                         imageVector = Icons.Rounded.CalendarMonth,
                                                         contentDescription = null,
-                                                        tint = Color(0xFF0F766E),
+                                                        tint = themeColors.primary,
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                     Spacer(Modifier.width(6.dp))
                                                     Text(
                                                         text = fromDateObj?.format(displayDateFormatter) ?: "Sin elegir",
                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                        color = Color(0xFF0F172A)
+                                                        color = themeColors.inkPrimary
                                                     )
                                                 }
                                             }
@@ -556,8 +566,8 @@ private fun MovementFiltersSheetContent(
                                         Surface(
                                             onClick = { dates = true },
                                             shape = RoundedCornerShape(12.dp),
-                                            color = Color.White,
-                                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            color = themeColors.surface,
+                                            border = BorderStroke(1.dp, themeColors.border),
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -567,21 +577,21 @@ private fun MovementFiltersSheetContent(
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 10.sp
                                                     ),
-                                                    color = Color(0xFF64748B)
+                                                    color = themeColors.inkSecondary
                                                 )
                                                 Spacer(Modifier.height(4.dp))
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
                                                         imageVector = Icons.Rounded.CalendarMonth,
                                                         contentDescription = null,
-                                                        tint = Color(0xFF0F766E),
+                                                        tint = themeColors.primary,
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                     Spacer(Modifier.width(6.dp))
                                                     Text(
                                                         text = toDateObj?.format(displayDateFormatter) ?: "Sin elegir",
                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                        color = Color(0xFF0F172A)
+                                                        color = themeColors.inkPrimary
                                                     )
                                                 }
                                             }
@@ -597,17 +607,17 @@ private fun MovementFiltersSheetContent(
                                         Text(
                                             text = "Intervalo seleccionado",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF64748B)
+                                            color = themeColors.inkSecondary
                                         )
                                         if (periodDurationDays != null) {
                                             Surface(
                                                 shape = RoundedCornerShape(8.dp),
-                                                color = Color(0xFFDCFCE7)
+                                                color = semanticColors.incomeBg
                                             ) {
                                                 Text(
                                                     text = "$periodDurationDays días",
                                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = Color(0xFF15803D),
+                                                    color = semanticColors.incomeText,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                                 )
                                             }
@@ -619,8 +629,8 @@ private fun MovementFiltersSheetContent(
                                 Surface(
                                     onClick = { dates = true },
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    color = themeColors.surface,
+                                    border = BorderStroke(1.dp, themeColors.border),
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("btn_filter_dates")
                                 ) {
                                     Row(
@@ -636,25 +646,25 @@ private fun MovementFiltersSheetContent(
                                             Icon(
                                                 imageVector = Icons.Rounded.CalendarMonth,
                                                 contentDescription = null,
-                                                tint = if (isPeriodActive) Color(0xFF0F766E) else Color(0xFF64748B),
+                                                tint = if (isPeriodActive) themeColors.primary else themeColors.inkSecondary,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Text(
                                                 text = if (!isPeriodActive) "Historial completo (sin restricciones)"
                                                 else "${fromDateObj?.format(displayDateFormatter) ?: "…"} — ${toDateObj?.format(displayDateFormatter) ?: "…"}",
                                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                                color = Color(0xFF0F172A)
+                                                color = themeColors.inkPrimary
                                             )
                                         }
                                         if (periodDurationDays != null) {
                                             Surface(
                                                 shape = RoundedCornerShape(8.dp),
-                                                color = Color(0xFFDCFCE7)
+                                                color = semanticColors.incomeBg
                                             ) {
                                                 Text(
                                                     text = "${periodDurationDays}d",
                                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = Color(0xFF15803D),
+                                                    color = semanticColors.incomeText,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                 )
                                             }
@@ -676,25 +686,19 @@ private fun MovementFiltersSheetContent(
                                     Icon(
                                         imageVector = Icons.Rounded.SwapHoriz,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = themeColors.inkSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
                                         text = "Comparar con mes anterior",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = Color(0xFF1E293B)
+                                        color = themeColors.inkPrimary
                                     )
                                 }
                                 Switch(
                                     checked = draft.comparePreviousMonth,
                                     onCheckedChange = { updateDraft(draft.copy(comparePreviousMonth = it)) },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF0F766E),
-                                        uncheckedThumbColor = Color.White,
-                                        uncheckedTrackColor = Color(0xFFCBD5E1),
-                                        uncheckedBorderColor = Color.Transparent
-                                    )
+                                    colors = SwitchDefaults.colors()
                                 )
                             }
 
@@ -714,13 +718,13 @@ private fun MovementFiltersSheetContent(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     ),
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                     modifier = Modifier.padding(start = 4.dp)
                 )
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFF1F5F9),
+                    color = themeColors.surfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -730,31 +734,31 @@ private fun MovementFiltersSheetContent(
                         MovementTypeSegment(
                             title = "Todos",
                             isSelected = draft.movementType == null,
-                            activeColor = Color(0xFF0F766E),
+                            activeColor = themeColors.primary,
                             modifier = Modifier.weight(1f),
                             onClick = { updateDraft(draft.copy(movementType = null)) }
                         )
                         MovementTypeSegment(
                             title = "Gastos",
                             isSelected = draft.movementType == MovementType.EXPENSE,
-                            bulletColor = Color(0xFFDC2626),
-                            activeColor = Color(0xFFDC2626),
+                            bulletColor = semanticColors.expenseText,
+                            activeColor = semanticColors.expenseText,
                             modifier = Modifier.weight(1f),
                             onClick = { updateDraft(draft.copy(movementType = MovementType.EXPENSE)) }
                         )
                         MovementTypeSegment(
                             title = "Ingresos",
                             isSelected = draft.movementType == MovementType.INCOME,
-                            bulletColor = Color(0xFF16A34A),
-                            activeColor = Color(0xFF16A34A),
+                            bulletColor = semanticColors.incomeText,
+                            activeColor = semanticColors.incomeText,
                             modifier = Modifier.weight(1f),
                             onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
                         )
                         MovementTypeSegment(
-                            title = "Transf.",
+                            title = "Transferencias",
                             isSelected = draft.movementType == MovementType.TRANSFER,
-                            bulletColor = Color(0xFF2563EB),
-                            activeColor = Color(0xFF2563EB),
+                            bulletColor = semanticColors.transferBlue,
+                            activeColor = semanticColors.transferBlue,
                             modifier = Modifier.weight(1f),
                             onClick = { updateDraft(draft.copy(movementType = MovementType.TRANSFER)) }
                         )
@@ -765,9 +769,9 @@ private fun MovementFiltersSheetContent(
             // SECTION 3: Filtros avanzados
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF2FBF7),
-                border = BorderStroke(1.dp, Color(0xFFD1FAE5)),
-                modifier = Modifier.fillMaxWidth().animateContentSize()
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, semanticColors.incomeBorder),
+                modifier = Modifier.fillMaxWidth().animateContentSize().testTag("filter_advanced_card")
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -783,12 +787,12 @@ private fun MovementFiltersSheetContent(
                             Text(
                                 text = "Filtros avanzados",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF0F172A)
+                                color = themeColors.inkPrimary
                             )
                             Spacer(Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFDCFCE7)
+                                color = semanticColors.incomeBg
                             ) {
                                 if (allowed) {
                                     Row(
@@ -798,7 +802,7 @@ private fun MovementFiltersSheetContent(
                                         Icon(
                                             imageVector = Icons.Rounded.Verified,
                                             contentDescription = null,
-                                            tint = Color(0xFF0F766E),
+                                            tint = themeColors.primary,
                                             modifier = Modifier.size(11.dp)
                                         )
                                         Spacer(Modifier.width(3.dp))
@@ -808,7 +812,7 @@ private fun MovementFiltersSheetContent(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 10.sp
                                             ),
-                                            color = Color(0xFF0F766E)
+                                            color = themeColors.primary
                                         )
                                     }
                                 } else {
@@ -818,7 +822,7 @@ private fun MovementFiltersSheetContent(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 10.sp
                                         ),
-                                        color = Color(0xFF0F766E),
+                                        color = themeColors.primary,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -829,14 +833,14 @@ private fun MovementFiltersSheetContent(
                             Icon(
                                 imageVector = Icons.Rounded.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFFD97706),
+                                tint = semanticColors.warningText,
                                 modifier = Modifier.size(18.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Rounded.MilitaryTech,
                                 contentDescription = null,
-                                tint = Color(0xFF0F766E),
+                                tint = themeColors.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -845,7 +849,7 @@ private fun MovementFiltersSheetContent(
                     Text(
                         text = "Filtra por cuenta, categoría, comercio o rango de importe.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B)
+                        color = themeColors.inkSecondary
                     )
 
                     // 4 Rows for Advanced Filters
@@ -880,8 +884,8 @@ private fun MovementFiltersSheetContent(
                         Surface(
                             onClick = { showUpsell = true },
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFE8F7F0),
-                            border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                            color = themeColors.selectedSurface,
+                            border = BorderStroke(1.dp, semanticColors.incomeBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -892,13 +896,13 @@ private fun MovementFiltersSheetContent(
                                 Icon(
                                     imageVector = Icons.Rounded.MilitaryTech,
                                     contentDescription = null,
-                                    tint = Color(0xFF0F766E),
+                                    tint = themeColors.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     text = "Ver Premium",
-                                    color = Color(0xFF0F766E),
+                                    color = themeColors.primary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -917,6 +921,7 @@ private fun MovementFiltersSheetContent(
                             onDraftChange = ::updateDraft,
                             errors = errors,
                             allowed = true,
+                            compactLayout = compactLayout,
                             accounts = accounts,
                             categories = categories,
                             cards = cards,
@@ -929,22 +934,26 @@ private fun MovementFiltersSheetContent(
             Spacer(Modifier.height(8.dp))
         }
 
+        if (compactLayout) Spacer(Modifier.height(12.dp))
+
         // STICKY BOTTOM BAR
         Surface(
             tonalElevation = 4.dp,
             shadowElevation = 8.dp,
-            color = Color.White,
+            color = themeColors.surface,
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
+                .testTag("sticky_filter_footer")
         ) {
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
+                maxItemsInEachRow = if (compactLayout) 1 else 2,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
                     onClick = {
@@ -953,9 +962,11 @@ private fun MovementFiltersSheetContent(
                         validationAttempted = false
                     },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF475569)),
-                    modifier = Modifier.weight(0.32f).height(48.dp).testTag("btn_reset_advanced_filters")
+                    border = BorderStroke(1.dp, themeColors.border),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = themeColors.inkSecondary),
+                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.32f))
+                        .heightIn(min = 48.dp)
+                        .testTag("btn_reset_advanced_filters")
                 ) {
                     Text("Limpiar", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 }
@@ -995,18 +1006,26 @@ private fun MovementFiltersSheetContent(
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (hasZeroMatches) Color(0xFFE2E8F0) else Color(0xFF0F766E),
-                        contentColor = if (hasZeroMatches) Color(0xFF94A3B8) else Color.White,
-                        disabledContainerColor = Color(0xFFE2E8F0),
-                        disabledContentColor = Color(0xFF94A3B8),
+                        containerColor = if (hasZeroMatches) themeColors.border else themeColors.primary,
+                        contentColor = if (hasZeroMatches) themeColors.inkSecondary else themeColors.onPrimary,
+                        disabledContainerColor = themeColors.border,
+                        disabledContentColor = themeColors.inkSecondary,
                     ),
-                    modifier = Modifier.weight(0.68f).height(48.dp).testTag("btn_apply_filters")
+                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.68f))
+                        .heightIn(min = 48.dp)
+                        .testTag("btn_apply_filters")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(ctaText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            text = ctaText,
+                            modifier = if (compactLayout) Modifier.weight(1f) else Modifier,
+                            textAlign = if (compactLayout) TextAlign.Center else TextAlign.Start,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
                         Spacer(Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.ArrowForward,
@@ -1037,7 +1056,7 @@ private fun MovementFiltersSheetContent(
                     Text(
                         stringResource(R.string.history_filter_apply),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F766E)
+                        color = themeColors.primary
                     )
                 }
             },
@@ -1045,7 +1064,7 @@ private fun MovementFiltersSheetContent(
                 TextButton(onClick = { dates = false }) {
                     Text(
                         stringResource(R.string.history_filter_cancel),
-                        color = Color(0xFF64748B)
+                        color = themeColors.inkSecondary
                     )
                 }
             }
@@ -1077,7 +1096,7 @@ private fun MovementFiltersSheetContent(
                                         if (picker.displayMode == DisplayMode.Picker)
                                             R.string.history_filter_date_input_mode else R.string.history_filter_date_calendar_mode
                                     ),
-                                    tint = Color(0xFF0F766E)
+                                    tint = themeColors.primary
                                 )
                             }
                         }
@@ -1156,11 +1175,12 @@ private fun FilterPresetChip(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val themeColors = rememberKipuColors()
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = if (selected) Color(0xFF0F766E) else Color.White,
-        border = BorderStroke(1.dp, if (selected) Color(0xFF0F766E) else Color(0xFFE2E8F0)),
+        color = if (selected) themeColors.primary else themeColors.surface,
+        border = BorderStroke(1.dp, if (selected) themeColors.primary else themeColors.border),
         modifier = modifier.height(36.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -1169,7 +1189,7 @@ private fun FilterPresetChip(
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),
-                color = if (selected) Color.White else Color(0xFF1E293B)
+                color = if (selected) themeColors.onPrimary else themeColors.inkPrimary
             )
         }
     }
@@ -1185,12 +1205,13 @@ private fun MovementTypeSegment(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val themeColors = rememberKipuColors()
     if (isSelected) {
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = Color.White,
+            color = themeColors.surface,
             shadowElevation = 1.dp,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = modifier.height(34.dp)
         ) {
             Row(
@@ -1219,7 +1240,7 @@ private fun MovementTypeSegment(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = Color(0xFF64748B)
+                color = themeColors.inkSecondary
             )
         }
     }
@@ -1233,11 +1254,12 @@ private fun LockedAdvancedRow(
     summary: String,
     onClick: () -> Unit
 ) {
+    val themeColors = rememberKipuColors()
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = themeColors.surface,
+        border = BorderStroke(1.dp, themeColors.border),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
     ) {
         Row(
@@ -1254,7 +1276,7 @@ private fun LockedAdvancedRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color(0xFF64748B),
+                    tint = themeColors.inkSecondary,
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
@@ -1271,17 +1293,54 @@ private fun LockedAdvancedRow(
                 Text(
                     text = summary,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B)
+                    color = themeColors.inkSecondary
                 )
                 Icon(
                     imageVector = Icons.Rounded.Lock,
                     contentDescription = null,
-                    tint = Color(0xFF94A3B8),
+                    tint = themeColors.inkSecondary,
                     modifier = Modifier.size(16.dp)
                 )
             }
         }
     }
+}
+
+/** Shared amount field for the compact and regular filter layouts. */
+@Composable
+private fun FilterAmountInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    label: String,
+    error: FilterDraftError?,
+    field: String,
+    testTag: String,
+    hiddenDescription: String,
+    modifier: Modifier,
+) {
+    val themeColors = rememberKipuColors()
+    val isMasked = LocalBalanceMasked.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        visualTransformation = if (isMasked) PasswordVisualTransformation() else VisualTransformation.None,
+        supportingText = if (error != null) {
+            { FilterFieldError(field, error) }
+        } else null,
+        isError = error != null,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = themeColors.primary,
+            unfocusedBorderColor = themeColors.outline,
+        ),
+        shape = RoundedCornerShape(10.dp),
+        modifier = modifier
+            .testTag(testTag)
+            .privateAmount(isMasked, enabled, hiddenDescription, onValueChange),
+    )
 }
 
 /** Controls for Unlocked / Pro Plan filters */
@@ -1292,11 +1351,13 @@ private fun AdvancedFiltersControls(
     onDraftChange: (MovementFilterDraft) -> Unit,
     errors: Map<String, FilterDraftError>,
     allowed: Boolean,
+    compactLayout: Boolean,
     accounts: List<MovementReferenceOption>,
     categories: List<MovementReferenceOption>,
     cards: List<MovementReferenceOption>,
     merchants: List<MovementReferenceOption>,
 ) {
+    val themeColors = rememberKipuColors()
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Cuentas
         ReferenceSelector(
@@ -1325,8 +1386,8 @@ private fun AdvancedFiltersControls(
         // Importe / Rango Card
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = themeColors.surface,
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1342,7 +1403,7 @@ private fun AdvancedFiltersControls(
                         Icon(
                             imageVector = Icons.Rounded.Payments,
                             contentDescription = null,
-                            tint = Color(0xFF0F766E),
+                            tint = themeColors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
@@ -1362,21 +1423,27 @@ private fun AdvancedFiltersControls(
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = if (hasCustomAmount) FontWeight.SemiBold else FontWeight.Normal
                         ),
-                        color = if (hasCustomAmount) Color(0xFF0F766E) else Color(0xFF64748B)
+                        color = if (hasCustomAmount) themeColors.primary else themeColors.inkSecondary
                     )
                 }
 
                 // Currency selector
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Moneda:", style = MaterialTheme.typography.labelMedium, color = Color(0xFF64748B))
+                    Text(
+                        "Moneda:",
+                        modifier = if (compactLayout) Modifier.fillMaxWidth() else Modifier,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = themeColors.inkSecondary,
+                    )
                     listOf("PEN", "USD").forEach { currency ->
                         KipuFilterChip(
                             selected = draft.currency == currency,
                             enabled = allowed,
                             onClick = { onDraftChange(draft.copy(currency = currency)) },
+                            modifier = Modifier.widthIn(min = 80.dp),
                             label = { Text(currency) }
                         )
                     }
@@ -1384,49 +1451,59 @@ private fun AdvancedFiltersControls(
                 FilterFieldError("currency", errors["currency"])
 
                 // Min and Max Amount Input Fields
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = draft.minAmount,
-                        onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
-                        enabled = allowed,
-                        label = { Text(stringResource(R.string.movements_filter_min_amount)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        visualTransformation = if (LocalBalanceMasked.current) PasswordVisualTransformation() else VisualTransformation.None,
-                        supportingText = if (errors.containsKey("min")) { { FilterFieldError("min", errors["min"]) } } else null,
-                        isError = errors.containsKey("min"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0F766E),
-                            unfocusedBorderColor = Color(0xFFCBD5E1)
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_filter_min_amount")
-                            .privateAmount(LocalBalanceMasked.current, allowed, "Importe mínimo oculto") { onDraftChange(draft.copy(minAmount = it)) }
-                    )
-
-                    OutlinedTextField(
-                        value = draft.maxAmount,
-                        onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
-                        enabled = allowed,
-                        label = { Text(stringResource(R.string.movements_filter_max_amount)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        visualTransformation = if (LocalBalanceMasked.current) PasswordVisualTransformation() else VisualTransformation.None,
-                        supportingText = if (errors.containsKey("max")) { { FilterFieldError("max", errors["max"]) } } else null,
-                        isError = errors.containsKey("max"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0F766E),
-                            unfocusedBorderColor = Color(0xFFCBD5E1)
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_filter_max_amount")
-                            .privateAmount(LocalBalanceMasked.current, allowed, "Importe máximo oculto") { onDraftChange(draft.copy(maxAmount = it)) }
-                    )
+                if (compactLayout) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FilterAmountInput(
+                            value = draft.minAmount,
+                            onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_min_amount),
+                            error = errors["min"],
+                            field = "min",
+                            testTag = "input_filter_min_amount",
+                            hiddenDescription = "Importe mínimo oculto",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FilterAmountInput(
+                            value = draft.maxAmount,
+                            onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_max_amount),
+                            error = errors["max"],
+                            field = "max",
+                            testTag = "input_filter_max_amount",
+                            hiddenDescription = "Importe máximo oculto",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        FilterAmountInput(
+                            value = draft.minAmount,
+                            onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_min_amount),
+                            error = errors["min"],
+                            field = "min",
+                            testTag = "input_filter_min_amount",
+                            hiddenDescription = "Importe mínimo oculto",
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterAmountInput(
+                            value = draft.maxAmount,
+                            onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_max_amount),
+                            error = errors["max"],
+                            field = "max",
+                            testTag = "input_filter_max_amount",
+                            hiddenDescription = "Importe máximo oculto",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
@@ -1493,12 +1570,16 @@ private fun KipuProUpsellDialog(
     onDismiss: () -> Unit,
     onGetPro: () -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
+        containerColor = themeColors.surface,
         modifier = Modifier.testTag("dialog_movement_filter_pro_upsell")
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1510,21 +1591,21 @@ private fun KipuProUpsellDialog(
             // Close button on top-right
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = Color(0xFF64748B))
+                    Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = themeColors.inkSecondary)
                 }
             }
 
             // Top Badge Icon
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFDCFCE7),
+                color = semanticColors.incomeBg,
                 modifier = Modifier.size(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Rounded.MilitaryTech,
                         contentDescription = null,
-                        tint = Color(0xFF0F766E),
+                        tint = themeColors.primary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -1533,18 +1614,18 @@ private fun KipuProUpsellDialog(
             // KIPU PRO Pill
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFDCFCE7)
+                color = semanticColors.incomeBg
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFF0F766E), modifier = Modifier.size(13.dp))
+                    Icon(Icons.Rounded.Star, contentDescription = null, tint = themeColors.primary, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "KIPU PRO",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF0F766E)
+                        color = themeColors.primary
                     )
                 }
             }
@@ -1553,21 +1634,21 @@ private fun KipuProUpsellDialog(
             Text(
                 text = "Filtra sin límites con Kipu Pro",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-                color = Color(0xFF0F172A),
+                color = themeColors.inkPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = "Encuentra cualquier transacción filtrando por cuentas específicas, múltiples categorías, comercios frecuentes y rango de importes exactos.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF475569),
+                color = themeColors.inkSecondary,
                 textAlign = TextAlign.Center
             )
 
             // Benefits Container
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF0FDF4),
-                border = BorderStroke(1.dp, Color(0xFFDCFCE7)),
+                color = semanticColors.incomeBg,
+                border = BorderStroke(1.dp, semanticColors.incomeBg),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -1584,8 +1665,8 @@ private fun KipuProUpsellDialog(
             // Pricing Option Card
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF0FDF4),
-                border = BorderStroke(1.5.dp, Color(0xFF0F766E)),
+                color = semanticColors.incomeBg,
+                border = BorderStroke(1.5.dp, themeColors.primary),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -1595,7 +1676,7 @@ private fun KipuProUpsellDialog(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF0F766E)
+                            color = themeColors.primary
                         ) {
                             Text(
                                 text = "AHORRA 40%",
@@ -1603,7 +1684,7 @@ private fun KipuProUpsellDialog(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp
                                 ),
-                                color = Color.White,
+                                color = themeColors.surface,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -1618,19 +1699,19 @@ private fun KipuProUpsellDialog(
                             RadioButton(
                                 selected = true,
                                 onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F766E))
+                                colors = RadioButtonDefaults.colors(selectedColor = themeColors.primary)
                             )
                             Spacer(Modifier.width(8.dp))
                             Column {
                                 Text(
                                     text = "Plan Anual",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF0F172A)
+                                    color = themeColors.inkPrimary
                                 )
                                 Text(
                                     text = "Equivale a S/ 4.99 /mes",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF64748B)
+                                    color = themeColors.inkSecondary
                                 )
                             }
                         }
@@ -1639,12 +1720,12 @@ private fun KipuProUpsellDialog(
                             Text(
                                 text = "S/ 59.90",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF0F766E)
+                                color = themeColors.primary
                             )
                             Text(
                                 text = "/año",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF64748B)
+                                color = themeColors.inkSecondary
                             )
                         }
                     }
@@ -1655,7 +1736,7 @@ private fun KipuProUpsellDialog(
             Button(
                 onClick = onGetPro,
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E)),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColors.primary),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Row(
@@ -1665,7 +1746,7 @@ private fun KipuProUpsellDialog(
                     Icon(
                         imageVector = Icons.Rounded.Lock,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = themeColors.onPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -1673,7 +1754,7 @@ private fun KipuProUpsellDialog(
                         text = "Obtener Kipu Pro",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color.White
+                        color = themeColors.onPrimary
                     )
                 }
             }
@@ -1685,7 +1766,7 @@ private fun KipuProUpsellDialog(
             ) {
                 Text(
                     text = "Continuar con Plan Free",
-                    color = Color(0xFF475569),
+                    color = themeColors.inkSecondary,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp
                 )
@@ -1696,6 +1777,7 @@ private fun KipuProUpsellDialog(
 
 @Composable
 private fun UpsellBenefitItem(text: String) {
+    val themeColors = rememberKipuColors()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1703,13 +1785,13 @@ private fun UpsellBenefitItem(text: String) {
         Icon(
             imageVector = Icons.Rounded.CheckCircle,
             contentDescription = null,
-            tint = Color(0xFF0F766E),
+            tint = themeColors.primary,
             modifier = Modifier.size(18.dp)
         )
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-            color = Color(0xFF1E293B)
+            color = themeColors.inkPrimary
         )
     }
 }
@@ -1785,3 +1867,10 @@ private fun MovementDateRangeDialog(
 }
 
 private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
+
+
+@KipuThemePreviews
+@Composable
+private fun MovementFilterUpsellThemePreview() = KipuTheme {
+    KipuProUpsellDialog({}, {})
+}

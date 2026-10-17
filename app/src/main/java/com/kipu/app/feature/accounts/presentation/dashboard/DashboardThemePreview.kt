@@ -18,6 +18,7 @@ import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.KipuThemePreviews
 import com.kipu.app.ui.theme.rememberKipuColors
 
 @Composable
@@ -62,4 +63,15 @@ private fun DashboardLightPreview() {
 @Composable
 private fun DashboardDarkPreview() {
     KipuTheme(darkTheme = true) { DashboardThemePreviewContent() }
+}
+
+@KipuThemePreviews
+@Composable
+private fun DashboardEmptyStateThemePreview() {
+    KipuTheme {
+        EmptyDashboardContent(
+            onNavigateToNewAccount = {},
+            onNavigateToNewCard = {},
+        )
+    }
 }

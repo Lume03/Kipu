@@ -1,10 +1,12 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.kipu.app.feature.debts.data.sync.DebtReminderDestination
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
@@ -51,10 +53,10 @@ class DebtScheduleAndClosureFlowTest {
             )
         }
 
-        compose.onNodeWithText("Cuotas planificadas \u00b7 no son pagos").assertIsDisplayed()
-        compose.onNodeWithText("Pendiente de pago").assertIsDisplayed()
-        compose.onNodeWithText("S/ 33.34").assertIsDisplayed()
-        compose.onNodeWithTag("debt-schedule-cancel").performClick()
+        compose.onNodeWithText("Las cuotas planificadas organizan tu calendario", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Pendiente").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("33.34", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("debt-schedule-cancel").performScrollTo().performClick()
         assertEquals(true, scheduleCancelled)
         assertEquals("kipu://debts/detail/$DEBT_ID", DebtReminderDestination.uri(DEBT_ID))
     }
@@ -79,9 +81,10 @@ class DebtScheduleAndClosureFlowTest {
             )
         }
 
-        compose.onNodeWithText("Cancelada \u00b7 saldo pendiente no pagado").assertIsDisplayed()
-        compose.onNodeWithText("S/ 80.00").assertIsDisplayed()
-        compose.onNodeWithText("Cuota cancelada").assertIsDisplayed()
+        compose.onNodeWithText("Cancelada").assertIsDisplayed()
+        compose.onNodeWithText("Saldo pendiente no pagado").assertIsDisplayed()
+        compose.onNodeWithTag("debt-schedule-total").assertTextContains("80.00", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Liquidada").assertDoesNotExist()
     }
 
     private fun debt() = DebtSummary(

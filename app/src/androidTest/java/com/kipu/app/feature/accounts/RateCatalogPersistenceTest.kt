@@ -1,8 +1,12 @@
 package com.kipu.app.feature.accounts
 
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
 import android.content.Context
 import android.graphics.Bitmap
-import androidx.compose.material3.MaterialTheme
+import com.kipu.app.ui.theme.KipuTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
@@ -179,7 +183,7 @@ class RateCatalogPersistenceTest {
     private fun showRates(card: CreditCard, screenshotName: String, expectedTeaText: String, nextCard: CreditCard? = null) {
         val selectedCard = mutableStateOf(card)
         compose.setContent {
-            MaterialTheme {
+            KipuTheme {
                 RateCatalogScreen(
                     creditCard = selectedCard.value, products = products, catalogError = null,
                     catalogLoading = false, cardLoading = false, events = emptyFlow(),
@@ -187,26 +191,30 @@ class RateCatalogPersistenceTest {
                 )
             }
         }
-        compose.onNodeWithText("Referencia aplicable a esta tarjeta").assertIsDisplayed()
-        compose.onNodeWithText(expectedTeaText).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Ver detalle del tarifario").performScrollTo().performClick()
-        compose.onNodeWithText("Membresía").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Verificación").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Ocultar detalle").performScrollTo().performClick()
-        compose.waitForIdle()
-        compose.onAllNodesWithText("Membresía").assertCountEquals(0)
+        val list = compose.onNodeWithTag("rate_catalog_list")
+        fun assertPublishedRange(displayCard: CreditCard, range: String) {
+            val currencyLabel = if (displayCard.currency == Currency.PEN) "soles" else "dólares"
+            val text = "TEA $currencyLabel: $range"
+            list.performScrollToNode(hasText(text))
+            compose.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+        }
+        assertPublishedRange(card, expectedTeaText)
+        list.performScrollToNode(hasText("Membresía anual"))
+        compose.onNodeWithText("Membresía anual").assertIsDisplayed()
         card.personalTeaBps?.let {
-            compose.onNodeWithText(String.format(java.util.Locale.US, "%.2f", it / 100.0))
-                .performScrollTo().assertIsDisplayed()
+            val text = String.format(java.util.Locale.US, "%.2f", it / 100.0)
+            list.performScrollToNode(hasSetTextAction() and hasText(text))
+            compose.onNode(hasSetTextAction() and hasText(text)).assertIsDisplayed()
         }
         compose.waitForIdle()
         captureScreenshot(screenshotName)
         if (nextCard != null) {
             compose.runOnIdle { selectedCard.value = nextCard }
             compose.waitForIdle()
-            compose.onNodeWithText(String.format(java.util.Locale.US, "%.2f", requireNotNull(nextCard.personalTeaBps) / 100.0))
-                .assertIsDisplayed()
-            compose.onNodeWithText("No publicado numéricamente").performScrollTo().assertIsDisplayed()
+            val text = String.format(java.util.Locale.US, "%.2f", requireNotNull(nextCard.personalTeaBps) / 100.0)
+            list.performScrollToNode(hasSetTextAction() and hasText(text))
+            compose.onNode(hasSetTextAction() and hasText(text)).assertIsDisplayed()
+            assertPublishedRange(nextCard, "No publicado numéricamente")
             captureScreenshot("interbank-amex-personal-tea.png")
         }
     }

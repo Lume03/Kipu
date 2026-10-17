@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -41,6 +42,37 @@ class MovementHistoryScreenTest {
     private fun saveEvidence(name: String) {
         val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "sprint4-ux").apply { mkdirs() }
         File(directory, name).outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test
+    fun transactionAvatarUsesMerchantInitialsWhenLogoIsMissing() {
+        val item = TransactionItem(
+            transaction = Transaction(
+                id = "merchant-avatar-fallback",
+                userId = "test-user",
+                type = MovementType.EXPENSE,
+                amountMinor = 1_500L,
+                currency = "PEN",
+                sourceAccountId = "account-1",
+                categoryId = "category-1",
+                occurredAt = 1_758_000_000_000L,
+            ),
+            merchantName = "Restaurante Central",
+            merchantBrandColor = "#006241",
+        )
+
+        compose.setContent {
+            TestViewport {
+                TransactionIconAvatar(
+                    item = item,
+                    isVoided = false,
+                    iconBg = Color.LightGray,
+                    iconTint = Color.Black,
+                )
+            }
+        }
+
+        compose.onNodeWithText("RC").assertIsDisplayed()
     }
 
     @Test

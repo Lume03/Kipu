@@ -1,6 +1,9 @@
 package com.kipu.app.feature.categories.presentation.components
 
-import android.net.Uri
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,7 +66,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.kipu.app.BuildConfig
 import com.kipu.app.feature.categories.domain.CategoryRules
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.CategoryId
@@ -250,11 +252,7 @@ fun getMerchantVisualProfile(name: String, brandColor: String? = null): Merchant
         else -> Color.hsl(((normalizedName.hashCode() and Int.MAX_VALUE) % 360).toFloat(), 0.62f, 0.42f)
     }
     val backgroundColor = parsedColor ?: fallbackColor
-    val foregroundColor = if (backgroundColor.red * 0.2126f + backgroundColor.green * 0.7152f + backgroundColor.blue * 0.0722f > 0.5f) {
-        Color.Black
-    } else {
-        Color.White
-    }
+    val foregroundColor = readableContentColor(backgroundColor)
     return MerchantVisualProfile(initials, backgroundColor, foregroundColor, "Comercio o servicio")
 }
 
@@ -271,12 +269,14 @@ fun MerchantPickerBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = modifier,
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -503,6 +503,7 @@ fun MerchantAvatar(
     profile: MerchantVisualProfile,
     size: Dp = 42.dp,
     modifier: Modifier = Modifier,
+    fallbackContent: (@Composable () -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -530,7 +531,7 @@ fun MerchantAvatar(
                         )
                     }
                 } else {
-                    MerchantInitialsBox(profile = profile, size = size)
+                    fallbackContent?.invoke() ?: MerchantInitialsBox(profile = profile, size = size)
                 }
             }
 
@@ -559,7 +560,7 @@ fun MerchantAvatar(
                 )
             }
         } else {
-            MerchantInitialsBox(profile = profile, size = size)
+            fallbackContent?.invoke() ?: MerchantInitialsBox(profile = profile, size = size)
         }
     }
 }
@@ -598,12 +599,7 @@ fun SelectedMerchantCard(
     val drawableId = remember(selectedMerchant?.logoKey) {
         selectedMerchant?.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
-    val remoteLogoUrl = remember(selectedMerchant?.priority, selectedMerchant?.logoKey) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        selectedMerchant?.logoKey
-            ?.takeIf { selectedMerchant.priority != "A" && it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
-    }
+    val remoteLogoUrl = selectedMerchant?.logoUrl
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -668,12 +664,7 @@ fun MerchantResultItem(
     val drawableId = remember(entry.logoKey) {
         entry.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
-    val remoteLogoUrl = remember(entry.priority, entry.logoKey) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        entry.logoKey
-            ?.takeIf { entry.priority != "A" && it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
-    }
+    val remoteLogoUrl = entry.logoUrl
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -745,12 +736,12 @@ fun FallbackProvisionalRow(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = initial,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )

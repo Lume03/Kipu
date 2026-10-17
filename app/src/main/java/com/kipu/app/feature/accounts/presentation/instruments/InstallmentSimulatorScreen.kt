@@ -218,7 +218,7 @@ fun InstallmentSimulatorScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = emeraldColors.primaryDeep,
-                                selectedLabelColor = Color.White,
+                                selectedLabelColor = emeraldColors.onPrimaryDeep,
                                 containerColor = emeraldColors.pillTrack,
                                 labelColor = MaterialTheme.colorScheme.onSurface,
                             ),
@@ -257,7 +257,7 @@ fun InstallmentSimulatorScreen(
                         Text(
                             text = "Promoción de 3 cuotas sin intereses confirmada por el comercio",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f),
                         )
@@ -288,7 +288,7 @@ fun InstallmentSimulatorScreen(
                             Icon(
                                 imageVector = Icons.Rounded.WarningAmber,
                                 contentDescription = null,
-                                tint = emeraldColors.warningAmber,
+                                tint = emeraldColors.warningText,
                                 modifier = Modifier.size(20.dp),
                             )
                             Text(

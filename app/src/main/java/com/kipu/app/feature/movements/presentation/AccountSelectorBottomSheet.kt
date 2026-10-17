@@ -1,5 +1,9 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
+import com.kipu.app.ui.theme.readableContentColor
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -175,6 +179,7 @@ fun AccountSelectorBottomSheet(
     }
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -192,6 +197,7 @@ fun AccountSelectorBottomSheet(
         },
         modifier = modifier.testTag("account_selector_sheet"),
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -418,9 +424,9 @@ fun AccountSelectorBottomSheet(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AndeanTealPrimary,
-                        contentColor = Color.White,
+                        contentColor = rememberKipuColors().onPrimary,
                         disabledContainerColor = AndeanTealPrimary.copy(alpha = 0.38f),
-                        disabledContentColor = Color.White.copy(alpha = 0.60f),
+                        disabledContentColor = rememberKipuColors().onPrimary.copy(alpha = 0.60f),
                     ),
                 ) {
                     Text(
@@ -446,7 +452,7 @@ private fun FilterPill(
     testTag: String = "",
 ) {
     val background = if (selected) AndeanTealPrimary else SurfaceBaseSlate
-    val contentColor = if (selected) Color.White else TextPillInactive
+    val contentColor = if (selected) rememberKipuColors().onPrimary else TextPillInactive
     val border = if (selected) null else BorderStroke(1.dp, BorderNeutralSlate)
 
     Box(
@@ -813,8 +819,8 @@ private fun AccountBadge(
 ) {
     val (containerColor, iconTint, icon) = when {
         account.type == AccountType.CASH -> Triple(
-            Color(0xFFDCFCE7),
-            Color(0xFF16A34A),
+            rememberKipuColors().positiveContainer,
+            rememberKipuColors().onPositiveContainer,
             Icons.Default.Payments,
         )
         account.preset == AccountPreset.BCP -> Triple(
@@ -848,8 +854,8 @@ private fun AccountBadge(
             Icons.Default.Wallet,
         )
         account.type == AccountType.DIGITAL_WALLET -> Triple(
-            Color(0xFFEDE9FE),
-            Color(0xFF7C3AED),
+            rememberKipuColors().primaryContainer,
+            rememberKipuColors().onPrimaryContainer,
             Icons.Default.Wallet,
         )
         else -> Triple(
@@ -869,7 +875,7 @@ private fun AccountBadge(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = iconTint,
+            tint = readableContentColor(containerColor),
             modifier = Modifier.size(24.dp),
         )
     }
@@ -891,7 +897,7 @@ private fun SelectionIndicator(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = Color.White,
+                tint = rememberKipuColors().onPrimary,
                 modifier = Modifier.size(14.dp),
             )
         }

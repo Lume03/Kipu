@@ -1,5 +1,9 @@
 package com.kipu.app.feature.debts.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -76,6 +80,8 @@ fun DebtSettlementSheet(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val emeraldColors = rememberCalmEmeraldColors()
     val principalMinor = DebtAmountParser.toMinorUnits(state.principalAmount)
     val interestMinor = DebtAmountParser.toNonNegativeMinorUnits(state.interestAmount)
@@ -93,6 +99,7 @@ fun DebtSettlementSheet(
     val cashTotal = if (principalMinor != null && interestMinor != null) principalMinor + interestMinor else null
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
@@ -102,10 +109,11 @@ fun DebtSettlementSheet(
                     .padding(vertical = 10.dp)
                     .width(40.dp)
                     .height(4.dp)
-                    .background(Color(0xFFCBD5E1), RoundedCornerShape(999.dp)),
+                    .background(themeColors.border, RoundedCornerShape(999.dp)),
             )
         },
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,7 +135,7 @@ fun DebtSettlementSheet(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(Color(0xFFCCFBF1), RoundedCornerShape(10.dp)),
+                            .background(themeColors.primaryContainer, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -150,7 +158,7 @@ fun DebtSettlementSheet(
                     }
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = Color(0xFF64748B))
+                    Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = themeColors.inkSecondary)
                 }
             }
 
@@ -158,8 +166,8 @@ fun DebtSettlementSheet(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, themeColors.border),
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -167,7 +175,7 @@ fun DebtSettlementSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column {
-                        Text("Saldo pendiente exigible", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text("Saldo pendiente exigible", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                         Text(
                             formatter.format(debt.remainingPrincipalMinor / 100.0),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
@@ -176,7 +184,7 @@ fun DebtSettlementSheet(
                     }
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFCCFBF1),
+                        color = themeColors.primaryContainer,
                     ) {
                         Text(
                             "Moneda: ${debt.currencyCode}",
@@ -198,8 +206,8 @@ fun DebtSettlementSheet(
             state.conflictMessage?.let { message ->
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFFEF2F2),
-                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    color = semanticColors.expenseBg,
+                    border = BorderStroke(1.dp, semanticColors.expenseBorder),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -207,8 +215,8 @@ fun DebtSettlementSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
-                        Text(message, color = Color(0xFFDC2626), style = MaterialTheme.typography.bodySmall)
+                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = semanticColors.expenseText, modifier = Modifier.size(18.dp))
+                        Text(message, color = semanticColors.expenseText, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -247,7 +255,7 @@ fun DebtSettlementSheet(
             AnimatedVisibility(visible = principalTooHigh) {
                 Text(
                     "El principal supera el saldo pendiente.",
-                    color = Color(0xFFDC2626),
+                    color = semanticColors.expenseText,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -255,7 +263,7 @@ fun DebtSettlementSheet(
             AnimatedVisibility(visible = interestMinor == null) {
                 Text(
                     "Revisa el interés; usa hasta dos decimales y no un monto negativo.",
-                    color = Color(0xFFDC2626),
+                    color = semanticColors.expenseText,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -269,12 +277,12 @@ fun DebtSettlementSheet(
             if (state.availableAccounts.isEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFFEF2F2),
+                    color = semanticColors.expenseBg,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         "No hay cuentas activas en ${debt.currencyCode}.",
-                        color = Color(0xFFDC2626),
+                        color = semanticColors.expenseText,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                     )
@@ -294,10 +302,10 @@ fun DebtSettlementSheet(
                                     onClick = { if (matchesCurrency) onAccountSelected(account.id) },
                                 ),
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) Color(0xFFF0FDF4) else Color(0xFFF8FAFC),
+                            color = if (isSelected) semanticColors.incomeBg else themeColors.surfaceSubtle,
                             border = BorderStroke(
                                 if (isSelected) 1.5.dp else 1.dp,
-                                if (isSelected) emeraldColors.primaryDeep else Color(0xFFE2E8F0),
+                                if (isSelected) emeraldColors.primaryDeep else themeColors.border,
                             ),
                         ) {
                             Row(
@@ -314,13 +322,13 @@ fun DebtSettlementSheet(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(if (matchesCurrency) Color(0xFFCCFBF1) else Color(0xFFF1F5F9), RoundedCornerShape(8.dp)),
+                                        .background(if (matchesCurrency) themeColors.primaryContainer else themeColors.surfaceVariant, RoundedCornerShape(8.dp)),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
                                         Icons.Rounded.AccountBalance,
                                         contentDescription = null,
-                                        tint = if (matchesCurrency) emeraldColors.primaryDeep else Color(0xFF94A3B8),
+                                        tint = if (matchesCurrency) emeraldColors.primaryDeep else themeColors.inkSecondary,
                                         modifier = Modifier.size(18.dp),
                                     )
                                 }
@@ -329,7 +337,7 @@ fun DebtSettlementSheet(
                                     Text(
                                         if (matchesCurrency) "Moneda: ${account.currencyCode}" else "Moneda distinta (${account.currencyCode})",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (matchesCurrency) Color(0xFF64748B) else Color(0xFFDC2626),
+                                        color = if (matchesCurrency) themeColors.inkSecondary else semanticColors.expenseText,
                                     )
                                 }
                             }
@@ -342,9 +350,9 @@ fun DebtSettlementSheet(
             AnimatedVisibility(visible = needsInterestCategory) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().animateContentSize(),
-                    color = Color(0xFFF8FAFC),
+                    color = themeColors.surfaceSubtle,
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, themeColors.border),
                 ) {
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -352,7 +360,7 @@ fun DebtSettlementSheet(
                             Text("Categoría del interés", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
                         }
                         if (state.availableInterestCategories.isEmpty()) {
-                            Text("Crea o sincroniza una categoría de gasto para el interés.", color = Color(0xFFDC2626), style = MaterialTheme.typography.bodySmall)
+                            Text("Crea o sincroniza una categoría de gasto para el interés.", color = semanticColors.expenseText, style = MaterialTheme.typography.bodySmall)
                         } else {
                             state.availableInterestCategories
                                 .filter { it.categoryType in setOf("GENERAL", "EXPENSE") }
@@ -387,8 +395,8 @@ fun DebtSettlementSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.dp, semanticColors.incomeBorder),
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -398,12 +406,12 @@ fun DebtSettlementSheet(
                         Text(
                             if (payable) "Saldrá de tu cuenta:" else "Entrará a tu cuenta:",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = Color(0xFF15803D),
+                            color = semanticColors.incomeText,
                         )
                         Text(
                             formatter.format(total / 100.0),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFF15803D),
+                            color = semanticColors.incomeText,
                         )
                     }
                 }
@@ -411,7 +419,7 @@ fun DebtSettlementSheet(
 
             state.errorMessage?.let { message ->
                 if (message != "El principal supera el saldo pendiente.") {
-                    Text(message, color = Color(0xFFDC2626), style = MaterialTheme.typography.bodySmall)
+                    Text(message, color = semanticColors.expenseText, style = MaterialTheme.typography.bodySmall)
                 }
             }
 

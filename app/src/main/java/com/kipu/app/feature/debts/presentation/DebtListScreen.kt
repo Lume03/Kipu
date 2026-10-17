@@ -73,6 +73,7 @@ fun DebtListScreen(
     openRegisterDebt: Boolean = false,
     onConsumeRegisterDebt: () -> Unit = {},
 ) {
+    val semanticColors = rememberCalmEmeraldColors()
     val filtered = debts.filter { selectedType == null || it.obligationType == selectedType }
     val emeraldColors = rememberCalmEmeraldColors()
     var showRegisterTypeSheet by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
@@ -105,10 +106,10 @@ fun DebtListScreen(
             errorMessage?.let {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFFEE2E2),
+                    color = semanticColors.expenseBg,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
                 ) {
-                    Text(it, color = Color(0xFFDC2626), modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                    Text(it, color = semanticColors.expenseText, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,6 +197,7 @@ fun DebtListScreen(
 
 @Composable
 private fun DebtListItem(debt: DebtSummary, scheduledInstallment: DebtScheduleItem?, onClick: () -> Unit) {
+    val semanticColors = rememberCalmEmeraldColors()
     val formatter = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("es").setRegion("PE").build())
     runCatching { Currency.getInstance(debt.currencyCode) }.getOrNull()?.let { formatter.currency = it }
     val emeraldColors = rememberCalmEmeraldColors()
@@ -227,7 +229,7 @@ private fun DebtListItem(debt: DebtSummary, scheduledInstallment: DebtScheduleIt
                     modifier = Modifier
                         .size(42.dp)
                         .background(
-                            if (isSettled) emeraldColors.pillTrack else if (debt.obligationType == DebtObligationType.PAYABLE) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                            if (isSettled) emeraldColors.pillTrack else if (debt.obligationType == DebtObligationType.PAYABLE) semanticColors.expenseBg else semanticColors.incomeBg,
                             RoundedCornerShape(12.dp),
                         ),
                     contentAlignment = Alignment.Center,
@@ -236,7 +238,7 @@ private fun DebtListItem(debt: DebtSummary, scheduledInstallment: DebtScheduleIt
                         initial,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = if (isSettled) emeraldColors.primaryDeep else if (debt.obligationType == DebtObligationType.PAYABLE) Color(0xFFDC2626) else emeraldColors.incomeAccent,
+                        color = if (isSettled) emeraldColors.primaryDeep else if (debt.obligationType == DebtObligationType.PAYABLE) semanticColors.expenseText else emeraldColors.incomeText,
                     )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -252,12 +254,12 @@ private fun DebtListItem(debt: DebtSummary, scheduledInstallment: DebtScheduleIt
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isSettled) emeraldColors.pillTrack else if (debt.status == DebtLifecycleStatus.CANCELLED) Color(0xFFFEE2E2) else emeraldColors.surfaceCard,
+                            color = if (isSettled) emeraldColors.pillTrack else if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseBg else emeraldColors.surfaceCard,
                         ) {
                             Text(
                                 debtLifecycleLabel(debt),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (isSettled) emeraldColors.incomeAccent else if (debt.status == DebtLifecycleStatus.CANCELLED) Color(0xFFDC2626) else emeraldColors.primaryDeep,
+                                color = if (isSettled) emeraldColors.incomeText else if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseText else emeraldColors.primaryDeep,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
@@ -273,13 +275,27 @@ private fun DebtListItem(debt: DebtSummary, scheduledInstallment: DebtScheduleIt
                             fontWeight = FontWeight.Medium,
                             color = emeraldColors.primaryDeep,
                         )
+                        Text(
+                            when (installment.status) {
+                                "PAID" -> "Pago completado"
+                                "PARTIAL" -> "Pago parcial registrado"
+                                "CANCELLED" -> "Cuota cancelada"
+                                else -> "Pendiente · no es pago"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = when (installment.status) {
+                                "PAID" -> semanticColors.incomeText
+                                "PARTIAL" -> semanticColors.warningText
+                                else -> emeraldColors.secondaryMuted
+                            },
+                        )
                     }
                 }
             }
             Text(
                 formatter.format(debt.remainingPrincipalMinor / 100.0),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                color = if (isSettled) emeraldColors.incomeAccent else MaterialTheme.colorScheme.onSurface,
+                color = if (isSettled) emeraldColors.incomeText else MaterialTheme.colorScheme.onSurface,
             )
         }
     }
@@ -385,7 +401,7 @@ fun DebtRegisterTypeBottomSheet(
                         Icon(
                             imageVector = Icons.Rounded.ArrowUpward,
                             contentDescription = null,
-                            tint = emeraldColors.incomeEmerald,
+                            tint = emeraldColors.incomeText,
                             modifier = Modifier.size(24.dp),
                         )
                     }

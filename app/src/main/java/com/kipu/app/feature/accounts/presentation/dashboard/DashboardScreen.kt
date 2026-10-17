@@ -39,7 +39,6 @@ import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ExpandMore
@@ -95,6 +94,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -118,6 +118,8 @@ import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
 import com.kipu.app.feature.notifications.presentation.UnreadNotificationBadge
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.theme.colorContrastRatio
+import com.kipu.app.ui.theme.readableContentColor
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
@@ -381,6 +383,7 @@ internal fun EmptyDashboardContent(
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val heroContentColor = readableContentColor(emeraldColors.heroGradientStart)
 
     LazyColumn(
         modifier = modifier
@@ -404,7 +407,7 @@ internal fun EmptyDashboardContent(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.6.sp,
                         ),
-                        color = Color(0xFFA7F3D0),
+                        color = heroContentColor,
                     )
                     MoneyText(
                         minorUnits = 0L,
@@ -414,7 +417,7 @@ internal fun EmptyDashboardContent(
                             fontSize = 32.sp,
                             fontFeatureSettings = "tnum",
                         ),
-                        color = Color.White,
+                        color = heroContentColor,
                     )
                 }
             }
@@ -895,7 +898,7 @@ private fun ActiveDashboardContent(
                         Text(
                             notification.title,
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = emeraldColors.warningAmber,
+                            color = emeraldColors.warningText,
                         )
                         Text(notification.body, style = MaterialTheme.typography.bodySmall, color = emeraldColors.primaryText)
                     }
@@ -1039,42 +1042,9 @@ private fun ActiveDashboardContent(
             }
         }
 
-        // Financial Health Banner (Images 2, 3, 4, 5)
-        item(key = "financial_health_banner") {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = emeraldColors.incomeBg,
-                border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = emeraldColors.incomeEmerald,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = "Tus cuentas están sincronizadas. El nivel de deuda en tarjeta se mantiene en rango saludable (inferior al 30%).",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                        ),
-                        color = emeraldColors.incomeEmerald,
-                    )
-                }
-            }
-        }
-
         // Bottom space above floating nav bar
         item(key = "bottom_space") {
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.height(72.dp).testTag("dashboard_bottom_space"))
         }
     }
 }
@@ -1118,7 +1088,7 @@ private fun BasicPlanLimitCard(
                         Icon(
                             imageVector = Icons.Default.PieChart,
                             contentDescription = null,
-                            tint = colors.warningAmber,
+                            tint = colors.warningText,
                             modifier = Modifier.padding(8.dp).size(20.dp),
                         )
                     }
@@ -1131,7 +1101,7 @@ private fun BasicPlanLimitCard(
                             Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Box(Modifier.size(5.dp).clip(CircleShape).background(colors.warningAmber))
+                                Box(Modifier.size(5.dp).clip(CircleShape).background(colors.warningText))
                                 Text("Límite alcanzado", style = MaterialTheme.typography.labelSmall,
                                     color = colors.warningText)
                             }
@@ -1144,7 +1114,7 @@ private fun BasicPlanLimitCard(
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.warningAmber,
+                        containerColor = colors.warningText,
                         contentColor = if (colors.isDark) colors.onPrimaryDeep else colors.primaryText,
                     ),
                 ) {
@@ -1155,7 +1125,7 @@ private fun BasicPlanLimitCard(
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
-                color = colors.warningAmber,
+                color = colors.warningText,
                 trackColor = colors.warningBg,
             )
         }
@@ -1246,7 +1216,7 @@ private fun CalmEmeraldAccountCard(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp,
                                 ),
-                                color = emeraldColors.incomeEmerald,
+                                color = emeraldColors.incomeText,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                             )
                         }
@@ -1266,7 +1236,7 @@ private fun CalmEmeraldAccountCard(
                     Text(
                         text = "Bloqueado por el plan Free",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = emeraldColors.expenseCoral,
+                        color = emeraldColors.expenseText,
                     )
                 }
             }
@@ -1289,14 +1259,14 @@ private fun CalmEmeraldAccountCard(
                     if (!isCash) {
                         Surface(
                             shape = CircleShape,
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             modifier = Modifier.size(5.dp),
                         ) {}
                     }
                     Text(
                         text = if (isCash) "En bolsillo" else "Disponible",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = if (isCash) emeraldColors.secondaryMuted else emeraldColors.incomeEmerald,
+                        color = if (isCash) emeraldColors.secondaryMuted else emeraldColors.incomeText,
                     )
                 }
             }
@@ -1347,7 +1317,7 @@ private fun ArchivedInstrumentCard(
                             MoneyText(
                                 money = debtMoney,
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                             )
                         }
                     } else {
@@ -1365,7 +1335,7 @@ private fun ArchivedInstrumentCard(
                     Text(
                         badge,
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                        color = if (badge.contains("Deuda pendiente")) emeraldColors.expenseCoral else emeraldColors.secondaryMuted,
+                        color = if (badge.contains("Deuda pendiente")) emeraldColors.expenseText else emeraldColors.secondaryMuted,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
@@ -1443,6 +1413,8 @@ private fun resolveAccountBadgeColors(account: Account): Triple<Color, Color, St
                 null
             )
         }
+    }.let { (background, foreground, label) ->
+        Triple(background, if (colorContrastRatio(foreground, background) >= 4.5f) foreground else readableContentColor(background), label)
     }
 }
 
