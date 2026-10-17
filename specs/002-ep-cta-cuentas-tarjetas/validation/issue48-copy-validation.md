@@ -62,12 +62,14 @@ Capturadas desde Compose en el mismo Pixel 8 AVD (API 36, viewport 1080×2400, d
 
 Estado al 2026-10-17: **pendiente; no se encontró una aprobación de producto trazable** en la discusión consultada de GitHub ni en la búsqueda de la memoria del proyecto. La issue #48 requiere revisión de producto.
 
-La conversación disponible incluye la matriz publicada por el autor y una auditoría de QA del owner del repositorio con observaciones de cobertura ([comentario de QA en PR #54](https://github.com/Lume03/Kipu/pull/54#issuecomment-6159323459)); no contiene una decisión identificada como aprobación de producto. La issue #48 no tiene comentarios y la PR no registra reviews formales. No se infiere aprobación a partir de la matriz, el comentario de QA ni el código existente. El criterio queda abierto hasta registrar una decisión del responsable autorizado.
+La conversación disponible incluye la matriz publicada por el autor y una auditoría de QA del owner del repositorio con observaciones de cobertura ([comentario de QA en PR #54](https://github.com/Lume03/Kipu/pull/54#issuecomment-6159323459)); no contiene una decisión identificada como aprobación de producto. La issue #48 no tiene comentarios y la PR no registra reviews formales. No se infiere aprobación a partir de la matriz, el comentario de QA, la compilación ni el código existente. La aprobación de producto sigue siendo el único requisito humano pendiente.
 
 ### Capturas Antes/Después
 
 Estado: **adjuntas, como evidencia histórica del harness**. `Issue48CopyScreenshotTest` renderiza `CopyComparisonScreen` con `CopyVersion.Before/After` y textos de ejemplo; no compone las rutas productivas. El comentario de QA confirma ese límite. Las imágenes se generaron previamente en Pixel 8 AVD (API 36, 1080×2400, 420 dpi), tema claro y escala predeterminada; no se regeneraron en esta actualización y no prueban la integración actual.
 
-La cobertura instrumentada ahora comprueba copy en componentes productivos: `DashboardEmptyStateTest` inspecciona `EmptyDashboardContent`, `CardFormScreenTest` inspecciona `CardFormScreen`, `AccountDetailScreenTest` inspecciona `AccountDetailContent` y `CreditAccessibilitySemanticsTest` inspecciona `CreditCardSummaryCard`. Estas comprobaciones se añadieron/ajustaron en esta actualización, pero no se ejecutaron aquí; requieren una ejecución posterior para producir evidencia vigente.
+La fuente de tests instrumentados comprueba copy en componentes productivos: `DashboardEmptyStateTest` inspecciona `EmptyDashboardContent`, `CardFormScreenTest` inspecciona `CardFormScreen`, `AccountDetailScreenTest` inspecciona `AccountDetailContent` y `CreditAccessibilitySemanticsTest` inspecciona `CreditCardSummaryCard`. `AccountSelectorBottomSheetTest` compone además `AccountSelectorBottomSheet` y afirma el copy visible de crédito disponible y su descripción accesible.
+
+Validación automatizada de esta actualización: `:app:compileDebugAndroidTestKotlin` terminó correctamente el 2026-10-17. Esto confirma que las fuentes AndroidTest compilan; no confirma que las aserciones pasen en ejecución. No se ejecutó la suite instrumentada ni el nuevo test en dispositivo.
 
 La validación SC-013 permanece como criterio de éxito de EP-CTA y no sustituye la revisión de producto exigida por la issue #48.
