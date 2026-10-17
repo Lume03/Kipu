@@ -68,6 +68,7 @@ class DashboardEmptyStateTest {
         compose.onAllNodesWithText("Aún no tienes cuentas registradas").assertCountEquals(0)
         compose.onNodeWithText("Agrega una cuenta o efectivo para ver tu saldo aquí.").assertDoesNotExist()
         compose.onNodeWithText("Cupo Free").assertDoesNotExist()
+        compose.onNodeWithText("Ver planes").assertDoesNotExist()
         compose.onNodeWithText("En cuentas").assertDoesNotExist()
         compose.onNodeWithText("En efectivo").assertDoesNotExist()
         compose.onNodeWithText("Tus datos permanecen privados y protegidos", substring = true).assertDoesNotExist()
@@ -115,7 +116,10 @@ class DashboardEmptyStateTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                 KipuTheme {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        EmptyDashboardContent(onNavigateToNewAccount = {}, onNavigateToNewCard = {})
+                        EmptyDashboardContent(
+                            onNavigateToNewAccount = {},
+                            onNavigateToNewCard = {},
+                        )
                     }
                 }
             }

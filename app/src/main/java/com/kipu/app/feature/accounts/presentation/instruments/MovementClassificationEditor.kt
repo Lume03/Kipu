@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +61,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.KipuThemePreviews
+import com.kipu.app.feature.categories.domain.model.CategoryId
+import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.presentation.components.MerchantPicker
 
@@ -81,7 +86,6 @@ fun MovementClassificationEditor(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var isCategoryPickerOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSavedSuccessfully) {
         if (state.isSavedSuccessfully) {
@@ -96,6 +100,37 @@ fun MovementClassificationEditor(
         }
     }
 
+    MovementClassificationEditorContent(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onNavigateBack = onNavigateBack,
+        onClearCategory = viewModel::clearCategory,
+        onMerchantQueryChange = viewModel::onMerchantQueryChange,
+        onSelectMerchant = viewModel::selectMerchant,
+        onSetProvisionalText = viewModel::setProvisionalText,
+        onClearMerchantSelection = viewModel::clearMerchantSelection,
+        onSave = viewModel::saveClassification,
+        onSelectCategory = viewModel::selectCategory,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MovementClassificationEditorContent(
+    state: MovementClassificationEditorState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onClearCategory: () -> Unit,
+    onMerchantQueryChange: (String) -> Unit,
+    onSelectMerchant: (MerchantCatalogEntry) -> Unit,
+    onSetProvisionalText: (String) -> Unit,
+    onClearMerchantSelection: () -> Unit,
+    onSave: () -> Unit,
+    onSelectCategory: (CategoryId?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var isCategoryPickerOpen by remember { mutableStateOf(false) }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -146,7 +181,7 @@ fun MovementClassificationEditor(
                     SelectedCategoryCard(
                         categoryItem = state.selectedCategoryItem!!,
                         onChangeCategory = { isCategoryPickerOpen = true },
-                        onClearCategory = viewModel::clearCategory,
+                        onClearCategory = onClearCategory,
                     )
                 } else {
                     OutlinedButton(
@@ -174,17 +209,17 @@ fun MovementClassificationEditor(
 
                 MerchantPicker(
                     state = state.merchantPickerState,
-                    onQueryChange = viewModel::onMerchantQueryChange,
-                    onSelectMerchant = viewModel::selectMerchant,
-                    onSetProvisionalText = viewModel::setProvisionalText,
-                    onClearSelection = viewModel::clearMerchantSelection,
+                    onQueryChange = onMerchantQueryChange,
+                    onSelectMerchant = onSelectMerchant,
+                    onSetProvisionalText = onSetProvisionalText,
+                    onClearSelection = onClearMerchantSelection,
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
                 // Save button
                 Button(
-                    onClick = viewModel::saveClassification,
+                    onClick = onSave,
                     enabled = !state.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -206,10 +241,29 @@ fun MovementClassificationEditor(
             categories = state.availableCategories,
             selectedCategoryId = state.selectedCategoryId,
             onSelectCategory = {
-                viewModel.selectCategory(it)
+                onSelectCategory(it)
                 isCategoryPickerOpen = false
             },
             onDismiss = { isCategoryPickerOpen = false },
+        )
+    }
+}
+
+@KipuThemePreviews
+@Composable
+private fun MovementClassificationEditorThemePreview() {
+    KipuTheme {
+        MovementClassificationEditorContent(
+            state = MovementClassificationEditorState(isLoading = false),
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateBack = {},
+            onClearCategory = {},
+            onMerchantQueryChange = {},
+            onSelectMerchant = {},
+            onSetProvisionalText = {},
+            onClearMerchantSelection = {},
+            onSave = {},
+            onSelectCategory = {},
         )
     }
 }
@@ -244,7 +298,7 @@ fun SelectedCategoryCard(
                 Icon(
                     if (categoryItem.category.isRoot) Icons.Default.Folder else Icons.Default.Label,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = readableContentColor(parseCategoryColor(categoryItem.color)),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -356,7 +410,7 @@ fun CategoryPickerRow(
                 Icon(
                     if (isSubcategory) Icons.Default.Label else Icons.Default.Folder,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = readableContentColor(parseCategoryColor(item.color)),
                     modifier = Modifier.size(14.dp),
                 )
             }

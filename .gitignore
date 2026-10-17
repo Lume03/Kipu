@@ -50,7 +50,8 @@ supabase/.temp/
 supabase/.branches/
 
 # QA test run evidence (heavy screenshots, dumps, SQLite dbs)
-docs/audits/evidence/
+docs/audits/evidence/*
+!docs/audits/evidence/issue-39/
 
 # Local audit notes and Orca task prompts
 /AUDITORIA_Y_PLAN_FIXES.md

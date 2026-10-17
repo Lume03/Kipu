@@ -1,5 +1,7 @@
 package com.kipu.app.feature.accounts.presentation
 
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -96,29 +98,26 @@ class CreditAccessibilitySemanticsTest {
             }
         }
 
-        compose.onNodeWithText("Simulación de compra").assertIsDisplayed()
-        compose.onAllNodesWithText("S/ 100.00").assertCountEquals(2)
-        compose.onNodeWithText("05/11/2026").assertIsDisplayed()
-        compose.onNodeWithText("05/12/2026").assertIsDisplayed()
-        compose.onNodeWithText("Distribución referencial sin intereses", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Simular compra a crédito").assertIsDisplayed()
+        compose.onAllNodesWithText("S/ 100.00").assertCountEquals(1)
+        compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 3")
+            .assertIsDisplayed()
         val readingOrder = listOf(
-            compose.onNodeWithText("Simulación de compra").fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithText("Monto principal").fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithContentDescription("Selector de 1 a 36 cuotas, actual 3")
+            compose.onNodeWithText("Simular compra a crédito").fetchSemanticsNode().boundsInRoot.center.y,
+            compose.onNodeWithText("Monto principal a financiar").fetchSemanticsNode().boundsInRoot.center.y,
+            compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 3")
                 .fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithText("Cronograma proyectado").fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithText("Confirmar compra").fetchSemanticsNode().boundsInRoot.center.y,
         )
         assertTrue("Screen reader traversal follows the visual top-to-bottom order", readingOrder.zipWithNext().all { it.first < it.second })
-        compose.onNodeWithContentDescription("Selector de 1 a 36 cuotas, actual 3")
+        compose.onNodeWithText("6").assertHasClickAction().performClick()
+        compose.onNodeWithText("6 cuotas").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 6")
             .assertIsDisplayed()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                check(setProgress(4f))
-            }
-        compose.onNodeWithText("4 cuotas").assertIsDisplayed()
-        compose.onNodeWithText("Confirmar compra").assertIsEnabled().performClick()
-        compose.runOnIdle { assertEquals(4, confirmedInstallments) }
-        compose.onNodeWithText("Editar compra").assertIsEnabled().performClick()
+        // An unknown contractual rate must remain explicitly unavailable in the preview.
+        compose.onAllNodesWithText("No disponible").assertCountEquals(2)
+        compose.onNodeWithText("Confirmar compra").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(6, confirmedInstallments) }
+        compose.onNodeWithText("Rechazar").performScrollTo().assertIsEnabled().performClick()
         compose.runOnIdle { assertTrue(rejected) }
     }
 
@@ -152,11 +151,11 @@ class CreditAccessibilitySemanticsTest {
 
         compose.onNodeWithText("Pagar desde").assertIsDisplayed()
         compose.onNodeWithText("Monto (PEN)").assertIsDisplayed()
-        compose.onNodeWithText("Deuda total: PEN 250.00").assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual: PEN 250.00").assertIsDisplayed()
         compose.onNodeWithText("Pagar desde").assertIsDisplayed()
         compose.onNodeWithText("Total").assertIsDisplayed()
         compose.onNodeWithText("Confirmar Pago").assertIsEnabled()
-        compose.onNodeWithText("no se registra como otro gasto.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("no suma como gasto operativo.", substring = true).assertIsDisplayed()
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
         compose.onNode(hasSetTextAction()).performTextReplacement("0")
         compose.onNodeWithText("Confirmar Pago").performClick()

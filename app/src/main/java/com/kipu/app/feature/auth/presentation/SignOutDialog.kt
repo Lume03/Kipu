@@ -33,7 +33,8 @@ fun SignOutDialog(
             Button(
                 onClick = onConfirmSignOut,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (pendingCount > 0) MaterialTheme.colorScheme.error else Color(0xFF0F766E)
+                    containerColor = if (pendingCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    contentColor = if (pendingCount > 0) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
                 Text(if (pendingCount > 0) "Cerrar sesión de todos modos" else "Cerrar sesión")

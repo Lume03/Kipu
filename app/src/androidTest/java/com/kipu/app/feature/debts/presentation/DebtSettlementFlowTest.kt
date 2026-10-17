@@ -1,6 +1,9 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -52,7 +55,7 @@ class DebtSettlementFlowTest {
             )
         }
 
-        compose.onNodeWithText("El principal reduce el saldo; el interés se registra por separado.").assertIsDisplayed()
+        compose.onNodeWithText("El principal reduce el saldo exigible;", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("settlement-principal").performTextReplacement("35.00")
         compose.onNodeWithTag("settlement-interest").performTextReplacement("2.50")
         compose.onNodeWithTag("settlement-save").assertIsEnabled()
@@ -136,7 +139,7 @@ class DebtSettlementFlowTest {
         compose.onNodeWithTag("debt-settlement-activities").performScrollTo()
         compose.onNodeWithText("Principal · reduce el saldo").assertIsDisplayed()
         compose.onNodeWithText("Interés · gasto operativo").assertIsDisplayed()
-        compose.onNodeWithText("20.00", substring = true).assertIsDisplayed()
+        compose.onNode(hasText("20.00", substring = true) and hasAnyAncestor(hasTestTag("debt-settlement-activities"))).assertIsDisplayed()
         compose.onNodeWithText("1.00", substring = true).assertIsDisplayed()
     }
 

@@ -1,0 +1,465 @@
+file,line,color,source
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,183,Color(0xFF1E293B),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,183,Color(0xFF0F172A),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,190,Color(0xFFFBBF24),"tint = Color(0xFFFBBF24),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,248,Color(0xFF1E293B),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,248,Color(0xFF0F172A),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,255,Color(0xFFFBBF24),"tint = Color(0xFFFBBF24),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,432,Color(0xFF1E293B),"trackColor = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt,432,Color(0xFFE2E8F0),"trackColor = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/InstrumentCardPreview.kt,66,Color.White,"foregroundColor: Color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/components/InstrumentCardPreview.kt,185,Color.White,"colors = listOf(Color.White.copy(alpha = 0.12f), Color.Transparent),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,398,Color.White,"color = Color.White.copy(alpha = 0.06f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,415,Color(0xFF6EE7B7),"Surface(shape = CircleShape, color = Color(0xFF6EE7B7), modifier = Modifier.size(7.dp)) {}"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,419,Color(0xFFA7F3D0),"color = Color(0xFFA7F3D0),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,431,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,437,Color.White,"color = Color.White.copy(alpha = 0.8f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,452,Color.White,"Text(""En cuentas"", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White.copy(alpha = 0.8f))"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,453,Color.White,"Text(""S/ 0.00"", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White)"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,462,Color.White,"Text(""En efectivo"", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White.copy(alpha = 0.8f))"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,463,Color.White,"Text(""S/ 0.00"", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White)"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,673,Color(0xFF1E293B),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,673,Color(0xFFF1F5F9),"color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,816,Color(0xFF093E35),"color = Color(0xFF093E35),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,834,Color(0xFFA7F3D0),"tint = Color(0xFFA7F3D0),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,840,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,850,Color.White,"tint = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,870,Color.White,"color = Color.White.copy(alpha = 0.05f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,876,Color.White,"color = Color.White.copy(alpha = 0.03f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,899,Color(0xFF6EE7B7),"color = Color(0xFF6EE7B7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,908,Color(0xFFA7F3D0),"color = Color(0xFFA7F3D0),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,913,Color.White,"color = Color.White.copy(alpha = 0.15f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,918,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,928,Color.White,"color = Color.White.copy(alpha = 0.18f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,941,Color.White,"tint = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,958,Color.White,"tint = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,977,Color.White,"color = Color.White.copy(alpha = 0.75f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,988,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,996,Color.White,"color = Color.White.copy(alpha = 0.75f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1006,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1020,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1029,Color.White,"color = Color.White.copy(alpha = 0.8f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1048,Color.White,"color = Color.White.copy(alpha = 0.8f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1064,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1079,Color.White,"color = Color.White.copy(alpha = 0.8f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1095,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1644,Color(0xFF0C4A6E),"if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1644,Color(0xFFE0F2FE),"if (isDark) Color(0xFF0C4A6E) else Color(0xFFE0F2FE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1645,Color(0xFF7DD3FC),"if (isDark) Color(0xFF7DD3FC) else Color(0xFF0284C7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1645,Color(0xFF0284C7),"if (isDark) Color(0xFF7DD3FC) else Color(0xFF0284C7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1649,Color(0xFF1E3A8A),"if (isDark) Color(0xFF1E3A8A) else Color(0xFFDBEAFE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1649,Color(0xFFDBEAFE),"if (isDark) Color(0xFF1E3A8A) else Color(0xFFDBEAFE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1650,Color(0xFF93C5FD),"if (isDark) Color(0xFF93C5FD) else Color(0xFF1D4ED8),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1650,Color(0xFF1D4ED8),"if (isDark) Color(0xFF93C5FD) else Color(0xFF1D4ED8),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1654,Color(0xFF14532D),"if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1654,Color(0xFFDCFCE7),"if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1655,Color(0xFF86EFAC),"if (isDark) Color(0xFF86EFAC) else Color(0xFF059669),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1655,Color(0xFF059669),"if (isDark) Color(0xFF86EFAC) else Color(0xFF059669),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1659,Color(0xFF7F1D1D),"if (isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1659,Color(0xFFFEE2E2),"if (isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1660,Color(0xFFFCA5A5),"if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1660,Color(0xFFDC2626),"if (isDark) Color(0xFFFCA5A5) else Color(0xFFDC2626),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1664,Color(0xFF78350F),"if (isDark) Color(0xFF78350F) else Color(0xFFFEF3C7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1664,Color(0xFFFEF3C7),"if (isDark) Color(0xFF78350F) else Color(0xFFFEF3C7),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1665,Color(0xFFFCD34D),"if (isDark) Color(0xFFFCD34D) else Color(0xFFD97706),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1665,Color(0xFFD97706),"if (isDark) Color(0xFFFCD34D) else Color(0xFFD97706),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1669,Color(0xFF581C87),"if (isDark) Color(0xFF581C87) else Color(0xFFF3E8FF),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1669,Color(0xFFF3E8FF),"if (isDark) Color(0xFF581C87) else Color(0xFFF3E8FF),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1670,Color(0xFFD8B4FE),"if (isDark) Color(0xFFD8B4FE) else Color(0xFF7E22CE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1670,Color(0xFF7E22CE),"if (isDark) Color(0xFFD8B4FE) else Color(0xFF7E22CE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1674,Color(0xFF164E63),"if (isDark) Color(0xFF164E63) else Color(0xFFCFFAFE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1674,Color(0xFFCFFAFE),"if (isDark) Color(0xFF164E63) else Color(0xFFCFFAFE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1675,Color(0xFF67E8F9),"if (isDark) Color(0xFF67E8F9) else Color(0xFF0891B2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1675,Color(0xFF0891B2),"if (isDark) Color(0xFF67E8F9) else Color(0xFF0891B2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1679,Color(0xFF14532D),"if (isDark) Color(0xFF14532D) else Color(0xFFE2F4EE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1679,Color(0xFFE2F4EE),"if (isDark) Color(0xFF14532D) else Color(0xFFE2F4EE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1680,Color(0xFF86EFAC),"if (isDark) Color(0xFF86EFAC) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1680,Color(0xFF075E52),"if (isDark) Color(0xFF86EFAC) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1685,Color(0xFF14532D),"if (isDark) Color(0xFF14532D) else Color(0xFFE2F4EE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1685,Color(0xFFE2F4EE),"if (isDark) Color(0xFF14532D) else Color(0xFFE2F4EE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1686,Color(0xFF86EFAC),"if (isDark) Color(0xFF86EFAC) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1686,Color(0xFF075E52),"if (isDark) Color(0xFF86EFAC) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1690,Color(0xFF4C1D95),"if (isDark) Color(0xFF4C1D95) else Color(0xFFEDE9FE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1690,Color(0xFFEDE9FE),"if (isDark) Color(0xFF4C1D95) else Color(0xFFEDE9FE),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1691,Color(0xFFC4B5FD),"if (isDark) Color(0xFFC4B5FD) else Color(0xFF7C3AED),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1691,Color(0xFF7C3AED),"if (isDark) Color(0xFFC4B5FD) else Color(0xFF7C3AED),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1695,Color(0xFF134E4A),"if (isDark) Color(0xFF134E4A) else Color(0xFFE6F7F3),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1695,Color(0xFFE6F7F3),"if (isDark) Color(0xFF134E4A) else Color(0xFFE6F7F3),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1696,Color(0xFF5EEAD4),"if (isDark) Color(0xFF5EEAD4) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt,1696,Color(0xFF075E52),"if (isDark) Color(0xFF5EEAD4) else Color(0xFF075E52),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardThemePreview.kt,42,Color(0xFF7F1D1D),"color = if (colors.isDark) androidx.compose.ui.graphics.Color(0xFF7F1D1D) else androidx.compose.ui.graphics.Color(0xFFFEE2E2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardThemePreview.kt,42,Color(0xFFFEE2E2),"color = if (colors.isDark) androidx.compose.ui.graphics.Color(0xFF7F1D1D) else androidx.compose.ui.graphics.Color(0xFFFEE2E2),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,439,Color(0xFF0F243A),"colors = CardDefaults.cardColors(containerColor = Color(0xFF0F243A)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,453,Color.White,".background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,459,Color(0xFFFBBF24),"tint = Color(0xFFFBBF24),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,468,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,473,Color.White,"color = Color.White.copy(alpha = 0.7f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,485,Color.White,"color = Color.White.copy(alpha = 0.7f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,489,Color(0xFF064E3B),"color = Color(0xFF064E3B),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,495,Color(0xFF34D399),"color = Color(0xFF34D399),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1318,Color(0xFF0B1F33),"Brush.linearGradient(listOf(Color(0xFF0B1F33), Color(0xFF081826)))"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1318,Color(0xFF081826),"Brush.linearGradient(listOf(Color(0xFF0B1F33), Color(0xFF081826)))"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1322,Color.White,val cardForeground = if (isBcpVisa) Color.White else stylePreset.textColor
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1323,Color(0xFFD4AF37),val cardAccent = if (isBcpVisa) Color(0xFFD4AF37) else stylePreset.accentColor
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1456,Color(0xFFE5C07B),"listOf(Color(0xFFE5C07B), Color(0xFFD19A66), Color(0xFFE5C07B)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1456,Color(0xFFD19A66),"listOf(Color(0xFFE5C07B), Color(0xFFD19A66), Color(0xFFE5C07B)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1456,Color(0xFFE5C07B),"listOf(Color(0xFFE5C07B), Color(0xFFD19A66), Color(0xFFE5C07B)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1463,Color(0xFF7A5813),"color = Color(0xFF7A5813),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1469,Color(0xFF7A5813),"color = Color(0xFF7A5813),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1487,Color.Black,"color = Color.Black.copy(alpha = 0.35f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1575,Color(0xFF111111),".background(Color(0xFF111111)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1591,Color.White,.background(Color.White.copy(alpha = 0.90f))
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1600,Color.Black,"color = Color.Black,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt,1606,Color.Black,"color = Color.Black.copy(alpha = 0.35f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,148,Color(0xFF0F243A),"colors = CardDefaults.cardColors(containerColor = Color(0xFF0F243A)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,167,Color(0xFF5EEAD4),"tint = Color(0xFF5EEAD4),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,174,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,179,Color.White,"color = Color.White.copy(alpha = 0.15f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,185,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,195,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,200,Color.White,"color = Color.White.copy(alpha = 0.7f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,212,Color.White,"color = Color.White.copy(alpha = 0.7f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,219,Color(0xFF5EEAD4),"color = Color(0xFF5EEAD4),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,226,Color.White,"color = Color.White.copy(alpha = 0.7f),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/CreditCardTermsDialog.kt,233,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,40,Color(0xFFFFC600),"color = Color(0xFFFFC600),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,41,Color(0xFF002A8F),"textColor = Color(0xFF002A8F),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,51,Color(0xFF004481),"color = Color(0xFF004481),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,52,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,62,Color(0xFF009940),"color = Color(0xFF009940),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,63,Color(0xFF191C1E),"textColor = Color(0xFF191C1E),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,73,Color(0xFFED1C24),"color = Color(0xFFED1C24),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,74,Color(0xFFFFFFFF),"textColor = Color(0xFFFFFFFF),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,84,Color(0xFFFFC107),"color = Color(0xFFFFC107),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,85,Color(0xFF1F1B13),"textColor = Color(0xFF1F1B13),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,95,Color(0xFF607D8B),"color = Color(0xFF607D8B),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,96,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,106,Color(0xFF005A8C),"color = Color(0xFF005A8C),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,107,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,117,Color(0xFF00843D),"color = Color(0xFF00843D),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,118,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,128,Color(0xFF004B93),"color = Color(0xFF004B93),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,129,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,139,Color(0xFF621275),"color = Color(0xFF621275),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/InstrumentFormModels.kt,140,Color.White,"textColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/MovementClassificationEditor.kt,68,Color(0xFF3F51B5),if (hex == null) return Color(0xFF3F51B5)
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/MovementClassificationEditor.kt,72,Color(0xFF3F51B5),Color(0xFF3F51B5)
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,807,Color(0xFF0D1E2C),"colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1E2C)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,826,Color(0xFFFBBF24),"color = Color(0xFFFBBF24),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,832,Color(0xFF1E293B),"color = Color(0xFF1E293B),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,839,Color(0xFFCBD5E1),"color = Color(0xFFCBD5E1),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,849,Color(0xFF162D3F),"color = Color(0xFF162D3F),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,860,Color(0xFF10B981),.background(Color(0xFF10B981))
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,866,Color(0xFFCBD5E1),"color = Color(0xFFCBD5E1),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,875,Color(0xFF334155),".border(1.dp, Color(0xFF334155), RoundedCornerShape(4.dp))"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,876,Color(0xFF1E293B),".background(Color(0xFF1E293B)),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,887,Color(0xFF94A3B8),"color = Color(0xFF94A3B8),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,895,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,900,Color(0xFF94A3B8),"color = Color(0xFF94A3B8),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,917,Color(0xFF14B8A6),"tint = Color(0xFF14B8A6),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,923,Color(0xFFCBD5E1),"color = Color(0xFFCBD5E1),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,931,Color(0xFF10B981),"color = if (card.personalTeaBps != null) Color(0xFF10B981) else Color(0xFFF59E0B),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/RateCatalogScreen.kt,931,Color(0xFFF59E0B),"color = if (card.personalTeaBps != null) Color(0xFF10B981) else Color(0xFFF59E0B),"
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/UnifiedInstrumentFormScreen.kt,154,Color(0xFF475569),private val KipuTextMuted: Color @Composable get() = if (rememberKipuColors().isDark) rememberKipuColors().inkSecondary else Color(0xFF475569)
+app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/UnifiedInstrumentFormScreen.kt,456,Color(0xFF005C55),kind == InstrumentKind.WALLET -> Color(0xFF005C55)
+app/src/main/java/com/kipu/app/feature/auth/presentation/AuthFormScreen.kt,225,Color(0xFF15803D),val successText = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color(0xFF15803D) else colors.incomeText
+app/src/main/java/com/kipu/app/feature/auth/presentation/AuthFormScreen.kt,239,Color(0xFF16A34A),Color(0xFF16A34A) else statusColor)
+app/src/main/java/com/kipu/app/feature/categories/presentation/CategoryDesignTokens.kt,161,Color(0xFF0F766E),Color(0xFF0F766E)
+app/src/main/java/com/kipu/app/feature/categories/presentation/categories/CategoriesScreen.kt,1045,Color(0xFFD97706),"""alimentacion"" -> CategoryRootAppearance(""restaurant"", Color(0xFFD97706))"
+app/src/main/java/com/kipu/app/feature/categories/presentation/categories/CategoriesScreen.kt,1046,Color(0xFF0284C7),"""transporte"" -> CategoryRootAppearance(""directions_car"", Color(0xFF0284C7))"
+app/src/main/java/com/kipu/app/feature/categories/presentation/categories/CategoriesScreen.kt,1047,Color(0xFF7C3AED),"""servicios"" -> CategoryRootAppearance(""receipt"", Color(0xFF7C3AED))"
+app/src/main/java/com/kipu/app/feature/categories/presentation/categories/CategoryPresentationEditor.kt,70,Color(0xFF3F51B5),Color(0xFF3F51B5)
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,246,Color(0xFF652D90),"""tambo"" -> Color(0xFF652D90)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,247,Color(0xFF006241),"""starbucks"" -> Color(0xFF006241)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,248,Color(0xFFC8102E),"""plaza vea"" -> Color(0xFFC8102E)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,249,Color(0xFFE5AB00),"""metro"" -> Color(0xFFE5AB00)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,250,Color(0xFFE2231A),"""tottus"" -> Color(0xFFE2231A)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,251,Color(0xFFE50914),"""netflix"" -> Color(0xFFE50914)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,252,Color(0xFF1DB954),"""spotify"" -> Color(0xFF1DB954)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,253,Color(0xFF000000),"""uber"" -> Color(0xFF000000)"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,524,Color.White,".background(Color.White),"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,545,Color.White,".then(if (isRemoteLoaded) Modifier.background(Color.White) else Modifier),"
+app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt,553,Color.White,".background(Color.White),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,91,Color(0xFF86EFAC),private val MintBadgeContent: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF86EFAC) else Color(0xFF166534)
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,91,Color(0xFF166534),private val MintBadgeContent: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF86EFAC) else Color(0xFF166534)
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,94,Color(0xFFE5B83A),private val ChipSimColor = Color(0xFFE5B83A)
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,806,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,827,Color(0xFF002A8F),"Color(0xFF002A8F),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,828,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,832,Color(0xFF004481),"Color(0xFF004481),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,833,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,837,Color(0xFF009940),"Color(0xFF009940),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,838,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,842,Color(0xFFED1C24),"Color(0xFFED1C24),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,843,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,847,Color(0xFF742284),"Color(0xFF742284),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,848,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,852,Color(0xFF00D1D2),"Color(0xFF00D1D2),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,853,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,862,Color(0xFF1E3A8A),"Color(0xFF1E3A8A),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/AccountSelectorBottomSheet.kt,863,Color.White,"Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,196,Color(0xFF5EEAD4),val TealDark: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF5EEAD4) else Color(0xFF074842)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,196,Color(0xFF074842),val TealDark: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF5EEAD4) else Color(0xFF074842)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,197,Color(0xFF123B38),val TealLightBg: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF123B38) else Color(0xFFF0FDF4)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,197,Color(0xFFF0FDF4),val TealLightBg: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF123B38) else Color(0xFFF0FDF4)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,203,Color(0xFF475569),val TextMuted: Color @Composable get() = if (rememberKipuColors().isDark) rememberKipuColors().inkSecondary else Color(0xFF475569)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,204,Color(0xFF94A3B8),val TextPlaceholder: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,204,Color(0xFF64748B),val TextPlaceholder: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,216,Color(0xFFDCFCE7),"private val BaseMint = PastelToken(""Mint"", Color(0xFFDCFCE7), Color(0xFF166534), Color(0xFF166534), ""#DCFCE7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,216,Color(0xFF166534),"private val BaseMint = PastelToken(""Mint"", Color(0xFFDCFCE7), Color(0xFF166534), Color(0xFF166534), ""#DCFCE7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,216,Color(0xFF166534),"private val BaseMint = PastelToken(""Mint"", Color(0xFFDCFCE7), Color(0xFF166534), Color(0xFF166534), ""#DCFCE7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,217,Color(0xFFFFEDD5),"private val BaseOrange = PastelToken(""Orange"", Color(0xFFFFEDD5), Color(0xFF9A3412), Color(0xFF9A3412), ""#FFEDD5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,217,Color(0xFF9A3412),"private val BaseOrange = PastelToken(""Orange"", Color(0xFFFFEDD5), Color(0xFF9A3412), Color(0xFF9A3412), ""#FFEDD5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,217,Color(0xFF9A3412),"private val BaseOrange = PastelToken(""Orange"", Color(0xFFFFEDD5), Color(0xFF9A3412), Color(0xFF9A3412), ""#FFEDD5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,218,Color(0xFFEDE9FE),"private val BasePurple = PastelToken(""Purple"", Color(0xFFEDE9FE), Color(0xFF5B21B6), Color(0xFF5B21B6), ""#EDE9FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,218,Color(0xFF5B21B6),"private val BasePurple = PastelToken(""Purple"", Color(0xFFEDE9FE), Color(0xFF5B21B6), Color(0xFF5B21B6), ""#EDE9FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,218,Color(0xFF5B21B6),"private val BasePurple = PastelToken(""Purple"", Color(0xFFEDE9FE), Color(0xFF5B21B6), Color(0xFF5B21B6), ""#EDE9FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,219,Color(0xFFE0F2FE),"private val BaseSky = PastelToken(""Sky"", Color(0xFFE0F2FE), Color(0xFF075985), Color(0xFF075985), ""#E0F2FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,219,Color(0xFF075985),"private val BaseSky = PastelToken(""Sky"", Color(0xFFE0F2FE), Color(0xFF075985), Color(0xFF075985), ""#E0F2FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,219,Color(0xFF075985),"private val BaseSky = PastelToken(""Sky"", Color(0xFFE0F2FE), Color(0xFF075985), Color(0xFF075985), ""#E0F2FE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,220,Color(0xFFFFE4E6),"private val BaseRose = PastelToken(""Rose"", Color(0xFFFFE4E6), Color(0xFF9F1239), Color(0xFF9F1239), ""#FFE4E6"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,220,Color(0xFF9F1239),"private val BaseRose = PastelToken(""Rose"", Color(0xFFFFE4E6), Color(0xFF9F1239), Color(0xFF9F1239), ""#FFE4E6"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,220,Color(0xFF9F1239),"private val BaseRose = PastelToken(""Rose"", Color(0xFFFFE4E6), Color(0xFF9F1239), Color(0xFF9F1239), ""#FFE4E6"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,221,Color(0xFFFEF3C7),"private val BaseAmber = PastelToken(""Amber"", Color(0xFFFEF3C7), Color(0xFF92400E), Color(0xFF92400E), ""#FEF3C7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,221,Color(0xFF92400E),"private val BaseAmber = PastelToken(""Amber"", Color(0xFFFEF3C7), Color(0xFF92400E), Color(0xFF92400E), ""#FEF3C7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,221,Color(0xFF92400E),"private val BaseAmber = PastelToken(""Amber"", Color(0xFFFEF3C7), Color(0xFF92400E), Color(0xFF92400E), ""#FEF3C7"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,222,Color(0xFFD1FAE5),"private val BaseEmerald = PastelToken(""Emerald"", Color(0xFFD1FAE5), Color(0xFF065F46), Color(0xFF065F46), ""#D1FAE5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,222,Color(0xFF065F46),"private val BaseEmerald = PastelToken(""Emerald"", Color(0xFFD1FAE5), Color(0xFF065F46), Color(0xFF065F46), ""#D1FAE5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,222,Color(0xFF065F46),"private val BaseEmerald = PastelToken(""Emerald"", Color(0xFFD1FAE5), Color(0xFF065F46), Color(0xFF065F46), ""#D1FAE5"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,223,Color(0xFFF3E8FF),"private val BaseLavender = PastelToken(""Lavender"", Color(0xFFF3E8FF), Color(0xFF6B21A8), Color(0xFF6B21A8), ""#F3E8FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,223,Color(0xFF6B21A8),"private val BaseLavender = PastelToken(""Lavender"", Color(0xFFF3E8FF), Color(0xFF6B21A8), Color(0xFF6B21A8), ""#F3E8FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,223,Color(0xFF6B21A8),"private val BaseLavender = PastelToken(""Lavender"", Color(0xFFF3E8FF), Color(0xFF6B21A8), Color(0xFF6B21A8), ""#F3E8FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,224,Color(0xFFE0E7FF),"private val BaseIndigo = PastelToken(""Indigo"", Color(0xFFE0E7FF), Color(0xFF3730A3), Color(0xFF3730A3), ""#E0E7FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,224,Color(0xFF3730A3),"private val BaseIndigo = PastelToken(""Indigo"", Color(0xFFE0E7FF), Color(0xFF3730A3), Color(0xFF3730A3), ""#E0E7FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,224,Color(0xFF3730A3),"private val BaseIndigo = PastelToken(""Indigo"", Color(0xFFE0E7FF), Color(0xFF3730A3), Color(0xFF3730A3), ""#E0E7FF"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,225,Color(0xFFDBEAFE),"private val BaseBlue = PastelToken(""Blue"", Color(0xFFDBEAFE), Color(0xFF1D4ED8), Color(0xFF1D4ED8), ""#DBEAFE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,225,Color(0xFF1D4ED8),"private val BaseBlue = PastelToken(""Blue"", Color(0xFFDBEAFE), Color(0xFF1D4ED8), Color(0xFF1D4ED8), ""#DBEAFE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,225,Color(0xFF1D4ED8),"private val BaseBlue = PastelToken(""Blue"", Color(0xFFDBEAFE), Color(0xFF1D4ED8), Color(0xFF1D4ED8), ""#DBEAFE"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,226,Color(0xFFCCFBF1),"private val BaseTeal = PastelToken(""Teal"", Color(0xFFCCFBF1), Color(0xFF0F766E), Color(0xFF0F766E), ""#CCFBF1"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,226,Color(0xFF0F766E),"private val BaseTeal = PastelToken(""Teal"", Color(0xFFCCFBF1), Color(0xFF0F766E), Color(0xFF0F766E), ""#CCFBF1"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,226,Color(0xFF0F766E),"private val BaseTeal = PastelToken(""Teal"", Color(0xFFCCFBF1), Color(0xFF0F766E), Color(0xFF0F766E), ""#CCFBF1"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,227,Color(0xFFF1F5F9),"private val BaseSlate = PastelToken(""Slate"", Color(0xFFF1F5F9), Color(0xFF334155), Color(0xFF334155), ""#F1F5F9"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,227,Color(0xFF334155),"private val BaseSlate = PastelToken(""Slate"", Color(0xFFF1F5F9), Color(0xFF334155), Color(0xFF334155), ""#F1F5F9"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,227,Color(0xFF334155),"private val BaseSlate = PastelToken(""Slate"", Color(0xFFF1F5F9), Color(0xFF334155), Color(0xFF334155), ""#F1F5F9"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,228,Color(0xFFFEE2E2),"private val BaseRed = PastelToken(""Red"", Color(0xFFFEE2E2), Color(0xFFB91C1C), Color(0xFFB91C1C), ""#FEE2E2"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,228,Color(0xFFB91C1C),"private val BaseRed = PastelToken(""Red"", Color(0xFFFEE2E2), Color(0xFFB91C1C), Color(0xFFB91C1C), ""#FEE2E2"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,228,Color(0xFFB91C1C),"private val BaseRed = PastelToken(""Red"", Color(0xFFFEE2E2), Color(0xFFB91C1C), Color(0xFFB91C1C), ""#FEE2E2"")"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,238,Color(0xFF14532D),"""Mint"" -> Color(0xFF14532D) to Color(0xFF86EFAC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,238,Color(0xFF86EFAC),"""Mint"" -> Color(0xFF14532D) to Color(0xFF86EFAC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,239,Color(0xFF7C2D12),"""Orange"" -> Color(0xFF7C2D12) to Color(0xFFFDBA74)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,239,Color(0xFFFDBA74),"""Orange"" -> Color(0xFF7C2D12) to Color(0xFFFDBA74)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,240,Color(0xFF4C1D95),"""Purple"" -> Color(0xFF4C1D95) to Color(0xFFC4B5FD)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,240,Color(0xFFC4B5FD),"""Purple"" -> Color(0xFF4C1D95) to Color(0xFFC4B5FD)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,241,Color(0xFF0C4A6E),"""Sky"" -> Color(0xFF0C4A6E) to Color(0xFF7DD3FC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,241,Color(0xFF7DD3FC),"""Sky"" -> Color(0xFF0C4A6E) to Color(0xFF7DD3FC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,242,Color(0xFF881337),"""Rose"" -> Color(0xFF881337) to Color(0xFFFDA4AF)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,242,Color(0xFFFDA4AF),"""Rose"" -> Color(0xFF881337) to Color(0xFFFDA4AF)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,243,Color(0xFF78350F),"""Amber"" -> Color(0xFF78350F) to Color(0xFFFCD34D)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,243,Color(0xFFFCD34D),"""Amber"" -> Color(0xFF78350F) to Color(0xFFFCD34D)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,244,Color(0xFF064E3B),"""Emerald"" -> Color(0xFF064E3B) to Color(0xFF6EE7B7)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,244,Color(0xFF6EE7B7),"""Emerald"" -> Color(0xFF064E3B) to Color(0xFF6EE7B7)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,245,Color(0xFF581C87),"""Lavender"" -> Color(0xFF581C87) to Color(0xFFD8B4FE)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,245,Color(0xFFD8B4FE),"""Lavender"" -> Color(0xFF581C87) to Color(0xFFD8B4FE)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,246,Color(0xFF312E81),"""Indigo"" -> Color(0xFF312E81) to Color(0xFFA5B4FC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,246,Color(0xFFA5B4FC),"""Indigo"" -> Color(0xFF312E81) to Color(0xFFA5B4FC)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,247,Color(0xFF1E3A8A),"""Blue"" -> Color(0xFF1E3A8A) to Color(0xFF93C5FD)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,247,Color(0xFF93C5FD),"""Blue"" -> Color(0xFF1E3A8A) to Color(0xFF93C5FD)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,248,Color(0xFF134E4A),"""Teal"" -> Color(0xFF134E4A) to Color(0xFF5EEAD4)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,248,Color(0xFF5EEAD4),"""Teal"" -> Color(0xFF134E4A) to Color(0xFF5EEAD4)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,249,Color(0xFF7F1D1D),"""Red"" -> Color(0xFF7F1D1D) to Color(0xFFFCA5A5)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,249,Color(0xFFFCA5A5),"""Red"" -> Color(0xFF7F1D1D) to Color(0xFFFCA5A5)"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,250,Color(0xFF334155),else -> Color(0xFF334155) to Color(0xFFCBD5E1)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,250,Color(0xFFCBD5E1),else -> Color(0xFF334155) to Color(0xFFCBD5E1)
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,441,Color(0xFF0D6E64),"fun hexToColor(hex: String, fallback: Color = Color(0xFF0D6E64)): Color {"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,1998,Color.White,"brush = Brush.horizontalGradient(listOf(Color.White, pureHue))"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2002,Color.Black,"brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black))"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2010,Color.White,"color = Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2020,Color.Black,"color = Color.Black,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2064,Color.White,"thumbColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2093,Color.White,"listOf(Color.White, PastelColorUtils.hsvToColor(currentHue, 1f, currentValue))"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2104,Color.White,"thumbColor = Color.White,"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2131,Color.Black,".border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/PastelCategoryPickerFlow.kt,2152,Color.Black,".border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,619,Color(0xFF134E4A),val bg = if (emeraldColors.isDark) Color(0xFF134E4A) else Color(0xFFE6F7F3)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,619,Color(0xFFE6F7F3),val bg = if (emeraldColors.isDark) Color(0xFF134E4A) else Color(0xFFE6F7F3)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,620,Color(0xFF5EEAD4),val tint = if (emeraldColors.isDark) Color(0xFF5EEAD4) else Color(0xFF075E52)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,620,Color(0xFF075E52),val tint = if (emeraldColors.isDark) Color(0xFF5EEAD4) else Color(0xFF075E52)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,701,Color(0xFF1E3A8A),"iconBg = if (emeraldColors.isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,701,Color(0xFFEFF6FF),"iconBg = if (emeraldColors.isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,800,Color(0xFF2E1065),val bg = if (emeraldColors.isDark) Color(0xFF2E1065) else Color(0xFFF3E8FF)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,800,Color(0xFFF3E8FF),val bg = if (emeraldColors.isDark) Color(0xFF2E1065) else Color(0xFFF3E8FF)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,801,Color(0xFFC4B5FD),val tint = if (emeraldColors.isDark) Color(0xFFC4B5FD) else Color(0xFF7E22CE)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,801,Color(0xFF7E22CE),val tint = if (emeraldColors.isDark) Color(0xFFC4B5FD) else Color(0xFF7E22CE)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,831,Color(0xFF451A03),Color(0xFF451A03) to Color(0xFFFDBA74)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,831,Color(0xFFFDBA74),Color(0xFF451A03) to Color(0xFFFDBA74)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,833,Color(0xFFFEF3C7),Color(0xFFFEF3C7) to emeraldColors.warningText
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,893,Color(0xFF082F49),Color(0xFF082F49) to Color(0xFF7DD3FC)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,893,Color(0xFF7DD3FC),Color(0xFF082F49) to Color(0xFF7DD3FC)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,895,Color(0xFFE0F2FE),Color(0xFFE0F2FE) to Color(0xFF0284C7)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,895,Color(0xFF0284C7),Color(0xFFE0F2FE) to Color(0xFF0284C7)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,979,Color(0xFF1E293B),"disabledContainerColor = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,979,Color(0xFFE2E8F0),"disabledContainerColor = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),"
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1417,Color(0xFF7C2D12),if (dark) Color(0xFF7C2D12) to Color(0xFFFDBA74) else Color(0xFFFFEDD5) to Color(0xFF9A3412)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1417,Color(0xFFFDBA74),if (dark) Color(0xFF7C2D12) to Color(0xFFFDBA74) else Color(0xFFFFEDD5) to Color(0xFF9A3412)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1417,Color(0xFFFFEDD5),if (dark) Color(0xFF7C2D12) to Color(0xFFFDBA74) else Color(0xFFFFEDD5) to Color(0xFF9A3412)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1417,Color(0xFF9A3412),if (dark) Color(0xFF7C2D12) to Color(0xFFFDBA74) else Color(0xFFFFEDD5) to Color(0xFF9A3412)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1419,Color(0xFF4C1D95),if (dark) Color(0xFF4C1D95) to Color(0xFFC4B5FD) else Color(0xFFEDE9FE) to Color(0xFF5B21B6)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1419,Color(0xFFC4B5FD),if (dark) Color(0xFF4C1D95) to Color(0xFFC4B5FD) else Color(0xFFEDE9FE) to Color(0xFF5B21B6)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1419,Color(0xFFEDE9FE),if (dark) Color(0xFF4C1D95) to Color(0xFFC4B5FD) else Color(0xFFEDE9FE) to Color(0xFF5B21B6)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1419,Color(0xFF5B21B6),if (dark) Color(0xFF4C1D95) to Color(0xFFC4B5FD) else Color(0xFFEDE9FE) to Color(0xFF5B21B6)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1421,Color(0xFF0C4A6E),if (dark) Color(0xFF0C4A6E) to Color(0xFF7DD3FC) else Color(0xFFE0F2FE) to Color(0xFF075985)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1421,Color(0xFF7DD3FC),if (dark) Color(0xFF0C4A6E) to Color(0xFF7DD3FC) else Color(0xFFE0F2FE) to Color(0xFF075985)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1421,Color(0xFFE0F2FE),if (dark) Color(0xFF0C4A6E) to Color(0xFF7DD3FC) else Color(0xFFE0F2FE) to Color(0xFF075985)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1421,Color(0xFF075985),if (dark) Color(0xFF0C4A6E) to Color(0xFF7DD3FC) else Color(0xFFE0F2FE) to Color(0xFF075985)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1423,Color(0xFF881337),if (dark) Color(0xFF881337) to Color(0xFFFDA4AF) else Color(0xFFFFE4E6) to Color(0xFF9F1239)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1423,Color(0xFFFDA4AF),if (dark) Color(0xFF881337) to Color(0xFFFDA4AF) else Color(0xFFFFE4E6) to Color(0xFF9F1239)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1423,Color(0xFFFFE4E6),if (dark) Color(0xFF881337) to Color(0xFFFDA4AF) else Color(0xFFFFE4E6) to Color(0xFF9F1239)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1423,Color(0xFF9F1239),if (dark) Color(0xFF881337) to Color(0xFFFDA4AF) else Color(0xFFFFE4E6) to Color(0xFF9F1239)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1425,Color(0xFF78350F),if (dark) Color(0xFF78350F) to Color(0xFFFCD34D) else Color(0xFFFEF3C7) to Color(0xFF92400E)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1425,Color(0xFFFCD34D),if (dark) Color(0xFF78350F) to Color(0xFFFCD34D) else Color(0xFFFEF3C7) to Color(0xFF92400E)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1425,Color(0xFFFEF3C7),if (dark) Color(0xFF78350F) to Color(0xFFFCD34D) else Color(0xFFFEF3C7) to Color(0xFF92400E)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1425,Color(0xFF92400E),if (dark) Color(0xFF78350F) to Color(0xFFFCD34D) else Color(0xFFFEF3C7) to Color(0xFF92400E)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1427,Color(0xFF064E3B),if (dark) Color(0xFF064E3B) to Color(0xFF6EE7B7) else Color(0xFFD1FAE5) to Color(0xFF065F46)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1427,Color(0xFF6EE7B7),if (dark) Color(0xFF064E3B) to Color(0xFF6EE7B7) else Color(0xFFD1FAE5) to Color(0xFF065F46)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1427,Color(0xFFD1FAE5),if (dark) Color(0xFF064E3B) to Color(0xFF6EE7B7) else Color(0xFFD1FAE5) to Color(0xFF065F46)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1427,Color(0xFF065F46),if (dark) Color(0xFF064E3B) to Color(0xFF6EE7B7) else Color(0xFFD1FAE5) to Color(0xFF065F46)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1429,Color(0xFF831843),if (dark) Color(0xFF831843) to Color(0xFFF472B6) else Color(0xFFFCE7F3) to Color(0xFF9D174D)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1429,Color(0xFFF472B6),if (dark) Color(0xFF831843) to Color(0xFFF472B6) else Color(0xFFFCE7F3) to Color(0xFF9D174D)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1429,Color(0xFFFCE7F3),if (dark) Color(0xFF831843) to Color(0xFFF472B6) else Color(0xFFFCE7F3) to Color(0xFF9D174D)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1429,Color(0xFF9D174D),if (dark) Color(0xFF831843) to Color(0xFFF472B6) else Color(0xFFFCE7F3) to Color(0xFF9D174D)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1431,Color(0xFF1E293B),if (dark) Color(0xFF1E293B) to Color(0xFF94A3B8) else Color(0xFFF1F5F9) to Color(0xFF475569)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1431,Color(0xFF94A3B8),if (dark) Color(0xFF1E293B) to Color(0xFF94A3B8) else Color(0xFFF1F5F9) to Color(0xFF475569)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1431,Color(0xFFF1F5F9),if (dark) Color(0xFF1E293B) to Color(0xFF94A3B8) else Color(0xFFF1F5F9) to Color(0xFF475569)
+app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt,1431,Color(0xFF475569),if (dark) Color(0xFF1E293B) to Color(0xFF94A3B8) else Color(0xFFF1F5F9) to Color(0xFF475569)
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,55,Color(0xFF166534),val incomeText: Color get() = if (isDark) incomeEmerald else Color(0xFF166534)
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,56,Color(0xFFB91C1C),val expenseText: Color get() = if (isDark) expenseCoral else Color(0xFFB91C1C)
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,61,Color(0xFF0B1220),"background = Color(0xFF0B1220),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,62,Color(0xFF131B2E),"surfaceCard = Color(0xFF131B2E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,63,Color(0xFF26344B),"borderSubtle = Color(0xFF26344B),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,64,Color(0xFF14B8A6),"primaryDeep = Color(0xFF14B8A6),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,65,Color(0xFF042F2E),"onPrimaryDeep = Color(0xFF042F2E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,66,Color(0xFFEFF1F3),"primaryText = Color(0xFFEFF1F3),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,67,Color(0xFF94A3B8),"secondaryMuted = Color(0xFF94A3B8),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,68,Color(0xFF0B463E),"heroGradientStart = Color(0xFF0B463E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,69,Color(0xFF062D27),"heroGradientEnd = Color(0xFF062D27),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,70,Color(0x33000000),"heroSubcardBg = Color(0x33000000),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,71,Color(0xFFFCA5A5),"expenseCoral = Color(0xFFFCA5A5),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,72,Color(0xFF3B1216),"expenseBg = Color(0xFF3B1216),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,73,Color(0xFF7F1D1D),"expenseBorder = Color(0xFF7F1D1D),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,74,Color(0xFF86EFAC),"incomeEmerald = Color(0xFF86EFAC),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,75,Color(0xFF0A301D),"incomeBg = Color(0xFF0A301D),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,76,Color(0xFF14532D),"incomeBorder = Color(0xFF14532D),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,77,Color(0xFF93C5FD),"transferBlue = Color(0xFF93C5FD),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,78,Color(0xFF11284A),"transferBg = Color(0xFF11284A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,79,Color(0xFF1E3A8A),"transferBorder = Color(0xFF1E3A8A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,80,Color(0xFFFCD34D),"warningAmber = Color(0xFFFCD34D),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,81,Color(0xFFFDE68A),"warningText = Color(0xFFFDE68A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,82,Color(0xFF382305),"warningBg = Color(0xFF382305),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,83,Color(0xFF78350F),"warningBorder = Color(0xFF78350F),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,84,Color(0xFF1A263B),"pillTrack = Color(0xFF1A263B),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,85,Color(0xFF131B2E),"navCapsuleBg = Color(0xFF131B2E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,86,Color(0xFF134E4A),"navSelectedPill = Color(0xFF134E4A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,87,Color(0xFF5EEAD4),"navSelectedContent = Color(0xFF5EEAD4),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,88,Color(0xFF94A3B8),"navUnselectedContent = Color(0xFF94A3B8),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,93,Color(0xFFF8FAFC),"background = Color(0xFFF8FAFC),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,94,Color(0xFFFFFFFF),"surfaceCard = Color(0xFFFFFFFF),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,95,Color(0xFFE2E8F0),"borderSubtle = Color(0xFFE2E8F0),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,97,Color(0xFFFFFFFF),"onPrimaryDeep = Color(0xFFFFFFFF),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,99,Color(0xFF475569),"secondaryMuted = Color(0xFF475569),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,100,Color(0xFF0F766E),"heroGradientStart = Color(0xFF0F766E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,101,Color(0xFF115E59),"heroGradientEnd = Color(0xFF115E59),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,102,Color(0x2E000000),"heroSubcardBg = Color(0x2E000000),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,103,Color(0xFFE85D5D),"expenseCoral = Color(0xFFE85D5D),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,104,Color(0xFFFEF2F2),"expenseBg = Color(0xFFFEF2F2),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,105,Color(0xFFFECACA),"expenseBorder = Color(0xFFFECACA),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,106,Color(0xFF16A34A),"incomeEmerald = Color(0xFF16A34A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,107,Color(0xFFF0FDF4),"incomeBg = Color(0xFFF0FDF4),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,108,Color(0xFFBBF7D0),"incomeBorder = Color(0xFFBBF7D0),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,109,Color(0xFF2563EB),"transferBlue = Color(0xFF2563EB),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,110,Color(0xFFEFF6FF),"transferBg = Color(0xFFEFF6FF),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,111,Color(0xFFBFDBFE),"transferBorder = Color(0xFFBFDBFE),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,112,Color(0xFFF59E0B),"warningAmber = Color(0xFFF59E0B),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,113,Color(0xFF92400E),"warningText = Color(0xFF92400E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,114,Color(0xFFFEF3C7),"warningBg = Color(0xFFFEF3C7),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,115,Color(0xFFFDE68A),"warningBorder = Color(0xFFFDE68A),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,116,Color(0xFFF1F5F9),"pillTrack = Color(0xFFF1F5F9),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,117,Color(0xFFFFFFFF),"navCapsuleBg = Color(0xFFFFFFFF),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,118,Color(0xFF0F766E),"navSelectedPill = Color(0xFF0F766E),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,119,Color(0xFFFFFFFF),"navSelectedContent = Color(0xFFFFFFFF),"
+app/src/main/java/com/kipu/app/ui/theme/CalmEmeraldTokens.kt,120,Color(0xFF475569),"navUnselectedContent = Color(0xFF475569),"
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,6,Color(0xFF0F766E),val KipuPrimary = Color(0xFF0F766E)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,7,Color(0xFFFFFFFF),val KipuOnPrimary = Color(0xFFFFFFFF)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,8,Color(0xFFCCFBF1),val KipuPrimaryContainer = Color(0xFFCCFBF1)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,9,Color(0xFF134E4A),val KipuOnPrimaryContainer = Color(0xFF134E4A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,10,Color(0xFF5EEAD4),val KipuInversePrimary = Color(0xFF5EEAD4)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,11,Color(0xFF0F766E),val KipuSelectionRing = Color(0xFF0F766E)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,13,Color(0xFF14B8A6),val KipuSecondary = Color(0xFF14B8A6)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,14,Color(0xFF0F172A),val KipuOnSecondary = Color(0xFF0F172A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,15,Color(0xFFCCFBF1),val KipuSecondaryContainer = Color(0xFFCCFBF1)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,16,Color(0xFF115E59),val KipuOnSecondaryContainer = Color(0xFF115E59)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,18,Color(0xFFF59E0B),val KipuTertiary = Color(0xFFF59E0B)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,19,Color(0xFF0F172A),val KipuOnTertiary = Color(0xFF0F172A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,20,Color(0xFFFEF3C7),val KipuTertiaryContainer = Color(0xFFFEF3C7)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,21,Color(0xFF78350F),val KipuOnTertiaryContainer = Color(0xFF78350F)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,23,Color(0xFFF8FAFC),val KipuBackground = Color(0xFFF8FAFC)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,24,Color(0xFF0F172A),val KipuOnSurface = Color(0xFF0F172A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,25,Color(0xFFFFFFFF),val KipuSurface = Color(0xFFFFFFFF)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,26,Color(0xFFFFFFFF),val KipuSurfaceContainerLowest = Color(0xFFFFFFFF)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,27,Color(0xFFF8FAFC),val KipuSurfaceContainerLow = Color(0xFFF8FAFC)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,28,Color(0xFFF1F5F9),val KipuSurfaceContainer = Color(0xFFF1F5F9)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,29,Color(0xFFE2E8F0),val KipuSurfaceContainerHigh = Color(0xFFE2E8F0)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,30,Color(0xFFCBD5E1),val KipuSurfaceContainerHighest = Color(0xFFCBD5E1)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,31,Color(0xFFF1F5F9),val KipuSurfaceVariant = Color(0xFFF1F5F9)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,32,Color(0xFF475569),val KipuOnSurfaceVariant = Color(0xFF475569)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,33,Color(0xFF64748B),val KipuOutline = Color(0xFF64748B)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,34,Color(0xFFCBD5E1),val KipuOutlineVariant = Color(0xFFCBD5E1)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,35,Color(0xFF0F172A),val KipuInverseSurface = Color(0xFF0F172A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,36,Color(0xFFF8FAFC),val KipuInverseOnSurface = Color(0xFFF8FAFC)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,37,Color(0xFF0B1220),val KipuDarkBackground = Color(0xFF0B1220)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,38,Color(0xFF131B2E),val KipuDarkSurface = Color(0xFF131B2E)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,39,Color(0xFF1A263B),val KipuDarkSurfaceVariant = Color(0xFF1A263B)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,40,Color(0xFF94A3B8),val KipuDarkOnSurfaceVariant = Color(0xFF94A3B8)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,41,Color(0xFF64748B),val KipuDarkOutline = Color(0xFF64748B)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,42,Color(0xFF334155),val KipuDarkOutlineVariant = Color(0xFF334155)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,44,Color(0xFFBA1A1A),val KipuErrorLight = Color(0xFFBA1A1A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,45,Color(0xFFFCA5A5),val KipuError: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFFFCA5A5) else KipuErrorLight
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,46,Color(0xFFFFFFFF),val KipuOnError = Color(0xFFFFFFFF)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,47,Color(0xFFFFDAD6),val KipuErrorContainer = Color(0xFFFFDAD6)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,48,Color(0xFF93000A),val KipuOnErrorContainer = Color(0xFF93000A)
+app/src/main/java/com/kipu/app/ui/theme/Color.kt,52,Color(0xFFF59E0B),val KipuWarning = Color(0xFFF59E0B)
+app/src/main/java/com/kipu/app/ui/theme/ColorContrast.kt,19,Color.White,"colorContrastRatio(Color.White, background) >= 4.5f -> Color.White"
+app/src/main/java/com/kipu/app/ui/theme/ColorContrast.kt,19,Color.White,"colorContrastRatio(Color.White, background) >= 4.5f -> Color.White"
+app/src/main/java/com/kipu/app/ui/theme/ColorContrast.kt,21,Color.Black,else -> Color.Black
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,73,Color(0xFF1E3A8A),"cardVisualBackground = if (isDark) Color(0xFF1E3A8A) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,73,Color(0xFF0F172A),"cardVisualBackground = if (isDark) Color(0xFF1E3A8A) else Color(0xFF0F172A),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,74,Color(0xFF123B38),"selectedSurface = if (isDark) Color(0xFF123B38) else Color(0xFFF0FDF4),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,74,Color(0xFFF0FDF4),"selectedSurface = if (isDark) Color(0xFF123B38) else Color(0xFFF0FDF4),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,83,Color(0xFF86EFAC),"positive = if (isDark) Color(0xFF86EFAC) else Color(0xFF166534),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,83,Color(0xFF166534),"positive = if (isDark) Color(0xFF86EFAC) else Color(0xFF166534),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,84,Color(0xFF14532D),"positiveContainer = if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,84,Color(0xFFDCFCE7),"positiveContainer = if (isDark) Color(0xFF14532D) else Color(0xFFDCFCE7),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,85,Color(0xFF86EFAC),"onPositiveContainer = if (isDark) Color(0xFF86EFAC) else Color(0xFF14532D),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,85,Color(0xFF14532D),"onPositiveContainer = if (isDark) Color(0xFF86EFAC) else Color(0xFF14532D),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,86,Color(0xFFFCA5A5),"debt = if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,86,Color(0xFFB91C1C),"debt = if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,87,Color(0xFFFCD34D),"warning = if (isDark) Color(0xFFFCD34D) else Color(0xFF92400E),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,87,Color(0xFF92400E),"warning = if (isDark) Color(0xFFFCD34D) else Color(0xFF92400E),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,88,Color(0xFF422006),"warningContainer = if (isDark) Color(0xFF422006) else Color(0xFFFEF3C7),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,88,Color(0xFFFEF3C7),"warningContainer = if (isDark) Color(0xFF422006) else Color(0xFFFEF3C7),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,89,Color(0xFFFCD34D),"onWarningContainer = if (isDark) Color(0xFFFCD34D) else Color(0xFF78350F),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,89,Color(0xFF78350F),"onWarningContainer = if (isDark) Color(0xFFFCD34D) else Color(0xFF78350F),"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,117,Color(0xFF7F1D1D),"Surface(color = if (colors.isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2), shape = RoundedCornerShape(8.dp)) {"
+app/src/main/java/com/kipu/app/ui/theme/KipuUiColors.kt,117,Color(0xFFFEE2E2),"Surface(color = if (colors.isDark) Color(0xFF7F1D1D) else Color(0xFFFEE2E2), shape = RoundedCornerShape(8.dp)) {"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,19,Color(0xFF14B8A6),"primary = Color(0xFF14B8A6),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,21,Color(0xFF134E4A),"primaryContainer = Color(0xFF134E4A),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,22,Color(0xFFBCEBDD),"onPrimaryContainer = Color(0xFFBCEBDD),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,25,Color(0xFF134E4A),"secondaryContainer = Color(0xFF134E4A),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,26,Color(0xFFBCEBDD),"onSecondaryContainer = Color(0xFFBCEBDD),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,29,Color(0xFF1A263B),"tertiaryContainer = Color(0xFF1A263B),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,30,Color(0xFFBCEBDD),"onTertiaryContainer = Color(0xFFBCEBDD),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,40,Color(0xFF202D44),"surfaceContainerHigh = Color(0xFF202D44),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,41,Color(0xFF26344B),"surfaceContainerHighest = Color(0xFF26344B),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,44,Color(0xFFFCA5A5),"error = Color(0xFFFCA5A5),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,45,Color(0xFF450A0A),"onError = Color(0xFF450A0A),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,46,Color(0xFF501D21),"errorContainer = Color(0xFF501D21),"
+app/src/main/java/com/kipu/app/ui/theme/Theme.kt,47,Color(0xFFFCA5A5),"onErrorContainer = Color(0xFFFCA5A5),"

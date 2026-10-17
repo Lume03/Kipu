@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.remember
 
 /**
  * Scoped visual tokens for the Calm Emerald fintech redesign.
@@ -49,6 +51,9 @@ data class CalmEmeraldColors(
     val primaryAction: Color get() = primaryDeep
     val incomeAccent: Color get() = incomeEmerald
     val expenseAccent: Color get() = expenseCoral
+    /** Foregrounds for small text; decorative accents retain their original hue. */
+    val incomeText: Color get() = if (isDark) incomeEmerald else Color(0xFF166534)
+    val expenseText: Color get() = if (isDark) expenseCoral else Color(0xFFB91C1C)
 }
 
 private val DarkCalmEmeraldColors = CalmEmeraldColors(
@@ -127,6 +132,17 @@ private val LocalCalmEmeraldColors = compositionLocalOf<CalmEmeraldColors?> { nu
 @Composable
 internal fun ProvideCalmEmeraldColors(content: @Composable () -> Unit) {
     val isDark = LocalKipuDarkTheme.current
-    val colors = if (isDark) DarkCalmEmeraldColors else LightCalmEmeraldColors
+    val scheme = MaterialTheme.colorScheme
+    val colors = remember(isDark, scheme) {
+        (if (isDark) DarkCalmEmeraldColors else LightCalmEmeraldColors).copy(
+            background = scheme.background,
+            surfaceCard = scheme.surface,
+            primaryDeep = scheme.primary,
+            onPrimaryDeep = scheme.onPrimary,
+            primaryText = scheme.onSurface,
+            secondaryMuted = scheme.onSurfaceVariant,
+            pillTrack = scheme.surfaceContainer,
+        )
+    }
     CompositionLocalProvider(LocalCalmEmeraldColors provides colors, content = content)
 }

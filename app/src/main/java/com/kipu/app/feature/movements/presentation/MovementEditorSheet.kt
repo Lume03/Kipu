@@ -1,5 +1,8 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -152,12 +155,14 @@ fun MovementEditorSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onClose,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = modifier.testTag("editor_sheet"),
     ) {
+        KipuModalSystemBars()
         MovementEditorContent(
             uiState = uiState,
             onAmountChanged = onAmountChanged,
