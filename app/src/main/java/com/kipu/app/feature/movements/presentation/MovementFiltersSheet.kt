@@ -369,7 +369,7 @@ private fun MovementFiltersSheetContent(
         // Scrollable content body
         Column(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
@@ -934,6 +934,8 @@ private fun MovementFiltersSheetContent(
             Spacer(Modifier.height(8.dp))
         }
 
+        if (compactLayout) Spacer(Modifier.height(12.dp))
+
         // STICKY BOTTOM BAR
         Surface(
             tonalElevation = 4.dp,
@@ -943,6 +945,7 @@ private fun MovementFiltersSheetContent(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
+                .testTag("sticky_filter_footer")
         ) {
             FlowRow(
                 modifier = Modifier

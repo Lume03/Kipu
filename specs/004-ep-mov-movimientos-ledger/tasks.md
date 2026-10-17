@@ -364,3 +364,9 @@ En la revisión local derivada del head `d57de66` se adaptaron la moneda, los ca
 Validación actual: `:app:testDebugUnitTest` pasó 526 tests; `:app:compileDebugKotlin`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug` y `:app:assembleLab` terminaron correctamente. En Pixel 10 AVD/API 37, `KipuThemeContrastTest` + `ThemeScreenEvidenceTest` pasaron 4 tests y `MovementFiltersIssue19Test` pasó 10. Se generaron capturas actuales de superficies claro/oscuro y una captura de importe a ancho aproximado 320 dp/fuente ×1,6 en `docs/audits/evidence/issue-39/integrated-head-2026-10-17/`.
 
 La prueba compacta captura el árbol Compose después de entrada de texto; no demuestra visualmente el teclado IME del sistema. La suite instrumentada completa de 348 pruebas/17 fallos no se repitió después de este cambio. Por tanto T123 continúa abierta. T122 continúa abierta por cobertura parcial de previews, incluida la falta de preview de pantalla completa para `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta revisión independiente y aceptación visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.
+
+### Revalidacion del footer compacto (2026-10-17)
+
+Se cambio el area desplazable de filtros a `weight(1f)` para que ocupe el espacio disponible antes del footer, se anadio 12 dp de separacion en disposicion compacta y el test verifica un margen minimo de 8 dp para el campo Maximo. La prueba dirigida `MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible` paso 1/1 en Pixel 10 AVD/API 37 y se regenero la captura integrada actual.
+
+T123 sigue abierta: no se capturo el IME real ni se repitio la suite instrumentada completa. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`; T125 sigue abierta hasta la aceptacion visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.

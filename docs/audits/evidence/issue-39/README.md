@@ -123,3 +123,9 @@ El runner acepta clases o `clase#método` separadas por comas, `--serial`/`ANDRO
 ## Límites de aceptación
 
 No se ejecutó TalkBack hablado ni runtime API 24. La cobertura de semántica y acciones no equivale a una sesión manual de escucha. Las parejas medidas no certifican todos los píxeles, logos, estados deshabilitados ni toda la accesibilidad de la aplicación. No se simularon compras, permisos concedidos por el usuario ni consultas remotas. Una ejecución interrumpida por bloqueo del celular fue descartada y repetida con el dispositivo desbloqueado. La aceptación visual humana de la integración actual no se realizó; la revisión independiente y la aceptación visual siguen pendientes y el issue permanece abierto.
+
+## Revalidacion del viewport compacto (2026-10-17)
+
+La captura `integrated-head-2026-10-17/after-compact-large-text-dark.png` se regenero desde el Pixel 10 AVD/API 37 despues de reservar el alto restante para el area desplazable y agregar 12 dp entre el contenido compacto y el footer. Muestra completos los campos Minimo y Maximo y deja un margen visible antes de las acciones. `MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible` paso 1/1; el test exige al menos 8 dp de separacion entre Maximo y el footer.
+
+La captura es del arbol Compose y no incluye el IME del sistema. La suite instrumentada completa, los previews pendientes de `UnifiedInstrumentFormScreen`, TalkBack/API 24 y la aceptacion visual humana siguen abiertos; T122, T123 y T125 no se marcan completas.

@@ -189,7 +189,15 @@ class MovementFiltersIssue19Test {
         compose.onNodeWithText("PEN").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("USD").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("input_filter_min_amount").performScrollTo().performClick().performTextInput("25")
-        compose.onNodeWithTag("input_filter_max_amount").performScrollTo().assertIsDisplayed()
+        val maxAmount = compose.onNodeWithTag("input_filter_max_amount").performScrollTo()
+        val maxBounds = maxAmount.getUnclippedBoundsInRoot()
+        val footerBounds = compose.onNodeWithTag("sticky_filter_footer").getUnclippedBoundsInRoot()
+        val footerClearance = 8.dp
+        assertTrue(
+            "Maximum amount field must remain clear of the sticky footer (field=$maxBounds footer=$footerBounds)",
+            maxBounds.bottom + footerClearance <= footerBounds.top
+        )
+        maxAmount.assertIsDisplayed()
         compose.onNodeWithTag("btn_apply_filters").assertIsDisplayed()
         compose.onNodeWithTag("btn_reset_advanced_filters").assertIsDisplayed()
         saveCompactEvidence("after-compact-large-text-dark.png", hasTestTag("panel_advanced_filters"))
