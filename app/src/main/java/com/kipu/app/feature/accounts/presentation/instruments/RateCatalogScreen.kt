@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.RateReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
@@ -911,7 +912,7 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
-                        text = "Línea autorizada: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                        text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFCBD5E1),
                     )

@@ -23,6 +23,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -161,6 +162,20 @@ class AccountDetailScreenTest {
         compose.onNodeWithText("Pagar tarjeta").performScrollTo().performClick()
 
         compose.runOnIdle { assertTrue(paymentRequested) }
+    }
+
+    @Test
+    fun creditCardDetailShowsCanonicalLimitAndAvailableCreditCopy() {
+        setCardScreen(creditCard())
+
+        assertTrue(
+            compose.onAllNodesWithText(FinancialTerminology.TOTAL_CREDIT_LINE, substring = true)
+                .fetchSemanticsNodes().isNotEmpty(),
+        )
+        assertTrue(
+            compose.onAllNodesWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
+                .fetchSemanticsNodes().isNotEmpty(),
+        )
     }
 
     @Test

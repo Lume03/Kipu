@@ -16,6 +16,7 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.ui.theme.KipuTheme
 import io.mockk.coEvery
@@ -58,11 +59,11 @@ class CardFormScreenTest {
         setScreen()
         compose.onNodeWithText("Tarjeta de Crédito").performClick()
 
-        compose.onNodeWithText("Línea de crédito autorizada (PEN)")
+        compose.onNodeWithText("${FinancialTerminology.TOTAL_CREDIT_LINE} (PEN)")
             .performScrollTo()
             .performTextClearance()
-        compose.onNodeWithText("Ingresa una línea de crédito autorizada.").assertIsDisplayed()
-        compose.onNodeWithText("Línea de crédito autorizada (PEN)")
+        compose.onNodeWithText("Ingresa la ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()}.").assertIsDisplayed()
+        compose.onNodeWithText("${FinancialTerminology.TOTAL_CREDIT_LINE} (PEN)")
             .performScrollTo()
             .performTextInput("abc")
         compose.onNodeWithText("Ingresa un importe válido con hasta dos decimales.").assertIsDisplayed()
