@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MaskedCardReference
 import com.kipu.app.ui.component.MoneyText
@@ -302,7 +303,7 @@ fun CreditCardSummaryCard(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Middle section: Deuda actual vs Disponible en línea
+                // Middle section: Deuda actual vs Crédito disponible
                 if (isStacked) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -327,7 +328,7 @@ fun CreditCardSummaryCard(
 
                         Column {
                             Text(
-                                text = "Crédito disponible, no es dinero propio",
+                                text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -366,7 +367,7 @@ fun CreditCardSummaryCard(
 
                         Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
                             Text(
-                                text = "Crédito disponible, no es dinero propio",
+                                text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -402,7 +403,7 @@ fun CreditCardSummaryCard(
                         modifier = Modifier.weight(1f, fill = false),
                     ) {
                         Text(
-                            text = "Utilización de línea (Límite: ",
+                            text = "Uso de ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()}: ",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = emeraldColors.secondaryMuted,
                         )

@@ -25,6 +25,7 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
+import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
 import com.kipu.app.feature.accounts.presentation.components.InstrumentCardPreview
 import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorScreen
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
@@ -71,6 +72,25 @@ class CreditAccessibilitySemanticsTest {
             substring = true,
         ).assertCountEquals(1)
         compose.onNodeWithContentDescription("Vista previa de instrumento", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun creditCardSummaryUsesCanonicalAvailableCreditCopy() {
+        compose.setContent {
+            KipuTheme {
+                CreditCardSummaryCard(
+                    creditCardWithSummary = CreditCardWithSummary(
+                        card = card,
+                        debt = Money(25_000, Currency.PEN),
+                        availableCredit = Money(475_000, Currency.PEN),
+                        utilizationPercentage = 5.0,
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
+            .assertIsDisplayed()
     }
 
     @Test

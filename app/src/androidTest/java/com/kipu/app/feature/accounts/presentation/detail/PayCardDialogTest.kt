@@ -8,11 +8,18 @@ import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
+import com.kipu.app.core.finance.domain.model.AccountId
+import com.kipu.app.feature.accounts.domain.model.Account
+import com.kipu.app.feature.accounts.domain.model.AccountPreset
+import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.theme.KipuTheme
+import java.time.Instant
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -21,13 +28,17 @@ class PayCardDialogTest {
     val compose = createComposeRule()
 
     @Test
-    fun showsCurrentDebtAndAllowsDialogDismissal() {
+    fun defaultsToTotalDebtAndTotalChipConfirmsFullPayment() {
+        var confirmedAmount: Money? = null
         compose.setContent {
             KipuTheme {
                 PayCardDialog(
                     creditCardWithSummary = summary(),
-                    eligibleAccounts = emptyList(),
-                    onPayCreditCard = { _, _, _, _, _ -> },
+                    eligibleAccounts = listOf(paymentAccount()),
+                    onPayCreditCard = { _, _, amount, onSuccess, _ ->
+                        confirmedAmount = amount
+                        onSuccess()
+                    },
                     onDismiss = {},
                 )
             }
@@ -35,8 +46,13 @@ class PayCardDialogTest {
 
         compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
         compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
-        compose.onNodeWithText("No tienes cuentas activas en PEN con saldo suficiente.").assertIsDisplayed()
-        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithText("90.00").assertIsDisplayed()
+
+        compose.onNodeWithText("Total").performClick()
+        compose.onNodeWithText("90.00").assertIsDisplayed()
+        compose.onNodeWithText("Confirmar Pago").performClick()
+
+        compose.runOnIdle { assertEquals(Money(9_000L, Currency.PEN), confirmedAmount) }
     }
 
     @Test
@@ -75,4 +91,18 @@ class PayCardDialogTest {
             utilizationPercentage = 9.0,
         )
     }
+
+    private fun paymentAccount() = AccountWithBalance(
+        account = Account(
+            id = AccountId("8a000000-0000-4000-8000-000000000003"),
+            userId = UserId("8a000000-0000-4000-8000-000000000002"),
+            alias = "Cuenta de pago",
+            type = AccountType.SAVINGS,
+            currency = Currency.PEN,
+            preset = AccountPreset.BCP,
+            initialBalance = Money(12_000L, Currency.PEN),
+            openedAt = Instant.parse("2025-01-01T00:00:00Z"),
+        ),
+        balance = Money(12_000L, Currency.PEN),
+    )
 }

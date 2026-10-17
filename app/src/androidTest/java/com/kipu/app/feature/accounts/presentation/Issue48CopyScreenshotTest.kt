@@ -27,7 +27,7 @@ import java.io.File
 import org.junit.Rule
 import org.junit.Test
 
-/** Captures matching Compose copy excerpts for issue #48; these are not full-route screenshots. */
+/** Historical before/after excerpt harness; production copy is asserted by screen/component tests. */
 class Issue48CopyScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

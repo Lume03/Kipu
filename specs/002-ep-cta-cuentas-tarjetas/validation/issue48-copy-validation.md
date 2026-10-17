@@ -27,12 +27,13 @@ Base normativa: EP-CTA (SC-004, SC-009, SC-015), el contrato UI EP-CTA Sprint 3,
 | Dashboard, espacios restantes / lleno | `n cuentas y tarjetas disponibles` / `Cupo de cuentas y tarjetas completo` | `n espacios para cuentas y tarjetas` / `Cupo de instrumentos completo` |
 | Formulario de cuenta | `Esta cuenta consumirá 1 cupo de los 4 permitidos en el plan Free.` | `Esta cuenta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.` |
 | Formulario de tarjeta | `Esta tarjeta consumirá 1 cupo de los 4 permitidos en el plan Free.` | `Esta tarjeta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.` |
-| Alta/detalle de tarjeta, límite | `Línea total` / `Línea:` | `Línea total de crédito` / `Línea total de crédito:` |
-| Detalle de tarjeta, capacidad restante | `Línea liberada` / `Disponible de crédito` / `Crédito disponible`; se mostraba además `Línea total` bajo el monto disponible | `Crédito disponible, no es dinero propio`; se retiró la etiqueta `Línea total` que no correspondía a ese monto |
+| Formulario, detalle y catálogo de tarjeta, límite | `Línea de crédito autorizada` / `LÍNEA DE CRÉDITO` / `LÍNEA ASIGNADA` / `LÍNEA TOTAL` / `Línea autorizada` / `Línea total` / `Línea:` | `Línea total de crédito` / `LÍNEA TOTAL DE CRÉDITO` / `Línea total de crédito:` |
+| Detalle y simulador de compra, capacidad restante | `Línea de crédito` / `Línea liberada` / `Línea libre` / monto seguido de `libre` / `Disponible de crédito` / `Crédito disponible`; se mostraba además `Línea total` bajo el monto disponible | `Crédito disponible, no es dinero propio`; se retiraron los rótulos redundantes que no correspondían al monto disponible |
 | Resumen de tarjeta | `Disponible en línea` | `Crédito disponible, no es dinero propio` |
 | Selector de tarjeta en movimientos | `Disp:` / descripción accesible `Disponible:` | `Créd. disp.:` / `Crédito disponible, no es dinero propio:` |
+| Historial de tarjeta, pago | `Abono a línea` | `Abono a la deuda` (se conserva el tipo de movimiento y el efecto contable) |
 
-Los pares de texto anteriores ayudan a leer el diff; las capturas comparativas renderizadas a continuación muestran esos fragmentos en Compose.
+Los pares de texto anteriores ayudan a leer el diff. Las imágenes heredadas muestran un harness comparativo en Compose; no son capturas de rutas productivas.
 
 ## Capturas comparativas de los fragmentos de copy
 
@@ -59,10 +60,14 @@ Capturadas desde Compose en el mismo Pixel 8 AVD (API 36, viewport 1080×2400, d
 
 ### Revisión de producto
 
-Estado: **aprobada por el responsable de producto en esta sesión**. La aprobación de revisión de código queda sujeta al reviewer del PR.
+Estado al 2026-10-17: **pendiente; no se encontró una aprobación de producto trazable** en la discusión consultada de GitHub ni en la búsqueda de la memoria del proyecto. La issue #48 requiere revisión de producto.
+
+La conversación disponible incluye la matriz publicada por el autor y una auditoría de QA del owner del repositorio con observaciones de cobertura ([comentario de QA en PR #54](https://github.com/Lume03/Kipu/pull/54#issuecomment-6159323459)); no contiene una decisión identificada como aprobación de producto. La issue #48 no tiene comentarios y la PR no registra reviews formales. No se infiere aprobación a partir de la matriz, el comentario de QA ni el código existente. El criterio queda abierto hasta registrar una decisión del responsable autorizado.
 
 ### Capturas Antes/Después
 
-Estado: **adjuntas**. Las capturas comparativas de los fragmentos de copy están arriba, renderizadas en Compose con los mismos importes/estados, Pixel 8 AVD (API 36, 1080×2400, 420 dpi), tema claro y escala predeterminada. Esta issue pide evidencia visual de los cambios de texto; no exige aprobación ni un recorrido de QA con sesión autenticada.
+Estado: **adjuntas, como evidencia histórica del harness**. `Issue48CopyScreenshotTest` renderiza `CopyComparisonScreen` con `CopyVersion.Before/After` y textos de ejemplo; no compone las rutas productivas. El comentario de QA confirma ese límite. Las imágenes se generaron previamente en Pixel 8 AVD (API 36, 1080×2400, 420 dpi), tema claro y escala predeterminada; no se regeneraron en esta actualización y no prueban la integración actual.
 
-La validación SC-013 de EP-CTA permanece como criterio de éxito de esa épica; no es un requisito de aprobación QA ni de cierre de la issue #48.
+La cobertura instrumentada ahora comprueba copy en componentes productivos: `DashboardEmptyStateTest` inspecciona `EmptyDashboardContent`, `CardFormScreenTest` inspecciona `CardFormScreen`, `AccountDetailScreenTest` inspecciona `AccountDetailContent` y `CreditAccessibilitySemanticsTest` inspecciona `CreditCardSummaryCard`. Estas comprobaciones se añadieron/ajustaron en esta actualización, pero no se ejecutaron aquí; requieren una ejecución posterior para producir evidencia vigente.
+
+La validación SC-013 permanece como criterio de éxito de EP-CTA y no sustituye la revisión de producto exigida por la issue #48.

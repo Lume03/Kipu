@@ -72,7 +72,10 @@ fun NavGraphBuilder.settingsDestinations(
     }
 
     composable(MERCHANT_ALIAS_RULES_ROUTE) {
-        MerchantAliasRulesScreen(onNavigateBack = { navController.popBackStack() })
+        MerchantAliasRulesScreen(
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToPremium = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+        )
     }
 
     composable(MERCHANT_CATEGORY_PREFERENCES_ROUTE) {
