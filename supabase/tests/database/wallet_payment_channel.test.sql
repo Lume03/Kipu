@@ -85,12 +85,18 @@ SELECT is(
     'the bank account receives the expense exactly once'
 );
 
+UPDATE public.accounts
+SET is_archived = true
+WHERE id = '74333333-3333-3333-3333-333333333333'
+  AND user_id = '74111111-1111-1111-1111-111111111111';
+
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '74111111-1111-1111-1111-111111111111';
 
 SELECT ok(
-    (public.register_transaction_v2(command)->>'status') IN ('APPLIED', 'DUPLICATE'),
-    'replaying the wallet movement returns its existing result'
+    (SELECT is_archived FROM public.accounts WHERE id = '74333333-3333-3333-3333-333333333333')
+    AND (public.register_transaction_v2(command)->>'status') IN ('APPLIED', 'DUPLICATE'),
+    'replaying the wallet movement succeeds after its wallet is archived'
 ) FROM wallet_payment_channel_request;
 
 RESET ROLE;
