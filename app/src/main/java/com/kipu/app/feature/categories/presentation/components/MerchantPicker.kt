@@ -1,6 +1,5 @@
 package com.kipu.app.feature.categories.presentation.components
 
-import android.net.Uri
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,7 +62,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.kipu.app.BuildConfig
 import com.kipu.app.feature.categories.domain.CategoryRules
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.CategoryId
@@ -503,6 +501,7 @@ fun MerchantAvatar(
     profile: MerchantVisualProfile,
     size: Dp = 42.dp,
     modifier: Modifier = Modifier,
+    fallbackContent: (@Composable () -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -530,7 +529,7 @@ fun MerchantAvatar(
                         )
                     }
                 } else {
-                    MerchantInitialsBox(profile = profile, size = size)
+                    fallbackContent?.invoke() ?: MerchantInitialsBox(profile = profile, size = size)
                 }
             }
 
@@ -559,7 +558,7 @@ fun MerchantAvatar(
                 )
             }
         } else {
-            MerchantInitialsBox(profile = profile, size = size)
+            fallbackContent?.invoke() ?: MerchantInitialsBox(profile = profile, size = size)
         }
     }
 }
@@ -598,12 +597,7 @@ fun SelectedMerchantCard(
     val drawableId = remember(selectedMerchant?.logoKey) {
         selectedMerchant?.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
-    val remoteLogoUrl = remember(selectedMerchant?.priority, selectedMerchant?.logoKey) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        selectedMerchant?.logoKey
-            ?.takeIf { selectedMerchant.priority != "A" && it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
-    }
+    val remoteLogoUrl = selectedMerchant?.logoUrl
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -668,12 +662,7 @@ fun MerchantResultItem(
     val drawableId = remember(entry.logoKey) {
         entry.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
-    val remoteLogoUrl = remember(entry.priority, entry.logoKey) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        entry.logoKey
-            ?.takeIf { entry.priority != "A" && it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
-    }
+    val remoteLogoUrl = entry.logoUrl
 
     Surface(
         shape = RoundedCornerShape(12.dp),

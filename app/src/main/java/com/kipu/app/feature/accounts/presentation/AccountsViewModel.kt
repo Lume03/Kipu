@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.CardId
-import com.kipu.app.core.finance.domain.model.FinancialMovement
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.OperationId
@@ -16,6 +15,7 @@ import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card
+import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
 import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
@@ -264,7 +264,7 @@ class AccountsViewModel @Inject constructor(
         _isMasked.value = !_isMasked.value
     }
 
-    fun observeCardMovements(cardId: CardId): Flow<List<FinancialMovement>> =
+    fun observeCardMovements(cardId: CardId): Flow<List<CardMovementDisplay>> =
         financialInstrumentsRepository.observeMovementsByCard(cardId)
 
     fun observeAccountBalance(accountId: AccountId): Flow<Money> =
