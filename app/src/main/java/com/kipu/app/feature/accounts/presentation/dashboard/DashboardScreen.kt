@@ -737,7 +737,7 @@ private fun EmptyDashboardContent(
  * State 2, 3, 4: Active Dashboard Content
  */
 @Composable
-internal fun ActiveDashboardContent(
+private fun ActiveDashboardContent(
     data: com.kipu.app.feature.accounts.domain.model.FinancialDashboardData?,
     instruments: com.kipu.app.feature.accounts.presentation.InstrumentsUiState,
     creditNotifications: List<com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification>,
