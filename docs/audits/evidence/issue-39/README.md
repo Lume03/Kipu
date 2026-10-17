@@ -1,6 +1,18 @@
 # Evidencia de #39: temas y filtros
 
-Evidencia generada el 2026-10-13, America/Lima. Base anterior: `f8e7ea3`. Las capturas, medidas y resultados de validación corresponden a la implementación `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` (`d5667ab`) el 2026-10-17. La integración actual está sin commit y no se volvió a compilar ni probar; por tanto, esta evidencia no certifica el código integrado ni sus nuevas superficies de dashboard/registro rápido. [Issue](https://github.com/Lume03/Kipu/issues/39), [plan](../../issue-39-dark-theme-plan.md), [auditoría y excepciones](../../issue-39-dark-theme-audit.md).
+Evidencia histórica generada el 2026-10-13, America/Lima. Base anterior: `f8e7ea3`. Las capturas y resultados detallados abajo corresponden a `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` (`d5667ab`) el 2026-10-17. No se deben atribuir al código integrado actual. [Issue](https://github.com/Lume03/Kipu/issues/39), [plan](../../issue-39-dark-theme-plan.md), [auditoría y excepciones](../../issue-39-dark-theme-audit.md).
+
+## Revalidación dirigida del código integrado
+
+Código de aplicación validado: `836415cd04aa657731c71ad1bcdc7bba016ae80f` (basado en la integración que partía de `1346ed965f5d4c810ad717fa67984259062b05a0`; base `origin/main` `d5667abdf66d85a32fae43d10de8233381e84051`). La corrección elimina el bloque de cupo y la navegación a Planes del dashboard vacío. Los accesos del dashboard activo y del flujo de introducción de instrumentos se conservan.
+
+Checks completados para ese código:
+
+- `:app:testDebugUnitTest --tests com.kipu.app.feature.accounts.presentation.dashboard.DashboardEmptyStatePolicyTest`: **PASS, 3 tests**.
+- `:app:compileDebugAndroidTestKotlin`: **BUILD SUCCESSFUL**; compila el source set instrumentado, pero no ejecuta pruebas en dispositivo.
+- `git diff --check`: **PASS** para el commit de código.
+
+No se completó `assembleLab`, no se ejecutó `DashboardEmptyStateTest` ni otra instrumentación, y no se generaron capturas nuevas. Por ello este bloque no prueba el render/runtime integrado. Los APK/PNGs y resultados JVM, instrumentados, lint y contraste listados en el resto de este README siguen siendo históricos de `0118a19`. T122/T123 permanecen abiertos; T125 y la aceptación visual humana siguen pendientes. No se declara TalkBack hablado ni runtime API 24.
 
 Dispositivo físico 23129RA5FL, Android 15/API 35, 1080×2400, 440 dpi, fuente del sistema 1,0. La prueba compacta usa un contexto Android local con densidad ×1,25 y fuente ×1,6; no altera los ajustes del celular. Las pruebas usan `com.kipu.app.lab`, configuración remota vacía, modelos sintéticos válidos y callbacks sin efectos financieros. No contienen datos de la sesión personal.
 
@@ -54,9 +66,7 @@ El preview del bloqueo muestra `LockScreenContent` sin disparar el gateway biom�
 
 ## Validación
 
-Los resultados instrumentados por método y el recuento JVM están en [validation-results.json](validation-results.json). Se registra el último resultado de cada método; no se suman ejecuciones repetidas. Las comparativas de filtros se ejecutan además en ambos temas. Los logs completos, incluidos intentos fallidos, permanecen en `scratch/issue-39/` y no se presentan como PASS.
-
-Todos los resultados listados a continuación son históricos de `0118a19`; no hubo ejecución posterior a la integración local de `d5667ab`.
+Los resultados instrumentados por método y el recuento JVM históricos están en [validation-results.json](validation-results.json). Se registra el último resultado de cada método; no se suman ejecuciones repetidas. Las comparativas de filtros se ejecutan además en ambos temas. Los logs completos, incluidos intentos fallidos, permanecen en `scratch/issue-39/` y no se presentan como PASS. La revalidación dirigida posterior al merge está delimitada arriba y no actualiza estos recuentos históricos.
 
 - JVM: 521 pruebas, 0 fallos, 0 errores, 0 omitidas.
 - Dispositivo: 84 métodos distintos con último resultado PASS, sin pendientes de ejecución en la selección. La corrida conjunta de 83 dejó dos assertions de formato monetario; su reejecución pasó y se añadió el caso de barras de la ventana modal. La última tanda de tema/capturas/contexto compacto es `OK (7 tests)` y la comparativa clara adicional es `OK (1 test)`.

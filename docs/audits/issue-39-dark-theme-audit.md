@@ -97,10 +97,17 @@ Las aserciones obsoletas de cuentas/tasas también fallaron contra la APK base `
 - Las imágenes prueban apariencia de los estados capturados; las pruebas y revisión de código complementan esa evidencia.
 - La revisión independiente de código y la aceptación visual humana permanecen como pasos del PR. No se realiza merge ni se cierra el issue automáticamente.
 
-## Estado de la integración local (2026-10-17)
+## Estado de integración y revalidación parcial (2026-10-17)
 
-La cabeza revisada de la PR es `d22e308`; la rama actual de GitHub `main` es `d5667ab`. Se integró `origin/main` en el worktree local sin crear commit ni hacer push. Se resolvieron los conflictos de `feature/accounts/presentation/dashboard/DashboardScreen.kt` y `feature/movements/presentation/QuickMovementScreen.kt`, manteniendo el dashboard de primer uso y el plegado de detalles de `main`, y conservando roles de color accesibles de la PR. El texto del saldo inicial del dashboard ahora toma un foreground que cumple el umbral medido sobre la superficie hero.
+La base integrada es `origin/main` `d5667abdf66d85a32fae43d10de8233381e84051`; el código recibido en este seguimiento partía del head `1346ed965f5d4c810ad717fa67984259062b05a0`. El código de la corrección quedó en `836415cd04aa657731c71ad1bcdc7bba016ae80f`; la actualización documental posterior no cambia fuentes de aplicación.
 
-Las cifras JVM, lint, instrumentación, contraste y PNG de este informe son de `0118a19`, antes de la integración. No se ejecutaron pruebas, builds, lint ni capturas para la integración local. El preview del dashboard se actualizó para renderizar el `EmptyDashboardContent` real de `main`; se añadieron previews claro/oscuro para componentes reales de acceso, ajustes, categorías, tarjetas, comercios, anulación y planes, además de los contenidos reales de los editores de presentación de categoría y clasificación de movimiento. `UnifiedInstrumentFormScreen` sigue sin preview de pantalla completa por el acoplamiento de su flujo multietapa. La matriz y los límites están detallados en el [README de evidencia](evidence/issue-39/README.md).
+Se retiró de `EmptyDashboardContent` el bloque `quota_strip`, sus valores de cupo y su callback de navegación a Planes, cumpliendo la regla de este plan de conservar navegación en cambios de presentación. Se mantienen la navegación a Planes del flujo de introducción de instrumentos y el bloque de límite del dashboard activo. `DashboardEmptyStateTest` ahora comprueba que no aparezcan «Cupo Free» ni «Ver planes» en el estado vacío. Los fixtures de `AccountDetailThemePreview` y `ThemeScreenEvidenceTest` usan `AccountPreset.GENERIC`, compatible con `AccountType.SAVINGS`.
 
-No se declara aceptación visual humana de la integración, TalkBack hablado ni runtime API 24. La PR en GitHub no se ha fusionado ni actualizado, y el issue #39 continúa abierto. La búsqueda de rutas del código integrado no encontró pantallas de metas/presupuestos; quedan como no aplicables, no como pantallas completadas. T110 permanece abierto y fuera de este alcance.
+Revalidación dirigida del código fuente `836415cd04aa657731c71ad1bcdc7bba016ae80f`:
+
+- `:app:testDebugUnitTest --tests com.kipu.app.feature.accounts.presentation.dashboard.DashboardEmptyStatePolicyTest`: **PASS, 3 tests**.
+- `:app:compileDebugAndroidTestKotlin`: **BUILD SUCCESSFUL** (compilación; no ejecuta AndroidTest).
+- `git diff --check`: **PASS** para la corrección de código.
+- No se completó el empaquetado lab ni se ejecutó instrumentación o captura nueva. Los PNG, la matriz completa, lint y los resultados de 521 pruebas/84 métodos siguen siendo evidencia histórica de `0118a19`.
+
+T122 permanece abierto por previews/cobertura no renderizadas completamente. T123 permanece abierto: estos checks dirigidos no sustituyen build/lint y la regresión/dispositivo/capturas completos sobre la integración. T125, la revisión independiente final y la aceptación visual humana siguen abiertos; no se declara aprobación visual. TalkBack hablado y runtime API 24 también quedan pendientes. T110 sigue abierto y fuera de este alcance; metas/presupuestos son no aplicables.

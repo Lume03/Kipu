@@ -255,7 +255,9 @@ Salida: cambio revisable con evidencia. El responsable autorizó posteriormente 
 
 ## 5. Tareas y dependencias
 
-La implementación y la validación registradas originalmente corresponden al código de `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` en `d5667ab`. La integración local conserva los cambios de ambas ramas y actualiza previews reales, pero no se ejecutaron build, lint ni pruebas sobre el resultado integrado. I39-15 queda parcial: se añadieron previews claro/oscuro para componentes de acceso, ajustes, categorías, planes y el dashboard de primer uso; los editores de presentación de categoría y clasificación de movimiento renderizan su contenido real con estado/callbacks de muestra. `UnifiedInstrumentFormScreen` queda sin preview de pantalla completa por el acoplamiento del flujo multietapa a efectos y operaciones de `AccountsViewModel`. I39-18 y la aceptación visual de I39-19 deben repetirse sobre el resultado integrado. TalkBack hablado, runtime API 24 y aceptación visual humana siguen pendientes. I39-22 permanece abierta. Los hallazgos de la sección 2 conservan el inventario inicial.
+La implementación y la validación originales corresponden a `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` en `d5667ab`. El código de aplicación corregido y revalidado parcialmente está en `836415cd04aa657731c71ad1bcdc7bba016ae80f`, basado en el head integrado `1346ed965f5d4c810ad717fa67984259062b05a`. Se retiró el nuevo bloque de cupo/navegación del estado vacío; las rutas preexistentes del dashboard activo y de la introducción se conservan. El fixture de cuenta de ahorro ahora usa el preset compatible `GENERIC`.
+
+Revalidación parcial del código `836415c`: `DashboardEmptyStatePolicyTest` pasó 3 tests y `compileDebugAndroidTestKotlin` compiló el source set AndroidTest. No se completó el empaquetado lab ni se ejecutó instrumentación, lint, capturas ni aceptación visual sobre este head. I39-15 sigue parcial: hay componentes sin previews completas/renderizadas. I39-18/I39-19 no se consideran completadas por estos checks dirigidos. TalkBack hablado, runtime API 24 y aceptación visual humana siguen pendientes. I39-22 permanece abierta. Ver [README de evidencia](evidence/issue-39/README.md) para alcance exacto; los resultados de 521 pruebas, 84 métodos, lint, contraste y PNG siguen siendo históricos de `0118a19`.
 
 | ID | Trabajo | Depende de | Criterio de terminación |
 |---|---|---|---|
@@ -307,10 +309,10 @@ Las tareas 09–14 comparten la dependencia de roles, pero pueden resolverse sec
 - [x] Metas/presupuestos no tienen pantallas en el código integrado; quedan documentados como no aplicables, sin marcar pantallas inexistentes como completadas.
 - [x] Excepciones cromáticas justificadas; colores personalizados persistidos conservados.
 - [ ] Previews claras/oscuras para todos los componentes intervenidos; ya existen previews reales para los componentes enumerados en el README, pero quedan componentes acoplados a ViewModels/fixtures sin cubrir.
-- [ ] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada sobre el resultado integrado. La evidencia histórica de `0118a19` no valida la integración local.
-- [ ] Build/JVM/lint y pruebas de dispositivo aplicables sobre el resultado integrado. Los resultados históricos de `0118a19` se conservan como evidencia de esa revisión anterior.
+- [ ] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada sobre el resultado integrado. Solo se ejecutó la prueba JVM dirigida de política del estado vacío; no sustituye estas regresiones.
+- [ ] Build/JVM/lint y pruebas de dispositivo aplicables sobre el resultado integrado. En `836415c` pasaron 3 tests JVM dirigidos y compiló `compileDebugAndroidTestKotlin`; el empaquetado lab, la instrumentación completa y lint siguen sin validar.
 - [ ] Capturas comparativas actuales de las superficies cambiadas por la integración; las capturas versionadas son de `0118a19` y no muestran el dashboard/registro rápido integrados.
-- [ ] Trazabilidad de la corrección y revisión de código completas.
+- [ ] Trazabilidad de la corrección y revisión de código completas. La retirada del CTA y el SHA verificado se registran en el audit/README; la revisión final y aprobación siguen pendientes.
 
 ## 8. Registro inicial y ejecución
 
