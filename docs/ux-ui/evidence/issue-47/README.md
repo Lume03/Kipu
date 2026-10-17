@@ -1,18 +1,25 @@
-# Issue #47 — Dashboard financial banner
+# Issue #47 — Banner financiero del Dashboard
 
-## Harness actualizado para las capturas después
+## Evidencia comparable
 
-`DashboardFinancialMessagingTest` monta la pantalla de producción `DashboardScreen` dentro de `KipuTheme`, con una cuenta de efectivo sintética de saldo cero, sin tarjetas y sin deuda. La cuenta mantiene activa la ruta de contenido del Dashboard. El modificador de prueba identifica la raíz de pantalla completa; el harness desplaza el contenido hasta el mismo marcador inferior y captura esa raíz, que incluye el `Scaffold` y su superficie opaca `emeraldColors.background`.
+Las capturas muestran la pantalla productiva completa `DashboardScreen` antes y después de retirar el banner de salud financiera, con el mismo fixture, emulador, viewport, escala de texto, tema y posición de scroll.
 
-Las capturas después se generan por separado en tema claro y oscuro, con los límites del dispositivo/emulador y su escala de texto. El test comprueba que la esquina inferior derecha de la captura coincide con el color de fondo del tema activo y tiene alfa opaca. Los archivos se escriben como `dashboard-after-light.png` y `dashboard-after-dark.png` en el almacenamiento externo de la app y en `Pictures/issue-47`.
-
-## Estado y procedencia de los PNG versionados
-
-| Tema | Antes versionado | Después versionado |
+| Tema | Antes (`main` en `d5667ab`) | Después (implementación en `762f876`) |
 |---|---|---|
-| Claro | ![Captura histórica anterior, tema claro](dashboard-before-light.png) | ![Captura histórica posterior, tema claro](dashboard-after-light.png) |
-| Oscuro | ![Captura histórica anterior, tema oscuro](dashboard-before-dark.png) | ![Captura histórica posterior, tema oscuro](dashboard-after-dark.png) |
+| Claro | ![Antes, tema claro](dashboard-before-light.png) | ![Después, tema claro](dashboard-after-light.png) |
+| Oscuro | ![Antes, tema oscuro](dashboard-before-dark.png) | ![Después, tema oscuro](dashboard-after-dark.png) |
 
-Los cuatro PNG versionados son artefactos históricos de 1080 × 2400 px. El origen de `dashboard-before-*.png` no se puede verificar: no hay metadatos ni registro en el repositorio que identifique su commit, dispositivo, fixture o harness, y la prueba no genera esos nombres. La versión anterior del test sí montaba `ActiveDashboardContent` directamente para sus capturas `dashboard-after-*`, sin la raíz `Scaffold` de producción. Tampoco quedaron registrados el dispositivo, viewport o escala de texto de una ejecución que vincule esas imágenes con los archivos actuales. Las imágenes oscuras muestran el área exterior de las tarjetas clara. Por eso estos PNG no demuestran la pantalla completa de producción ni constituyen una comparación antes/después verificablemente comparable.
+### Entorno y fixture
 
-Este cambio actualiza el harness, pero no ejecuta instrumentación ni reemplaza los PNG. Para publicar una comparación comparable, hay que capturar la revisión anterior a la eliminación del banner y la revisión actual con el mismo harness de raíz completa, fixture, dispositivo/emulador, viewport, escala de texto, tema y posición de scroll. Después se deben copiar las capturas a los cuatro nombres de archivo de la tabla. Hasta entonces, la comparación versionada permanece histórica; las nuevas capturas `dashboard-after-*.png` solo estarán disponibles tras ejecutar la instrumentación.
+- AVD `Pixel_10`, Android 17 / API 37.
+- Resolución: 1080 × 2424; densidad: 420 dpi; escala de fuente: 1.0.
+- Fixture sintético idéntico: cuenta de efectivo “Cuenta de evidencia”, saldo S/0.00, sin tarjetas y sin deuda.
+- Cada imagen mide 1080 × 2424 px. En los dos temas, la comparación muestra la pantalla completa y el cambio visible es la ausencia del banner.
+
+### Procedencia y ejecución
+
+La captura “Antes” se tomó con `main` en `d5667abdf66d85a32fae43d10de8233381e84051`. Para poder usar el mismo ancla de scroll y test de captura, se copió localmente el test instrumentado de la PR y se añadió un `testTag` solo al espaciador del contenido activo en ese worktree temporal; no se modificó código productivo de `main`.
+
+La captura “Después” corresponde a la implementación de la PR en `762f8762a952c3a74306b54d731cf39c693363a7`. En ambos heads, `DashboardFinancialMessagingTest` pasó para tema claro y oscuro en el mismo AVD. El test monta `DashboardScreen` dentro de `KipuTheme`, desplaza al mismo ancla y captura la raíz completa del `Scaffold`.
+
+Los PNG versionados se extrajeron de `Pictures/issue-47` después de la ejecución instrumentada. Android MediaStore puede añadir sufijos `(1)` al repetir una captura; se seleccionó el archivo de la ejecución más reciente para cada tema.
