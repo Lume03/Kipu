@@ -81,6 +81,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val NON_COMPUTABLE_ACCOUNT_TYPES = setOf("CASH", "GOALS_VIRTUAL", "CREDIT_LIABILITY")
+private val DIGITAL_WALLET_CHANNELS = setOf("YAPE", "PLIN")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -118,21 +119,53 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         return (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
     }
 
+    private suspend fun requireWalletChannelAvailable(
+        userId: String,
+        presetId: String?,
+        excludedAccountId: String? = null,
+    ) {
+        if (presetId != null && presetId in DIGITAL_WALLET_CHANNELS &&
+            accountDao.hasOtherActiveWalletForChannel(userId, presetId, excludedAccountId)
+        ) {
+            throw IllegalArgumentException("An active $presetId wallet already exists")
+        }
+    }
+
     override suspend fun createLiquidAccount(account: Account, operationId: OperationId): Result<Account> {
         if (account.type == AccountType.CREDIT_LIABILITY) {
             return Result.failure(IllegalArgumentException("Credit liability accounts are managed by their card"))
         }
         val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
+        if (account.linkedAccountId != null) {
+            if (account.type != AccountType.DIGITAL_WALLET) {
+                return Result.failure(IllegalArgumentException("Only digital wallets can be affiliated"))
+            }
+            val parent = accountDao.getById(userId, account.linkedAccountId.value)
+                ?: return Result.failure(IllegalArgumentException("Linked bank account not found"))
+            val hasDebitCard = cardDao.getActive(userId).any {
+                it.accountId == parent.id && it.type == "DEBIT"
+            }
+            val requiredPreset = when (account.preset) {
+                AccountPreset.YAPE -> AccountPreset.BCP
+                AccountPreset.PLIN -> AccountPreset.BBVA
+                else -> return Result.failure(IllegalArgumentException("Only Yape or Plin can be affiliated"))
+            }
+            if (!hasDebitCard || parent.isArchived || parent.type !in setOf(AccountType.SAVINGS.name, AccountType.BANK.name) ||
+                AccountPreset.fromId(parent.presetId) != requiredPreset || parent.currency != account.currency.name) {
+                return Result.failure(IllegalArgumentException("Wallet can only link to an active compatible debit account in the same currency"))
+            }
+        }
         val nowMicros = System.currentTimeMillis() * 1000L
         val movementId = MovementId.generate().value
 
-        val payloadHash = sha256("${operationId.value}:${account.id.value}:${account.initialBalance.minorUnits}")
+        val linkedAccountId = account.linkedAccountId?.value
+        val payloadHash = sha256("${operationId.value}:${account.id.value}:${account.initialBalance.minorUnits}:${linkedAccountId.orEmpty()}")
         val payload = CreateAccountRequestDto(
             operationId = operationId.value,
             accountId = account.id.value,
             openingMovementId = movementId,
             alias = account.alias,
-            type = account.type.name,
+            type = if (account.type == AccountType.DIGITAL_WALLET) "WALLET" else account.type.name,
             currency = account.currency.name,
             presetId = account.preset?.name,
             color = account.colorToken,
@@ -140,11 +173,15 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             initialBalanceMinorUnits = account.initialBalance.minorUnits,
             openedAt = account.openedAt.toString(),
             payloadHash = payloadHash,
+            linkedAccountId = linkedAccountId,
         )
         val payloadJson = json.encodeToString(payload)
 
         return runCatching {
             database.withTransaction {
+                if (account.type == AccountType.DIGITAL_WALLET) {
+                    requireWalletChannelAvailable(userId, account.preset?.name)
+                }
                 // 1. Insert AccountEntity
                 accountDao.insert(
                     AccountEntity(
@@ -163,6 +200,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         remoteRevision = 0L,
                         createdAt = nowMicros,
                         updatedAt = nowMicros,
+                        linkedAccountId = linkedAccountId,
                     )
                 )
 
@@ -362,6 +400,10 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             database.withTransaction {
                 val account = accountDao.getById(userId, accountId.value)
                     ?: throw IllegalArgumentException("Account not found: ${accountId.value}")
+
+                if (!account.isArchived && account.type == AccountType.DIGITAL_WALLET.name) {
+                    requireWalletChannelAvailable(userId, preset?.name, accountId.value)
+                }
 
                 accountDao.updateAppearance(
                     userId = userId,
@@ -1414,6 +1456,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 } else {
                     val account = accountDao.getById(userId, instrumentId)
                         ?: throw IllegalArgumentException("Account not found: $instrumentId")
+                    if (account.type == AccountType.DIGITAL_WALLET.name) {
+                        requireWalletChannelAvailable(userId, account.presetId, account.id)
+                    }
                     accountDao.setArchived(userId, instrumentId, false, nowMicros)
                     account.remoteRevision
                 }
@@ -1469,6 +1514,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             createdAt = Instant.ofEpochMilli(createdAt / 1000L),
             updatedAt = Instant.ofEpochMilli(updatedAt / 1000L),
             isPlanLocked = isPlanLocked,
+            linkedAccountId = linkedAccountId?.let(::AccountId),
         )
     }
 
@@ -1554,14 +1600,15 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         return sessionCoordinator.localAccess.flatMapLatest { access ->
             when (access) {
                 is LocalAccess.Available -> {
-                    combine(
-                        accountDao.observeById(access.userId, accountId.value),
-                        movementDao.observeAccountBalance(access.userId, accountId.value),
-                    ) { account, balanceMinorUnits ->
-                        if (account == null) {
-                            Money(0L, Currency.PEN)
-                        } else {
-                            Money(balanceMinorUnits, Currency.fromCode(account.currency))
+                    accountDao.observeById(access.userId, accountId.value).flatMapLatest { account ->
+                        if (account == null) return@flatMapLatest flowOf(Money(0L, Currency.PEN))
+                        val balanceAccountId = account.linkedAccountId ?: account.id
+                        combine(
+                            accountDao.observeById(access.userId, balanceAccountId),
+                            movementDao.observeAccountBalance(access.userId, balanceAccountId),
+                        ) { balanceAccount, balanceMinorUnits ->
+                            if (balanceAccount == null) Money(0L, Currency.fromCode(account.currency))
+                            else Money(balanceMinorUnits, Currency.fromCode(balanceAccount.currency))
                         }
                     }
                 }

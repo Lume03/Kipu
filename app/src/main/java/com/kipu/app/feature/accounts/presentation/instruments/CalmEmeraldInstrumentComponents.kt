@@ -97,6 +97,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Currency
+import com.kipu.app.feature.accounts.domain.model.Card as DomainCard
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
@@ -2113,7 +2114,7 @@ fun CalmEmeraldLastFourDigitsCard(
                 )
                 BasicTextField(
                     value = lastFourDigits,
-                    onValueChange = { onLastFourDigitsChange(it.filter(Char::isDigit).take(4)) },
+                    onValueChange = { onLastFourDigitsChange(it.filter { char -> DomainCard.isAsciiDigit(char) }.take(4)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     textStyle = TextStyle(

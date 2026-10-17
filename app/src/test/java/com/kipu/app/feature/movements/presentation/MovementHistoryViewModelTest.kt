@@ -19,6 +19,7 @@ import com.kipu.app.feature.movements.domain.model.MovementHistorySummary
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionItem
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 import io.mockk.mockk
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,6 +50,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -222,6 +224,37 @@ class MovementHistoryViewModelTest {
     }
 
     @Test
+    fun walletChannelFilterKeepsTheLinkedBankAsTheMovementAccount() = runTest {
+        val yapeMovement = item("yape-movement", 20).copy(
+            transaction = item("yape-movement", 20).transaction.copy(
+                sourceAccountId = "bcp-account",
+                paymentChannel = "YAPE",
+            ),
+            sourceAccountAlias = "BCP Ahorros",
+        )
+        val plinMovement = item("plin-movement", 10).copy(
+            transaction = item("plin-movement", 10).transaction.copy(
+                sourceAccountId = "bbva-account",
+                paymentChannel = "PLIN",
+            ),
+            sourceAccountAlias = "BBVA Ahorros",
+        )
+        val repository = filteringRepository(yapeMovement, plinMovement)
+        val viewModel = viewModel(repository, useCase = allowedUseCase(repository))
+        advanceUntilIdle()
+
+        val result = viewModel.onApplyFilterDraft(
+            MovementFilterDraft(paymentChannels = setOf(WalletPaymentChannel.YAPE)),
+        )
+        advanceUntilIdle()
+
+        assertNotNull(result.filters)
+        assertEquals(listOf("yape-movement"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
+        assertEquals("bcp-account", viewModel.uiState.value.allTransactions.single().transaction.sourceAccountId)
+        assertEquals(setOf(WalletPaymentChannel.YAPE), repository.queries.last().advancedCriteria?.paymentChannels)
+    }
+
+    @Test
     fun noOwnerNeverQueriesSharedPlaceholderHistory() = runTest {
         val repository = FakeHistoryRepository()
         val viewModel = viewModel(repository, LocalAccess.NoOwner)
@@ -260,6 +293,30 @@ class MovementHistoryViewModelTest {
         assertEquals(setOf("acc-test-1"), viewModel.uiState.value.selectedAccountIds)
         assertEquals(setOf("cat-test-2"), viewModel.uiState.value.selectedCategoryIds)
         assertTrue(viewModel.uiState.value.hasActiveAdvancedFilters)
+    }
+
+    @Test
+    fun walletHistoryDeepLinkUsesPaymentChannelWithoutFilteringByWalletAccountId() = runTest {
+        val repository = FakeHistoryRepository()
+        val viewModel = MovementHistoryViewModel(
+            movementRepository = mockk(relaxed = true),
+            sessionCoordinator = TestSessionCoordinator(),
+            queryMovementHistoryUseCase = allowedUseCase(repository),
+            savedStateHandle = SavedStateHandle(mapOf(
+                "paymentChannel" to "PLIN",
+                "accountId" to "plin-wallet-id",
+            )),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(setOf(WalletPaymentChannel.PLIN), viewModel.uiState.value.appliedFilters.paymentChannels)
+        assertEquals(emptySet<String>(), viewModel.uiState.value.appliedFilters.accountIds)
+        assertEquals(
+            setOf(WalletPaymentChannel.PLIN),
+            repository.queries.last().advancedCriteria?.paymentChannels,
+        )
+        assertEquals(emptySet<String>(), repository.queries.last().advancedCriteria?.accountIds)
     }
 
     @Test
@@ -487,11 +544,13 @@ class MovementHistoryViewModelTest {
                 (criteria?.maxAmountMinor == null || transaction.amountMinor <= criteria.maxAmountMinor)
             val stateMatches = criteria?.financialStates.isNullOrEmpty() ||
                 transaction.status.name in criteria!!.financialStates.map { it.name }
+            val paymentChannelMatches = criteria?.paymentChannels.isNullOrEmpty() ||
+                WalletPaymentChannel.entries.any { it.name == transaction.paymentChannel && it in criteria!!.paymentChannels }
             textMatches &&
                 (query.types.isEmpty() || transaction.type in query.types) &&
                 (query.fromInclusive == null || transaction.occurredAt >= query.fromInclusive) &&
                 (query.toExclusive == null || transaction.occurredAt < query.toExclusive) &&
-                accountMatches && categoryMatches && amountMatches && stateMatches
+                accountMatches && categoryMatches && amountMatches && stateMatches && paymentChannelMatches
         }.sortedWith(compareByDescending<TransactionItem> { it.transaction.occurredAt }.thenByDescending { it.transaction.id })
         MovementHistoryPage(matching, null, false, MovementHistoryAccessDecision.Allowed)
     }

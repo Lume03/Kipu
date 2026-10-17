@@ -602,13 +602,15 @@ class QuickMovementViewModel @Inject constructor(
             return
         }
 
+        val selectedWallet = state.availableAccounts.firstOrNull { it.id.value == state.selectedSourceAccountId }
+            ?.takeIf { it.linkedAccountId != null }
         val command = RegisterTransactionCommand(
             idempotencyKey = UUID.randomUUID().toString(),
             userId = userId,
             type = state.type,
             amountMinor = amountMinor,
             currency = state.currency,
-            sourceAccountId = state.selectedSourceAccountId,
+            sourceAccountId = selectedWallet?.linkedAccountId?.value ?: state.selectedSourceAccountId,
             destinationAccountId = if (state.type == MovementType.TRANSFER) state.selectedDestinationAccountId else null,
             categoryId = state.selectedCategoryId.takeUnless { state.type == MovementType.TRANSFER },
             merchantId = state.selectedMerchantId,
@@ -616,6 +618,7 @@ class QuickMovementViewModel @Inject constructor(
             occurredAt = state.occurredAt,
             note = state.note.takeIf { it.isNotBlank() },
             ignoreSimilarityWarning = false,
+            paymentChannel = selectedWallet?.preset?.name,
         )
 
         executeRegister(command)

@@ -3,6 +3,7 @@ package com.kipu.app.feature.accounts.domain.usecase
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.OperationId
 import com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository
+import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
@@ -20,7 +21,7 @@ class RegisterDebitCard @Inject constructor(
             return Result.failure(QuotaExceededException("Límite de instrumentos activos alcanzado para el plan Free (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
         }
 
-        if (card.lastFourDigits.length != 4 || !card.lastFourDigits.all { it.isDigit() }) {
+        if (!Card.isValidLastFourDigits(card.lastFourDigits)) {
             return Result.failure(IllegalArgumentException("Solo se permiten los últimos 4 dígitos numéricos"))
         }
 
@@ -40,7 +41,7 @@ class RegisterCreditCard @Inject constructor(
             return Result.failure(QuotaExceededException("Límite de instrumentos activos alcanzado para el plan Free (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
         }
 
-        if (card.lastFourDigits.length != 4 || !card.lastFourDigits.all { it.isDigit() }) {
+        if (!Card.isValidLastFourDigits(card.lastFourDigits)) {
             return Result.failure(IllegalArgumentException("Solo se permiten los últimos 4 dígitos numéricos"))
         }
 

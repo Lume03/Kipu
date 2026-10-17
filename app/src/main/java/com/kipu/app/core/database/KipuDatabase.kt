@@ -108,7 +108,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         AppNotificationEntity::class,
         NotificationSyncOutboxEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)

@@ -3,6 +3,10 @@
 
 # Implementation Tasks: EP-CTA - Cuentas y Tarjetas
 
+**Propagated**: 2026-10-17 — Added the HU-07 wallet-channel history and account-detail entry follow-up from spec.md; execution evidence is recorded in Phase 14.
+
+**Propagated**: 2026-10-17 — Added RF-C14 for one active Yape/Plin wallet per owner and its local/remote enforcement and verification work.
+
 **Feature Branch**: `002-ep-cta-cuentas-tarjetas`
 **Date**: 2026-09-24
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Data Model**: [data-model.md](data-model.md)
@@ -341,3 +345,14 @@ Convergence review (2026-09-26): the user directly verified accounting, synchron
 - [X] T089 [US1-US7] Add and run a deterministic 100-case accounting-replay matrix for account creation/correction/archive, card linkage, purchases, payments, reversals and retries; compare reproduced balances with auditable ledger effects to the cent [HIGH] per SC-002. Evidence: user directly verified accounting flows on Galaxy S24+ (SM-S926B, API 36); user reports 234/234 unit, 125/125 instrumented, and 319/319 local pgTAP tests green.
 - [X] T090 [US1-US7] Add and run 100 deterministic offline, close/restart, retry, delayed or reordered sync, and reconnect sequences; assert every confirmed operation is preserved exactly once with no duplicate financial effects [HIGH] per SC-011. Evidence: user directly verified synchronization flows on Galaxy S24+ (SM-S926B, API 36); user reports 234/234 unit, 125/125 instrumented, and 319/319 local pgTAP tests green.
 - [X] T091 [US3-US7] Add two-session concurrent execution and forced-failure rollback tests for `register_transaction_v1`, `allocate_credit_payment_v1` and their legacy adapters; assert a single receipt/effect under races and no partial transaction, ledger, installment, allocation or receipt writes after failure [HIGH] per T086 and plan: database reliability. Evidence: user directly verified credit flows on Galaxy S24+ (SM-S926B, API 36); user reports 234/234 unit, 125/125 instrumented, and 319/319 local pgTAP tests green.
+
+## Phase 14: HU-07 Wallet-Affiliated Movement History (PR #53 follow-up)
+
+**Purpose**: Expose Yape/Plin movements by payment channel while retaining the affiliated bank account as their only financial account and ledger effect; enforce one active wallet per owner and channel.
+
+- [X] T095 [US1] Display/filter Yape/Plin movement channels and add a direct account-detail history action: bank account routes by `accountId`, wallet routes by `paymentChannel` only; initialize the filter from route/deep-link arguments and retain the linked bank account as transaction source.
+- [X] T096 [P] [US1] Add focused JVM, Compose, and pgTAP source coverage for account-detail entry, bank-vs-wallet route targets, deep-link initialization, channel filtering, transaction attribution, and idempotent single-ledger persistence. Execution evidence is recorded in T097.
+- [X] T097 [US1] Run the focused movement-filter, account-detail, and navigation tests plus wallet-payment-channel pgTAP test and record results. Evidence: `MovementFiltersIssue19Test`, `AccountDetailScreenTest`, `MovementHistoryNavigationTest`, and `UnifiedInstrumentFormScreenTest` pass on Pixel 10/API 37; `wallet_payment_channel.test.sql` passes 8/8 assertions.
+- [X] T098 [US1] Enforce one active Yape/Plin wallet per owner and channel in Room create/reactivate/appearance flows and PostgreSQL, preserving archived records and history.
+- [X] T099 [P] [US1] Add local DAO/repository and pgTAP coverage for duplicate-channel rejection, separate Yape/Plin channels, reactivation, and archive history. Evidence: `AccountDaoTest` and `WalletChannelUniquenessRepositoryTest` pass; `wallet_channel_uniqueness.test.sql` passes 6/6 assertions.
+- [X] T100 [US1] Run the focused local and PostgreSQL wallet uniqueness tests and record results before closing PR #53. Evidence: Android instrumented tests pass on Pixel 10/API 37; all four focused pgTAP files pass 54/54 assertions (movement hash 28, wallet affiliation 12, payment channel 8, wallet uniqueness 6). Each SQL run rolled back; the uniqueness index is absent afterward.

@@ -14,6 +14,7 @@ data class RegisterTransactionCommand(
     val occurredAt: Long = System.currentTimeMillis(),
     val note: String? = null,
     val ignoreSimilarityWarning: Boolean = false,
+    val paymentChannel: String? = null,
 )
 
 sealed interface RegisterTransactionResult {

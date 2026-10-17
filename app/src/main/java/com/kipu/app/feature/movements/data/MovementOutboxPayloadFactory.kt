@@ -37,6 +37,7 @@ internal object MovementOutboxPayloadFactory {
                 merchantProvisionalText = transaction.merchantProvisionalText,
                 occurredAt = Instant.ofEpochMilli(transaction.occurredAt).toString(),
                 note = transaction.note,
+                paymentChannel = transaction.source,
             ),
         ),
     )

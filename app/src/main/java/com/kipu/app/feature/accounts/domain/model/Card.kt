@@ -55,7 +55,7 @@ sealed interface Card {
         get() = "•••• $lastFourDigits"
 
     fun validateCardCommon() {
-        require(lastFourDigits.length == 4 && lastFourDigits.all { it.isDigit() }) {
+        require(isValidLastFourDigits(lastFourDigits)) {
             "Last four digits must be exactly 4 numeric digits"
         }
         require(issuer.isNotBlank() && issuer.trim().length in 1..80) {
@@ -75,6 +75,11 @@ sealed interface Card {
     }
 
     companion object {
+        fun isAsciiDigit(char: Char): Boolean = char in '0'..'9'
+
+        fun isValidLastFourDigits(value: String): Boolean =
+            value.length == 4 && value.all(::isAsciiDigit)
+
         fun isForbiddenSensitiveCardInput(text: String): Boolean {
             val digits = text.filter { it.isDigit() }
             if (digits.length in 13..19) return true

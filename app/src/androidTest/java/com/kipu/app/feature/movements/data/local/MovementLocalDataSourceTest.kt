@@ -80,6 +80,29 @@ class MovementLocalDataSourceTest {
     }
 
     @Test
+    fun affiliatedWalletArchiveDoesNotBlockCommittedMovementReplay() = runTest {
+        seedAccount("source")
+        database.accountDao().insert(
+            AccountEntity(
+                id = "wallet", userId = userId, creationOperationId = UUID.randomUUID().toString(),
+                alias = "Yape", type = "DIGITAL_WALLET", currency = "PEN", presetId = "YAPE",
+                color = null, icon = null, initialBalanceMinorUnits = 0L, openedAt = 1L,
+                createdAt = 1L, updatedAt = 1L, linkedAccountId = "source",
+            )
+        )
+        val command = command(MovementType.EXPENSE, "source", amount = 1_250L).copy(paymentChannel = "YAPE")
+        val first = source.commitTransactionAtomic(command, "archived-wallet-replay")
+        assertTrue(first is RegisterTransactionResult.Success)
+
+        database.openHelper.writableDatabase.execSQL("UPDATE accounts SET is_archived = 1 WHERE user_id = ? AND id = ?", arrayOf(userId, "wallet"))
+
+        val retry = source.commitTransactionAtomic(command, "archived-wallet-replay")
+        assertTrue(retry is RegisterTransactionResult.Success)
+        assertTrue((retry as RegisterTransactionResult.Success).isDuplicate)
+        assertEquals(-1_250L, dao.calculateLedgerSumForAccount(userId, "source"))
+    }
+
+    @Test
     fun provisionalMerchantSurvivesLocalCommitAndOutbox() = runTest {
         seedAccount("source")
         val result = source.commitTransactionAtomic(

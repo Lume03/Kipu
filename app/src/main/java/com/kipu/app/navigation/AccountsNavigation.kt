@@ -21,6 +21,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.kipu.app.core.finance.domain.model.CardId
+import com.kipu.app.feature.accounts.domain.model.Account
+import com.kipu.app.feature.accounts.domain.model.AccountPreset
+import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
@@ -34,6 +37,7 @@ import com.kipu.app.feature.settings.presentation.SettingsViewModel
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.presentation.DebtListScreen
 import com.kipu.app.feature.debts.presentation.DebtListViewModel
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 
 const val ACCOUNTS_DASHBOARD_ROUTE = "accounts/dashboard"
 const val ACCOUNT_FORM_ROUTE = "accounts/create"
@@ -41,6 +45,21 @@ const val CARD_FORM_ROUTE = "cards/register"
 const val RATE_CATALOG_ROUTE = "cards/{cardId}/rates"
 const val ACCOUNT_DETAIL_ROUTE = "accounts/instrument/{instrumentId}?isCard={isCard}&startPurchase={startPurchase}"
 const val ACCOUNT_DASHBOARD_FEEDBACK_KEY = "account_dashboard_feedback"
+
+internal data class AccountMovementHistoryTarget(
+    val accountId: String? = null,
+    val paymentChannel: WalletPaymentChannel? = null,
+)
+
+internal fun Account.toMovementHistoryTarget(): AccountMovementHistoryTarget? = when (type) {
+    AccountType.DIGITAL_WALLET -> when (preset) {
+        AccountPreset.YAPE -> AccountMovementHistoryTarget(paymentChannel = WalletPaymentChannel.YAPE)
+        AccountPreset.PLIN -> AccountMovementHistoryTarget(paymentChannel = WalletPaymentChannel.PLIN)
+        else -> null
+    }
+    AccountType.CREDIT_LIABILITY -> null
+    else -> AccountMovementHistoryTarget(accountId = id.value)
+}
 
 private fun NavController.returnToAccountsDashboard(message: String) {
     previousBackStackEntry?.savedStateHandle?.set(ACCOUNT_DASHBOARD_FEEDBACK_KEY, message)
@@ -147,6 +166,14 @@ fun NavGraphBuilder.accountsDestinations(
                 navController.returnToAccountsDashboard(message)
             },
             onNavigateToRateCatalog = { cardId -> navController.navigateToRateCatalog(cardId) },
+            onNavigateToMovements = { account ->
+                account.toMovementHistoryTarget()?.let { target ->
+                    navController.navigateToMovementHistory(
+                        accountId = target.accountId,
+                        paymentChannel = target.paymentChannel?.name,
+                    )
+                }
+            },
             startPurchaseOnOpen = startPurchaseOnOpen,
         )
     }

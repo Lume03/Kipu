@@ -134,6 +134,32 @@ class AccountDetailScreenTest {
     }
 
     @Test
+    fun accountDetailOpensItsMovementHistoryAction() {
+        val bankAccount = account()
+        var openedAccount: Account? = null
+        setScreen(account = bankAccount, onNavigateToMovements = { openedAccount = it })
+
+        compose.onNodeWithTag("account_view_movements").performScrollTo().performClick()
+
+        compose.runOnIdle { assertEquals(bankAccount, openedAccount) }
+    }
+
+    @Test
+    fun yapeDetailOpensItsAttributedMovementHistoryAction() {
+        val wallet = account().copy(
+            type = AccountType.DIGITAL_WALLET,
+            preset = AccountPreset.YAPE,
+            linkedAccountId = AccountId.generate(),
+        )
+        var openedAccount: Account? = null
+        setScreen(account = wallet, onNavigateToMovements = { openedAccount = it })
+
+        compose.onNodeWithTag("account_view_movements").performScrollTo().performClick()
+
+        compose.runOnIdle { assertEquals(wallet, openedAccount) }
+    }
+
+    @Test
     fun archivedInstrumentCanBeReactivatedAfterConfirmationAndBackWorks() {
         var reactivated = false
         var navigatedBack = false
@@ -210,6 +236,7 @@ class AccountDetailScreenTest {
         onCorrectOpeningBalance: (Long) -> Unit = {},
         onArchive: () -> Unit = {},
         onReactivate: () -> Unit = {},
+        onNavigateToMovements: (Account) -> Unit = {},
     ) {
         compose.setContent {
             MaterialTheme {
@@ -224,6 +251,7 @@ class AccountDetailScreenTest {
                     onCorrectOpeningBalance = onCorrectOpeningBalance,
                     onArchive = onArchive,
                     onReactivate = onReactivate,
+                    onNavigateToMovements = onNavigateToMovements,
                 )
             }
         }

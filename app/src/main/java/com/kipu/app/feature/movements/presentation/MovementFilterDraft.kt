@@ -4,6 +4,7 @@ import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.feature.movements.domain.model.MovementFinancialState
 import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
 import com.kipu.app.feature.movements.domain.model.MovementType
+import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneId
@@ -13,6 +14,7 @@ data class MovementFilterDraft(
     val categoryIds: Set<String> = emptySet(),
     val cardIds: Set<String> = emptySet(),
     val merchantIds: Set<String> = emptySet(),
+    val paymentChannels: Set<WalletPaymentChannel> = emptySet(),
     val financialStates: Set<MovementFinancialState> = emptySet(),
     val syncStatuses: Set<MovementSyncStatus> = emptySet(),
     val minAmount: String = "",
@@ -41,6 +43,7 @@ data class MovementFilterDraft(
         if (errors.isNotEmpty()) return FilterDraftValidation(null, errors)
         return FilterDraftValidation(AdvancedFiltersState(
             accountIds = accountIds, categoryIds = categoryIds, cardIds = cardIds, merchantIds = merchantIds,
+            paymentChannels = paymentChannels,
             financialStates = financialStates, syncStatuses = syncStatuses, minAmountMinor = min, maxAmountMinor = max,
             currency = currency.takeIf { min != null || max != null },
             fromDate = from?.atStartOfDay(zone)?.toInstant()?.toEpochMilli(),
@@ -57,6 +60,7 @@ data class MovementFilterDraft(
         ) = MovementFilterDraft(
             accountIds = filters.accountIds, categoryIds = filters.categoryIds,
             cardIds = filters.cardIds, merchantIds = filters.merchantIds,
+            paymentChannels = filters.paymentChannels,
             financialStates = filters.financialStates, syncStatuses = filters.syncStatuses,
             minAmount = filters.minAmountMinor?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty(),
             maxAmount = filters.maxAmountMinor?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty(),
