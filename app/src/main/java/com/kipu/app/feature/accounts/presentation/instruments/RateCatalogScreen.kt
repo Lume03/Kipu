@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -116,6 +118,7 @@ fun RateCatalogScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val themeColors = rememberKipuColors()
     val emeraldColors = rememberCalmEmeraldColors()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -190,7 +193,8 @@ fun RateCatalogScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .testTag("rate_catalog_list"),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (cardState) {
@@ -274,12 +278,12 @@ fun RateCatalogScreen(
                                     text = "Ficha técnica del tarifario",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A),
+                                    color = themeColors.inkPrimary,
                                 )
                                 Text(
                                     text = "Términos legales",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFF64748B),
+                                    color = themeColors.inkSecondary,
                                 )
                             }
                             Text(
@@ -380,10 +384,11 @@ fun RateCatalogScreen(
 
 @Composable
 private fun EducationalTipCard() {
+    val semanticColors = rememberCalmEmeraldColors()
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFEFF6FF),
-        border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+        color = semanticColors.transferBg,
+        border = BorderStroke(1.dp, semanticColors.transferBorder),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -395,13 +400,13 @@ private fun EducationalTipCard() {
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFDBEAFE)),
+                    .background(semanticColors.transferBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Info,
                     contentDescription = null,
-                    tint = Color(0xFF2563EB),
+                    tint = semanticColors.transferBlue,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -410,12 +415,12 @@ private fun EducationalTipCard() {
                     text = "¿Sabes qué tasa tienes en tu contrato?",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E3A8A),
+                    color = semanticColors.transferBlue,
                 )
                 Text(
                     text = "La TEA contractual es la tasa de interés anual que tu banco te asignó en tu contrato o estado de cuenta. Configúrala abajo para simular tus cuotas con exactitud.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF1E40AF),
+                    color = semanticColors.transferBlue,
                 )
             }
         }
@@ -433,6 +438,8 @@ private fun PersonalTeaSimulatorCard(
     onSave: (Int) -> Unit,
     onError: (String) -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val emeraldColors = rememberCalmEmeraldColors()
     var applyToNextSimulations by remember { mutableStateOf(true) }
 
@@ -471,13 +478,13 @@ private fun PersonalTeaSimulatorCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFE6F4F1)),
+                            .background(themeColors.selectedSurface),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Tune,
                             contentDescription = null,
-                            tint = Color(0xFF0F766E),
+                            tint = themeColors.primary,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -486,19 +493,19 @@ private fun PersonalTeaSimulatorCard(
                             text = "Simulador de TEA acordada",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = themeColors.inkPrimary,
                         )
                         Text(
                             text = "Tasa Efectiva Anual pactada con el banco",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B),
+                            color = themeColors.inkSecondary,
                         )
                     }
                 }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFE6F4F1),
+                    color = themeColors.selectedSurface,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -508,12 +515,12 @@ private fun PersonalTeaSimulatorCard(
                         Icon(
                             imageVector = Icons.Rounded.Calculate,
                             contentDescription = null,
-                            tint = Color(0xFF0F766E),
+                            tint = themeColors.primary,
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
                             text = "Kipu Calc",
-                            color = Color(0xFF0F766E),
+                            color = themeColors.primary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -524,8 +531,8 @@ private fun PersonalTeaSimulatorCard(
             // Stepper and numeric display container
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, themeColors.border),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -542,8 +549,8 @@ private fun PersonalTeaSimulatorCard(
                             onValueChange(String.format(Locale.US, "%.2f", newRate))
                         },
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = themeColors.surface,
+                        border = BorderStroke(1.dp, themeColors.border),
                         shadowElevation = 1.dp,
                         modifier = Modifier.size(46.dp),
                     ) {
@@ -551,7 +558,7 @@ private fun PersonalTeaSimulatorCard(
                             Icon(
                                 imageVector = Icons.Rounded.Remove,
                                 contentDescription = "Disminuir 0.50%",
-                                tint = Color(0xFF0F172A),
+                                tint = themeColors.inkPrimary,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -573,16 +580,16 @@ private fun PersonalTeaSimulatorCard(
                                 textStyle = MaterialTheme.typography.headlineMedium.copy(
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF0F172A),
+                                    color = themeColors.inkPrimary,
                                     fontSize = 32.sp,
                                 ),
-                                modifier = Modifier.defaultMinSize(minWidth = 80.dp),
+                                modifier = Modifier.weight(1f),
                             )
                             Text(
                                 text = "%",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF0F172A),
+                                    color = themeColors.inkPrimary,
                                     fontSize = 32.sp,
                                 ),
                             )
@@ -591,7 +598,7 @@ private fun PersonalTeaSimulatorCard(
                             text = "TEA PARA COMPRAS EN CUOTAS",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
+                            color = themeColors.inkSecondary,
                             letterSpacing = 0.5.sp,
                         )
                     }
@@ -603,8 +610,8 @@ private fun PersonalTeaSimulatorCard(
                             onValueChange(String.format(Locale.US, "%.2f", newRate))
                         },
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.White,
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = themeColors.surface,
+                        border = BorderStroke(1.dp, themeColors.border),
                         shadowElevation = 1.dp,
                         modifier = Modifier.size(46.dp),
                     ) {
@@ -612,7 +619,7 @@ private fun PersonalTeaSimulatorCard(
                             Icon(
                                 imageVector = Icons.Rounded.Add,
                                 contentDescription = "Aumentar 0.50%",
-                                tint = Color(0xFF0F172A),
+                                tint = themeColors.inkPrimary,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -624,12 +631,12 @@ private fun PersonalTeaSimulatorCard(
             Text(
                 text = buildAnnotatedString {
                     append("Equivalente a una TEM aproximada de ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)) {
                         append("%.2f%% mensual".format(Locale.US, temDouble))
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF64748B),
+                color = themeColors.inkSecondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -637,8 +644,8 @@ private fun PersonalTeaSimulatorCard(
             // Switch container: Aplicar en próximas simulaciones
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, themeColors.border),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
@@ -655,20 +662,20 @@ private fun PersonalTeaSimulatorCard(
                                 text = "Aplicar en próximas simulaciones",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
+                                color = themeColors.inkPrimary,
                             )
                             Text(
                                 text = "Calcula tus futuras cuotas con esta tasa fija",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                             )
                         }
                         Switch(
                             checked = applyToNextSimulations,
                             onCheckedChange = { applyToNextSimulations = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF0D5E56),
+                                checkedThumbColor = themeColors.onPrimary,
+                                checkedTrackColor = themeColors.primary,
                             ),
                         )
                     }
@@ -680,13 +687,13 @@ private fun PersonalTeaSimulatorCard(
                         Icon(
                             imageVector = Icons.Rounded.Info,
                             contentDescription = null,
-                            tint = Color(0xFF2563EB),
+                            tint = semanticColors.transferBlue,
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
                             text = "Las compras pasadas mantienen su tasa de origen pactada en el comprobante.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2563EB),
+                            color = semanticColors.transferBlue,
                             fontSize = 11.sp,
                         )
                     }
@@ -709,7 +716,7 @@ private fun PersonalTeaSimulatorCard(
                         Icon(
                             imageVector = Icons.Rounded.Warning,
                             contentDescription = null,
-                            tint = emeraldColors.expenseCoral,
+                            tint = emeraldColors.expenseText,
                             modifier = Modifier.size(20.dp),
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -717,12 +724,12 @@ private fun PersonalTeaSimulatorCard(
                                 text = "Alerta: Tasa excede el tope referencial SBS",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                             )
                             Text(
                                 text = "La tasa ingresada (${"%.2f".format(Locale.US, teaDouble)}%) supera la tasa máxima registrada ante la SBS para este producto (${"%.2f".format(Locale.US, maxBps / 100.0)}%). Verifica que no incluya comisiones, seguros o mora.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                             )
                         }
                     }
@@ -750,15 +757,15 @@ private fun PersonalTeaSimulatorCard(
                     }
                 },
                 enabled = personalTeaInput.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D5E56)),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColors.primary),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
-                Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(18.dp), tint = themeColors.onPrimary)
                 Spacer(Modifier.width(8.dp))
-                Text("Actualizar mi TEA", fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Actualizar mi TEA", fontWeight = FontWeight.Bold, color = themeColors.onPrimary)
             }
 
             // Saved success banner
@@ -777,12 +784,12 @@ private fun PersonalTeaSimulatorCard(
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = emeraldColors.incomeEmerald,
+                            tint = emeraldColors.incomeText,
                             modifier = Modifier.size(20.dp),
                         )
                         Text(
                             text = "TEA contractual guardada con éxito para futuras simulaciones de cuotas.",
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                         )
@@ -935,6 +942,8 @@ private fun PersonalTeaComparisonCard(
     teaBps: Int?,
     saved: Boolean,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val emeraldColors = rememberCalmEmeraldColors()
     val minBps = if (card.currency == Currency.PEN) product.penTeaMinBps else product.usdTeaMinBps
     val maxBps = if (card.currency == Currency.PEN) product.penTeaMaxBps else product.usdTeaMaxBps
@@ -980,18 +989,18 @@ private fun PersonalTeaComparisonCard(
                         text = "Comparativa vs. Tarifario Oficial",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = themeColors.inkPrimary,
                     )
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFECFDF5),
-                        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                        color = semanticColors.incomeBg,
+                        border = BorderStroke(1.dp, semanticColors.incomeBorder),
                     ) {
                         Text(
                             text = chipText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16A34A),
+                            color = semanticColors.incomeText,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
@@ -1000,7 +1009,7 @@ private fun PersonalTeaComparisonCard(
                 Text(
                     text = "Visualiza dónde se ubica tu tasa acordada frente al rango tarifario publicado por ${card.issuer} y registrado ante la SBS.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                 )
 
                 if (teaBps != null) {
@@ -1015,7 +1024,7 @@ private fun PersonalTeaComparisonCard(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFF0D5E56),
+                                    color = themeColors.primary,
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1026,11 +1035,11 @@ private fun PersonalTeaComparisonCard(
                                             modifier = Modifier
                                                 .size(5.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFF34D399))
+                                                .background(semanticColors.incomeText)
                                         )
                                         Text(
                                             text = "Tu tasa: ${"%.2f".format(Locale.US, teaFloat)}%",
-                                            color = Color.White,
+                                            color = themeColors.onPrimary,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                         )
@@ -1054,9 +1063,9 @@ private fun PersonalTeaComparisonCard(
                                     .background(
                                         Brush.horizontalGradient(
                                             listOf(
-                                                Color(0xFF16A34A),
-                                                Color(0xFFF59E0B),
-                                                Color(0xFFEF4444),
+                                                semanticColors.incomeText,
+                                                semanticColors.warningText,
+                                                semanticColors.expenseText,
                                             )
                                         )
                                     )
@@ -1067,8 +1076,8 @@ private fun PersonalTeaComparisonCard(
                                     .padding(start = (positionFraction * 260).dp.coerceIn(0.dp, 250.dp))
                                     .size(16.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(3.dp, Color(0xFF0D5E56), CircleShape)
+                                    .background(themeColors.surface)
+                                    .border(3.dp, themeColors.primary, CircleShape)
                             )
                         }
 
@@ -1079,19 +1088,19 @@ private fun PersonalTeaComparisonCard(
                             verticalAlignment = Alignment.Top,
                         ) {
                             Column {
-                                Text("${"%.2f".format(Locale.US, minFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                                Text("Tasa mínima ${card.issuer}", fontSize = 10.sp, color = Color(0xFF64748B))
+                                Text("${"%.2f".format(Locale.US, minFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                                Text("Tasa mínima ${card.issuer}", fontSize = 10.sp, color = themeColors.inkSecondary)
                             }
                             Text(
                                 "Media: ${"%.2f".format(Locale.US, (minFloat + maxFloat) / 2f)}%",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                                 modifier = Modifier.padding(top = 2.dp),
                             )
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("${"%.2f".format(Locale.US, maxFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                                Text("Tasa máxima SBS", fontSize = 10.sp, color = Color(0xFF64748B))
+                                Text("${"%.2f".format(Locale.US, maxFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                                Text("Tasa máxima SBS", fontSize = 10.sp, color = themeColors.inkSecondary)
                             }
                         }
                     }
@@ -1099,7 +1108,7 @@ private fun PersonalTeaComparisonCard(
                     // Position in market card
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFF8FAFC),
+                        color = themeColors.surfaceSubtle,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -1107,8 +1116,8 @@ private fun PersonalTeaComparisonCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Posición en el mercado:", fontSize = 12.sp, color = Color(0xFF64748B))
-                            Text(positionLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                            Text("Posición en el mercado:", fontSize = 12.sp, color = themeColors.inkSecondary)
+                            Text(positionLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
                         }
                     }
                 }
@@ -1128,10 +1137,10 @@ private fun PersonalTeaComparisonCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Rounded.Warning, contentDescription = null, tint = emeraldColors.expenseCoral, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Rounded.Warning, contentDescription = null, tint = emeraldColors.expenseText, modifier = Modifier.size(24.dp))
                     Text(
                         text = "TEA fuera del rango de referencia. Kipu conserva el valor que ingresaste para simulaciones futuras; no lo sustituye automáticamente.",
-                        color = emeraldColors.expenseCoral,
+                        color = emeraldColors.expenseText,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -1160,6 +1169,8 @@ private fun ContextNotice(message: String) {
 
 @Composable
 private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val minTea = if (currency == Currency.PEN) rate.penTeaMinBps else rate.usdTeaMinBps
     val maxTea = if (currency == Currency.PEN) rate.penTeaMaxBps else rate.usdTeaMaxBps
 
@@ -1167,8 +1178,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
         // Card 1: TCEA Referencial
         Card(
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
@@ -1182,14 +1193,14 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFFEF2F2)),
+                        .background(semanticColors.expenseBg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "%",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFEF4444),
+                        color = semanticColors.expenseText,
                     )
                 }
 
@@ -1202,16 +1213,16 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                             text = "TCEA Referencial",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = themeColors.inkPrimary,
                         )
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFFF1F5F9),
+                            color = themeColors.surfaceVariant,
                         ) {
                             Text(
                                 text = "Ejemplo SBS",
                                 fontSize = 10.sp,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             )
@@ -1220,12 +1231,12 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     Text(
                         text = "Cálculo a 12 cuotas de S/ 1,000",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                     )
                     Text(
                         text = "TEA ${if (currency == Currency.PEN) "soles" else "dólares"}: ${formatTeaRange(minTea, maxTea)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                     )
                 }
 
@@ -1235,17 +1246,21 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         Regex("""(\d+(?:\.\d+)?%)""").find(raw)?.value ?: raw
                     } else "161.74%"
                 }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    modifier = Modifier.widthIn(max = 112.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(
                         text = displayTcea,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFDC2626),
+                        color = semanticColors.expenseText,
                     )
                     Text(
                         text = "Incluye seguros",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                         fontSize = 10.sp,
                     )
                 }
@@ -1255,8 +1270,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
         // Card 2: Disposición de efectivo
         Card(
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
@@ -1270,14 +1285,14 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFFEF9C3)),
+                        .background(semanticColors.warningBg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = "ATM",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD97706),
+                        color = semanticColors.warningText,
                     )
                 }
 
@@ -1286,12 +1301,12 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         text = "Disposición de efectivo",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = themeColors.inkPrimary,
                     )
                     Text(
                         text = "Retiro de fondos por ventanilla/ATM",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                     )
                 }
 
@@ -1300,12 +1315,12 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         text = "81.50%",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = themeColors.inkPrimary,
                     )
                     Text(
                         text = "TEA de retiro",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                         fontSize = 10.sp,
                     )
                 }
@@ -1315,8 +1330,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
         // Card 3: Membresía anual
         Card(
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
@@ -1332,13 +1347,13 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFEFF6FF)),
+                            .background(semanticColors.transferBg),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.WorkspacePremium,
                             contentDescription = null,
-                            tint = Color(0xFF2563EB),
+                            tint = semanticColors.transferBlue,
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -1348,12 +1363,12 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                             text = "Membresía anual",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = themeColors.inkPrimary,
                         )
                         Text(
                             text = "${rate.institutionName} ${rate.productName}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B),
+                            color = themeColors.inkSecondary,
                         )
                     }
 
@@ -1362,12 +1377,12 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                             text = formatCatalogFee(rate.membershipFeePenMinor, "S/ "),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = themeColors.inkPrimary,
                         )
                         Text(
                             text = "Por año",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B),
+                            color = themeColors.inkSecondary,
                             fontSize = 10.sp,
                         )
                     }
@@ -1375,8 +1390,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.dp, semanticColors.incomeBorder),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
@@ -1387,13 +1402,13 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF16A34A),
+                            tint = semanticColors.incomeText,
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
                             text = "100% Exonerable: " + (rate.membershipCondition ?: "Consumo mínimo mensual de S/ 1,200 en cada uno de los 12 ciclos de facturación previos."),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF15803D),
+                            color = semanticColors.incomeText,
                             fontSize = 11.sp,
                         )
                     }
@@ -1404,7 +1419,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
         // Card 4: Transparencia SBS Regulada
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xFFF1F5F9),
+            color = themeColors.surfaceVariant,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
@@ -1415,7 +1430,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                 Icon(
                     imageVector = Icons.Rounded.Verified,
                     contentDescription = null,
-                    tint = Color(0xFF0F766E),
+                    tint = themeColors.primary,
                     modifier = Modifier.size(18.dp),
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -1423,19 +1438,19 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         text = "Transparencia SBS Regulada",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = themeColors.inkPrimary,
                     )
                     Text(
                         text = "Datos oficiales verificados al ${rate.catalogAsOf ?: "24/09/2026"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
+                        color = themeColors.inkSecondary,
                         fontSize = 11.sp,
                     )
                 }
                 Icon(
                     imageVector = Icons.Rounded.Lock,
                     contentDescription = null,
-                    tint = Color(0xFF94A3B8),
+                    tint = themeColors.inkSecondary,
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -1444,8 +1459,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
         // Card 5: External Button
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+            color = themeColors.surface,
+            border = BorderStroke(1.dp, themeColors.border),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -1459,13 +1474,13 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     imageVector = Icons.Rounded.OpenInNew,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = Color(0xFF0F172A),
+                    tint = themeColors.inkPrimary,
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Ver tarifario oficial publicado (${rate.institutionName})",
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF0F172A),
+                    color = themeColors.inkPrimary,
                     fontSize = 13.sp,
                 )
             }

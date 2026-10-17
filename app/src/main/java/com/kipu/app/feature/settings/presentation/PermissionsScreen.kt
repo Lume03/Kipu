@@ -1,5 +1,9 @@
 package com.kipu.app.feature.settings.presentation
 
+import com.kipu.app.ui.theme.KipuThemePreviews
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.rememberKipuColors
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,7 +70,7 @@ import com.kipu.app.feature.settings.domain.model.ConsentState
 import com.kipu.app.feature.settings.domain.model.DeviceAuthorization
 import com.kipu.app.feature.settings.domain.model.PermissionSource
 
-private val KipuTeal = Color(0xFF0F766E)
+private val KipuTeal: Color @Composable get() = MaterialTheme.colorScheme.primary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,30 +158,7 @@ fun PermissionsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // Guarantee Banner (FR-017)
-                Surface(
-                    color = Color(0xFFE8F5E9),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Text(
-                            text = "El registro manual siempre permanece 100% operativo sin importar el estado de estos permisos opcionales.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF1B5E20),
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
+                PermissionSafetyBanner()
 
                 Text(
                     text = "Fuentes Disponibles",
@@ -262,6 +243,8 @@ private fun PermissionCard(
     onRevokeConsent: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val isGranted = item.isProcessingAuthorized
 
     Card(
@@ -271,7 +254,7 @@ private fun PermissionCard(
                 contentDescription = "${item.title}. Estado: ${if (isGranted) "Activo" else "Inactivo"}"
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, themeColors.border),
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(
@@ -298,7 +281,7 @@ private fun PermissionCard(
 
                 // Processing status badge with icon + text
                 Surface(
-                    color = if (isGranted) Color(0xFFE6F4EA) else Color(0xFFF1F3F4),
+                    color = if (isGranted) themeColors.selectedSurface else themeColors.surfaceVariant,
                     shape = MaterialTheme.shapes.extraSmall,
                 ) {
                     Row(
@@ -309,14 +292,14 @@ private fun PermissionCard(
                         Icon(
                             imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Close,
                             contentDescription = null,
-                            tint = if (isGranted) Color(0xFF137333) else Color(0xFF5F6368),
+                            tint = if (isGranted) semanticColors.incomeText else themeColors.inkSecondary,
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
                             text = if (isGranted) "Activo" else "Inactivo",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (isGranted) Color(0xFF137333) else Color(0xFF5F6368),
+                            color = if (isGranted) semanticColors.incomeText else themeColors.inkSecondary,
                         )
                     }
                 }
@@ -351,7 +334,7 @@ private fun PermissionCard(
                 if (item.consentState == ConsentState.GRANTED) {
                     Button(
                         onClick = onRevokeConsent,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD93025)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
@@ -382,5 +365,49 @@ private fun PermissionCard(
                 }
             }
         }
+    }
+}
+
+
+@Composable
+internal fun PermissionSafetyBanner() {
+    val semanticColors = rememberCalmEmeraldColors()
+    Surface(
+        color = semanticColors.incomeBg,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Shield,
+                contentDescription = null,
+                tint = semanticColors.incomeText,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = "El registro manual siempre permanece 100% operativo sin importar el estado de estos permisos opcionales.",
+                fontSize = 13.sp,
+                color = semanticColors.incomeText,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+    }
+}
+
+@KipuThemePreviews
+@Composable
+private fun PermissionComponentsThemePreview() = KipuTheme {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        PermissionSafetyBanner()
+        PermissionCard(PermissionItemUiState(
+            source = PermissionSource.OWN_NOTIFICATIONS, title = "Avisos de Kipu",
+            description = "Permiso opcional", rationale = "Avisos de ejemplo",
+            deviceAuth = DeviceAuthorization.GRANTED, consentState = ConsentState.GRANTED,
+            isProcessingAuthorized = true,
+        ), {}, {}, {}, {})
     }
 }

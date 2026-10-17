@@ -1,5 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -438,6 +441,7 @@ fun CalmEmeraldBankSelectionSheet(
     val retailBanks = remember(filteredBanks) { filteredBanks.filter { it.isRetail } }
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -453,6 +457,7 @@ fun CalmEmeraldBankSelectionSheet(
             )
         },
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1164,7 +1169,7 @@ fun CalmEmeraldStep3SummaryCard(
             CalmEmeraldPillBadge(
                 text = "Listo",
                 containerColor = calmColors.incomeBg,
-                contentColor = calmColors.incomeEmerald,
+                contentColor = calmColors.incomeText,
                 leadingIcon = Icons.Default.Check,
             )
         }
@@ -1724,7 +1729,7 @@ private fun AlertTogglePill(
         color = if (selected) calmColors.incomeBg else calmColors.surfaceCard,
         border = BorderStroke(
             1.dp,
-            if (selected) calmColors.incomeEmerald else calmColors.borderSubtle
+            if (selected) calmColors.incomeText else calmColors.borderSubtle
         ),
         modifier = modifier
             .heightIn(min = 44.dp)
@@ -1742,7 +1747,7 @@ private fun AlertTogglePill(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = calmColors.incomeEmerald,
+                    tint = calmColors.incomeText,
                     modifier = Modifier.size(15.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -1753,7 +1758,7 @@ private fun AlertTogglePill(
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                 ),
-                color = if (selected) calmColors.incomeEmerald else calmColors.primaryText,
+                color = if (selected) calmColors.incomeText else calmColors.primaryText,
             )
         }
     }
@@ -1789,7 +1794,7 @@ fun CalmEmeraldCreditLimitInputCard(
                     fontSize = 11.sp,
                     letterSpacing = 0.5.sp,
                 ),
-                color = if (isError) calmColors.expenseCoral else calmColors.secondaryMuted,
+                color = if (isError) calmColors.expenseText else calmColors.secondaryMuted,
             )
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -1838,7 +1843,7 @@ fun CalmEmeraldCreditLimitInputCard(
             color = calmColors.surfaceCard,
             border = BorderStroke(
                 width = if (isError) 1.5.dp else 1.dp,
-                color = if (isError) calmColors.expenseCoral else calmColors.borderSubtle,
+                color = if (isError) calmColors.expenseText else calmColors.borderSubtle,
             ),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -1858,7 +1863,7 @@ fun CalmEmeraldCreditLimitInputCard(
                         style = TextStyle(
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isError) calmColors.expenseCoral else calmColors.primaryText,
+                            color = if (isError) calmColors.expenseText else calmColors.primaryText,
                         ),
                     )
                     BasicTextField(
@@ -1869,7 +1874,7 @@ fun CalmEmeraldCreditLimitInputCard(
                         textStyle = TextStyle(
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isError) calmColors.expenseCoral else calmColors.primaryText,
+                            color = if (isError) calmColors.expenseText else calmColors.primaryText,
                         ),
                         decorationBox = { innerTextField ->
                             if (creditLimitInput.isEmpty()) {
@@ -1878,7 +1883,7 @@ fun CalmEmeraldCreditLimitInputCard(
                                     style = TextStyle(
                                         fontSize = 22.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isError) calmColors.expenseCoral else calmColors.secondaryMuted.copy(alpha = 0.4f),
+                                        color = if (isError) calmColors.expenseText else calmColors.secondaryMuted.copy(alpha = 0.4f),
                                     ),
                                 )
                             }
@@ -1892,7 +1897,7 @@ fun CalmEmeraldCreditLimitInputCard(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = calmColors.expenseCoral,
+                        tint = calmColors.expenseText,
                         modifier = Modifier.size(20.dp),
                     )
                 } else {
@@ -1910,7 +1915,7 @@ fun CalmEmeraldCreditLimitInputCard(
             text = if (isError) "ⓘ ${errorMessage ?: "Ingresa una línea de crédito válida mayor a S/ 0.00"}"
             else "El monto total que tu banco te permite utilizar.",
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-            color = if (isError) calmColors.expenseCoral else calmColors.secondaryMuted,
+            color = if (isError) calmColors.expenseText else calmColors.secondaryMuted,
         )
     }
 }
@@ -1940,7 +1945,7 @@ fun CalmEmeraldDateInputsCard(
                 fontSize = 11.sp,
                 letterSpacing = 0.5.sp,
             ),
-            color = if (billingError != null || dueError != null) calmColors.expenseCoral else calmColors.secondaryMuted,
+            color = if (billingError != null || dueError != null) calmColors.expenseText else calmColors.secondaryMuted,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1956,7 +1961,7 @@ fun CalmEmeraldDateInputsCard(
                     color = calmColors.surfaceCard,
                     border = BorderStroke(
                         width = if (billingError != null) 1.5.dp else 1.dp,
-                        color = if (billingError != null) calmColors.expenseCoral else calmColors.borderSubtle,
+                        color = if (billingError != null) calmColors.expenseText else calmColors.borderSubtle,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -1973,7 +1978,7 @@ fun CalmEmeraldDateInputsCard(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp,
                             ),
-                            color = if (billingError != null) calmColors.expenseCoral else calmColors.primaryText,
+                            color = if (billingError != null) calmColors.expenseText else calmColors.primaryText,
                         )
                         BasicTextField(
                             value = billingDayInput,
@@ -1983,7 +1988,7 @@ fun CalmEmeraldDateInputsCard(
                             textStyle = TextStyle(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (billingError != null) calmColors.expenseCoral else calmColors.primaryText,
+                                color = if (billingError != null) calmColors.expenseText else calmColors.primaryText,
                                 textAlign = TextAlign.Center,
                             ),
                             modifier = Modifier.width(48.dp),
@@ -1993,7 +1998,7 @@ fun CalmEmeraldDateInputsCard(
                 Text(
                     text = if (billingError != null) "ⓘ $billingError" else "Cuando termina tu período de compras.",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
-                    color = if (billingError != null) calmColors.expenseCoral else calmColors.secondaryMuted,
+                    color = if (billingError != null) calmColors.expenseText else calmColors.secondaryMuted,
                 )
             }
 
@@ -2007,7 +2012,7 @@ fun CalmEmeraldDateInputsCard(
                     color = calmColors.surfaceCard,
                     border = BorderStroke(
                         width = if (dueError != null) 1.5.dp else 1.dp,
-                        color = if (dueError != null) calmColors.expenseCoral else calmColors.borderSubtle,
+                        color = if (dueError != null) calmColors.expenseText else calmColors.borderSubtle,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -2024,7 +2029,7 @@ fun CalmEmeraldDateInputsCard(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp,
                             ),
-                            color = if (dueError != null) calmColors.expenseCoral else calmColors.primaryText,
+                            color = if (dueError != null) calmColors.expenseText else calmColors.primaryText,
                         )
                         BasicTextField(
                             value = dueDayInput,
@@ -2034,7 +2039,7 @@ fun CalmEmeraldDateInputsCard(
                             textStyle = TextStyle(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (dueError != null) calmColors.expenseCoral else calmColors.primaryText,
+                                color = if (dueError != null) calmColors.expenseText else calmColors.primaryText,
                                 textAlign = TextAlign.Center,
                             ),
                             modifier = Modifier.width(48.dp),
@@ -2044,7 +2049,7 @@ fun CalmEmeraldDateInputsCard(
                 Text(
                     text = if (dueError != null) "ⓘ $dueError" else "Fecha límite para pagar.",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
-                    color = if (dueError != null) calmColors.expenseCoral else calmColors.secondaryMuted,
+                    color = if (dueError != null) calmColors.expenseText else calmColors.secondaryMuted,
                 )
             }
         }
@@ -2075,7 +2080,7 @@ fun CalmEmeraldLastFourDigitsCard(
             Text(
                 text = "Últimos 4 dígitos",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
-                color = if (isError) calmColors.expenseCoral else calmColors.primaryText,
+                color = if (isError) calmColors.expenseText else calmColors.primaryText,
             )
             CalmEmeraldPillBadge(
                 text = "Obligatorio",
@@ -2089,7 +2094,7 @@ fun CalmEmeraldLastFourDigitsCard(
             color = calmColors.surfaceCard,
             border = BorderStroke(
                 width = if (isError) 1.5.dp else 1.dp,
-                color = if (isError) calmColors.expenseCoral else calmColors.borderSubtle,
+                color = if (isError) calmColors.expenseText else calmColors.borderSubtle,
             ),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -2114,7 +2119,7 @@ fun CalmEmeraldLastFourDigitsCard(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp,
-                        color = if (isError) calmColors.expenseCoral else calmColors.primaryText,
+                        color = if (isError) calmColors.expenseText else calmColors.primaryText,
                     ),
                     decorationBox = { innerTextField ->
                         if (lastFourDigits.isEmpty()) {
@@ -2136,7 +2141,7 @@ fun CalmEmeraldLastFourDigitsCard(
             Text(
                 text = "ⓘ ${errorMessage ?: "Ingresa exactamente 4 números."}",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = calmColors.expenseCoral,
+                color = calmColors.expenseText,
             )
         }
         Text(
@@ -2172,7 +2177,7 @@ fun CalmEmeraldErrorBanner(
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = calmColors.expenseCoral,
+                tint = calmColors.expenseText,
                 modifier = Modifier.size(16.dp),
             )
             Text(
@@ -2181,7 +2186,7 @@ fun CalmEmeraldErrorBanner(
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                 ),
-                color = calmColors.expenseCoral,
+                color = calmColors.expenseText,
             )
         }
     }
@@ -2203,6 +2208,7 @@ fun CalmEmeraldSuccessBottomSheet(
     val calmColors = rememberCalmEmeraldColors()
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -2218,6 +2224,7 @@ fun CalmEmeraldSuccessBottomSheet(
             )
         },
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2239,13 +2246,13 @@ fun CalmEmeraldSuccessBottomSheet(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(calmColors.incomeEmerald.copy(alpha = 0.15f)),
+                        .background(calmColors.incomeText.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Éxito",
-                        tint = calmColors.incomeEmerald,
+                        tint = calmColors.incomeText,
                         modifier = Modifier.size(24.dp),
                     )
                 }

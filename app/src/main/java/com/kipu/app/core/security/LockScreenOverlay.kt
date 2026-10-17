@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 
-private val KipuTeal = Color(0xFF0F766E)
+private val KipuTeal: Color @Composable get() = MaterialTheme.colorScheme.primary
 
 @Composable
 fun LockScreenOverlay(
@@ -69,6 +69,21 @@ fun LockScreenOverlay(
         triggerPrompt()
     }
 
+    LockScreenContent(
+        errorMessage = errorMessage,
+        onUnlockClick = ::triggerPrompt,
+        onSignOutRequested = onSignOutRequested,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun LockScreenContent(
+    errorMessage: String?,
+    onUnlockClick: () -> Unit,
+    onSignOutRequested: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // Completely opaque barrier consuming all touch events
     Box(
         modifier = modifier
@@ -127,7 +142,7 @@ fun LockScreenOverlay(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { triggerPrompt() },
+                onClick = onUnlockClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),

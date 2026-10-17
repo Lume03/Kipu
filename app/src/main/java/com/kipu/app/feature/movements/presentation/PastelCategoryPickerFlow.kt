@@ -1,10 +1,15 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import com.kipu.app.feature.categories.presentation.categories.CategoryFormContent
 import com.kipu.app.feature.categories.domain.model.CategoryId
 import com.kipu.app.feature.categories.domain.model.CategoryType
 
 import android.content.res.Configuration
+import androidx.compose.ui.graphics.compositeOver
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -525,6 +530,7 @@ fun PastelCategoryPickerBottomSheet(
     val kipuColors = rememberKipuColors()
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -541,6 +547,7 @@ fun PastelCategoryPickerBottomSheet(
         },
         modifier = modifier.testTag("pastel_category_picker_sheet"),
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1853,7 +1860,7 @@ internal fun IconCatalogDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = rememberKipuColors().primary),
                     ) {
-                        Text("Confirmar icono", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Confirmar icono", fontWeight = FontWeight.Bold, color = rememberKipuColors().onPrimary)
                     }
                 }
             }
@@ -1865,6 +1872,7 @@ internal fun IconCatalogDialog(
 // 12. DIALOG: CUSTOM HSV/RGB PASTEL COLOR MODAL (State 7)
 // ============================================================================
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CustomPastelColorDialog(
     initialColorHex: String,
@@ -2009,7 +2017,7 @@ internal fun CustomPastelColorDialog(
                                 center = Offset(thumbX, thumbY),
                             )
                             drawCircle(
-                                color = Color.Black.copy(alpha = 0.35f),
+                                color = Color.Black,
                                 radius = 12.dp.toPx(),
                                 center = Offset(thumbX, thumbY),
                                 style = Stroke(width = 2.dp.toPx()),
@@ -2050,6 +2058,7 @@ internal fun CustomPastelColorDialog(
                                 value = currentHue,
                                 onValueChange = { currentHue = it },
                                 valueRange = 0f..360f,
+                                thumb = { ColorPickerThumb() },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color.White,
@@ -2089,6 +2098,7 @@ internal fun CustomPastelColorDialog(
                                 value = currentSaturation,
                                 onValueChange = { currentSaturation = it },
                                 valueRange = 0f..1f,
+                                thumb = { ColorPickerThumb() },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color.White,
@@ -2152,7 +2162,7 @@ internal fun CustomPastelColorDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(currentColor.copy(alpha = 0.35f))
+                                    .background(currentColor.copy(alpha = 0.35f).compositeOver(PastelDesignTokens.SurfaceCard))
                                     .border(1.dp, currentColor, RoundedCornerShape(12.dp))
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
                             ) {
@@ -2160,7 +2170,7 @@ internal fun CustomPastelColorDialog(
                                     text = parentName,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = PastelDesignTokens.TealDark,
+                                    color = readableContentColor(currentColor.copy(alpha = 0.35f).compositeOver(PastelDesignTokens.SurfaceCard)),
                                 )
                             }
                         }
@@ -2356,7 +2366,7 @@ internal fun CustomPastelColorDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = rememberKipuColors().primary),
                     ) {
-                        Text("✓ Aplicar color", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("✓ Aplicar color", fontWeight = FontWeight.Bold, color = rememberKipuColors().onPrimary)
                     }
                 }
             }
@@ -2399,4 +2409,23 @@ private fun PastelCategoriesLightPreview() {
 @Composable
 private fun PastelCategoriesDarkPreview() {
     KipuTheme(darkTheme = true) { PastelTokenPreviewContent() }
+}
+
+@Composable
+private fun ColorPickerThumb() {
+    Box(Modifier.size(20.dp)
+        .background(MaterialTheme.colorScheme.surface, CircleShape)
+        .border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape))
+}
+
+@com.kipu.app.ui.theme.KipuThemePreviews
+@Composable
+private fun CustomColorThemePreview() = KipuTheme {
+    CustomPastelColorDialog("#FFFFFF", "Categoría de ejemplo", {}, {})
+}
+
+@com.kipu.app.ui.theme.KipuThemePreviews
+@Composable
+private fun IconCatalogThemePreview() = KipuTheme {
+    IconCatalogDialog("restaurant", {}, {})
 }

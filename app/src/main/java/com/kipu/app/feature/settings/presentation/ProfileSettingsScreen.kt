@@ -1,5 +1,7 @@
 package com.kipu.app.feature.settings.presentation
 
+import com.kipu.app.ui.theme.rememberKipuColors
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -80,6 +82,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.feature.auth.presentation.SignOutDialog
 import com.kipu.app.feature.settings.domain.model.SyncState
 import com.kipu.app.feature.settings.domain.model.ThemeMode
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.KipuThemePreviews
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +101,8 @@ fun ProfileSettingsScreen(
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var currencyDropdownExpanded by remember { mutableStateOf(false) }
@@ -179,7 +185,7 @@ fun ProfileSettingsScreen(
                                     ) {
                                         Text(
                                             text = state.currencyCode,
-                                            color = Color.White,
+                                            color = themeColors.onPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -399,7 +405,7 @@ fun ProfileSettingsScreen(
                                 viewModel.savePreferences()
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
+                                checkedThumbColor = themeColors.onPrimary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                             ),
                         )
@@ -522,8 +528,8 @@ fun ProfileSettingsScreen(
                         onClick = viewModel::requestSignOut,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFDE8E8),
-                            contentColor = Color(0xFFE53935),
+                            containerColor = semanticColors.expenseBg,
+                            contentColor = semanticColors.expenseText,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -702,4 +708,33 @@ private fun ThemeOptionChip(
             selectedLabelColor = MaterialTheme.colorScheme.primary,
         ),
     )
+}
+
+@KipuThemePreviews
+@Composable
+private fun ProfileSettingsComponentsThemePreview() {
+    KipuTheme {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SyncStateBanner(SyncState.PENDING)
+            SettingsCard(
+                icon = Icons.Default.Payments,
+                title = "Divisa y apariencia",
+                subtitle = "Preferencias de esta cuenta",
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeOptionChip(selected = false, onClick = {}, icon = Icons.Default.LightMode, label = "Claro")
+                    ThemeOptionChip(selected = true, onClick = {}, icon = Icons.Default.DarkMode, label = "Oscuro")
+                }
+            }
+            SettingsActionCard(
+                icon = Icons.Default.Fingerprint,
+                title = "Bloqueo local",
+                subtitle = "Administra la protección de acceso",
+                onClick = {},
+            )
+        }
+    }
 }

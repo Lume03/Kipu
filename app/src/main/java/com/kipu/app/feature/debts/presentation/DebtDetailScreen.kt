@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.presentation
 
+import com.kipu.app.ui.theme.rememberKipuColors
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -252,7 +253,7 @@ fun DebtDetailScreen(
                         onDelete()
                     },
                     modifier = Modifier.testTag("confirm-delete-debt"),
-                    colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.expenseCoral),
+                    colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.expenseText),
                 ) { Text("Eliminar") }
             },
             dismissButton = {
@@ -276,6 +277,8 @@ private fun ActiveDebtDetailView(
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
     errorMessage: String?,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
     val amortizedPercent = if (debt.principalMinor > 0L) {
         ((amortizedMinor * 100) / debt.principalMinor).toInt().coerceIn(0, 100)
@@ -297,8 +300,8 @@ private fun ActiveDebtDetailView(
         )
         Surface(
             shape = RoundedCornerShape(999.dp),
-            color = if (debt.status == DebtLifecycleStatus.ACTIVE) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
-            border = BorderStroke(1.dp, if (debt.status == DebtLifecycleStatus.ACTIVE) Color(0xFF86EFAC) else Color(0xFFFCA5A5)),
+            color = if (debt.status == DebtLifecycleStatus.ACTIVE) semanticColors.incomeBg else semanticColors.expenseBg,
+            border = BorderStroke(1.dp, if (debt.status == DebtLifecycleStatus.ACTIVE) semanticColors.incomeBorder else semanticColors.expenseBorder),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -309,7 +312,7 @@ private fun ActiveDebtDetailView(
                     modifier = Modifier
                         .size(6.dp)
                         .background(
-                            if (debt.status == DebtLifecycleStatus.ACTIVE) Color(0xFF16A34A) else Color(0xFFDC2626),
+                            if (debt.status == DebtLifecycleStatus.ACTIVE) semanticColors.incomeText else semanticColors.expenseText,
                             CircleShape,
                         ),
                 )
@@ -320,7 +323,7 @@ private fun ActiveDebtDetailView(
                         DebtLifecycleStatus.CANCELLED -> "Cancelada"
                     },
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (debt.status == DebtLifecycleStatus.ACTIVE) Color(0xFF16A34A) else Color(0xFFDC2626),
+                    color = if (debt.status == DebtLifecycleStatus.ACTIVE) semanticColors.incomeText else semanticColors.expenseText,
                 )
             }
         }
@@ -356,12 +359,12 @@ private fun ActiveDebtDetailView(
                 )
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFF1F5F9),
+                    color = themeColors.surfaceVariant,
                 ) {
                     Text(
                         "Moneda: ${debt.currencyCode}",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color(0xFF475569),
+                        color = themeColors.inkSecondary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -400,16 +403,16 @@ private fun ActiveDebtDetailView(
                         .height(6.dp)
                         .clip(RoundedCornerShape(999.dp)),
                     color = emeraldColors.primaryDeep,
-                    trackColor = Color(0xFFE2E8F0),
+                    trackColor = themeColors.border,
                 )
             }
 
             // Principal original row card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF8FAFC),
+                color = themeColors.surfaceSubtle,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                border = BorderStroke(1.dp, themeColors.border),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -423,7 +426,7 @@ private fun ActiveDebtDetailView(
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
-                                .background(Color(0xFFCCFBF1), RoundedCornerShape(8.dp)),
+                                .background(themeColors.primaryContainer, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -455,9 +458,9 @@ private fun ActiveDebtDetailView(
                 // Apertura Card
                 Surface(
                     modifier = Modifier.weight(1f),
-                    color = Color(0xFFF8FAFC),
+                    color = themeColors.surfaceSubtle,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, themeColors.border),
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -470,13 +473,13 @@ private fun ActiveDebtDetailView(
                             Icon(
                                 Icons.Rounded.CalendarMonth,
                                 contentDescription = null,
-                                tint = Color(0xFF64748B),
+                                tint = themeColors.inkSecondary,
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
                                 "Apertura",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                             )
                         }
                         Text(
@@ -487,7 +490,7 @@ private fun ActiveDebtDetailView(
                         Text(
                             if (debt.openingMode == DebtOpeningMode.HISTORICAL) "Apertura histórica" else "Registro contable",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (debt.openingMode == DebtOpeningMode.HISTORICAL) emeraldColors.primaryDeep else Color(0xFF94A3B8),
+                            color = if (debt.openingMode == DebtOpeningMode.HISTORICAL) emeraldColors.primaryDeep else themeColors.inkSecondary,
                         )
                     }
                 }
@@ -495,9 +498,9 @@ private fun ActiveDebtDetailView(
                 // Vencimiento Card
                 Surface(
                     modifier = Modifier.weight(1f),
-                    color = Color(0xFFF8FAFC),
+                    color = themeColors.surfaceSubtle,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, themeColors.border),
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -510,13 +513,13 @@ private fun ActiveDebtDetailView(
                             Icon(
                                 Icons.Rounded.Event,
                                 contentDescription = null,
-                                tint = Color(0xFF0F766E),
+                                tint = themeColors.primary,
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
                                 "Vencimiento",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                             )
                         }
                         val dueDate = debt.dueDate
@@ -528,9 +531,9 @@ private fun ActiveDebtDetailView(
                         if (dueDate != null) {
                             val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), dueDate)
                             val (dueText, dueColor) = when {
-                                daysUntil > 0 -> "Vence en $daysUntil días" to Color(0xFF16A34A)
-                                daysUntil == 0L -> "Vence hoy" to Color(0xFFD97706)
-                                else -> "Vencida hace ${-daysUntil} días" to Color(0xFFDC2626)
+                                daysUntil > 0 -> "Vence en $daysUntil días" to semanticColors.incomeText
+                                daysUntil == 0L -> "Vence hoy" to semanticColors.warningText
+                                else -> "Vencida hace ${-daysUntil} días" to semanticColors.expenseText
                             }
                             Text(
                                 dueText,
@@ -541,7 +544,7 @@ private fun ActiveDebtDetailView(
                             Text(
                                 "Sin vencimiento fijo",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF94A3B8),
+                                color = themeColors.inkSecondary,
                             )
                         }
                     }
@@ -613,7 +616,7 @@ private fun ActiveDebtDetailView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Rounded.Edit, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(18.dp))
+            Icon(Icons.Rounded.Edit, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(18.dp))
             Text("Editar datos", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
         }
     }
@@ -625,7 +628,7 @@ private fun ActiveDebtDetailView(
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, if (!hasFinancialHistory) emeraldColors.expenseBorder else emeraldColors.borderSubtle),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = if (!hasFinancialHistory) emeraldColors.expenseCoral else emeraldColors.secondaryMuted,
+            contentColor = if (!hasFinancialHistory) emeraldColors.expenseText else emeraldColors.secondaryMuted,
         ),
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
     ) {
@@ -642,8 +645,8 @@ private fun ActiveDebtDetailView(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = themeColors.surfaceSubtle,
+        border = BorderStroke(1.dp, themeColors.border),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -653,13 +656,13 @@ private fun ActiveDebtDetailView(
             Box(
                 modifier = Modifier
                     .size(28.dp)
-                    .background(Color(0xFFE0F2FE), CircleShape),
+                    .background(semanticColors.transferBg, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Rounded.Info,
                     contentDescription = null,
-                    tint = Color(0xFF0284C7),
+                    tint = semanticColors.transferBlue,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -667,12 +670,12 @@ private fun ActiveDebtDetailView(
                 Text(
                     "Trazabilidad contable",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF0F172A),
+                    color = themeColors.inkPrimary,
                 )
                 Text(
                     "El saldo pendiente, la apertura y cualquier movimiento se conservan como historial auditable para cumplimiento y control.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF475569),
+                    color = themeColors.inkSecondary,
                     lineHeight = 18.sp,
                 )
             }
@@ -768,7 +771,7 @@ private fun ActiveDebtDetailView(
                             Text(formatter.format(activity.interestMinor / 100.0), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         }
                         if (activity.isVoided) {
-                            Text("Anulado · saldo restaurado", color = emeraldColors.expenseCoral, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            Text("Anulado · saldo restaurado", color = emeraldColors.expenseText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -776,7 +779,7 @@ private fun ActiveDebtDetailView(
         }
     }
 
-    errorMessage?.let { Text(it, color = emeraldColors.expenseCoral, style = MaterialTheme.typography.bodyMedium) }
+    errorMessage?.let { Text(it, color = emeraldColors.expenseText, style = MaterialTheme.typography.bodyMedium) }
 }
 
 @Composable
@@ -789,6 +792,8 @@ private fun LiquidatedDebtSuccessView(
     certificateMessage: String?,
     onReturn: () -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
     val condonedMinor = activities.filter { it.eventType == "FORGIVENESS" && !it.isVoided }
         .sumOf { it.principalMinor }
@@ -810,13 +815,13 @@ private fun LiquidatedDebtSuccessView(
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(Color(0xFFDCFCE7), RoundedCornerShape(20.dp)),
+                    .background(semanticColors.incomeBg, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Rounded.Verified,
                     contentDescription = null,
-                    tint = Color(0xFF16A34A),
+                    tint = semanticColors.incomeText,
                     modifier = Modifier.size(40.dp),
                 )
             }
@@ -857,19 +862,19 @@ private fun LiquidatedDebtSuccessView(
 
             Surface(
                 shape = RoundedCornerShape(999.dp),
-                color = Color(0xFFDCFCE7),
-                border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+                color = semanticColors.incomeBg,
+                border = BorderStroke(1.dp, semanticColors.incomeBorder),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(16.dp))
                     Text(
                         "LIQUIDADA · AUDITADA",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF15803D),
+                        color = semanticColors.incomeText,
                     )
                 }
             }
@@ -879,11 +884,11 @@ private fun LiquidatedDebtSuccessView(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 4.dp),
             ) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
                 Text(
                     formatSpanishDateTime(LocalDate.now()),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                 )
             }
         }
@@ -912,21 +917,21 @@ private fun LiquidatedDebtSuccessView(
                     Icon(Icons.Rounded.ReceiptLong, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(20.dp))
                     Text("Resumen de Cierre", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                 }
-                Text("Acta contable", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                Text("Acta contable", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
             }
 
-            HorizontalDivider(color = Color(0xFFF1F5F9))
+            HorizontalDivider(color = themeColors.surfaceVariant)
 
             SettlementRow("Deudor / Referencia", debt.counterpartyName)
             SettlementRow("Principal original", formatter.format(debt.principalMinor / 100.0))
             SettlementRow("Total amortizado / pagado", formatter.format(amortizedMinor / 100.0))
 
             if (condonedMinor > 0L) {
-                SettlementRow("Total condonado", formatter.format(condonedMinor / 100.0), valueColor = Color(0xFFDC2626))
+                SettlementRow("Total condonado", formatter.format(condonedMinor / 100.0), valueColor = semanticColors.expenseText)
                 Text(
                     "Motivo: Acuerdo mutuo de condonación",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
@@ -936,7 +941,7 @@ private fun LiquidatedDebtSuccessView(
             // Highlighted row
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF0FDF4),
+                color = semanticColors.incomeBg,
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Row(
@@ -948,12 +953,12 @@ private fun LiquidatedDebtSuccessView(
                     Text(
                         formatter.format(0.0),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF16A34A),
+                        color = semanticColors.incomeText,
                     )
                 }
             }
 
-            HorizontalDivider(color = Color(0xFFE2E8F0))
+            HorizontalDivider(color = themeColors.border)
 
             // Metadata: Folio contable & Hash
             Row(
@@ -961,7 +966,7 @@ private fun LiquidatedDebtSuccessView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("FOLIO CONTABLE", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                Text("FOLIO CONTABLE", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                 Text(
                     "#KIPU-LIQ-2026-${debt.debtId.take(5).uppercase()}",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
@@ -973,11 +978,11 @@ private fun LiquidatedDebtSuccessView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("HASH DE VERIFICACIÓN", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                Text("HASH DE VERIFICACIÓN", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                 Text(
                     "SHA256: ${debt.debtId.hashCode().toUInt().toString(16).padStart(8, '0')}...b831",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                 )
             }
         }
@@ -987,8 +992,8 @@ private fun LiquidatedDebtSuccessView(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = themeColors.surfaceSubtle,
+        border = BorderStroke(1.dp, themeColors.border),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -998,21 +1003,21 @@ private fun LiquidatedDebtSuccessView(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(Color(0xFFE2E8F0), RoundedCornerShape(10.dp)),
+                    .background(themeColors.border, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.Lock, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(20.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Registro contable inmutable",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF0F172A),
+                    color = themeColors.inkPrimary,
                 )
                 Text(
                     "Este historial no se elimina para mantener la fidelidad tributaria y el balance patrimonial de Kipu.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF475569),
+                    color = themeColors.inkSecondary,
                     lineHeight = 18.sp,
                 )
             }
@@ -1023,22 +1028,22 @@ private fun LiquidatedDebtSuccessView(
     OutlinedButton(
         onClick = onDownloadPdf,
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+        border = BorderStroke(1.5.dp, themeColors.border),
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("debt-closure-certificate"),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = Color(0xFF334155), modifier = Modifier.size(20.dp))
-            Text("Descargar constancia de no adeudo (PDF)", color = Color(0xFF1E293B), fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = themeColors.inkPrimary, modifier = Modifier.size(20.dp))
+            Text("Descargar constancia de no adeudo (PDF)", color = themeColors.inkPrimary, fontWeight = FontWeight.SemiBold)
         }
     }
 
     certificateMessage?.let { message ->
         Text(
             message,
-            color = if (message.startsWith("Constancia")) emeraldColors.incomeEmerald else emeraldColors.expenseCoral,
+            color = if (message.startsWith("Constancia")) emeraldColors.incomeText else emeraldColors.expenseText,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -1063,12 +1068,13 @@ private fun LiquidatedDebtSuccessView(
 
 @Composable
 private fun SettlementRow(label: String, value: String, valueColor: Color = Color.Unspecified) {
+    val themeColors = rememberKipuColors()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+        Text(label, style = MaterialTheme.typography.bodySmall, color = themeColors.inkSecondary)
         Text(
             value,
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),

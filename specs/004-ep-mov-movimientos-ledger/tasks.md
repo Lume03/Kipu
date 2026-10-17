@@ -340,3 +340,40 @@ El responsable acepta el resumen/retirada de filtros aplicados y el comportamien
 - [x] T116 Mejorar el selector de referencias con lista perezosa acotada, búsqueda, resumen por nombres y retirada de referencias históricas ausentes del catálogo visible, conservando IDs y selección al buscar (FR-034; criterios 2/3).
 - [x] T117 Verificar T115/T116 en JVM y dispositivo mediante fixtures sintéticos: listas extensas, cancelación, restauración, cambio de propietario/acceso, privacidad, teclado, pantalla reducida y temas; adjuntar comparación visual y registrar comandos/resultados reales (criterios 4/7/8).
 - [x] T118 Realizar commits del alcance, subir `feat/movimientos-filtros-ux` y abrir PR con `Closes #19`, sin merge; excluir carpeta local `Borrar-NoSubir` y configuración privada (depende de T117). Entrega vigente autorizada tras la limpieza: [PR #31](https://github.com/LeonidasGarcia/Kipu/pull/31); PR #30 cerrado sin merge.
+
+## Issue #39 — Tema oscuro y auditoría de presentación (2026-10-13)
+
+Corrección autorizada en `fix/dark-mode-filters-theme-audit`; detalle en `docs/audits/issue-39-dark-theme-plan.md`. Mantener FR-034/039 y SC-014–017, sin modificar procedencia canónica ni cerrar T110.
+
+- [x] T119 Inventariar superficies reales y clasificar colores, con base sintética `f8e7ea3` y excepciones de marcas/colores personalizados documentadas (I39-01–03).
+- [x] T120 Corregir roles compartidos y tematizar filtros, calendario, upsell y selector de referencias; conservar borrador, validaciones y acceso (I39-04–08).
+- [x] T121 Auditar cuentas, registro/editor/historial, categorías/comercios, instrumentos/tasas, deudas, ajustes/acceso/planes/notificaciones y corregir presentación (I39-09–14; metas/presupuestos no aplicables).
+- [ ] T122 Agregar previews claro/oscuro de los componentes reales intervenidos y cubrir contraste/tema efectivo/cambio con borrador abierto (I39-15–17). Hay previews de contenido real de los editores de presentación de categoría y clasificación de movimiento con estado/callbacks de muestra; `UnifiedInstrumentFormScreen` aún carece de preview de pantalla completa por su flujo multietapa acoplado al `AccountsViewModel`.
+- [ ] T123 Repetir build/JVM/lint y regresiones instrumentadas sobre la integración de `origin/main`; volver a capturar las superficies que cambiaron y registrar contexto compacto/teclado/texto ampliado (I39-18–20). Evidencia parcial en `836415cd04aa657731c71ad1bcdc7bba016ae80f`: 3 tests de `DashboardEmptyStatePolicyTest` pasaron y `compileDebugAndroidTestKotlin` compiló; no se ejecutaron AndroidTest ni capturas y falta la matriz completa.
+- [x] T124 Registrar auditoría, resultados por método, imágenes sintéticas y trazabilidad; preparar entrega revisable (I39-21).
+- [ ] T125 Obtener revisión independiente y aceptación visual humana, resolver hallazgos y verificar criterios finales antes de cerrar #39 (I39-22; depende de T124).
+
+Estado actualizado el 2026-10-17 sobre el código `836415cd04aa657731c71ad1bcdc7bba016ae80f`: T122 sigue abierta por cobertura de previews parcial/no renderizada; T123 sigue abierta porque solo pasaron 3 tests JVM dirigidos y compiló AndroidTest, sin ejecución instrumentada, capturas, lint ni matriz completa. T125 sigue abierta: no hay aprobación de aceptación visual humana ni cierre de #39. TalkBack hablado y runtime API 24 no se atribuyen. T110 y las tareas de otras épicas conservan su estado previo.
+
+Actualización posterior al integrar `main` tras los merges de PR #51, #52 y #56: en el head `4f0e461` pasaron Android CI, `:app:lintDebug`, `:app:assembleLab` y 7 tests de `DashboardEmptyStateTest` en Pixel 10 AVD/API 37. La suite instrumentada completa ejecutó 348 tests y reportó 17 fallos. Se reprodujeron cuatro en la base integrada `e440bc1` (migración de pasivos, compensación de pago, worker de sincronización de instrumentos y shimmer de compra). El test de avatar tenía un gasto de prueba sin categoría; el fixture se corrigió en `5442aa4` y el test aislado pasó. Los otros 12 fallos no se reprodujeron individualmente en la base; la suite completa no queda verde. T122 continúa abierta por la preview de pantalla completa pendiente de `UnifiedInstrumentFormScreen` y cobertura parcial de componentes. T123 continúa abierta por la matriz instrumentada completa y las capturas actuales de teclado/IME y tamaño de texto. T125 continúa abierta hasta revisión y aceptación visual humana. TalkBack hablado y runtime API 24 no se ejecutaron.
+
+### Revalidación posterior de viewport compacto (2026-10-17)
+
+En la revisión local derivada del head `d57de66` se adaptaron la moneda, los campos de importe y las acciones inferiores para ancho menor a 380 dp o fuente desde ×1,3. El caso compacto ahora apila campos/acciones cuando hace falta y confirma que PEN, USD, mínimo, máximo, Limpiar y Aplicar siguen accesibles.
+
+Validación actual: `:app:testDebugUnitTest` pasó 526 tests; `:app:compileDebugKotlin`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug` y `:app:assembleLab` terminaron correctamente. En Pixel 10 AVD/API 37, `KipuThemeContrastTest` + `ThemeScreenEvidenceTest` pasaron 4 tests y `MovementFiltersIssue19Test` pasó 10. Se generaron capturas actuales de superficies claro/oscuro y una captura de importe a ancho aproximado 320 dp/fuente ×1,6 en `docs/audits/evidence/issue-39/integrated-head-2026-10-17/`.
+
+La prueba compacta captura el árbol Compose después de entrada de texto; no demuestra visualmente el teclado IME del sistema. La suite instrumentada completa de 348 pruebas/17 fallos no se repitió después de este cambio. Por tanto T123 continúa abierta. T122 continúa abierta por cobertura parcial de previews, incluida la falta de preview de pantalla completa para `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta revisión independiente y aceptación visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.
+
+### Revalidacion del footer compacto (2026-10-17)
+
+Se cambio el area desplazable de filtros a `weight(1f)` para que ocupe el espacio disponible antes del footer, se anadio 12 dp de separacion en disposicion compacta y el test verifica un margen minimo de 8 dp para el campo Maximo. La prueba dirigida `MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible` paso 1/1 en Pixel 10 AVD/API 37 y se regenero la captura integrada actual.
+
+T123 sigue abierta: no se capturo el IME real ni se repitio la suite instrumentada completa. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`; T125 sigue abierta hasta la aceptacion visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.
+
+
+### Revalidación de suite completa y comparación con base (2026-10-17)
+
+En `docs/audits/evidence/issue-39/integrated-head-2026-10-17/full-suite-revalidation.md` se registró la ejecución de `:app:connectedDebugAndroidTest` en `fe6de0b`: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas del alcance de tema/filtros/evidencia pasaron. Los 12 fallos antes no atribuidos se repitieron individualmente sobre `origin/main` (`e440bc1`) y fallaron también; los otros cuatro ya tenían reproducción en esa base. No se identificaron regresiones nuevas atribuibles a #55.
+
+T123 sigue abierta: falta una captura del IME real y la suite global continúa con fallos reproducibles en la base. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta aceptación visual humana; no se cierra #39.

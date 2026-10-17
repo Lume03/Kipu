@@ -114,7 +114,7 @@ fun VoidMovementDialog(
                 Icon(
                     imageVector = Icons.Rounded.WarningAmber,
                     contentDescription = null,
-                    tint = emeraldColors.expenseCoral,
+                    tint = emeraldColors.expenseText,
                     modifier = Modifier.size(28.dp),
                 )
             }
@@ -193,8 +193,8 @@ fun VoidMovementDialog(
                             currencySymbol = currencySymbol,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = when (tx.type) {
-                                MovementType.EXPENSE -> emeraldColors.expenseCoral
-                                MovementType.INCOME -> emeraldColors.incomeEmerald
+                                MovementType.EXPENSE -> emeraldColors.expenseText
+                                MovementType.INCOME -> emeraldColors.incomeText
                                 MovementType.TRANSFER -> emeraldColors.primaryDeep
                             },
                         )
@@ -219,13 +219,13 @@ fun VoidMovementDialog(
                             Icon(
                                 imageVector = Icons.Rounded.WarningAmber,
                                 contentDescription = null,
-                                tint = emeraldColors.expenseCoral,
+                                tint = emeraldColors.expenseText,
                                 modifier = Modifier.size(24.dp),
                             )
                             Text(
                                 text = stringResource(R.string.movement_void_specialized_warning),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                                 modifier = Modifier.testTag("text_void_specialized_warning"),
                             )
                         }
@@ -303,7 +303,7 @@ fun VoidMovementDialog(
                         Text(
                             text = errorMessage.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = emeraldColors.expenseCoral,
+                            color = emeraldColors.expenseText,
                             modifier = Modifier
                                 .padding(10.dp)
                                 .testTag("text_void_error"),
@@ -321,8 +321,8 @@ fun VoidMovementDialog(
                     enabled = !isVoiding,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = KipuExpense,
-                        contentColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
                     ),
                     modifier = Modifier
                         .heightIn(min = 48.dp)
@@ -333,7 +333,7 @@ fun VoidMovementDialog(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onError,
                         )
                     } else {
                         Row(
@@ -510,7 +510,7 @@ private fun BalanceImpactRow(
                         currencySymbol = currencySymbol,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
-                        color = emeraldColors.incomeEmerald,
+                        color = emeraldColors.incomeText,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }

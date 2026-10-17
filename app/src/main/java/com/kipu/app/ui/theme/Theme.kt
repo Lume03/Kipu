@@ -98,6 +98,7 @@ fun KipuTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    KipuSystemBars(darkTheme)
     ProvideReducedMotion {
         KipuThemeContent(darkTheme, content)
     }

@@ -1,5 +1,8 @@
 package com.kipu.app.ui.component
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,6 +38,7 @@ fun KipuBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         shape = shape,
@@ -42,6 +46,7 @@ fun KipuBottomSheet(
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         modifier = modifier.imePadding(),
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()

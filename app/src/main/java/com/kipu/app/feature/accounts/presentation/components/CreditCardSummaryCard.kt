@@ -75,9 +75,9 @@ fun CreditCardSummaryCard(
     val progressColorTarget = if (isMasked) {
         emeraldColors.secondaryMuted
     } else when {
-        utilization >= 80.0 -> emeraldColors.expenseCoral
-        utilization >= 50.0 -> emeraldColors.warningAmber
-        else -> emeraldColors.incomeEmerald
+        utilization >= 80.0 -> emeraldColors.expenseText
+        utilization >= 50.0 -> emeraldColors.warningText
+        else -> emeraldColors.incomeText
     }
     val progressColor = animateColorAsState(
         targetValue = progressColorTarget,
@@ -117,7 +117,7 @@ fun CreditCardSummaryCard(
             "Sobreutilizada",
             emeraldColors.expenseBg,
             emeraldColors.expenseBorder,
-            emeraldColors.expenseCoral,
+            emeraldColors.expenseText,
         )
         utilization >= 80.0 -> Quadruple(
             "Uso alto",
@@ -135,7 +135,7 @@ fun CreditCardSummaryCard(
             "En uso normal",
             emeraldColors.incomeBg,
             emeraldColors.incomeBorder,
-            emeraldColors.incomeEmerald,
+            emeraldColors.incomeText,
         )
     }
     val animatedStatusBg = animateColorAsState(
@@ -321,7 +321,7 @@ fun CreditCardSummaryCard(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                 ),
-                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseCoral else emeraldColors.primaryText,
+                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseText else emeraldColors.primaryText,
                             )
                         }
 
@@ -360,7 +360,7 @@ fun CreditCardSummaryCard(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                 ),
-                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseCoral else emeraldColors.primaryText,
+                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseText else emeraldColors.primaryText,
                             )
                         }
 
@@ -451,7 +451,7 @@ fun CreditCardSummaryCard(
                         Icon(
                             imageVector = Icons.Rounded.CalendarToday,
                             contentDescription = null,
-                            tint = emeraldColors.incomeEmerald,
+                            tint = emeraldColors.incomeText,
                             modifier = Modifier.size(15.dp),
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -485,7 +485,7 @@ fun CreditCardSummaryCard(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                             ),
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         )
                     }

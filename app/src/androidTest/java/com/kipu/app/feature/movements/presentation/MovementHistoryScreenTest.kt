@@ -54,6 +54,7 @@ class MovementHistoryScreenTest {
                 amountMinor = 1_500L,
                 currency = "PEN",
                 sourceAccountId = "account-1",
+                categoryId = "category-1",
                 occurredAt = 1_758_000_000_000L,
             ),
             merchantName = "Restaurante Central",

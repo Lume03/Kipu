@@ -1,0 +1,351 @@
+{
+  "baseline": "f8e7ea3",
+  "device": "23129RA5FL",
+  "api": 35,
+  "tests": {
+    "com.kipu.app.ui.theme.KipuThemeContrastTest#effectiveAppThemeWinsOverSystemAndUsedColorPairsRemainReadable": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    },
+    "com.kipu.app.ui.theme.KipuThemeContrastTest#customCategoryAndBrandSurfacesGetReadableForegrounds": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementThemeRegressionTest#openFilterSheetUpdatesItsSurfacesAndPreservesDraftAcrossThemeChanges": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    },
+    "com.kipu.app.ui.theme.ThemeScreenEvidenceTest#captureCorrectedScreensInBothThemes": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#thousandReferencesAreLazyAndSelectionSurvivesSearchAndRemoval": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#emptyCatalogHasDifferentMessageFromUnmatchedSearch": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#dateErrorsAreNextToDateControlAndPresetCorrectsDraftOnly": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#errorsStayBesideAmountsAndCurrencyAndRefreshWithoutApplying": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#ownerChangeDiscardsPreviousDraftAndOpenSelector": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#lossOfAccessClosesSelectorAndDisablesReopening": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#freeDateApplyPreservesParkedAdvancedCriteria": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#duplicateNamesKeepDistinctIdsAndMissingReferenceCanBeRemoved": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test#maskedAmountErrorsDoNotExposeValues": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#voidedDetailIsReadableAndOffersNoFinancialActions": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#filterDraftSurvivesUiRestorationWithoutApplyingOrGrantingAccess": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#editorAndConflictNeverExposeMaskedAmountsInSemantics": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#expandedTextHistoryKeepsAmountsReadableAndProducesVisualEvidence": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#animatedFeedbackKeepsOutgoingAndIncomingContentIdentity": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#closingFilterDraftDoesNotApplyIt": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#beforeAfterAmountsAreMasked": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#detailAmountIsAbsentFromMaskedSemantics": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#historyRouteOpensVoidedDetailAndRendersLightAndDarkRecovery": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#reducedMotionFeedbackReplacesItsStateImmediately": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementUxRefinementTest#voidConfirmationAmountIsMasked": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#onlyNoteChangedShowsSpecificSummary": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#specializedMovementShowsWarningAndDisablesSave": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#conflictWhenOfficialIsVoidedBlocksRedo": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#conflictStateShowsOfficialVsProposedComparisonAndActions": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#discardConfirmationDialogShowsWhenUnsavedChanges": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementEditorScreenTest#editorDisplaysStandardFieldsAndChangeSummary": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.QuickMovementScreenTest#eachMovementTabHasAnAccessibleClickTarget": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.QuickMovementScreenTest#typeTabsShowConditionalFieldsAndAccessibleSaveAction": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#voidMovementDialogTransferShowsConsequencesForBothAccounts": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#voidMovementDialogStandardExpenseShowsConsequencesAndConfirms": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#cardPaymentHistoryUsesExplicitTitleAndAccountToCardSubtitle": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#activeTransactionShowsEditAndVoidActionsAndNeverShowsDelete": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#voidedTransactionDisplaysVoidedBadgeAndOpensReadOnlyDetail": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#emptyMovementsStateWithoutFiltersShowsDefaultEmptyAndNoClearButton": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#filterSheetResetOnlyChangesDraftUntilApply": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#voidMovementDialogSpecializedDisablesVoidAndWarns": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementHistoryScreenTest#emptyMovementsStateWithActiveFiltersShowsClearActionAndInvokesCallback": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#displaysHierarchyWithRootAndSubcategories": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#rendersCleanlyUnder200PercentTextScaling": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#customIconAndColorStayVisibleAsSelectedAndSubcategoryUsesCategoryConcepts": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#displaysQuotaBannerAndLimitReachedWarning": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#expenseAndIncomeTabsShowMatchingRootsAndGeneralCategories": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#displaysDisabledStateWhenRootIsInactive": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.categories.presentation.CategoriesScreenTest#editButtonsAlignWithRootAndSubcategoryNames": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.settings.presentation.PermissionsScreenTest#screen_displays_guarantee_banner_and_permission_cards": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.settings.presentation.PermissionsScreenTest#clicking_explanation_opens_rationale_dialog": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#savesAliasAndPresentationWithoutChangingOpeningBalance": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#legacySavingsWalletPresetDisplaysAndSavesAsOther": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#savingsAccountShowsOnlyBankPresets": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#archivedInstrumentCanBeReactivatedAfterConfirmationAndBackWorks": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#openingBalanceChangesOnlyAfterExplicitAuditedCorrectionConfirmation": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#archiveRequiresConfirmationAndExplainsHistoryIsRetained": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest#cashAccountDoesNotShowAnInstitutionSelectorAndNormalizesItsPreset": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.CreditAccessibilitySemanticsTest#paymentAmortizationDialogExposesSourceAndAmountControls": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.CreditAccessibilitySemanticsTest#paymentFailureRestoresConfirmActionAndAllowsRetry": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.CreditAccessibilitySemanticsTest#simulatedPhysicalCardExposesOneDescriptiveAccessibilityNode": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.presentation.CreditAccessibilitySemanticsTest#installmentPreviewExposesSelectorAndConfirmationActions": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.RateCatalogPersistenceTest#interbankAmexSelectionSurvivesReopenWithoutInventingUnpublishedRates": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.RateCatalogPersistenceTest#updatingOnePersonalTeaPreservesOtherCardAndCatalogAfterReopen": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.accounts.RateCatalogPersistenceTest#bcpAmexSelectionSurvivesDatabaseReopenWithUsdReference": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.movements.presentation.MovementFilterVisualEvidenceTest#captureFiltersWithSyntheticReferences": {
+      "status": 0,
+      "log": "instrumentation-after-false-793b0202d1.log"
+    },
+    "com.kipu.app.feature.debts.data.DebtReminderSchedulerTest#replanReplacesUniqueWorkForTheSameInstallmentAndDueDateChange": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.data.DebtReminderSchedulerTest#retryWithTheSameReminderIdentityKeepsOnlyOnePendingWork": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.data.DebtReminderSchedulerTest#disabledNotificationPermissionCancelsPendingReminderWithoutChangingTheDebt": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtScheduleAndClosureFlowTest#cancelledDebtKeepsItsBalanceVisibleAndIsNotPresentedAsPaid": {
+      "status": 0,
+      "log": "instrumentation-after-true-1eb020747e.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtScheduleAndClosureFlowTest#scheduledInstallmentIsClearlyNotAPaymentAndReminderOpensItsDebt": {
+      "status": 0,
+      "log": "instrumentation-after-true-1eb020747e.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#payableSheetKeepsPrincipalAndInterestSeparateWhenSubmitting": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#debtDetailShowsAdjustmentsAndForgivenessAsSeparateHistoryActions": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#debtListDistinguishesPlannedInstallmentFromCompletedPayment": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#debtDetailShowsPrincipalAndInterestWithDifferentFinancialEffects": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#principalAboveRemainingShowsErrorAndBlocksSubmission": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#debtDetailShowsInstallmentPlanSeparateFromPayments": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.DebtSettlementFlowTest#staleCommandConflictIsShownWithoutAllowingResubmission": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.PayableDebtFlowTest#dueDateFieldRetainsInputAndParsesACompleteDate": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.PayableDebtFlowTest#payableFormExplainsNewAndHistoricalOpeningAndSubmitsTheSelectedBasis": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.PayableDebtFlowTest#debtDetailAllowsDescriptionEditButBlocksDeletionWhenHistoryExists": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.PayableDebtFlowTest#debtWithoutFinancialHistoryRequiresConfirmationBeforeDeletion": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.feature.debts.presentation.ReceivableDebtFlowTest#newLoanRequiresAnActiveAccountInTheSelectedCurrency": {
+      "status": 0,
+      "log": "instrumentation-after-true-dd4fc9947d.log"
+    },
+    "com.kipu.app.ui.theme.KipuThemeContrastTest#modalWindowUsesEffectiveAppThemeForItsNativeBars": {
+      "status": 0,
+      "log": "instrumentation-after-true-b3020bec8c.log"
+    }
+  },
+  "passed": 84,
+  "failed": 0,
+  "jvm": {
+    "tests": 521,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}
