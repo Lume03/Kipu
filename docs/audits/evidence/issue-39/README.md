@@ -2,6 +2,30 @@
 
 Evidencia histórica generada el 2026-10-13, America/Lima. Base anterior: `f8e7ea3`. Las capturas y resultados detallados abajo corresponden a `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` (`d5667ab`) el 2026-10-17. No se deben atribuir al código integrado actual. [Issue](https://github.com/Lume03/Kipu/issues/39), [plan](../../issue-39-dark-theme-plan.md), [auditoría y excepciones](../../issue-39-dark-theme-audit.md).
 
+## Revalidación actual de la integración (2026-10-17)
+
+Esta evidencia se generó sobre la rama de #55 después de integrar #51, #52 y #56 y de adaptar filtros/acciones para viewport compacto y texto ampliado. Las capturas nuevas están en [`integrated-head-2026-10-17/`](integrated-head-2026-10-17/); incluyen filtros y superficies en ambos temas, dos estados compactos y el informe de contraste. Los PNG se guardaron sin edición.
+
+| Estado | Evidencia actual |
+|---|---|
+| Filtros Free claro/oscuro | [Claro](integrated-head-2026-10-17/after-free-filters-light.png) · [Oscuro](integrated-head-2026-10-17/after-free-filters-dark.png) |
+| Filtros, viewport compacto y fuente ×1,6 | [Importe y acciones](integrated-head-2026-10-17/after-compact-large-text-dark.png) |
+| Calendario en viewport compacto | [Entrada manual](integrated-head-2026-10-17/after-compact-calendar-input-dark.png) |
+| Selector de cuenta claro/oscuro | [Claro](integrated-head-2026-10-17/after-account-selector-light.png) · [Oscuro](integrated-head-2026-10-17/after-account-selector-dark.png) |
+| Contraste de roles medidos | [contrast.json](integrated-head-2026-10-17/contrast.json) |
+
+Validación sobre el código actual:
+
+- `:app:testDebugUnitTest`: **526 tests, 0 fallos, 0 errores, 0 omitidos**.
+- `:app:compileDebugKotlin` y `:app:compileDebugAndroidTestKotlin`: **BUILD SUCCESSFUL**.
+- `KipuThemeContrastTest` + `ThemeScreenEvidenceTest`: **4 tests, 0 fallos**.
+- `MovementFiltersIssue19Test`: **10 tests, 0 fallos**. El caso compacto comprueba PEN/USD, ambos importes y las dos acciones con ancho aproximado de 320 dp y fuente ×1,6.
+- `:app:lintDebug` y `:app:assembleLab`: **BUILD SUCCESSFUL**, sin errores de lint.
+
+Dispositivo de las capturas de superficie: Pixel 10 AVD, Android 17/API 37, 1080×2424, 420 dpi. El caso compacto usa un `ContextThemeWrapper` con configuración local; no cambia la configuración global del emulador. La captura compacta muestra el contenido Compose después de introducir el importe; no contiene una captura del teclado IME del sistema. Por eso no se afirma que el IME haya sido revisado visualmente.
+
+La suite instrumentada completa anterior ejecutó 348 pruebas y tuvo 17 fallos; cuatro se reprodujeron en la base integrada y doce aún no se atribuyeron individualmente. No se repitió esa suite completa después del ajuste compacto. La cobertura de previews sigue parcial por `UnifiedInstrumentFormScreen`, y falta aceptación visual humana de esta integración. T122, T123 y T125 permanecen abiertas; TalkBack hablado y runtime API 24 no se ejecutaron.
+
 ## Revalidación dirigida del código integrado
 
 Código de aplicación validado: `836415cd04aa657731c71ad1bcdc7bba016ae80f` (basado en la integración que partía de `1346ed965f5d4c810ad717fa67984259062b05a0`; base `origin/main` `d5667abdf66d85a32fae43d10de8233381e84051`). La corrección elimina el bloque de cupo y la navegación a Planes del dashboard vacío. Los accesos del dashboard activo y del flujo de introducción de instrumentos se conservan.

@@ -82,6 +82,8 @@ private fun MovementFiltersSheetContent(
 ) {
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
+    val compactLayout = LocalConfiguration.current.screenWidthDp < 380 ||
+        LocalConfiguration.current.fontScale >= 1.3f
     var draft by rememberSaveable(state.ownerId, stateSaver = MovementFilterDraftSaver) {
         mutableStateOf(
             MovementFilterDraft.fromApplied(
@@ -941,12 +943,13 @@ private fun MovementFiltersSheetContent(
                 .navigationBarsPadding()
                 .imePadding()
         ) {
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
+                maxItemsInEachRow = if (compactLayout) 1 else 2,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
                     onClick = {
@@ -957,7 +960,9 @@ private fun MovementFiltersSheetContent(
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, themeColors.border),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = themeColors.inkSecondary),
-                    modifier = Modifier.weight(0.32f).height(48.dp).testTag("btn_reset_advanced_filters")
+                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.32f))
+                        .heightIn(min = 48.dp)
+                        .testTag("btn_reset_advanced_filters")
                 ) {
                     Text("Limpiar", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 }
@@ -1002,13 +1007,21 @@ private fun MovementFiltersSheetContent(
                         disabledContainerColor = themeColors.border,
                         disabledContentColor = themeColors.inkSecondary,
                     ),
-                    modifier = Modifier.weight(0.68f).height(48.dp).testTag("btn_apply_filters")
+                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.68f))
+                        .heightIn(min = 48.dp)
+                        .testTag("btn_apply_filters")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(ctaText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            text = ctaText,
+                            modifier = if (compactLayout) Modifier.weight(1f) else Modifier,
+                            textAlign = if (compactLayout) TextAlign.Center else TextAlign.Start,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
                         Spacer(Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.ArrowForward,
@@ -1289,6 +1302,43 @@ private fun LockedAdvancedRow(
     }
 }
 
+/** Shared amount field for the compact and regular filter layouts. */
+@Composable
+private fun FilterAmountInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    label: String,
+    error: FilterDraftError?,
+    field: String,
+    testTag: String,
+    hiddenDescription: String,
+    modifier: Modifier,
+) {
+    val themeColors = rememberKipuColors()
+    val isMasked = LocalBalanceMasked.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        visualTransformation = if (isMasked) PasswordVisualTransformation() else VisualTransformation.None,
+        supportingText = if (error != null) {
+            { FilterFieldError(field, error) }
+        } else null,
+        isError = error != null,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = themeColors.primary,
+            unfocusedBorderColor = themeColors.outline,
+        ),
+        shape = RoundedCornerShape(10.dp),
+        modifier = modifier
+            .testTag(testTag)
+            .privateAmount(isMasked, enabled, hiddenDescription, onValueChange),
+    )
+}
+
 /** Controls for Unlocked / Pro Plan filters */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1303,6 +1353,8 @@ private fun AdvancedFiltersControls(
     merchants: List<MovementReferenceOption>,
 ) {
     val themeColors = rememberKipuColors()
+    val compactLayout = LocalConfiguration.current.screenWidthDp < 380 ||
+        LocalConfiguration.current.fontScale >= 1.3f
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Cuentas
         ReferenceSelector(
@@ -1373,16 +1425,22 @@ private fun AdvancedFiltersControls(
                 }
 
                 // Currency selector
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Moneda:", style = MaterialTheme.typography.labelMedium, color = themeColors.inkSecondary)
+                    Text(
+                        "Moneda:",
+                        modifier = if (compactLayout) Modifier.fillMaxWidth() else Modifier,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = themeColors.inkSecondary,
+                    )
                     listOf("PEN", "USD").forEach { currency ->
                         KipuFilterChip(
                             selected = draft.currency == currency,
                             enabled = allowed,
                             onClick = { onDraftChange(draft.copy(currency = currency)) },
+                            modifier = Modifier.widthIn(min = 80.dp),
                             label = { Text(currency) }
                         )
                     }
@@ -1390,49 +1448,59 @@ private fun AdvancedFiltersControls(
                 FilterFieldError("currency", errors["currency"])
 
                 // Min and Max Amount Input Fields
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = draft.minAmount,
-                        onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
-                        enabled = allowed,
-                        label = { Text(stringResource(R.string.movements_filter_min_amount)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        visualTransformation = if (LocalBalanceMasked.current) PasswordVisualTransformation() else VisualTransformation.None,
-                        supportingText = if (errors.containsKey("min")) { { FilterFieldError("min", errors["min"]) } } else null,
-                        isError = errors.containsKey("min"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = themeColors.primary,
-                            unfocusedBorderColor = themeColors.outline
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_filter_min_amount")
-                            .privateAmount(LocalBalanceMasked.current, allowed, "Importe mínimo oculto") { onDraftChange(draft.copy(minAmount = it)) }
-                    )
-
-                    OutlinedTextField(
-                        value = draft.maxAmount,
-                        onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
-                        enabled = allowed,
-                        label = { Text(stringResource(R.string.movements_filter_max_amount)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        visualTransformation = if (LocalBalanceMasked.current) PasswordVisualTransformation() else VisualTransformation.None,
-                        supportingText = if (errors.containsKey("max")) { { FilterFieldError("max", errors["max"]) } } else null,
-                        isError = errors.containsKey("max"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = themeColors.primary,
-                            unfocusedBorderColor = themeColors.outline
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_filter_max_amount")
-                            .privateAmount(LocalBalanceMasked.current, allowed, "Importe máximo oculto") { onDraftChange(draft.copy(maxAmount = it)) }
-                    )
+                if (compactLayout) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        FilterAmountInput(
+                            value = draft.minAmount,
+                            onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_min_amount),
+                            error = errors["min"],
+                            field = "min",
+                            testTag = "input_filter_min_amount",
+                            hiddenDescription = "Importe mínimo oculto",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FilterAmountInput(
+                            value = draft.maxAmount,
+                            onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_max_amount),
+                            error = errors["max"],
+                            field = "max",
+                            testTag = "input_filter_max_amount",
+                            hiddenDescription = "Importe máximo oculto",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        FilterAmountInput(
+                            value = draft.minAmount,
+                            onValueChange = { onDraftChange(draft.copy(minAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_min_amount),
+                            error = errors["min"],
+                            field = "min",
+                            testTag = "input_filter_min_amount",
+                            hiddenDescription = "Importe mínimo oculto",
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterAmountInput(
+                            value = draft.maxAmount,
+                            onValueChange = { onDraftChange(draft.copy(maxAmount = it)) },
+                            enabled = allowed,
+                            label = stringResource(R.string.movements_filter_max_amount),
+                            error = errors["max"],
+                            field = "max",
+                            testTag = "input_filter_max_amount",
+                            hiddenDescription = "Importe máximo oculto",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }

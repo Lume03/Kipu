@@ -92,7 +92,11 @@ class ThemeScreenEvidenceTest {
             }
         }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = File(context.getExternalFilesDir(null), "issue-39").apply { mkdirs() }
+        val evidenceRoot = context.getExternalFilesDir(null) ?: context.filesDir
+        val directory = File(evidenceRoot, "issue-39").apply {
+            check(mkdirs() || isDirectory) { "Could not create issue-39 evidence directory: $absolutePath" }
+        }
+        android.util.Log.i("ThemeScreenEvidence", "package=${context.packageName} evidenceDir=${directory.absolutePath}")
         for (name in listOf("accounts", "account-selector", "debts", "debt-detail", "schedule", "settlement", "rates", "categories-permissions", "editor", "color-picker", "icon-picker", "movement-detail", "installments", "free-filters")) {
             for (night in listOf(false, true)) {
                 compose.runOnIdle { screen.value = name; dark.value = night }
@@ -116,16 +120,20 @@ class ThemeScreenEvidenceTest {
                 }.toSet()
                 assertTrue("$name dark=$night must capture content, not just the backdrop", sampledColors.size > 3)
                 val image = captured.asAndroidBitmap()
-                File(directory, "after-$name-${if (night) "dark" else "light"}.png").outputStream().use {
+                val output = File(directory, "after-$name-${if (night) "dark" else "light"}.png")
+                output.outputStream().use {
                     image.compress(Bitmap.CompressFormat.PNG, 100, it)
                 }
+                assertTrue("${output.name} must be written", output.isFile && output.length() > 0)
                 if (name == "free-filters") {
                     compose.onNodeWithText("Cuenta").performScrollTo().performClick()
                     compose.waitForIdle()
                     val upsell = compose.onNodeWithTag("dialog_movement_filter_pro_upsell").captureToImage().asAndroidBitmap()
-                    File(directory, "after-upsell-${if (night) "dark" else "light"}.png").outputStream().use {
+                    val upsellOutput = File(directory, "after-upsell-${if (night) "dark" else "light"}.png")
+                    upsellOutput.outputStream().use {
                         upsell.compress(Bitmap.CompressFormat.PNG, 100, it)
                     }
+                    assertTrue("${upsellOutput.name} must be written", upsellOutput.isFile && upsellOutput.length() > 0)
                     compose.onNodeWithContentDescription("Cerrar").performClick()
                 }
             }

@@ -1,0 +1,198 @@
+[
+  {
+    "name": "surface text",
+    "dark": false,
+    "foreground": "#FF0F172A",
+    "background": "#FFFFFFFF",
+    "ratio": 17.8525333404541
+  },
+  {
+    "name": "secondary text",
+    "dark": false,
+    "foreground": "#FF475569",
+    "background": "#FFFFFFFF",
+    "ratio": 7.577663421630859
+  },
+  {
+    "name": "container text",
+    "dark": false,
+    "foreground": "#FF475569",
+    "background": "#FFF1F5F9",
+    "ratio": 6.916974067687988
+  },
+  {
+    "name": "primary action",
+    "dark": false,
+    "foreground": "#FFFFFFFF",
+    "background": "#FF0F766E",
+    "ratio": 5.473249912261963
+  },
+  {
+    "name": "selected chip",
+    "dark": false,
+    "foreground": "#FF134E4A",
+    "background": "#FFCCFBF1",
+    "ratio": 8.40873908996582
+  },
+  {
+    "name": "selected reference",
+    "dark": false,
+    "foreground": "#FF0F766E",
+    "background": "#FFF0FDF4",
+    "ratio": 5.228646755218506
+  },
+  {
+    "name": "positive badge",
+    "dark": false,
+    "foreground": "#FF14532D",
+    "background": "#FFDCFCE7",
+    "ratio": 8.295746803283691
+  },
+  {
+    "name": "income",
+    "dark": false,
+    "foreground": "#FF166534",
+    "background": "#FFF0FDF4",
+    "ratio": 6.811651229858398
+  },
+  {
+    "name": "expense",
+    "dark": false,
+    "foreground": "#FFB91C1C",
+    "background": "#FFFEF2F2",
+    "ratio": 5.914600372314453
+  },
+  {
+    "name": "transfer",
+    "dark": false,
+    "foreground": "#FF2563EB",
+    "background": "#FFEFF6FF",
+    "ratio": 4.749275207519531
+  },
+  {
+    "name": "warning",
+    "dark": false,
+    "foreground": "#FF92400E",
+    "background": "#FFFEF3C7",
+    "ratio": 6.367237091064453
+  },
+  {
+    "name": "income on card",
+    "dark": false,
+    "foreground": "#FF166534",
+    "background": "#FFFFFFFF",
+    "ratio": 7.130309104919434
+  },
+  {
+    "name": "expense on card",
+    "dark": false,
+    "foreground": "#FFB91C1C",
+    "background": "#FFFFFFFF",
+    "ratio": 6.470044136047363
+  },
+  {
+    "name": "warning on card",
+    "dark": false,
+    "foreground": "#FF92400E",
+    "background": "#FFFFFFFF",
+    "ratio": 7.090047836303711
+  },
+  {
+    "name": "surface text",
+    "dark": true,
+    "foreground": "#FFF8FAFC",
+    "background": "#FF131B2E",
+    "ratio": 16.39918327331543
+  },
+  {
+    "name": "secondary text",
+    "dark": true,
+    "foreground": "#FF94A3B8",
+    "background": "#FF131B2E",
+    "ratio": 6.691806793212891
+  },
+  {
+    "name": "container text",
+    "dark": true,
+    "foreground": "#FF94A3B8",
+    "background": "#FF1A263B",
+    "ratio": 5.916399002075195
+  },
+  {
+    "name": "primary action",
+    "dark": true,
+    "foreground": "#FF0B1220",
+    "background": "#FF14B8A6",
+    "ratio": 7.521851539611816
+  },
+  {
+    "name": "selected chip",
+    "dark": true,
+    "foreground": "#FFBCEBDD",
+    "background": "#FF134E4A",
+    "ratio": 7.248791217803955
+  },
+  {
+    "name": "selected reference",
+    "dark": true,
+    "foreground": "#FF14B8A6",
+    "background": "#FF123B38",
+    "ratio": 4.938260555267334
+  },
+  {
+    "name": "positive badge",
+    "dark": true,
+    "foreground": "#FF86EFAC",
+    "background": "#FF14532D",
+    "ratio": 6.488664150238037
+  },
+  {
+    "name": "income",
+    "dark": true,
+    "foreground": "#FF86EFAC",
+    "background": "#FF0A301D",
+    "ratio": 10.29013729095459
+  },
+  {
+    "name": "expense",
+    "dark": true,
+    "foreground": "#FFFCA5A5",
+    "background": "#FF3B1216",
+    "ratio": 8.616719245910645
+  },
+  {
+    "name": "transfer",
+    "dark": true,
+    "foreground": "#FF93C5FD",
+    "background": "#FF11284A",
+    "ratio": 8.165200233459473
+  },
+  {
+    "name": "warning",
+    "dark": true,
+    "foreground": "#FFFDE68A",
+    "background": "#FF382305",
+    "ratio": 11.952644348144531
+  },
+  {
+    "name": "income on card",
+    "dark": true,
+    "foreground": "#FF86EFAC",
+    "background": "#FF131B2E",
+    "ratio": 12.219796180725098
+  },
+  {
+    "name": "expense on card",
+    "dark": true,
+    "foreground": "#FFFCA5A5",
+    "background": "#FF131B2E",
+    "ratio": 9.040231704711914
+  },
+  {
+    "name": "warning on card",
+    "dark": true,
+    "foreground": "#FFFDE68A",
+    "background": "#FF131B2E",
+    "ratio": 13.777316093444824
+  }
+]
