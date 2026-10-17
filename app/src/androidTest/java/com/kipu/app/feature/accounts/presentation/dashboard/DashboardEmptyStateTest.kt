@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.feature.accounts.presentation.instruments.CalmEmeraldIntroView
 import java.io.File
@@ -59,7 +60,7 @@ class DashboardEmptyStateTest {
         setEmptyDashboard()
 
         compose.onNodeWithTag("dashboard_empty_balance").assertIsDisplayed()
-        compose.onNodeWithText("Saldo registrado").assertIsDisplayed()
+        compose.onNodeWithText(FinancialTerminology.REAL_MONEY_AVAILABLE).assertIsDisplayed()
         compose.onAllNodesWithText("S/ 0.00").assertCountEquals(1)
         compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed()
         compose.onNodeWithText(

@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -207,7 +208,7 @@ fun CreditCardTermsDialog(
                         ) {
                             Column {
                                 Text(
-                                    text = "LÍNEA ASIGNADA",
+                                    text = FinancialTerminology.TOTAL_CREDIT_LINE.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.7f),
                                     fontSize = 9.sp,
@@ -307,7 +308,7 @@ fun CreditCardTermsDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "Línea total de crédito (${card.currency.name})",
+                            text = "${FinancialTerminology.TOTAL_CREDIT_LINE} (${card.currency.name})",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                         )

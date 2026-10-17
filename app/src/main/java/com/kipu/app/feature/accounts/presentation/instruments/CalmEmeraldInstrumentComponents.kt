@@ -99,6 +99,7 @@ import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
@@ -1000,7 +1001,7 @@ fun CalmEmeraldCreditSearchEmptyState(
             )
 
             Text(
-                text = "Verifica que el nombre o categoría sea correcto, o regístrala manualmente ingresando su línea y fechas en el siguiente paso.",
+                text = "Verifica que el nombre o categoría sea correcto, o regístrala manualmente ingresando su línea total de crédito y fechas en el siguiente paso.",
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
                 color = calmColors.secondaryMuted,
                 textAlign = TextAlign.Center,
@@ -1211,7 +1212,7 @@ fun CalmEmeraldUtilizationNoticeCard(
                     color = calmColors.primaryText,
                 )
                 Text(
-                    text = "Umbrales de alerta: 50%, 80% y 100% de tu línea. Cada aviso se activa al alcanzar su umbral.",
+                    text = "Umbrales de alerta: 50%, 80% y 100% de tu línea total de crédito. Cada aviso se activa al alcanzar su umbral.",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                     color = calmColors.primaryText,
                 )
@@ -1375,7 +1376,7 @@ fun CalmEmeraldIntroView(
             CalmEmeraldIntroCard(
                 icon = Icons.Default.CreditCard,
                 title = "Tarjeta de crédito",
-                description = "Línea autorizada, ciclos de corte, pago y control de consumos",
+                description = "Línea total de crédito, ciclos de corte, pago y control de consumos",
                 onClick = onSelectCreditCard,
             )
             CalmEmeraldIntroCard(
@@ -1683,7 +1684,7 @@ fun CalmEmeraldUsageAlertsCard(
                     color = calmColors.primaryText,
                 )
                 Text(
-                    text = "Avísame cuando use gran parte de mi línea.",
+                    text = "Avísame cuando use gran parte de mi línea total de crédito.",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = calmColors.secondaryMuted,
                 )
@@ -1788,7 +1789,7 @@ fun CalmEmeraldCreditLimitInputCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "LÍNEA DE CRÉDITO",
+                text = FinancialTerminology.TOTAL_CREDIT_LINE.uppercase(),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
@@ -1912,7 +1913,7 @@ fun CalmEmeraldCreditLimitInputCard(
         }
 
         Text(
-            text = if (isError) "ⓘ ${errorMessage ?: "Ingresa una línea de crédito válida mayor a S/ 0.00"}"
+            text = if (isError) "ⓘ ${errorMessage ?: "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida mayor a S/ 0.00"}"
             else "El monto total que tu banco te permite utilizar.",
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
             color = if (isError) calmColors.expenseText else calmColors.secondaryMuted,
@@ -2273,7 +2274,7 @@ fun CalmEmeraldSuccessBottomSheet(
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "Tu ${card.alias ?: "Tarjeta"} de ${bankChoice.name} está lista para registrar compras y controlar tu línea.",
+                    text = "Tu ${card.alias ?: "Tarjeta"} de ${bankChoice.name} está lista para registrar compras y controlar el uso de tu línea total de crédito.",
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                     color = calmColors.secondaryMuted,
                     textAlign = TextAlign.Center,
@@ -2331,7 +2332,7 @@ fun CalmEmeraldSuccessBottomSheet(
             ) {
                 Column {
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        // Cell 1: Línea total
+                        // Cell 1: Línea total de crédito
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -2339,7 +2340,7 @@ fun CalmEmeraldSuccessBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
-                                text = "Línea total",
+                                text = FinancialTerminology.TOTAL_CREDIT_LINE,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = calmColors.secondaryMuted,
                             )

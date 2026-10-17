@@ -111,6 +111,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.Card as DomainCard
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
@@ -401,7 +402,7 @@ internal fun EmptyDashboardContent(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
-                        text = "Saldo registrado",
+                        text = FinancialTerminology.REAL_MONEY_AVAILABLE,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.6.sp,
@@ -648,7 +649,7 @@ private fun ActiveDashboardContent(
                                 modifier = Modifier.size(7.dp),
                             ) {}
                             Text(
-                                text = "TOTAL DISPONIBLE",
+                                text = FinancialTerminology.REAL_MONEY_AVAILABLE,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 0.6.sp,
@@ -772,7 +773,7 @@ private fun ActiveDashboardContent(
 
                     // Clear Truthful Subtitle
                     Text(
-                        text = "Activos líquidos reales · Excluye líneas de crédito",
+                        text = "Dinero propio en cuentas y efectivo · No incluye crédito",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                         color = Color.White.copy(alpha = 0.8f),
                     )
@@ -865,10 +866,10 @@ private fun ActiveDashboardContent(
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(if (LocalDensity.current.fontScale > 1.3f) Modifier.fillMaxWidth()
                         else Modifier.widthIn(min = 180.dp).weight(1f)) {
-                        Text("Cupo Free · $computableCount de $maxQuota",
+                        Text("Cupo Free de instrumentos · $computableCount de $maxQuota",
                             style = MaterialTheme.typography.labelLarge, color = emeraldColors.primaryText)
-                        Text(if (isQuotaReached) "Cupo de cuentas y tarjetas completo"
-                            else "${(maxQuota - computableCount).coerceAtLeast(0)} espacios disponibles",
+                        Text(if (isQuotaReached) "Cupo de instrumentos completo"
+                            else "${(maxQuota - computableCount).coerceAtLeast(0)} espacios para cuentas y tarjetas",
                             style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
                     }
                     TextButton(onClick = onNavigateToPlans, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -927,7 +928,7 @@ private fun ActiveDashboardContent(
                     "+ Tarjeta", onNavigateToNewCard, "Ver detalle",
                     { activeCreditCards.firstOrNull()?.let { onCardClick(it.card.id.value) } }, activeCreditCards.isNotEmpty())
                 Text(
-                    text = "Líneas de crédito (no suman al saldo disponible)",
+                    text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     color = emeraldColors.secondaryMuted,
                 )

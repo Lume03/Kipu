@@ -53,6 +53,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card as DomainCard
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.components.InstrumentCardPreview
@@ -93,7 +94,7 @@ fun CardFormScreen(
     var dueDayInput by remember { mutableStateOf("5") }
     val creditLimitMinorUnits = MoneyInputParser.parseMinorUnits(creditLimitInput)
     val creditLimitError = when {
-        creditLimitInput.isBlank() -> "Ingresa una línea de crédito autorizada."
+        creditLimitInput.isBlank() -> "Ingresa la ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()}."
         creditLimitMinorUnits == null -> "Ingresa un importe válido con hasta dos decimales."
         else -> null
     }
@@ -370,7 +371,7 @@ fun CardFormScreen(
                     OutlinedTextField(
                         value = creditLimitInput,
                         onValueChange = { creditLimitInput = it },
-                        label = { Text("Línea de crédito autorizada (${selectedCurrency.name})") },
+                        label = { Text("${FinancialTerminology.TOTAL_CREDIT_LINE} (${selectedCurrency.name})") },
                         isError = creditLimitError != null,
                         supportingText = creditLimitError?.let { error ->
                             { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -446,7 +447,7 @@ fun CardFormScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = "Esta tarjeta consumirá 1 cupo de los 4 permitidos en el plan Free.",
+                    text = "Esta tarjeta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(12.dp),
                 )
