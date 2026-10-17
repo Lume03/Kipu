@@ -370,3 +370,10 @@ La prueba compacta captura el árbol Compose después de entrada de texto; no de
 Se cambio el area desplazable de filtros a `weight(1f)` para que ocupe el espacio disponible antes del footer, se anadio 12 dp de separacion en disposicion compacta y el test verifica un margen minimo de 8 dp para el campo Maximo. La prueba dirigida `MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible` paso 1/1 en Pixel 10 AVD/API 37 y se regenero la captura integrada actual.
 
 T123 sigue abierta: no se capturo el IME real ni se repitio la suite instrumentada completa. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`; T125 sigue abierta hasta la aceptacion visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.
+
+
+### Revalidación de suite completa y comparación con base (2026-10-17)
+
+En `docs/audits/evidence/issue-39/integrated-head-2026-10-17/full-suite-revalidation.md` se registró la ejecución de `:app:connectedDebugAndroidTest` en `fe6de0b`: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas del alcance de tema/filtros/evidencia pasaron. Los 12 fallos antes no atribuidos se repitieron individualmente sobre `origin/main` (`e440bc1`) y fallaron también; los otros cuatro ya tenían reproducción en esa base. No se identificaron regresiones nuevas atribuibles a #55.
+
+T123 sigue abierta: falta una captura del IME real y la suite global continúa con fallos reproducibles en la base. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta aceptación visual humana; no se cierra #39.

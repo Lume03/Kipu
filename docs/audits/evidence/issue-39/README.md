@@ -129,3 +129,10 @@ No se ejecutó TalkBack hablado ni runtime API 24. La cobertura de semántica y 
 La captura `integrated-head-2026-10-17/after-compact-large-text-dark.png` se regenero desde el Pixel 10 AVD/API 37 despues de reservar el alto restante para el area desplazable y agregar 12 dp entre el contenido compacto y el footer. Muestra completos los campos Minimo y Maximo y deja un margen visible antes de las acciones. `MovementFiltersIssue19Test#compactDarkViewportWithLargeTextKeepsPrimaryActionsVisible` paso 1/1; el test exige al menos 8 dp de separacion entre Maximo y el footer.
 
 La captura es del arbol Compose y no incluye el IME del sistema. La suite instrumentada completa, los previews pendientes de `UnifiedInstrumentFormScreen`, TalkBack/API 24 y la aceptacion visual humana siguen abiertos; T122, T123 y T125 no se marcan completas.
+
+
+## Revalidación de suite completa del head integrado (2026-10-17)
+
+En `full-suite-revalidation.md` está el resultado de `:app:connectedDebugAndroidTest` sobre `fe6de0b` en Pixel 10 AVD/API 37: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas de filtros, tema, contraste y evidencia visual pasaron. Los 16 fallos se reprodujeron en la base integrada `e440bc1`: 12 se volvieron a ejecutar individualmente en esa base y también fallaron; los otros cuatro ya constaban como reproducibles.
+
+No se detectaron fallos nuevos atribuibles al diff de #55. La suite global continúa roja. T122 sigue pendiente por la preview de pantalla completa de `UnifiedInstrumentFormScreen`; T123 sigue pendiente por la captura del IME real; T125 espera aceptación visual humana. Esta ejecución no cierra el issue #39.
