@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -219,5 +220,42 @@ class AccountDaoTest {
         val archivedList = accountDao.observeArchived(testUserId).first()
         assertEquals(1, archivedList.size)
         assertTrue(archivedList[0].isArchived)
+    }
+
+    @Test
+    fun activeWalletLookup_isScopedByOwnerChannelAndArchiveState() = runTest {
+        val nowMicros = System.currentTimeMillis() * 1000L
+        val yapeId = UUID.randomUUID().toString()
+        val plinId = UUID.randomUUID().toString()
+        val otherOwnerId = UUID.randomUUID().toString()
+
+        fun wallet(id: String, ownerId: String, channel: String, archived: Boolean = false) = AccountEntity(
+            id = id,
+            userId = ownerId,
+            creationOperationId = UUID.randomUUID().toString(),
+            alias = channel,
+            type = "DIGITAL_WALLET",
+            currency = "PEN",
+            presetId = channel,
+            color = null,
+            icon = null,
+            initialBalanceMinorUnits = 0L,
+            openedAt = nowMicros,
+            isArchived = archived,
+            remoteRevision = 0L,
+            createdAt = nowMicros,
+            updatedAt = nowMicros,
+        )
+
+        accountDao.insert(wallet(yapeId, testUserId, "YAPE"))
+        accountDao.insert(wallet(plinId, testUserId, "PLIN"))
+        accountDao.insert(wallet(UUID.randomUUID().toString(), otherOwnerId, "YAPE"))
+
+        assertTrue(accountDao.hasOtherActiveWalletForChannel(testUserId, "YAPE"))
+        assertTrue(accountDao.hasOtherActiveWalletForChannel(testUserId, "PLIN"))
+        assertFalse(accountDao.hasOtherActiveWalletForChannel(testUserId, "YAPE", yapeId))
+
+        accountDao.setArchived(testUserId, yapeId, true, nowMicros)
+        assertFalse(accountDao.hasOtherActiveWalletForChannel(testUserId, "YAPE"))
     }
 }

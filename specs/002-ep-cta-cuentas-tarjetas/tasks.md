@@ -3,7 +3,9 @@
 
 # Implementation Tasks: EP-CTA - Cuentas y Tarjetas
 
-**Propagated**: 2026-10-17 — Added the HU-07 wallet-channel history and account-detail entry follow-up from spec.md; verification results remain pending.
+**Propagated**: 2026-10-17 — Added the HU-07 wallet-channel history and account-detail entry follow-up from spec.md; execution evidence is recorded in Phase 14.
+
+**Propagated**: 2026-10-17 — Added RF-C14 for one active Yape/Plin wallet per owner and its local/remote enforcement and verification work.
 
 **Feature Branch**: `002-ep-cta-cuentas-tarjetas`
 **Date**: 2026-09-24
@@ -346,8 +348,11 @@ Convergence review (2026-09-26): the user directly verified accounting, synchron
 
 ## Phase 14: HU-07 Wallet-Affiliated Movement History (PR #53 follow-up)
 
-**Purpose**: Expose Yape/Plin movements by payment channel while retaining the affiliated bank account as their only financial account and ledger effect.
+**Purpose**: Expose Yape/Plin movements by payment channel while retaining the affiliated bank account as their only financial account and ledger effect; enforce one active wallet per owner and channel.
 
 - [X] T095 [US1] Display/filter Yape/Plin movement channels and add a direct account-detail history action: bank account routes by `accountId`, wallet routes by `paymentChannel` only; initialize the filter from route/deep-link arguments and retain the linked bank account as transaction source.
-- [X] T096 [P] [US1] Add focused JVM, Compose, and pgTAP source coverage for account-detail entry, bank-vs-wallet route targets, deep-link initialization, channel filtering, transaction attribution, and idempotent single-ledger persistence. Test sources are added; execution is not claimed.
-- [ ] T097 [US1] Run the focused movement-filter, account-detail, and navigation tests plus wallet-payment-channel pgTAP test and record results (not run in this update; results remain pending).
+- [X] T096 [P] [US1] Add focused JVM, Compose, and pgTAP source coverage for account-detail entry, bank-vs-wallet route targets, deep-link initialization, channel filtering, transaction attribution, and idempotent single-ledger persistence. Execution evidence is recorded in T097.
+- [X] T097 [US1] Run the focused movement-filter, account-detail, and navigation tests plus wallet-payment-channel pgTAP test and record results. Evidence: `MovementFiltersIssue19Test`, `AccountDetailScreenTest`, `MovementHistoryNavigationTest`, and `UnifiedInstrumentFormScreenTest` pass on Pixel 10/API 37; `wallet_payment_channel.test.sql` passes 8/8 assertions.
+- [X] T098 [US1] Enforce one active Yape/Plin wallet per owner and channel in Room create/reactivate/appearance flows and PostgreSQL, preserving archived records and history.
+- [X] T099 [P] [US1] Add local DAO/repository and pgTAP coverage for duplicate-channel rejection, separate Yape/Plin channels, reactivation, and archive history. Evidence: `AccountDaoTest` and `WalletChannelUniquenessRepositoryTest` pass; `wallet_channel_uniqueness.test.sql` passes 6/6 assertions.
+- [X] T100 [US1] Run the focused local and PostgreSQL wallet uniqueness tests and record results before closing PR #53. Evidence: Android instrumented tests pass on Pixel 10/API 37; all four focused pgTAP files pass 54/54 assertions (movement hash 28, wallet affiliation 12, payment channel 8, wallet uniqueness 6). Each SQL run rolled back; the uniqueness index is absent afterward.

@@ -5,6 +5,8 @@
 
 **Propagated**: 2026-10-17 — Wallet-affiliation follow-up from spec.md; account details open correctly scoped shared movement history without changing ledger attribution.
 
+**Propagated**: 2026-10-17 — PR #53 product decision: enforce at most one active wallet per owner and Yape/Plin channel, locally and in PostgreSQL, while preserving archived history.
+
 **Branch**: `002-ep-cta-cuentas-tarjetas` | **Date**: 2026-09-24 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/002-ep-cta-cuentas-tarjetas/spec.md` plus the requested Android, Room, Supabase and Stitch architecture constraints.
@@ -219,6 +221,7 @@ Navegacion agrega `app/dashboard`, `app/instruments`, `app/instruments/create`, 
 - Movement rows show the channel. The account-detail action opens history with `accountId` for a bank account and with only `paymentChannel` for a Yape/Plin wallet; the latter never sends the wallet ID as a source account. The query argument is supported by internal navigation and the `kipu://movements/history` deep link, and initializes the same advanced criteria used by local pages, counts, and net-flow summaries. Room maps persisted channel metadata to `transactions.source`.
 - The bank-account view includes all movements attributed to that account, including Yape/Plin movements; a wallet view is scoped to its channel. Affiliation and filtering create no second transaction, ledger entry, balance, or budget effect, and do not add a wallet ID to each movement.
 - Both account and channel criteria keep the existing advanced-filter entitlement policy. The account-detail action does not bypass Premium access or alter fallback behavior.
+- At most one active Yape and one active Plin wallet may exist per owner. Room validates create/reactivate commands inside the local transaction; a PostgreSQL partial unique index and serialized trigger enforce the invariant for remote and concurrent writes. Archiving retains the account/history and releases the active channel.
 
 ### 8. Privacy Boundary
 

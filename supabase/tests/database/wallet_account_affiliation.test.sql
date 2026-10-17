@@ -6,9 +6,9 @@ INSERT INTO auth.users (id, email) VALUES
     ('53222222-2222-2222-2222-222222222222', 'wallet-foreign@kipu.app')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
 VALUES ('53333333-3333-3333-3333-333333333333', '53222222-2222-2222-2222-222222222222',
-        'Cuenta de otro usuario', 'SAVINGS', 'PEN');
+        'Cuenta de otro usuario', 'SAVINGS', 'PEN', 'BCP');
 
 SELECT ok(
     EXISTS (
@@ -51,16 +51,15 @@ SELECT jsonb_build_object(
     'initial_balance_minor_units', 0,
     'opened_at', '2026-10-17T12:00:00Z',
     'payload_hash', 'wallet-create-hash-5355',
-    'linked_account_id', '53333333-3333-3333-3333-333333333333'
+    'linked_account_id', '53999999-9999-9999-9999-999999999999'
 ) AS command;
 GRANT SELECT ON wallet_account_creation_request TO authenticated;
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '53111111-1111-1111-1111-111111111111';
 
-SELECT lives_ok(
-    $$
-    SELECT public.create_account_v1(jsonb_build_object(
+SELECT is(
+    (public.create_account_v1(jsonb_build_object(
         'operation_id', '53888888-8888-8888-8888-888888888888',
         'account_id', '53999999-9999-9999-9999-999999999999',
         'opening_movement_id', '53aaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -71,14 +70,13 @@ SELECT lives_ok(
         'initial_balance_minor_units', 10000,
         'opened_at', '2026-10-17T12:00:00Z',
         'payload_hash', 'bank-account-hash-5388'
-    ));
-    $$,
+    ))->>'status'),
+    'APPLIED',
     'owner bank account can be created before wallet affiliation'
 );
 
-SELECT lives_ok(
-    $$
-    SELECT public.register_card_v1(jsonb_build_object(
+SELECT is(
+    (public.register_card_v1(jsonb_build_object(
         'operation_id', '53bbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         'card_id', '53cccccc-cccc-cccc-cccc-cccccccccccc',
         'type', 'DEBIT',
@@ -88,8 +86,8 @@ SELECT lives_ok(
         'currency', 'PEN',
         'account_id', '53999999-9999-9999-9999-999999999999',
         'payload_hash', 'debit-card-hash-53bb'
-    ));
-    $$,
+    ))->>'status'),
+    'APPLIED',
     'owner debit card satisfies Yape affiliation eligibility'
 );
 

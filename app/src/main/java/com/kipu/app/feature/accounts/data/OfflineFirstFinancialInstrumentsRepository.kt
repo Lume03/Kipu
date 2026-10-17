@@ -81,6 +81,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val NON_COMPUTABLE_ACCOUNT_TYPES = setOf("CASH", "GOALS_VIRTUAL", "CREDIT_LIABILITY")
+private val DIGITAL_WALLET_CHANNELS = setOf("YAPE", "PLIN")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -116,6 +117,18 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
 
     private fun currentUserId(): String? {
         return (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+    }
+
+    private suspend fun requireWalletChannelAvailable(
+        userId: String,
+        presetId: String?,
+        excludedAccountId: String? = null,
+    ) {
+        if (presetId != null && presetId in DIGITAL_WALLET_CHANNELS &&
+            accountDao.hasOtherActiveWalletForChannel(userId, presetId, excludedAccountId)
+        ) {
+            throw IllegalArgumentException("An active $presetId wallet already exists")
+        }
     }
 
     override suspend fun createLiquidAccount(account: Account, operationId: OperationId): Result<Account> {
@@ -166,6 +179,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
 
         return runCatching {
             database.withTransaction {
+                if (account.type == AccountType.DIGITAL_WALLET) {
+                    requireWalletChannelAvailable(userId, account.preset?.name)
+                }
                 // 1. Insert AccountEntity
                 accountDao.insert(
                     AccountEntity(
@@ -384,6 +400,10 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             database.withTransaction {
                 val account = accountDao.getById(userId, accountId.value)
                     ?: throw IllegalArgumentException("Account not found: ${accountId.value}")
+
+                if (!account.isArchived && account.type == AccountType.DIGITAL_WALLET.name) {
+                    requireWalletChannelAvailable(userId, preset?.name, accountId.value)
+                }
 
                 accountDao.updateAppearance(
                     userId = userId,
@@ -1436,6 +1456,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 } else {
                     val account = accountDao.getById(userId, instrumentId)
                         ?: throw IllegalArgumentException("Account not found: $instrumentId")
+                    if (account.type == AccountType.DIGITAL_WALLET.name) {
+                        requireWalletChannelAvailable(userId, account.presetId, account.id)
+                    }
                     accountDao.setArchived(userId, instrumentId, false, nowMicros)
                     account.remoteRevision
                 }

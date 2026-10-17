@@ -56,7 +56,7 @@ SELECT is(
 );
 
 SELECT is(
-    (SELECT source_account_id::text FROM public.transactions
+    (SELECT account_id::text FROM public.transactions
      WHERE id = '74444444-4444-4444-4444-444444444444'),
     '74222222-2222-2222-2222-222222222222',
     'the linked bank account remains the transaction source'

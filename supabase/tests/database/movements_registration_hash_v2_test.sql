@@ -18,8 +18,8 @@ SELECT is(internal.movement_register_hash_v2('11111111-1111-1111-1111-1111111111
     )),
     '336a552575c3829397ac37773862bd68cd6467c021f10da52f2077a76ee230ab','shared Kotlin/Postgres golden vector');
 INSERT INTO auth.users(id,email) VALUES ('11111111-1111-1111-1111-111111111111','hash-v2@kipu.test') ON CONFLICT DO NOTHING;
-INSERT INTO public.accounts(id,user_id,name,account_type,currency_code)
- VALUES('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','Hash v2','CASH','PEN') ON CONFLICT DO NOTHING;
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id)
+ VALUES('22222222-2222-2222-2222-222222222222','11111111-1111-1111-1111-111111111111','Hash v2','CASH','PEN','CASH') ON CONFLICT DO NOTHING;
 CREATE FUNCTION pg_temp.command_v2(p_note text DEFAULT NULL,p_merchant text DEFAULT NULL)
 RETURNS jsonb LANGUAGE sql AS $$
  SELECT jsonb_build_object('contract_version',2,'idempotency_key','33333333-3333-3333-3333-333333333333',

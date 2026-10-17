@@ -20,6 +20,8 @@
 
 **Refined**: 2026-10-17 - Seguimiento PR #53: los movimientos de Yape/Plin se identifican y filtran por canal de pago, conservando la cuenta bancaria vinculada como unica cuenta contable.
 
+**Refined**: 2026-10-17 - Decisiones de producto para PR #53: `lastFourDigits` es opcional si no se registra tarjeta de debito; se permite una sola billetera activa por canal Yape/Plin y propietario.
+
 ## Control de la Epica
 
 | Campo | Valor |
@@ -28,7 +30,7 @@
 | Incremento Sprint 2 | HU-07 y HU-08, 10 puntos |
 | Evolucion Sprint 3 | HU-09 a HU-13, 29 puntos |
 | Historias cubiertas | HU-07, HU-08, HU-09, HU-10, HU-11, HU-12 y HU-13 |
-| Requisitos cubiertos | RF-C01 a RF-C13 |
+| Requisitos cubiertos | RF-C01 a RF-C14 |
 | Prioridad | Alta |
 | Estado del artefacto | V1.0 - Especificacion funcional completa |
 
@@ -105,6 +107,11 @@ Permitir que cada usuario modele su estructura financiera personal distinguiendo
 - Q: ¿Cómo se asigna un pago parcial de tarjeta entre cuotas pendientes? → A: FIFO por `due_date` ascendente. Se amortiza primero la cuota más antigua; un importe parcial reduce su capital y no pasa a una cuota posterior mientras conserve saldo.
 - Q: ¿Qué snapshot y política de vigencia usa el catálogo referencial de Sprint 3? → A: `KIPU_CATALOGO_TARJETAS_CREDITO_PERU_2026.md`, con corte 2026-09-24 y 44 productos confirmados (BCP 18, BBVA 10, Interbank 16). La interfaz muestra `Tasa referencial al 24/09/2026`; no hay caducidad automática por edad y se conservan las advertencias/conflictos de la fuente.
 
+### Session 2026-10-17
+
+- Q: ¿Son obligatorios los últimos cuatro dígitos al crear una cuenta de ahorro/bancaria sin registrar tarjeta de débito? → A: No; el campo es opcional cuando no se registra una tarjeta asociada y se exige si sí se registra.
+- Q: ¿Cuántas billeteras Yape o Plin activas puede registrar un propietario por canal? → A: Una por canal; puede existir una Yape activa y una Plin activa.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - HU-07 Administrar activos liquidos (Priority: P1)
@@ -125,6 +132,8 @@ Como usuario, quiero crear y mantener cuentas que representen mi dinero real, pa
 6. **Alta offline y reinicio**: **Dado que** no hay conectividad, **Cuando** crea una cuenta y reinicia la aplicacion, **Entonces** la cuenta y su unico movimiento de apertura permanecen disponibles y una sincronizacion posterior no duplica el saldo.
 7. **Correccion de apertura**: **Dado que** la cuenta ya fue creada, **Cuando** el usuario detecta un importe o fecha de apertura incorrectos, **Entonces** registra un ajuste auditable sin editar el movimiento original; si la moneda es incorrecta, archiva la cuenta y crea otra en la moneda correcta.
 8. **Movimientos desde detalle de cuenta y billetera afiliada**: **Dado que** consulta el detalle de la cuenta bancaria o de una billetera Yape/Plin afiliada y tiene acceso vigente al historial avanzado, **Cuando** elige **Ver movimientos**, **Entonces** la cuenta bancaria abre el historial filtrado por su `accountId` y la billetera abre el historial filtrado solo por `paymentChannel` (`YAPE` o `PLIN`), sin pasar el ID de la billetera como cuenta de origen; la vista de la cuenta bancaria incluye sus movimientos atribuidos a billeteras, la vista Yape/Plin muestra los movimientos de ese canal, y cada movimiento conserva una sola transaccion y un solo efecto de ledger en la cuenta bancaria. Si no tiene ese acceso, se conserva el fallback definido por la politica de filtros avanzados.
+
+9. **Unicidad de billetera activa por canal**: **Dado que** el propietario ya tiene una billetera Yape o Plin activa, **Cuando** intenta crear o reactivar otra billetera del mismo canal, **Entonces** la operación se rechaza sin crear cuenta ni movimiento de apertura; una billetera del otro canal sigue permitida.
 
 ---
 
@@ -281,6 +290,8 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **RN-CTA-05 - Afiliacion de billeteras**: Yape DEBE afiliarse exclusivamente a una cuenta BCP y Plin exclusivamente a una cuenta BBVA. La cuenta vinculada DEBE pertenecer al mismo usuario; la relacion debe estar protegida por una clave foranea compuesta, ademas de la validacion del RPC.
 - **RN-CTA-06 - Atribucion contable de billeteras**: Un movimiento registrado mediante Yape o Plin DEBE conservar como cuenta de origen la cuenta bancaria afiliada y DEBE identificar el canal en `payment_channel`. El detalle de la cuenta bancaria y el detalle de la billetera afiliada DEBEN ofrecer acceso directo a sus movimientos: la cuenta bancaria filtra por su `accountId` y Yape/Plin por solo `payment_channel`, sin usar el ID de billetera como origen. El historial DEBE permitir distinguir y filtrar ambos canales sin crear una transaccion ni un efecto de ledger adicional para la billetera.
 
+- **RN-CTA-07 - Unicidad de billetera por canal**: Cada propietario DEBE tener como maximo una billetera activa Yape y una billetera activa Plin. El alta y la reactivacion DEBEN rechazar una segunda billetera activa del mismo canal, tanto en el almacenamiento local como en el remoto; archivar una billetera conserva su historia y libera el canal para una futura billetera activa.
+
 ### Functional Requirements
 
 - **RF-C01 - Alta de cuentas liquidas**: El sistema DEBE permitir crear cuentas de efectivo, ahorro o bancarias y billeteras digitales con alias, tipo, moneda PEN o USD, icono, color, saldo inicial y fecha y hora de apertura. PEN DEBE aparecer seleccionada inicialmente y el saldo inicial DEBE quedar representado por el movimiento exigido en RN-10. Al crear una cuenta de ahorro/bancaria, registrar una tarjeta de debito asociada es opcional; si se registra, se solicitan sus ultimos cuatro digitos. Tras el alta, importe, moneda y momento de apertura NO DEBEN editarse; toda correccion debe seguir el tratamiento auditable de RN-10.
@@ -299,6 +310,8 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 - **RF-C12 - Simulacion y cuotas exactas**: El sistema DEBE permitir simular de 1 a 36 cuotas usando primero la TEA personal valida y, si el usuario lo acepta, una tasa referencial identificada. La tasa en bps se convierte a decimal dividiendo entre 10,000; la TEM DEBE calcularse como `(1 + TEA)^(1/12) - 1` y la cuota teorica fija como `principal * TEM / (1 - (1 + TEM)^(-n))`, con `principal / n` si TEM es cero. DEBE mostrar metodo, tasa y procedencia, principal, interes estimado, total financiado, fechas e importes y advertencia visible de estimacion. Los importes DEBEN redondearse y distribuirse deterministamente en unidades menores, asignando el residuo a la cuota 1 y preservando la suma exacta. La primera fecha de vencimiento DEBE seguir el ciclo de cierre y vencimiento indicado en HU-13.8; las cuotas siguientes DEBEN ser mensuales y ajustar el dia efectivo al ultimo dia valido sin cambiar el preferido. Los intereses estimados NO DEBEN crear asientos ni modificar gasto o pasivo real. Sin tasa aplicable, DEBE mostrar solo la distribucion del principal y NO inventar intereses.
 
 - **RF-C13 - Visibilidad de movimientos por billetera**: El historial DEBE mostrar Yape o Plin como canal de pago cuando corresponda y permitir consultar por separado cada canal. Desde el detalle de una cuenta bancaria, la accion de movimientos DEBE abrir el historial filtrado por su `accountId`; desde el detalle de una billetera Yape/Plin, DEBE abrirlo filtrado solo por `payment_channel`, nunca por el ID de la billetera como cuenta de origen. El filtro DEBE aplicarse sobre la metadata del movimiento, sin reinterpretar el canal como comercio ni sustituir la cuenta bancaria de origen. La consulta DEBE respetar la politica de acceso existente para filtros avanzados, incluido su fallback cuando no haya entitlement vigente.
+
+- **RF-C14 - Una billetera activa por canal**: El sistema DEBE permitir como maximo una billetera activa Yape y una billetera activa Plin por propietario. Un alta o reactivacion que exceda ese limite DEBE rechazarse antes de crear efectos financieros. El limite DEBE aplicarse localmente y en PostgreSQL para cubrir operacion offline, reintentos y escrituras concurrentes; archivar la billetera DEBE conservar sus datos e historial y liberar el canal.
 
 ### Requisitos Transversales de Aceptacion
 
@@ -326,11 +339,13 @@ Como usuario, quiero confirmar compras con credito y simular su financiamiento, 
 | RF-C11 | HU-13 | Escenarios HU-13.1 a HU-13.3 y HU-13.7 |
 | RF-C12 | HU-13 | Escenarios HU-13.4 a HU-13.6 y HU-13.8 |
 | RN-CTA-06, RF-C13 | HU-07 | Escenario HU-07.8; entrada desde detalle bancario por `accountId` y desde billetera por solo `payment_channel` |
+| RN-CTA-07, RF-C14 | HU-07 | Escenario HU-07.9; alta/reactivacion local y restriccion remota por propietario/canal |
 | RT-01 a RT-05 | Todas | Escenarios offline, reinicio, reintento, aislamiento y casos limite |
 | RT-06 | Todas | Escenarios de accesibilidad, SC-014 y evidencia de Pantallas 4/5 |
 
 ### Key Entities *(include if feature involves data)*
 
+- **Billetera digital activa**: Cuenta Yape o Plin con un unico registro activo por propietario y canal; una billetera archivada conserva su historial y no ocupa el canal activo.
 - **Cuenta liquida**: Activo monetario del usuario. Contiene identidad estable, propietario, alias, tipo, moneda, apariencia, preset opcional, momento de apertura y estado activo o archivado. Su saldo se deriva de movimientos.
 - **Movimiento financiero**: Hecho auditable que cambia o explica un saldo. Incluye propietario, identidad estable, tipo, importe, moneda, fecha efectiva, estado y relaciones con las operaciones que origina, revierte o ajusta.
 - **Canal de pago de billetera**: Metadata Yape/Plin asociada al movimiento bancario que la origina; permite identificar y filtrar el historial, sin saldo ni efecto de ledger propios.

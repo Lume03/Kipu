@@ -51,7 +51,7 @@ class UnifiedInstrumentFormScreenTest {
 
         verify(timeout = 5_000) {
             viewModel.createAccount(
-                alias = "Mi Cuenta de Ahorros",
+                alias = "Cuenta BCP",
                 type = AccountType.SAVINGS,
                 currency = Currency.PEN,
                 preset = AccountPreset.BCP,
@@ -61,6 +61,9 @@ class UnifiedInstrumentFormScreenTest {
                 linkedAccountId = null,
                 onSuccess = any(),
             )
+        }
+        verify(exactly = 0) {
+            viewModel.registerDebitCard(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         }
     }
 

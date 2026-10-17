@@ -63,7 +63,7 @@ Operations require matching currency. Formatting and masking are presentation co
 | `alias` | String | Trimmed, 1..80 characters; duplicates allowed |
 | `type` | `CASH`, `SAVINGS`, `BANK`, `DIGITAL_WALLET` | Immutable after create |
 | `currency` | `PEN`, `USD` | Immutable after create |
-| `preset` | `BCP`, `BBVA`, `INTERBANK`, `SCOTIABANK`, `BANCO_NACION`, `GENERIC` | Appearance seed only |
+| `preset` | Bank presets plus `YAPE` and `PLIN` for `DIGITAL_WALLET` | Appearance seed; wallet channel identity |
 | `iconToken` | String | Approved design token |
 | `colorToken` | String | Approved design token, not arbitrary secret/text |
 | `initialBalance` | Money | Immutable audit snapshot, nonnegative |
@@ -76,6 +76,7 @@ Quota behavior:
 
 - `CASH` does not consume quota.
 - Other account types consume one active-instrument slot.
+- Each owner may have at most one active `DIGITAL_WALLET` with preset `YAPE` and one with preset `PLIN`; archiving preserves history and frees that channel.
 - Cuenta Metas is not an EP-CTA account type in Sprint 2; EP-MET owns that virtual object and its exemption.
 
 ### Card
@@ -183,7 +184,7 @@ Sprint 2 code must not emit Sprint 3 kinds. A payment in Sprint 3 uses one opera
 | `remote_revision` | INTEGER | `>= 0` |
 | `created_at`, `updated_at` | INTEGER | epoch micros |
 
-Primary key `(user_id, id)`. Indexes: `(user_id, is_archived)`, `(user_id, type)`, unique `(user_id, creation_operation_id)`.
+Primary key `(user_id, id)`. Indexes: `(user_id, is_archived)`, `(user_id, type)`, unique `(user_id, creation_operation_id)`. Before create/reactivate, the repository checks for another active wallet in the same channel inside the Room transaction.
 
 ### CardEntity (`cards`)
 
@@ -297,7 +298,7 @@ Causal rules:
 
 One Room transaction:
 
-1. Validate existing operation/hash.
+1. Validate existing operation/hash and enforce one active Yape/Plin wallet per owner/channel.
 2. Count active quota-consuming accounts/cards for owner.
 3. Evaluate verified entitlement; Free fifth instrument fails before inserts.
 4. Insert account.

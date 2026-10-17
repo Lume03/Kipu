@@ -26,6 +26,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND linked_account_id = :parentId AND preset_id = :provider AND type = 'DIGITAL_WALLET' AND is_archived = 0 LIMIT 1")
     suspend fun getActiveAffiliatedWallet(userId: String, parentId: String, provider: String): AccountEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM accounts WHERE user_id = :userId AND type = 'DIGITAL_WALLET' AND preset_id = :presetId AND is_archived = 0 AND (:excludedAccountId IS NULL OR id != :excludedAccountId))")
+    suspend fun hasOtherActiveWalletForChannel(userId: String, presetId: String, excludedAccountId: String? = null): Boolean
+
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND id = :id")
     fun observeById(userId: String, id: String): Flow<AccountEntity?>
 
