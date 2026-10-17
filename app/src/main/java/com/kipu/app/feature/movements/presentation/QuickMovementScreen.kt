@@ -1,5 +1,8 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -148,6 +151,7 @@ fun QuickMovementBottomSheet(
     }
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
@@ -159,11 +163,12 @@ fun QuickMovementBottomSheet(
                     .width(40.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFCBD5E1))
+                    .background(MaterialTheme.colorScheme.outlineVariant)
             )
         },
         modifier = modifier.testTag("quick_movement_sheet"),
     ) {
+        KipuModalSystemBars()
         QuickMovementContent(
             uiState = uiState,
             onTypeSelected = viewModel::onTypeSelected,
@@ -350,7 +355,7 @@ fun QuickMovementContent(
                         Text(
                             text = if (fieldErrorCount == 1) "1 error" else "$fieldErrorCount errores",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = emeraldColors.expenseCoral,
+                            color = emeraldColors.expenseText,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                     }
@@ -395,13 +400,13 @@ fun QuickMovementContent(
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = null,
-                        tint = emeraldColors.expenseCoral,
+                        tint = emeraldColors.expenseText,
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
                         text = bannerMessage,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = emeraldColors.expenseCoral,
+                        color = emeraldColors.expenseText,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -445,11 +450,11 @@ fun QuickMovementContent(
 
             // Hero Type-Tinted Amount Card
             val (heroBg, heroBorder, heroText) = when (uiState.type) {
-                MovementType.EXPENSE -> Triple(emeraldColors.expenseBg, emeraldColors.expenseBorder, emeraldColors.expenseCoral)
-                MovementType.INCOME -> Triple(emeraldColors.incomeBg, emeraldColors.incomeBorder, emeraldColors.incomeEmerald)
+                MovementType.EXPENSE -> Triple(emeraldColors.expenseBg, emeraldColors.expenseBorder, emeraldColors.expenseText)
+                MovementType.INCOME -> Triple(emeraldColors.incomeBg, emeraldColors.incomeBorder, emeraldColors.incomeText)
                 MovementType.TRANSFER -> Triple(emeraldColors.transferBg, emeraldColors.transferBorder, emeraldColors.primaryText)
             }
-            val effectiveBorder = if (uiState.amountError != null) emeraldColors.expenseCoral else heroBorder
+            val effectiveBorder = if (uiState.amountError != null) emeraldColors.expenseText else heroBorder
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -474,8 +479,8 @@ fun QuickMovementContent(
                                 letterSpacing = 0.6.sp,
                             ),
                             color = when (uiState.type) {
-                                MovementType.EXPENSE -> emeraldColors.expenseCoral
-                                MovementType.INCOME -> emeraldColors.incomeEmerald
+                                MovementType.EXPENSE -> emeraldColors.expenseText
+                                MovementType.INCOME -> emeraldColors.incomeText
                                 MovementType.TRANSFER -> emeraldColors.transferBlue
                             },
                         )
@@ -603,12 +608,12 @@ fun QuickMovementContent(
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = emeraldColors.expenseCoral,
+                                tint = emeraldColors.expenseText,
                                 modifier = Modifier.size(14.dp),
                             )
                             Text(
                                 text = uiState.amountError,
-                                color = emeraldColors.expenseCoral,
+                                color = emeraldColors.expenseText,
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
@@ -779,7 +784,7 @@ fun QuickMovementContent(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,
                                 ),
-                                color = emeraldColors.incomeEmerald,
+                                color = emeraldColors.incomeText,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             )
                         }
@@ -893,7 +898,7 @@ fun QuickMovementContent(
                     val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
                         Color(0xFF451A03) to Color(0xFFFDBA74)
                     } else {
-                        Color(0xFFFEF3C7) to Color(0xFFD97706)
+                        Color(0xFFFEF3C7) to emeraldColors.warningText
                     }
                     val hasMerchant = uiState.merchantName.isNotBlank()
 
@@ -1204,8 +1209,8 @@ private fun CalmEmeraldTypeTab(
     val animDuration = if (reducedMotion) 0 else KipuMotionTokens.SegmentMillis
 
     val (bg, text, border) = when (type) {
-        MovementType.EXPENSE -> Triple(emeraldColors.expenseBg, emeraldColors.expenseCoral, emeraldColors.expenseBorder)
-        MovementType.INCOME -> Triple(emeraldColors.incomeBg, emeraldColors.incomeEmerald, emeraldColors.incomeBorder)
+        MovementType.EXPENSE -> Triple(emeraldColors.expenseBg, emeraldColors.expenseText, emeraldColors.expenseBorder)
+        MovementType.INCOME -> Triple(emeraldColors.incomeBg, emeraldColors.incomeText, emeraldColors.incomeBorder)
         MovementType.TRANSFER -> Triple(emeraldColors.transferBg, emeraldColors.transferBlue, emeraldColors.transferBorder)
     }
     val unselectedBg = emeraldColors.pillTrack
@@ -1321,7 +1326,7 @@ private fun CalmEmeraldSelectionRow(
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
-    val borderColor = if (isError) emeraldColors.expenseCoral else emeraldColors.borderSubtle
+    val borderColor = if (isError) emeraldColors.expenseText else emeraldColors.borderSubtle
 
     Card(
         onClick = onClick,
@@ -1364,7 +1369,7 @@ private fun CalmEmeraldSelectionRow(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = if (isError) emeraldColors.expenseCoral else emeraldColors.secondaryMuted,
+                        color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
                         maxLines = 1,
                     )
                     Text(
@@ -1379,7 +1384,7 @@ private fun CalmEmeraldSelectionRow(
                     Text(
                         text = supportingText,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = if (isError) emeraldColors.expenseCoral else emeraldColors.secondaryMuted,
+                        color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
                         maxLines = 1,
                     )
                 }
@@ -1394,7 +1399,7 @@ private fun CalmEmeraldSelectionRow(
                         Text(
                             text = trailingActionText,
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = emeraldColors.expenseCoral,
+                            color = emeraldColors.expenseText,
                         )
                     }
                 } else {
@@ -1412,7 +1417,7 @@ private fun CalmEmeraldSelectionRow(
                 Text(
                     text = "▲ $errorMessage",
                     style = MaterialTheme.typography.labelSmall,
-                    color = emeraldColors.expenseCoral,
+                    color = emeraldColors.expenseText,
                 )
             }
         }
@@ -1550,7 +1555,7 @@ fun DuplicateWarningDialog(
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
-                tint = emeraldColors.warningAmber,
+                tint = emeraldColors.warningText,
                 modifier = Modifier.size(32.dp)
             )
         },

@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,6 +41,7 @@ internal fun ReferenceSelector(
     onLockedClick: (() -> Unit)? = null,
     onChange: (Set<String>) -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
     var open by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
     val historicalLabel = stringResource(R.string.history_filter_historical_reference)
@@ -67,8 +69,8 @@ internal fun ReferenceSelector(
         },
         enabled = enabled,
         shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = themeColors.surface,
+        border = BorderStroke(1.dp, themeColors.border),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
@@ -90,7 +92,7 @@ internal fun ReferenceSelector(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color(0xFF0F766E),
+                        tint = themeColors.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -113,7 +115,7 @@ internal fun ReferenceSelector(
                         fontWeight = if (isCustomSelected) FontWeight.SemiBold else FontWeight.Normal,
                         fontSize = 13.sp
                     ),
-                    color = if (isCustomSelected) Color(0xFF0F766E) else Color(0xFF64748B),
+                    color = if (isCustomSelected) themeColors.primary else themeColors.inkSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.End,
@@ -123,14 +125,14 @@ internal fun ReferenceSelector(
                     Icon(
                         imageVector = Icons.Rounded.Lock,
                         contentDescription = null,
-                        tint = Color(0xFF94A3B8),
+                        tint = themeColors.inkSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Rounded.ChevronRight,
                         contentDescription = null,
-                        tint = if (isCustomSelected) Color(0xFF0F766E) else Color(0xFF94A3B8),
+                        tint = if (isCustomSelected) themeColors.primary else themeColors.inkSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -147,7 +149,7 @@ internal fun ReferenceSelector(
                 Text(
                     displayTitle ?: title,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = themeColors.inkPrimary
                 )
             },
             text = {
@@ -157,12 +159,12 @@ internal fun ReferenceSelector(
                         onValueChange = { search = it },
                         singleLine = true,
                         leadingIcon = {
-                            Icon(Icons.Rounded.Search, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Search, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(18.dp))
                         },
                         label = { Text(stringResource(R.string.history_filter_search)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF0F766E),
-                            unfocusedBorderColor = Color(0xFFCBD5E1),
+                            focusedBorderColor = themeColors.primary,
+                            unfocusedBorderColor = themeColors.outline,
                         ),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth().testTag("input_reference_search")
@@ -170,14 +172,14 @@ internal fun ReferenceSelector(
                     Text(
                         stringResource(R.string.history_filter_selected, selected.size),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF0F766E),
+                        color = themeColors.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                     if (visible.isEmpty()) {
                         Text(
                             stringResource(if (catalog.isEmpty()) R.string.history_filter_none else R.string.history_filter_no_matches),
                             modifier = Modifier.padding(vertical = 12.dp),
-                            color = Color(0xFF64748B)
+                            color = themeColors.inkSecondary
                         )
                     } else {
                         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp).testTag("reference_options")) {
@@ -198,7 +200,7 @@ internal fun ReferenceSelector(
                                     Checkbox(
                                         checked = option.id in selected,
                                         onCheckedChange = null,
-                                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF0F766E))
+                                        colors = CheckboxDefaults.colors(checkedColor = themeColors.primary)
                                     )
                                     Text(option.label, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
                                 }
@@ -212,7 +214,7 @@ internal fun ReferenceSelector(
                     Text(
                         stringResource(R.string.history_filter_done),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F766E)
+                        color = themeColors.primary
                     )
                 }
             }

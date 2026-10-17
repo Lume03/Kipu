@@ -1,5 +1,9 @@
 package com.kipu.app.feature.categories.presentation.components
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -248,11 +252,7 @@ fun getMerchantVisualProfile(name: String, brandColor: String? = null): Merchant
         else -> Color.hsl(((normalizedName.hashCode() and Int.MAX_VALUE) % 360).toFloat(), 0.62f, 0.42f)
     }
     val backgroundColor = parsedColor ?: fallbackColor
-    val foregroundColor = if (backgroundColor.red * 0.2126f + backgroundColor.green * 0.7152f + backgroundColor.blue * 0.0722f > 0.5f) {
-        Color.Black
-    } else {
-        Color.White
-    }
+    val foregroundColor = readableContentColor(backgroundColor)
     return MerchantVisualProfile(initials, backgroundColor, foregroundColor, "Comercio o servicio")
 }
 
@@ -269,12 +269,14 @@ fun MerchantPickerBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = modifier,
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -734,12 +736,12 @@ fun FallbackProvisionalRow(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = initial,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )

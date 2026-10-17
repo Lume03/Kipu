@@ -71,3 +71,18 @@ private fun AccountSelectorLightPreview() {
 private fun AccountSelectorDarkPreview() {
     KipuTheme(darkTheme = true) { AccountSelectorThemePreviewContent() }
 }
+
+@com.kipu.app.ui.theme.KipuThemePreviews
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ActualAccountSelectorThemePreview() = KipuTheme {
+    val account = com.kipu.app.feature.accounts.domain.model.Account(
+        id = com.kipu.app.core.finance.domain.model.AccountId("e3900000-0000-4000-8000-000000000001"),
+        userId = com.kipu.app.core.finance.domain.model.UserId("e3900000-0000-4000-8000-000000000002"),
+        alias = "Efectivo de ejemplo", type = com.kipu.app.feature.accounts.domain.model.AccountType.CASH,
+        currency = com.kipu.app.core.finance.domain.model.Currency.PEN,
+        initialBalance = com.kipu.app.core.finance.domain.model.Money(25000, com.kipu.app.core.finance.domain.model.Currency.PEN),
+        openedAt = java.time.Instant.parse("2026-10-01T00:00:00Z"),
+    )
+    AccountSelectorBottomSheet({}, listOf(account), selectedAccountId = account.id.value)
+}

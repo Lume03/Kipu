@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MaskedCardReference
 import com.kipu.app.ui.component.MoneyText
@@ -75,9 +76,9 @@ fun CreditCardSummaryCard(
     val progressColorTarget = if (isMasked) {
         emeraldColors.secondaryMuted
     } else when {
-        utilization >= 80.0 -> emeraldColors.expenseCoral
-        utilization >= 50.0 -> emeraldColors.warningAmber
-        else -> emeraldColors.incomeEmerald
+        utilization >= 80.0 -> emeraldColors.expenseText
+        utilization >= 50.0 -> emeraldColors.warningText
+        else -> emeraldColors.incomeText
     }
     val progressColor = animateColorAsState(
         targetValue = progressColorTarget,
@@ -117,7 +118,7 @@ fun CreditCardSummaryCard(
             "Sobreutilizada",
             emeraldColors.expenseBg,
             emeraldColors.expenseBorder,
-            emeraldColors.expenseCoral,
+            emeraldColors.expenseText,
         )
         utilization >= 80.0 -> Quadruple(
             "Uso alto",
@@ -135,7 +136,7 @@ fun CreditCardSummaryCard(
             "En uso normal",
             emeraldColors.incomeBg,
             emeraldColors.incomeBorder,
-            emeraldColors.incomeEmerald,
+            emeraldColors.incomeText,
         )
     }
     val animatedStatusBg = animateColorAsState(
@@ -302,7 +303,7 @@ fun CreditCardSummaryCard(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Middle section: Deuda actual vs Disponible en línea
+                // Middle section: Deuda actual vs Crédito disponible
                 if (isStacked) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -321,13 +322,13 @@ fun CreditCardSummaryCard(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                 ),
-                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseCoral else emeraldColors.primaryText,
+                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseText else emeraldColors.primaryText,
                             )
                         }
 
                         Column {
                             Text(
-                                text = "Disponible en línea",
+                                text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -360,13 +361,13 @@ fun CreditCardSummaryCard(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp,
                                 ),
-                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseCoral else emeraldColors.primaryText,
+                                color = if (!isMasked && creditCardWithSummary.debt.minorUnits > 0L) emeraldColors.expenseText else emeraldColors.primaryText,
                             )
                         }
 
                         Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
                             Text(
-                                text = "Disponible en línea",
+                                text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = emeraldColors.secondaryMuted,
                             )
@@ -402,7 +403,7 @@ fun CreditCardSummaryCard(
                         modifier = Modifier.weight(1f, fill = false),
                     ) {
                         Text(
-                            text = "Utilización de línea (Límite: ",
+                            text = "Uso de ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()}: ",
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = emeraldColors.secondaryMuted,
                         )
@@ -451,7 +452,7 @@ fun CreditCardSummaryCard(
                         Icon(
                             imageVector = Icons.Rounded.CalendarToday,
                             contentDescription = null,
-                            tint = emeraldColors.incomeEmerald,
+                            tint = emeraldColors.incomeText,
                             modifier = Modifier.size(15.dp),
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -485,7 +486,7 @@ fun CreditCardSummaryCard(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                             ),
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         )
                     }

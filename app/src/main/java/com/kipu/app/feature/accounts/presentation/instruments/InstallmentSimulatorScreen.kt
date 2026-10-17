@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.InstallmentScheduleItem
 import com.kipu.app.feature.accounts.domain.model.InstallmentSimulation
 import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
@@ -217,7 +218,7 @@ fun InstallmentSimulatorScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = emeraldColors.primaryDeep,
-                                selectedLabelColor = Color.White,
+                                selectedLabelColor = emeraldColors.onPrimaryDeep,
                                 containerColor = emeraldColors.pillTrack,
                                 labelColor = MaterialTheme.colorScheme.onSurface,
                             ),
@@ -256,7 +257,7 @@ fun InstallmentSimulatorScreen(
                         Text(
                             text = "Promoción de 3 cuotas sin intereses confirmada por el comercio",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = emeraldColors.incomeEmerald,
+                            color = emeraldColors.incomeText,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f),
                         )
@@ -273,7 +274,7 @@ fun InstallmentSimulatorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics {
-                            contentDescription = "Alerta: el importe supera el crédito disponible; la compra se puede confirmar con sobreutilización"
+                            contentDescription = "Alerta: ${FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY}. El importe supera ese crédito; la compra se puede confirmar con sobreutilización"
                         },
                 ) {
                     Column(
@@ -287,11 +288,11 @@ fun InstallmentSimulatorScreen(
                             Icon(
                                 imageVector = Icons.Rounded.WarningAmber,
                                 contentDescription = null,
-                                tint = emeraldColors.warningAmber,
+                                tint = emeraldColors.warningText,
                                 modifier = Modifier.size(20.dp),
                             )
                             Text(
-                                text = "Compra sobre la línea disponible",
+                                text = "Compra supera el crédito disponible",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = emeraldColors.warningText,

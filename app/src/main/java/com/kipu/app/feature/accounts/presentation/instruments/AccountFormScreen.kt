@@ -260,7 +260,7 @@ fun AccountFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
-                        text = "Esta cuenta consumirá 1 cupo de los 4 permitidos en el plan Free.",
+                        text = "Esta cuenta ocupa 1 de los 4 cupos para instrumentos de Kipu Free.",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                     )

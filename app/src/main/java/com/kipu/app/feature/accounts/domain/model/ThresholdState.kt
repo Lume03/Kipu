@@ -3,9 +3,9 @@ package com.kipu.app.feature.accounts.domain.model
 import com.kipu.app.core.finance.domain.model.CardId
 
 enum class UtilizationThreshold(val percentage: Int, val message: String) {
-    PERCENT_50(50, "Has alcanzado el 50% de tu línea de crédito"),
-    PERCENT_80(80, "Has alcanzado el 80% de tu línea de crédito"),
-    PERCENT_100(100, "Has alcanzado o superado el 100% de tu línea de crédito");
+    PERCENT_50(50, "Has alcanzado el 50% de tu línea total de crédito"),
+    PERCENT_80(80, "Has alcanzado el 80% de tu línea total de crédito"),
+    PERCENT_100(100, "Has alcanzado o superado el 100% de tu línea total de crédito");
 
     companion object {
         fun forUtilization(pct: Double): List<UtilizationThreshold> =

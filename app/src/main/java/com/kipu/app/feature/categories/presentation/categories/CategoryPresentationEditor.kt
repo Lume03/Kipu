@@ -1,5 +1,6 @@
 package com.kipu.app.feature.categories.presentation.categories
 
+import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.KipuThemePreviews
 
 private val PRESENTATION_PALETTE = listOf(
     "#F44336", "#E91E63", "#9C27B0", "#673AB7",
@@ -100,6 +103,28 @@ fun CategoryPresentationEditor(
         }
     }
 
+    CategoryPresentationEditorContent(
+        state = state,
+        snackbarHostState = snackbarHostState,
+        onNavigateBack = onNavigateBack,
+        onNameChanged = viewModel::onNameChanged,
+        onColorChanged = viewModel::onColorChanged,
+        onSave = viewModel::savePresentation,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun CategoryPresentationEditorContent(
+    state: CategoryPresentationUiState,
+    snackbarHostState: SnackbarHostState,
+    onNavigateBack: () -> Unit,
+    onNameChanged: (String) -> Unit,
+    onColorChanged: (String) -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -162,7 +187,7 @@ fun CategoryPresentationEditor(
                             Icon(
                                 Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = readableContentColor(parseColor(state.color)),
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -185,7 +210,7 @@ fun CategoryPresentationEditor(
                 // Name field
                 OutlinedTextField(
                     value = state.name,
-                    onValueChange = viewModel::onNameChanged,
+                    onValueChange = onNameChanged,
                     label = { Text("Nombre para mostrar") },
                     singleLine = true,
                     modifier = Modifier
@@ -216,14 +241,14 @@ fun CategoryPresentationEditor(
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                     shape = CircleShape,
                                 )
-                                .clickable { viewModel.onColorChanged(hexColor) },
+                                .clickable { onColorChanged(hexColor) },
                             contentAlignment = Alignment.Center,
                         ) {
                             if (isSelected) {
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = "Color seleccionado",
-                                    tint = Color.White,
+                                    tint = readableContentColor(parseColor(hexColor)),
                                     modifier = Modifier.size(20.dp),
                                 )
                             }
@@ -260,7 +285,7 @@ fun CategoryPresentationEditor(
 
                 // Save button
                 Button(
-                    onClick = viewModel::savePresentation,
+                    onClick = onSave,
                     enabled = !state.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -275,5 +300,24 @@ fun CategoryPresentationEditor(
                 }
             }
         }
+    }
+}
+
+@KipuThemePreviews
+@Composable
+private fun CategoryPresentationEditorThemePreview() {
+    KipuTheme {
+        CategoryPresentationEditorContent(
+            state = CategoryPresentationUiState(
+                name = "Alimentación",
+                color = "#009688",
+                isLoading = false,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateBack = {},
+            onNameChanged = {},
+            onColorChanged = {},
+            onSave = {},
+        )
     }
 }

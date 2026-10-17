@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
@@ -48,9 +49,9 @@ class PayableDebtFlowTest {
         }
 
         compose.onNodeWithText("Me prestaron").assertIsDisplayed()
-        compose.onNodeWithText("El saldo de la cuenta aumenta por el principal.").assertIsDisplayed()
+        compose.onNodeWithText("El saldo de la cuenta aumenta por el principal recibido.").assertIsDisplayed()
         compose.onNodeWithTag("opening-historical").performClick()
-        compose.onNodeWithText("El saldo ya lo refleja; no habrá un segundo movimiento.").assertIsDisplayed()
+        compose.onNodeWithText("El saldo ya lo refleja en tus cuentas; no se registrará un segundo movimiento.").assertIsDisplayed()
         compose.onNodeWithTag("save-debt").performClick()
 
         assertEquals(DebtOpeningMode.HISTORICAL, submittedMode)
@@ -108,7 +109,7 @@ class PayableDebtFlowTest {
         compose.onNodeWithText("Editar datos").performClick()
         compose.onNodeWithText("Apertura histórica").assertIsDisplayed()
         compose.onNodeWithText("Eliminar deuda").assertIsNotEnabled()
-        compose.onNodeWithText("El saldo pendiente, la apertura y cualquier movimiento se conservan como historial.").assertIsDisplayed()
+        compose.onNodeWithText("El saldo pendiente, la apertura y cualquier movimiento se conservan como historial auditable para cumplimiento y control.").performScrollTo().assertIsDisplayed()
 
         assertEquals(1, edits)
         assertEquals(0, deletes)

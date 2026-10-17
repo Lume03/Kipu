@@ -72,8 +72,8 @@ fun MovementDetailSheet(
     val amountColor = if (voided) {
         emeraldColors.secondaryMuted
     } else when (tx.type) {
-        MovementType.INCOME -> emeraldColors.incomeEmerald
-        MovementType.EXPENSE -> emeraldColors.expenseCoral
+        MovementType.INCOME -> emeraldColors.incomeText
+        MovementType.EXPENSE -> emeraldColors.expenseText
         MovementType.TRANSFER -> emeraldColors.primaryDeep
     }
 
@@ -176,8 +176,8 @@ fun MovementDetailSheet(
                                     imageVector = typeIcon,
                                     contentDescription = null,
                                     tint = when (tx.type) {
-                                        MovementType.EXPENSE -> emeraldColors.expenseCoral
-                                        MovementType.INCOME -> emeraldColors.incomeEmerald
+                                        MovementType.EXPENSE -> emeraldColors.expenseText
+                                        MovementType.INCOME -> emeraldColors.incomeText
                                         MovementType.TRANSFER -> emeraldColors.primaryDeep
                                     },
                                     modifier = Modifier.size(24.dp),
@@ -222,8 +222,8 @@ fun MovementDetailSheet(
                                     text = if (voided) "Anulado" else typeLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                     color = if (voided) emeraldColors.secondaryMuted else when (tx.type) {
-                                        MovementType.EXPENSE -> emeraldColors.expenseCoral
-                                        MovementType.INCOME -> emeraldColors.incomeEmerald
+                                        MovementType.EXPENSE -> emeraldColors.expenseText
+                                        MovementType.INCOME -> emeraldColors.incomeText
                                         MovementType.TRANSFER -> emeraldColors.primaryDeep
                                     },
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -245,13 +245,13 @@ fun MovementDetailSheet(
                                         Icon(
                                             imageVector = Icons.Rounded.CheckCircle,
                                             contentDescription = null,
-                                            tint = emeraldColors.incomeEmerald,
+                                            tint = emeraldColors.incomeText,
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
                                             text = "Verificado",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = emeraldColors.incomeEmerald,
+                                            color = emeraldColors.incomeText,
                                         )
                                     }
                                 }
@@ -365,13 +365,13 @@ fun MovementDetailSheet(
                                 Icon(
                                     imageVector = Icons.Rounded.Info,
                                     contentDescription = null,
-                                    tint = emeraldColors.expenseCoral,
+                                    tint = emeraldColors.expenseText,
                                     modifier = Modifier.size(20.dp),
                                 )
                                 Text(
                                     text = "Este movimiento fue anulado. El saldo fue restituido a la cuenta de origen y no afecta el balance contable actual.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = emeraldColors.expenseCoral,
+                                    color = emeraldColors.expenseText,
                                 )
                             }
                         }
@@ -560,9 +560,9 @@ fun MovementDetailSheet(
                             .testTag("detail_void"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = emeraldColors.expenseCoral,
+                            contentColor = emeraldColors.expenseText,
                         ),
-                        border = BorderStroke(1.dp, emeraldColors.expenseCoral),
+                        border = BorderStroke(1.dp, emeraldColors.expenseText),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Cancel,
@@ -585,7 +585,7 @@ fun MovementDetailSheet(
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = emeraldColors.primaryDeep,
-                            contentColor = Color.White,
+                            contentColor = emeraldColors.onPrimaryDeep,
                         ),
                     ) {
                         Icon(

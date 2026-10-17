@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.feature.accounts.presentation.instruments.CalmEmeraldIntroView
 import java.io.File
@@ -59,7 +60,7 @@ class DashboardEmptyStateTest {
         setEmptyDashboard()
 
         compose.onNodeWithTag("dashboard_empty_balance").assertIsDisplayed()
-        compose.onNodeWithText("Saldo registrado").assertIsDisplayed()
+        compose.onNodeWithText(FinancialTerminology.REAL_MONEY_AVAILABLE).assertIsDisplayed()
         compose.onAllNodesWithText("S/ 0.00").assertCountEquals(1)
         compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed()
         compose.onNodeWithText(
@@ -68,6 +69,7 @@ class DashboardEmptyStateTest {
         compose.onAllNodesWithText("Aún no tienes cuentas registradas").assertCountEquals(0)
         compose.onNodeWithText("Agrega una cuenta o efectivo para ver tu saldo aquí.").assertDoesNotExist()
         compose.onNodeWithText("Cupo Free").assertDoesNotExist()
+        compose.onNodeWithText("Ver planes").assertDoesNotExist()
         compose.onNodeWithText("En cuentas").assertDoesNotExist()
         compose.onNodeWithText("En efectivo").assertDoesNotExist()
         compose.onNodeWithText("Tus datos permanecen privados y protegidos", substring = true).assertDoesNotExist()
@@ -115,7 +117,10 @@ class DashboardEmptyStateTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                 KipuTheme {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        EmptyDashboardContent(onNavigateToNewAccount = {}, onNavigateToNewCard = {})
+                        EmptyDashboardContent(
+                            onNavigateToNewAccount = {},
+                            onNavigateToNewCard = {},
+                        )
                     }
                 }
             }

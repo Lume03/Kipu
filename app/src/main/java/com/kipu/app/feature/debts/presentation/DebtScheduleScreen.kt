@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.presentation
 
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -283,6 +284,8 @@ private fun ScheduleProjectionTab(
     onSchedule: () -> Unit,
     onCancelSchedule: () -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val formatter = currencyFormatter(debt.currencyCode)
     val count = state.installmentCount.toIntOrNull()?.coerceIn(1, 48) ?: 3
     val approxPerQuotaMinor = if (count > 0) debt.remainingPrincipalMinor / count else 0L
@@ -302,39 +305,48 @@ private fun ScheduleProjectionTab(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Color(0xFFCCFBF1), RoundedCornerShape(12.dp)),
+                        .background(themeColors.primaryContainer, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
                 }
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(debt.counterpartyName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(debt.counterpartyName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFDCFCE7),
+                            color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseBg else semanticColors.incomeBg,
                         ) {
                             Text(
-                                "Activa",
+                                when (debt.status) {
+                                    DebtLifecycleStatus.ACTIVE -> "Activa"
+                                    DebtLifecycleStatus.SETTLED -> "Liquidada"
+                                    DebtLifecycleStatus.CANCELLED -> "Cancelada"
+                                },
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color(0xFF16A34A),
+                                color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseText else semanticColors.incomeText,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
                     }
                     Text("Saldo pendiente a programar", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+                    if (debt.status == DebtLifecycleStatus.CANCELLED && debt.remainingPrincipalMinor > 0L) {
+                        Text("Saldo pendiente no pagado", style = MaterialTheme.typography.bodySmall, color = semanticColors.expenseText)
+                    }
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Total", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                 Text(
                     formatter.format(debt.remainingPrincipalMinor / 100.0),
+                    modifier = Modifier.testTag("debt-schedule-total"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 )
             }
@@ -344,9 +356,9 @@ private fun ScheduleProjectionTab(
     // Aviso contable importante banner
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFFEFF6FF),
+        color = semanticColors.transferBg,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFDBEAFE)),
+        border = BorderStroke(1.dp, semanticColors.transferBg),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -356,17 +368,17 @@ private fun ScheduleProjectionTab(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .background(Color(0xFFDBEAFE), RoundedCornerShape(8.dp)),
+                    .background(semanticColors.transferBg, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = semanticColors.transferBlue, modifier = Modifier.size(18.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Aviso contable importante", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E3A8A))
+                Text("Aviso contable importante", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = semanticColors.transferBlue)
                 Text(
                     "Las cuotas planificadas organizan tu calendario de vencimientos, pero NO registran pagos automáticamente. Los pagos reales deben registrarse por separado.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF1E40AF),
+                    color = semanticColors.transferBlue,
                     lineHeight = 18.sp,
                 )
             }
@@ -379,10 +391,10 @@ private fun ScheduleProjectionTab(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Configurar cronograma de pagos", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+        Text("Configurar cronograma de pagos", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
         Surface(
             shape = RoundedCornerShape(999.dp),
-            color = Color(0xFFCCFBF1),
+            color = themeColors.primaryContainer,
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -414,7 +426,7 @@ private fun ScheduleProjectionTab(
                 Text("Cantidad de cuotas", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF1F5F9),
+                    color = themeColors.surfaceVariant,
                 ) {
                     Row(
                         modifier = Modifier
@@ -467,7 +479,7 @@ private fun ScheduleProjectionTab(
                 Text("Avisar días antes", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF1F5F9),
+                    color = themeColors.surfaceVariant,
                 ) {
                     Row(
                         modifier = Modifier
@@ -483,7 +495,7 @@ private fun ScheduleProjectionTab(
                             Icon(Icons.Rounded.Remove, contentDescription = "Menos", modifier = Modifier.size(18.dp))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.Notifications, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.Notifications, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
                             Text(
                                 "$leadDays días",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -497,7 +509,7 @@ private fun ScheduleProjectionTab(
                         }
                     }
                 }
-                Text("Dejar en 0 para desactivar recordatorios", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
+                Text("Dejar en 0 para desactivar recordatorios", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
             }
         }
     }
@@ -515,8 +527,8 @@ private fun ScheduleProjectionTab(
             Text("Primer vencimiento", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = themeColors.surfaceSubtle,
+                border = BorderStroke(1.dp, themeColors.border),
             ) {
                 Row(
                     modifier = Modifier
@@ -532,15 +544,15 @@ private fun ScheduleProjectionTab(
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         )
                     }
-                    Icon(Icons.Rounded.EditCalendar, contentDescription = "Editar fecha", tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.EditCalendar, contentDescription = "Editar fecha", tint = themeColors.inkSecondary, modifier = Modifier.size(20.dp))
                 }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Periodicidad", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
-                Text("Mensual (cada 30 días)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF475569))
+                Text("Periodicidad", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
+                Text("Mensual (cada 30 días)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = themeColors.inkSecondary)
             }
         }
     }
@@ -555,19 +567,19 @@ private fun ScheduleProjectionTab(
             Text("Cronograma proyectado", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = Color(0xFFE2E8F0),
+                color = themeColors.border,
             ) {
                 Text(
                     "$count cuotas",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF334155),
+                    color = themeColors.inkPrimary,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box(modifier = Modifier.size(6.dp).background(Color(0xFFD97706), CircleShape))
-            Text("Sin amortizar", style = MaterialTheme.typography.labelSmall, color = Color(0xFFD97706))
+            Box(modifier = Modifier.size(6.dp).background(semanticColors.warningText, CircleShape))
+            Text("Sin amortizar", style = MaterialTheme.typography.labelSmall, color = semanticColors.warningText)
         }
     }
 
@@ -591,19 +603,20 @@ private fun ScheduleProjectionTab(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (index == 0) Color(0xFFCCFBF1) else Color(0xFFF1F5F9), CircleShape),
+                            .background(if (index == 0) themeColors.primaryContainer else themeColors.surfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             (index + 1).toString(),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (index == 0) emeraldColors.primaryDeep else Color(0xFF475569),
+                            color = if (index == 0) emeraldColors.primaryDeep else themeColors.inkSecondary,
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -611,19 +624,19 @@ private fun ScheduleProjectionTab(
                             Text("Cuota ${index + 1}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = if (index == 0) Color(0xFFFEF3C7) else Color(0xFFF1F5F9),
+                                color = if (index == 0) semanticColors.warningBg else themeColors.surfaceVariant,
                             ) {
                                 Text(
                                     if (index == 0) "Pendiente" else "Futura",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = if (index == 0) Color(0xFFB45309) else Color(0xFF475569),
+                                    color = if (index == 0) semanticColors.warningText else themeColors.inkSecondary,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
                             }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(14.dp))
-                            Text(item.formattedDate, style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(14.dp))
+                            Text(item.formattedDate, style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                         }
                     }
                 }
@@ -632,7 +645,7 @@ private fun ScheduleProjectionTab(
                         formatter.format(item.amountMinor / 100.0),
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     )
-                    Text(item.caption, style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
+                    Text(item.caption, style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                 }
             }
         }
@@ -642,8 +655,8 @@ private fun ScheduleProjectionTab(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = themeColors.surfaceSubtle,
+        border = BorderStroke(1.dp, themeColors.border),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -651,13 +664,13 @@ private fun ScheduleProjectionTab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Rounded.Info, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
-                Text("Suma total proyectada:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                Icon(Icons.Rounded.Info, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
+                Text("Suma total proyectada:", style = MaterialTheme.typography.bodySmall, color = themeColors.inkSecondary)
             }
             Text(
                 "${formatter.format(debt.remainingPrincipalMinor / 100.0)} exactos",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFF16A34A),
+                color = semanticColors.incomeText,
             )
         }
     }
@@ -682,7 +695,7 @@ private fun ScheduleProjectionTab(
     Text(
         "Podrás modificar las fechas en cualquier momento",
         style = MaterialTheme.typography.labelSmall,
-        color = Color(0xFF94A3B8),
+        color = themeColors.inkSecondary,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -693,8 +706,8 @@ private fun ScheduleProjectionTab(
             enabled = !state.isSaving,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("debt-schedule-cancel"),
             shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+            border = BorderStroke(1.dp, semanticColors.expenseBorder),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = semanticColors.expenseText),
         ) { Text("Cancelar cuotas y avisos") }
     }
 
@@ -756,6 +769,8 @@ private fun AdjustmentsAndClosureTab(
     onClosureReasonChange: (String) -> Unit,
     onRequestAction: (CloseDebtAction) -> Unit,
 ) {
+    val themeColors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     val formatter = currencyFormatter(debt.currencyCode)
     val isZeroBalance = debt.remainingPrincipalMinor == 0L
     var isReduce by remember { mutableStateOf(true) }
@@ -788,7 +803,7 @@ private fun AdjustmentsAndClosureTab(
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFF1F5F9),
+                    color = themeColors.surfaceVariant,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -798,7 +813,7 @@ private fun AdjustmentsAndClosureTab(
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(if (isZeroBalance) Color(0xFF16A34A) else Color(0xFFD97706), CircleShape),
+                                .background(if (isZeroBalance) semanticColors.incomeText else semanticColors.warningText, CircleShape),
                         )
                         Text(debt.counterpartyName, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
                     }
@@ -807,29 +822,29 @@ private fun AdjustmentsAndClosureTab(
                 if (isZeroBalance) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFDCFCE7),
-                        border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+                        color = semanticColors.incomeBg,
+                        border = BorderStroke(1.dp, semanticColors.incomeBorder),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(14.dp))
-                            Text("Saldada", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF15803D))
+                            Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(14.dp))
+                            Text("Saldada", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = semanticColors.incomeText)
                         }
                     }
                 } else {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (hasValidationError) Color(0xFFFEE2E2) else Color(0xFFCCFBF1), RoundedCornerShape(10.dp)),
+                            .background(if (hasValidationError) semanticColors.expenseBg else themeColors.primaryContainer, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             Icons.Rounded.AccountBalanceWallet,
                             contentDescription = null,
-                            tint = if (hasValidationError) Color(0xFFDC2626) else emeraldColors.primaryDeep,
+                            tint = if (hasValidationError) semanticColors.expenseText else emeraldColors.primaryDeep,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -852,29 +867,29 @@ private fun AdjustmentsAndClosureTab(
                         fontWeight = FontWeight.Bold,
                         fontSize = 34.sp,
                     ),
-                    color = if (hasValidationError && !isZeroBalance) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurface,
+                    color = if (hasValidationError && !isZeroBalance) semanticColors.expenseText else MaterialTheme.colorScheme.onSurface,
                 )
                 if (isZeroBalance) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFDCFCE7),
+                        color = semanticColors.incomeBg,
                     ) {
                         Text(
                             "100% amortizado",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFF16A34A),
+                            color = semanticColors.incomeText,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 } else if (hasValidationError) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFEE2E2),
+                        color = semanticColors.expenseBg,
                     ) {
                         Text(
                             "Activa",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFFDC2626),
+                            color = semanticColors.expenseText,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
@@ -882,22 +897,22 @@ private fun AdjustmentsAndClosureTab(
             }
 
             if (isZeroBalance) {
-                Text("Saldo liquidado · Listo para cierre contable", style = MaterialTheme.typography.bodySmall, color = Color(0xFF16A34A))
+                Text("Saldo liquidado · Listo para cierre contable", style = MaterialTheme.typography.bodySmall, color = semanticColors.incomeText)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.dp, semanticColors.incomeBorder),
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(20.dp))
                         Text(
                             "Saldo completamente amortizado. La obligación cumple los requisitos contables para cerrarse definitivamente sin saldos pendientes.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF15803D),
+                            color = semanticColors.incomeText,
                             lineHeight = 18.sp,
                         )
                     }
@@ -906,7 +921,7 @@ private fun AdjustmentsAndClosureTab(
                 Text(
                     "Obligación contable ${debt.counterpartyName}. Liquidación sujeta a balance cero.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                 )
             }
         }
@@ -917,21 +932,21 @@ private fun AdjustmentsAndClosureTab(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFFEF2F2),
-            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+            color = semanticColors.expenseBg,
+            border = BorderStroke(1.dp, semanticColors.expenseBorder),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(22.dp))
+                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = semanticColors.expenseText, modifier = Modifier.size(22.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Error de validación contable", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF991B1B))
+                    Text("Error de validación contable", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = semanticColors.expenseText)
                     Text(
                         state.errorMessage ?: "Revisa los campos señalados antes de procesar el ajuste contable. Hay montos excedentes y campos obligatorios vacíos.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFDC2626),
+                        color = semanticColors.expenseText,
                     )
                 }
             }
@@ -960,10 +975,10 @@ private fun AdjustmentsAndClosureTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp)),
+                            .background(themeColors.surfaceVariant, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Rounded.SwapHoriz, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.SwapHoriz, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(20.dp))
                     }
                     Column {
                         Text("1. Ajuste manual de saldo", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
@@ -975,14 +990,14 @@ private fun AdjustmentsAndClosureTab(
                     }
                 }
                 if (isZeroBalance) {
-                    Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFF1F5F9)) {
-                        Text("Sin ajustes", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                    Surface(shape = RoundedCornerShape(6.dp), color = themeColors.surfaceVariant) {
+                        Text("Sin ajustes", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                     }
                 } else {
                     Icon(
                         if (isSection1Expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = themeColors.inkSecondary,
                     )
                 }
             }
@@ -998,7 +1013,7 @@ private fun AdjustmentsAndClosureTab(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFFF1F5F9),
+                            color = themeColors.surfaceVariant,
                         ) {
                             Row(modifier = Modifier.padding(3.dp)) {
                                 Box(
@@ -1011,7 +1026,7 @@ private fun AdjustmentsAndClosureTab(
                                     Text(
                                         "- Reducir",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (isReduce) Color.White else Color(0xFF475569),
+                                        color = if (isReduce) themeColors.onPrimary else themeColors.inkSecondary,
                                     )
                                 }
                                 Box(
@@ -1024,7 +1039,7 @@ private fun AdjustmentsAndClosureTab(
                                     Text(
                                         "+ Aumentar",
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (!isReduce) Color.White else Color(0xFF475569),
+                                        color = if (!isReduce) themeColors.onPrimary else themeColors.inkSecondary,
                                     )
                                 }
                             }
@@ -1045,7 +1060,7 @@ private fun AdjustmentsAndClosureTab(
                     Text(
                         "El signo negativo reduce el saldo exigible al deudor.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF94A3B8),
+                        color = themeColors.inkSecondary,
                     )
 
                     OutlinedTextField(
@@ -1083,7 +1098,7 @@ private fun AdjustmentsAndClosureTab(
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             if (isSection2Error) 1.5.dp else 1.dp,
-            if (isSection2Error) Color(0xFFEF4444) else emeraldColors.borderSubtle,
+            if (isSection2Error) semanticColors.expenseText else emeraldColors.borderSubtle,
         ),
     ) {
         Column(
@@ -1099,13 +1114,13 @@ private fun AdjustmentsAndClosureTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (isSection2Error) Color(0xFFFEE2E2) else Color(0xFFDCFCE7), RoundedCornerShape(10.dp)),
+                            .background(if (isSection2Error) semanticColors.expenseBg else semanticColors.incomeBg, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             Icons.Rounded.VolunteerActivism,
                             contentDescription = null,
-                            tint = if (isSection2Error) Color(0xFFDC2626) else Color(0xFF16A34A),
+                            tint = if (isSection2Error) semanticColors.expenseText else semanticColors.incomeText,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -1114,12 +1129,12 @@ private fun AdjustmentsAndClosureTab(
                         Text(
                             if (isZeroBalance) "Completada con éxito" else "Extinción parcial o total sin ingreso monetario",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isZeroBalance) Color(0xFF16A34A) else emeraldColors.secondaryMuted,
+                            color = if (isZeroBalance) semanticColors.incomeText else emeraldColors.secondaryMuted,
                         )
                     }
                 }
                 if (isZeroBalance) {
-                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -1127,8 +1142,8 @@ private fun AdjustmentsAndClosureTab(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = themeColors.surfaceSubtle,
+                    border = BorderStroke(1.dp, themeColors.border),
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -1142,24 +1157,24 @@ private fun AdjustmentsAndClosureTab(
                             Text(
                                 "${formatter.format(0.0)} exonerados",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF1E293B),
+                                color = themeColors.inkPrimary,
                             )
                             Text(
                                 formatReadableSpanishDate(debt.openedOn.toString()),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                             )
                         }
-                        HorizontalDivider(color = Color(0xFFE2E8F0))
+                        HorizontalDivider(color = themeColors.border)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Icon(Icons.Rounded.Description, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.Description, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
                             Text(
                                 "Motivo: \"${debt.notes?.takeIf(String::isNotBlank) ?: "Acuerdo mutuo de exoneración comercial"}\"",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF475569),
+                                color = themeColors.inkSecondary,
                             )
                         }
                     }
@@ -1171,11 +1186,11 @@ private fun AdjustmentsAndClosureTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Atajo:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                    Text("Atajo:", style = MaterialTheme.typography.bodySmall, color = themeColors.inkSecondary)
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = themeColors.surfaceVariant,
+                        border = BorderStroke(1.dp, themeColors.border),
                         modifier = Modifier.clickable {
                             onForgivenessAmountChange(
                                 String.format(Locale.US, "%.2f", debt.remainingPrincipalMinor / 100.0),
@@ -1190,7 +1205,7 @@ private fun AdjustmentsAndClosureTab(
                             Text(
                                 "Aplicar saldo total",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF334155),
+                                color = themeColors.inkPrimary,
                             )
                             Text(
                                 formatter.format(debt.remainingPrincipalMinor / 100.0),
@@ -1210,9 +1225,9 @@ private fun AdjustmentsAndClosureTab(
                         Text(
                             "Monto a condonar (${currencyLabel(debt.currencyCode)}) *",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = if (isForgivenessExceeded) Color(0xFFDC2626) else emeraldColors.secondaryMuted,
+                            color = if (isForgivenessExceeded) semanticColors.expenseText else emeraldColors.secondaryMuted,
                         )
-                        Text("Máx: ${formatter.format(debt.remainingPrincipalMinor / 100.0)}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text("Máx: ${formatter.format(debt.remainingPrincipalMinor / 100.0)}", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                     }
                     OutlinedTextField(
                         value = state.forgivenessAmount,
@@ -1227,14 +1242,14 @@ private fun AdjustmentsAndClosureTab(
                         singleLine = true,
                         isError = isForgivenessExceeded,
                         trailingIcon = if (isForgivenessExceeded) {
-                            { Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFDC2626)) }
+                            { Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = semanticColors.expenseText) }
                         } else null,
                     )
                     if (isForgivenessExceeded) {
                         Text(
                             "✕ El monto excede el saldo pendiente máximo exigible de ${formatter.format(debt.remainingPrincipalMinor / 100.0)}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFDC2626),
+                            color = semanticColors.expenseText,
                         )
                     }
                 }
@@ -1244,7 +1259,7 @@ private fun AdjustmentsAndClosureTab(
                     Text(
                         "Motivo de condonación * (Requerido para auditoría)",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (isReasonMissing) Color(0xFFDC2626) else emeraldColors.secondaryMuted,
+                        color = if (isReasonMissing) semanticColors.expenseText else emeraldColors.secondaryMuted,
                     )
                     OutlinedTextField(
                         value = state.closureReason,
@@ -1259,14 +1274,14 @@ private fun AdjustmentsAndClosureTab(
                         maxLines = 4,
                         isError = isReasonMissing,
                         trailingIcon = if (isReasonMissing) {
-                            { Icon(Icons.Rounded.PriorityHigh, contentDescription = null, tint = Color(0xFFDC2626)) }
+                            { Icon(Icons.Rounded.PriorityHigh, contentDescription = null, tint = semanticColors.expenseText) }
                         } else null,
                     )
                     if (isReasonMissing) {
                         Text(
                             "⚠ El motivo es obligatorio para fines de auditoría e historial contable",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFDC2626),
+                            color = semanticColors.expenseText,
                         )
                     }
                 }
@@ -1298,7 +1313,7 @@ private fun AdjustmentsAndClosureTab(
         modifier = Modifier.fillMaxWidth(),
         color = emeraldColors.surfaceCard,
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(if (isZeroBalance) 1.5.dp else 1.dp, if (isZeroBalance) Color(0xFF10B981) else emeraldColors.borderSubtle),
+        border = BorderStroke(if (isZeroBalance) 1.5.dp else 1.dp, if (isZeroBalance) semanticColors.incomeText else emeraldColors.borderSubtle),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -1313,13 +1328,13 @@ private fun AdjustmentsAndClosureTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (isZeroBalance) Color(0xFFCCFBF1) else Color(0xFFF1F5F9), RoundedCornerShape(10.dp)),
+                            .background(if (isZeroBalance) themeColors.primaryContainer else themeColors.surfaceVariant, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             if (isZeroBalance) Icons.Rounded.CheckCircle else Icons.Rounded.Lock,
                             contentDescription = null,
-                            tint = if (isZeroBalance) emeraldColors.primaryDeep else Color(0xFF64748B),
+                            tint = if (isZeroBalance) emeraldColors.primaryDeep else themeColors.inkSecondary,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -1334,12 +1349,12 @@ private fun AdjustmentsAndClosureTab(
                 }
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isZeroBalance) Color(0xFFCCFBF1) else Color(0xFFF1F5F9),
+                    color = if (isZeroBalance) themeColors.primaryContainer else themeColors.surfaceVariant,
                 ) {
                     Text(
                         if (isZeroBalance) "Habilitado" else "Bloqueado",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (isZeroBalance) emeraldColors.primaryDeep else Color(0xFF94A3B8),
+                        color = if (isZeroBalance) emeraldColors.primaryDeep else themeColors.inkSecondary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -1349,23 +1364,23 @@ private fun AdjustmentsAndClosureTab(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF0FDF4),
-                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.dp, semanticColors.incomeBorder),
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(18.dp))
-                        Text("Obligación elegible para liquidación definitiva", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF15803D))
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(18.dp))
+                        Text("Obligación elegible para liquidación definitiva", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = semanticColors.incomeText)
                     }
                 }
 
                 Text(
                     "Al liquidar, se archivará la deuda del panel de cobro activo y se guardará la constancia en el historial contable.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B),
+                    color = themeColors.inkSecondary,
                     lineHeight = 18.sp,
                 )
 
@@ -1398,21 +1413,21 @@ private fun AdjustmentsAndClosureTab(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    color = themeColors.surfaceSubtle,
+                    border = BorderStroke(1.dp, themeColors.border),
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(20.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text("Cierre de obligación no disponible", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                             Text(
                                 "La obligación aún tiene ${formatter.format(debt.remainingPrincipalMinor / 100.0)} pendientes. Amortiza, ajusta o condona el saldo restante para habilitar la liquidación definitiva.",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF64748B),
+                                color = themeColors.inkSecondary,
                                 lineHeight = 16.sp,
                             )
                         }
@@ -1424,7 +1439,7 @@ private fun AdjustmentsAndClosureTab(
                     enabled = false,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(disabledContainerColor = Color(0xFFE2E8F0), disabledContentColor = Color(0xFF94A3B8)),
+                    colors = ButtonDefaults.buttonColors(disabledContainerColor = themeColors.border, disabledContentColor = themeColors.inkSecondary),
                 ) {
                     Text("Liquidar obligación (Cierre definitivo)")
                 }
@@ -1434,9 +1449,9 @@ private fun AdjustmentsAndClosureTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
-                    Text("O ALTERNATIVAMENTE", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE2E8F0))
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = themeColors.border)
+                    Text("O ALTERNATIVAMENTE", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = themeColors.border)
                 }
 
                 OutlinedButton(
@@ -1453,11 +1468,11 @@ private fun AdjustmentsAndClosureTab(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Rounded.Info, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(14.dp))
+                    Icon(Icons.Rounded.Info, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(14.dp))
                     Text(
                         "Mantiene el saldo exigible de ${formatter.format(debt.remainingPrincipalMinor / 100.0)} pero se oculta del panel de cobro activo.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF94A3B8),
+                        color = themeColors.inkSecondary,
                     )
                 }
             }

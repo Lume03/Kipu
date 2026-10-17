@@ -186,9 +186,21 @@ class MovementFiltersIssue19Test {
             }
         }) }
         compose.onNodeWithTag("btn_close_filters").assertExists()
+        compose.onNodeWithText("PEN").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("USD").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("input_filter_min_amount").performScrollTo().performClick().performTextInput("25")
+        val maxAmount = compose.onNodeWithTag("input_filter_max_amount").performScrollTo()
+        val maxBounds = maxAmount.getUnclippedBoundsInRoot()
+        val footerBounds = compose.onNodeWithTag("sticky_filter_footer").getUnclippedBoundsInRoot()
+        val footerClearance = 8.dp
+        assertTrue(
+            "Maximum amount field must remain clear of the sticky footer (field=$maxBounds footer=$footerBounds)",
+            maxBounds.bottom + footerClearance <= footerBounds.top
+        )
+        maxAmount.assertIsDisplayed()
         compose.onNodeWithTag("btn_apply_filters").assertIsDisplayed()
-        saveCompactEvidence("after-compact-keyboard-dark.png", hasTestTag("panel_advanced_filters"))
+        compose.onNodeWithTag("btn_reset_advanced_filters").assertIsDisplayed()
+        saveCompactEvidence("after-compact-large-text-dark.png", hasTestTag("panel_advanced_filters"))
         compose.onNodeWithTag("btn_apply_filters").performClick()
         compose.onNodeWithTag("error_filter_currency").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("btn_reference_Cuentas").performScrollTo().performClick()
@@ -213,9 +225,13 @@ class MovementFiltersIssue19Test {
     }
 
     private fun saveCompactEvidence(name: String, matcher: SemanticsMatcher) {
-        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue-19").apply { mkdirs() }
+        val folder = InstrumentationRegistry.getArguments().getString("evidenceDirectory") ?: "issue-19"
+        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), folder).apply { mkdirs() }
+        compose.onNode(matcher).assertIsDisplayed()
         val bitmap = compose.onNode(matcher).captureToImage().asAndroidBitmap()
-        File(directory, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val output = File(directory, name)
+        output.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        assertTrue("$name must be written", output.isFile && output.length() > 0)
     }
 
     private fun selector(options: List<MovementReferenceOption>, selected: MutableState<Set<String>>,

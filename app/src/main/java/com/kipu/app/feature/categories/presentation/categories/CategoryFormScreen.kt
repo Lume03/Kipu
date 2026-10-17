@@ -1,5 +1,8 @@
 package com.kipu.app.feature.categories.presentation.categories
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -125,12 +128,14 @@ fun CategoryFormDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = colors.surface,
         modifier = modifier,
     ) {
+        KipuModalSystemBars()
         CategoryFormContent(
             isEditing = isEditing,
             categoryType = categoryType,
@@ -666,7 +671,7 @@ fun CategoryFormContent(
                 if (isCreating) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
-                        color = Color.White,
+                        color = colors.onPrimary,
                         strokeWidth = 2.dp,
                     )
                 } else {

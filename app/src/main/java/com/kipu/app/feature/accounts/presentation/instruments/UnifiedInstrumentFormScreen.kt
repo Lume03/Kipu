@@ -1,5 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.kipuBottomSheetProperties
+
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.platform.LocalDensity
@@ -129,6 +132,7 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
+import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
@@ -488,7 +492,7 @@ fun UnifiedInstrumentFormScreen(
         InstrumentKind.CREDIT_CARD -> creditLimitInput.takeIf(String::isNotBlank)?.let { "${currencySymbol(currency)} $it" }
         else -> "${currencySymbol(currency)} $balanceInput"
     }
-    val previewLabel = if (kind == InstrumentKind.CREDIT_CARD) "Línea de crédito" else "Saldo inicial"
+    val previewLabel = if (kind == InstrumentKind.CREDIT_CARD) FinancialTerminology.TOTAL_CREDIT_LINE else "Saldo inicial"
 
     fun handleSaveCreditCard() {
         if (isSubmitting) return
@@ -497,7 +501,7 @@ fun UnifiedInstrumentFormScreen(
 
         val parsedBalance = MoneyInputParser.parseMinorUnits(creditLimitInput)
         if (parsedBalance == null || parsedBalance <= 0L) {
-            limitError = "Ingresa una línea de crédito válida mayor a ${currencySymbol(currency)} 0.00"
+            limitError = "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida mayor a ${currencySymbol(currency)} 0.00"
             hasError = true
         } else {
             limitError = null
@@ -589,7 +593,7 @@ fun UnifiedInstrumentFormScreen(
             if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput else amountForValidation
         )
         if (parsedBalance == null || parsedBalance < 0L) {
-            if (kind == InstrumentKind.CREDIT_CARD) limitError = "Ingresa una línea de crédito válida."
+            if (kind == InstrumentKind.CREDIT_CARD) limitError = "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida."
             else balanceError = "Ingresa un saldo válido."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = amountBringIntoViewRequester
@@ -1013,7 +1017,7 @@ fun UnifiedInstrumentFormScreen(
                     Surface(color = calmColors.pillTrack, shape = RoundedCornerShape(16.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Alertas de utilización", style = MaterialTheme.typography.titleSmall)
-                            Text("Avisos automáticos al alcanzar 50%, 80% y 100% de tu línea.",
+                            Text("Avisos automáticos al alcanzar 50%, 80% y 100% de tu línea total de crédito.",
                                 style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -1542,7 +1546,7 @@ private fun TreeBranchItem(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = rememberKipuColors().onPrimary,
                         modifier = Modifier.size(10.dp),
                     )
                 }
@@ -1787,6 +1791,7 @@ private fun R9CreditCardSuccessBottomSheet(
     )
 
     ModalBottomSheet(
+        properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -1802,6 +1807,7 @@ private fun R9CreditCardSuccessBottomSheet(
             )
         },
     ) {
+        KipuModalSystemBars()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1928,7 +1934,7 @@ private fun R9CreditCardSuccessBottomSheet(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "Línea de crédito autorizada",
+                            text = FinancialTerminology.TOTAL_CREDIT_LINE,
                             style = MaterialTheme.typography.labelSmall,
                             color = KipuTextMuted,
                         )
@@ -2036,7 +2042,7 @@ private fun R9CreditCardSuccessBottomSheet(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = KipuLightGreenContainer,
-                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                border = BorderStroke(1.dp, rememberCalmEmeraldColors().incomeBorder),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -2051,7 +2057,7 @@ private fun R9CreditCardSuccessBottomSheet(
                         modifier = Modifier.size(20.dp),
                     )
                     Text(
-                        text = "Tip financiero: procura mantener tus consumos por debajo del 30% de tu línea para conservar un uso moderado del crédito.",
+                        text = "Tip financiero: procura mantener tus consumos por debajo del 30% de tu línea total de crédito para conservar un uso moderado del crédito.",
                         style = MaterialTheme.typography.bodySmall,
                         color = KipuInkTitle,
                     )

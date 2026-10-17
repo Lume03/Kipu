@@ -35,7 +35,7 @@ class MovementFilterVisualEvidenceTest {
         compose.onNodeWithTag("btn_apply_filters").performClick()
         compose.onNodeWithTag("input_filter_max_amount").performScrollTo()
         save("$prefix-amount-${if (dark) "dark" else "light"}.png", hasTestTag("panel_advanced_filters"))
-        compose.onNode(hasText("Cuentas", substring = true) and hasClickAction()).performScrollTo().performClick()
+        compose.onNodeWithTag("btn_reference_Cuentas").performScrollTo().performClick()
         save("$prefix-selector-${if (dark) "dark" else "light"}.png", isDialog() and hasAnyDescendant(hasText("Buscar en las opciones")))
         compose.onNodeWithText("Listo").performClick()
         compose.onNodeWithTag("btn_filter_dates").performScrollTo().performClick()
@@ -46,7 +46,8 @@ class MovementFilterVisualEvidenceTest {
     private fun save(name: String, matcher: SemanticsMatcher) {
         compose.waitForIdle()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = File(context.getExternalFilesDir(null), "issue-19").apply { mkdirs() }
+        val folder = InstrumentationRegistry.getArguments().getString("evidenceDirectory") ?: "issue-19"
+        val directory = File(context.getExternalFilesDir(null), folder).apply { mkdirs() }
         val bitmap = compose.onNode(matcher).captureToImage().asAndroidBitmap()
         File(directory, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
