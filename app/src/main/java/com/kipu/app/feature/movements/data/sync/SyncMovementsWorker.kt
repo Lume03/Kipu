@@ -20,6 +20,7 @@ import com.kipu.app.feature.accounts.data.local.CardEntity
 import com.kipu.app.feature.accounts.data.local.CreditInstallmentEntity
 import com.kipu.app.feature.accounts.data.local.CreditPaymentAllocationEntity
 import com.kipu.app.feature.accounts.domain.model.CreditLiabilityAccountIds
+import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.data.remote.FinancialApiResponse
 import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
 import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
@@ -252,8 +253,8 @@ class SyncMovementsWorker @AssistedInject constructor(
         database.withTransaction {
             if (remote.id.isBlank() || remote.id != remote.id.trim()) return@withTransaction false
             if (remote.type !in setOf("CREDIT", "DEBIT") || remote.currency !in setOf("PEN", "USD")) return@withTransaction false
-            if (remote.lastFourDigits.length != 4 || remote.lastFourDigits.any { !it.isDigit() }) return@withTransaction false
-            if (remote.issuer.trim().length !in 1..80 || com.kipu.app.feature.accounts.domain.model.Card.isForbiddenSensitiveCardInput(remote.issuer)) return@withTransaction false
+            if (!Card.isValidLastFourDigits(remote.lastFourDigits)) return@withTransaction false
+            if (remote.issuer.trim().length !in 1..80 || Card.isForbiddenSensitiveCardInput(remote.issuer)) return@withTransaction false
             if (remote.alias?.let { it.trim().length !in 1..80 } == true) return@withTransaction false
             if (remote.network !in setOf("VISA", "MASTERCARD", "AMEX", "DINERS", "OTHER")) return@withTransaction false
             val accountId = remote.accountId

@@ -119,6 +119,26 @@ class RegisterCardTest {
     }
 
     @Test
+    fun `registering card with Unicode lastFourDigits rejects non ASCII digit`() {
+        val unicodeDigit = '\u0661'
+        assertTrue(unicodeDigit.isDigit())
+
+        val exception = runCatching {
+            DebitCard(
+                id = CardId.generate(),
+                userId = testUserId,
+                issuer = "BCP",
+                network = CardNetwork.VISA,
+                lastFourDigits = "12${unicodeDigit}4",
+                currency = Currency.PEN,
+                linkedAccountId = AccountId.generate(),
+            )
+        }.exceptionOrNull()
+
+        assertTrue(exception is IllegalArgumentException)
+    }
+
+    @Test
     fun `registering credit card with invalid billing day throws IllegalArgumentException`() {
         val exception = runCatching {
             CreditCard(

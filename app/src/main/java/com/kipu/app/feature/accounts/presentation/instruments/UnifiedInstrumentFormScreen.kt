@@ -450,9 +450,9 @@ fun UnifiedInstrumentFormScreen(
     val parsedAmountForValidation = MoneyInputParser.parseMinorUnits(amountForValidation)
     val cycleIsValid = billingDayInput.toIntOrNull() in 1..31 && dueDayInput.toIntOrNull() in 1..31
     val lastFourIsValid = when (kind) {
-        InstrumentKind.CREDIT_CARD -> lastFourDigits.length == 4
+        InstrumentKind.CREDIT_CARD -> Card.isValidLastFourDigits(lastFourDigits)
         InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.isEmpty() ||
-            (lastFourDigits.length == 4 && lastFourDigits.all(Char::isDigit))
+            Card.isValidLastFourDigits(lastFourDigits)
         else -> true
     }
     val canSaveInstrument = alias.isNotBlank() && !Card.isForbiddenSensitiveCardInput(alias) &&
@@ -595,12 +595,12 @@ fun UnifiedInstrumentFormScreen(
             if (firstInvalidRequester == null) firstInvalidRequester = amountBringIntoViewRequester
         }
 
-        if (kind == InstrumentKind.CREDIT_CARD && lastFourDigits.length != 4) {
+        if (kind == InstrumentKind.CREDIT_CARD && !Card.isValidLastFourDigits(lastFourDigits)) {
             cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
         } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
-            (lastFourDigits.length != 4 || !lastFourDigits.all(Char::isDigit))) {
+            !Card.isValidLastFourDigits(lastFourDigits)) {
             cardError = "Ingresa exactamente cuatro dígitos numéricos."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
@@ -1124,7 +1124,7 @@ fun UnifiedInstrumentFormScreen(
                     else Text("El saldo se obtiene de la cuenta bancaria afiliada; no se registrará un saldo propio.")
                     if (kind == InstrumentKind.SAVINGS_DEBIT) {
                         OutlinedTextField(value = lastFourDigits, onValueChange = {
-                            lastFourDigits = it.filter(Char::isDigit).take(4); cardError = null
+                            lastFourDigits = it.filter { char -> Card.isAsciiDigit(char) }.take(4); cardError = null
                         }, label = { Text("Últimos 4 dígitos · Opcional") },
                             supportingText = { Text(cardError ?: "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true,

@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.kipu.app.core.finance.domain.MoneyInputParser
+import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.symbol
@@ -75,7 +76,7 @@ fun CreditCardTermsDialog(
     val parsedLimit = remember(creditLimit) { MoneyInputParser.parseMinorUnits(creditLimit) }
     val parsedBillingDay = remember(billingDay) { billingDay.toIntOrNull() }
     val parsedDueDay = remember(dueDay) { dueDay.toIntOrNull() }
-    val validDigits = lastFourDigits.length == 4 && lastFourDigits.all(Char::isDigit)
+    val validDigits = Card.isValidLastFourDigits(lastFourDigits)
     val validLimit = parsedLimit != null && parsedLimit >= 0L
     val validBillingDay = parsedBillingDay != null && parsedBillingDay in 1..31
     val validDueDay = parsedDueDay != null && parsedDueDay in 1..31
@@ -286,7 +287,7 @@ fun CreditCardTermsDialog(
                     }
                     OutlinedTextField(
                         value = lastFourDigits,
-                        onValueChange = { lastFourDigits = it.filter(Char::isDigit).take(4) },
+                        onValueChange = { lastFourDigits = it.filter { char -> Card.isAsciiDigit(char) }.take(4) },
                         prefix = { Text("•••• ", fontWeight = FontWeight.Bold, color = emeraldColors.secondaryMuted) },
                         placeholder = { Text("Ej. 8978") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

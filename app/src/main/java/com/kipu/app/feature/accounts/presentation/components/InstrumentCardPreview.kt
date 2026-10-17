@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.ui.component.MaskedCardReference
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import kotlinx.coroutines.launch
@@ -91,7 +92,7 @@ fun InstrumentCardPreview(
         if (network != null) append(" Red $network.")
         stylePreset?.let { append(" ${it.institutionCode}, nivel ${it.tierLabel}.") }
         if (balanceLabel != null && amount != null) append(" $balanceLabel: $amount.")
-        if (lastFourDigits?.length == 4 && lastFourDigits.all(Char::isDigit)) {
+        if (lastFourDigits != null && Card.isValidLastFourDigits(lastFourDigits)) {
             append(" Termina en $lastFourDigits.")
         }
     }
@@ -230,7 +231,7 @@ fun InstrumentCardPreview(
                                 color = cardForeground,
                             )
                         }
-                        if (lastFourDigits?.length == 4 && lastFourDigits.all(Char::isDigit)) {
+                        if (lastFourDigits != null && Card.isValidLastFourDigits(lastFourDigits)) {
                             MaskedCardReference(
                                 lastFourDigits = lastFourDigits,
                                 style = MaterialTheme.typography.labelLarge,
