@@ -76,6 +76,12 @@ class OfflineFirstMovementRepository @Inject constructor(
                         categoryIcon = category?.icon,
                         merchantName = domain.merchantProvisionalText ?: merchant?.name,
                         merchantLogoKey = merchant?.logoKey,
+                        merchantLogoUrl = merchant?.logoKey?.let {
+                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                                com.kipu.app.BuildConfig.SUPABASE_URL,
+                                it,
+                            )
+                        },
                         merchantBrandColor = merchant?.brandColor,
                     )
                 }
@@ -236,6 +242,12 @@ class OfflineFirstMovementRepository @Inject constructor(
                 categoryIcon = category?.icon,
                 merchantName = domain.merchantProvisionalText ?: merchant?.name,
                 merchantLogoKey = merchant?.logoKey,
+                merchantLogoUrl = merchant?.logoKey?.let {
+                    com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                        com.kipu.app.BuildConfig.SUPABASE_URL,
+                        it,
+                    )
+                },
                 merchantBrandColor = merchant?.brandColor,
             )
         }

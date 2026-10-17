@@ -94,17 +94,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MovementCategoryIconAvatar
 import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
-import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.movements.domain.model.TransactionStatus
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.movementAvatarPresentation
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
-import com.kipu.app.BuildConfig
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -1275,43 +1276,66 @@ fun TransactionIconAvatar(
         } else 0
     }
     
-    val remoteLogoUrl = androidx.compose.runtime.remember(item.merchantLogoKey) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        item.merchantLogoKey
-            ?.takeIf { it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${android.net.Uri.encode(it, "/")}" }
-    }
-    
-    val hasMerchantProfile = !item.merchantName.isNullOrBlank()
+    val remoteLogoUrl = item.merchantLogoUrl
+    val categoryIcon = item.categoryIcon?.takeIf(String::isNotBlank)
+    val avatarPresentation = movementAvatarPresentation(
+        merchantAvatarAllowed = !isVoided,
+        merchantName = item.merchantName,
+        hasUsableMerchantLogo = drawableId != 0 || remoteLogoUrl != null,
+        categoryIcon = categoryIcon,
+    )
 
-    if (!isVoided && (hasMerchantProfile || drawableId != 0 || remoteLogoUrl != null)) {
-        MerchantAvatar(
+    when (avatarPresentation) {
+        MovementAvatarPresentation.MERCHANT_AVATAR -> MerchantAvatar(
             drawableId = drawableId,
             remoteLogoUrl = remoteLogoUrl,
-            profile = getMerchantVisualProfile(item.merchantName ?: "Comercio", item.merchantBrandColor),
+            profile = getMerchantVisualProfile(
+                item.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
+                item.merchantBrandColor,
+            ),
+            size = 40.dp,
+            modifier = modifier,
+            fallbackContent = categoryIcon?.let { iconKey ->
+                {
+                    MovementCategoryIconAvatar(
+                        iconKey = iconKey,
+                        background = iconBg,
+                        tint = iconTint,
+                        shape = CircleShape,
+                        size = 40.dp,
+                        iconSize = 20.dp,
+                    )
+                }
+            },
+        )
+        MovementAvatarPresentation.MERCHANT_INITIALS -> MerchantAvatar(
+            drawableId = 0,
+            remoteLogoUrl = null,
+            profile = getMerchantVisualProfile(item.merchantName.orEmpty(), item.merchantBrandColor),
             size = 40.dp,
             modifier = modifier,
         )
-    } else {
-        Surface(
+        MovementAvatarPresentation.CATEGORY_ICON -> MovementCategoryIconAvatar(
+            iconKey = categoryIcon.orEmpty(),
+            background = iconBg,
+            tint = iconTint,
             shape = CircleShape,
-            color = iconBg,
-            modifier = modifier.size(40.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (!item.categoryIcon.isNullOrBlank()) {
-                    Icon(
-                        imageVector = resolveCategoryIcon(item.categoryIcon),
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                } else {
-                    val fallbackIcon = when (tx.type) {
-                        MovementType.INCOME -> androidx.compose.material.icons.Icons.Rounded.Check
-                        MovementType.EXPENSE -> androidx.compose.material.icons.Icons.Rounded.Close
-                        MovementType.TRANSFER -> androidx.compose.material.icons.Icons.Rounded.Sync
-                    }
+            size = 40.dp,
+            iconSize = 20.dp,
+            modifier = modifier,
+        )
+        MovementAvatarPresentation.TYPE_ICON -> {
+            val fallbackIcon = when (tx.type) {
+                MovementType.INCOME -> androidx.compose.material.icons.Icons.Rounded.Check
+                MovementType.EXPENSE -> androidx.compose.material.icons.Icons.Rounded.Close
+                MovementType.TRANSFER -> androidx.compose.material.icons.Icons.Rounded.Sync
+            }
+            Surface(
+                shape = CircleShape,
+                color = iconBg,
+                modifier = modifier.size(40.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = fallbackIcon,
                         contentDescription = null,

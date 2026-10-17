@@ -35,9 +35,6 @@ data class FinancialMovement(
     val adjustsMovementId: MovementId? = null,
     val createdAt: Instant = Instant.now(),
     val merchantName: String? = null,
-    val merchantLogoKey: String? = null,
-    val merchantBrandColor: String? = null,
-    val categoryIcon: String? = null,
 ) {
     init {
         require(sequence >= 0) { "Sequence must be non-negative: $sequence" }

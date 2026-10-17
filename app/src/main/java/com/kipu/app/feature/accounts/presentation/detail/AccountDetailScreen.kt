@@ -1,6 +1,5 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
-import android.net.Uri
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -116,16 +115,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.Currency
-import com.kipu.app.core.finance.domain.model.FinancialMovement
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.MovementKind
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MovementCategoryIconAvatar
 import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
-import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card as FinancialCard
+import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
@@ -140,7 +139,9 @@ import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDia
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.movementAvatarPresentation
 import com.kipu.app.ui.component.symbol
 import java.time.Instant
 import java.time.LocalDate
@@ -163,7 +164,7 @@ fun AccountDetailScreen(
     onReturnToDashboard: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToRateCatalog: (String) -> Unit = {},
-    cardMovements: List<FinancialMovement>? = null,
+    cardMovements: List<CardMovementDisplay>? = null,
     startPurchaseOnOpen: Boolean = false,
 ) {
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
@@ -847,7 +848,7 @@ fun AccountDetailContent(
     onNavigateToRateCatalog: (String) -> Unit = {},
     onStartCreditPurchase: () -> Unit = {},
     onEditCreditCardTerms: () -> Unit = {},
-    cardMovements: List<FinancialMovement> = emptyList(),
+    cardMovements: List<CardMovementDisplay> = emptyList(),
     isSubmitting: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
@@ -2360,7 +2361,7 @@ private fun CreditCardActionsSection(
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun CreditCardMovementsSection(
-    movements: List<FinancialMovement>,
+    movements: List<CardMovementDisplay>,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -2379,7 +2380,8 @@ private fun CreditCardMovementsSection(
     val filteredMovements = remember(movements, selectedTypeFilter, selectedPeriodFilter) {
         val now = java.time.Instant.now()
         val thirtyDaysAgo = now.minus(30, java.time.temporal.ChronoUnit.DAYS)
-        movements.filter { m ->
+        movements.filter { item ->
+            val m = item.movement
             val matchesType = when (selectedTypeFilter) {
                 "PURCHASES" -> m.kind == MovementKind.CREDIT_PURCHASE
                 "PAYMENTS" -> m.kind == MovementKind.CARD_PAYMENT_LIABILITY || m.kind == MovementKind.CARD_PAYMENT_CASH
@@ -2390,7 +2392,7 @@ private fun CreditCardMovementsSection(
                 else -> true
             }
             matchesType && matchesPeriod
-        }.sortedByDescending { it.effectiveAt }
+        }.sortedByDescending { it.movement.effectiveAt }
     }
 
     Column(
@@ -2751,10 +2753,11 @@ private fun CreditCardMovementsSection(
 
 @Composable
 private fun CreditCardMovementRow(
-    movement: FinancialMovement,
+    display: CardMovementDisplay,
     dateFormatter: DateTimeFormatter,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
 ) {
+    val movement = display.movement
     val isPayment = movement.kind == MovementKind.CARD_PAYMENT_LIABILITY || movement.kind == MovementKind.CARD_PAYMENT_CASH
     val isNegative = movement.kind == MovementKind.CREDIT_PURCHASE
 
@@ -2771,22 +2774,29 @@ private fun CreditCardMovementRow(
             Triple(Icons.Rounded.AccountBalance, emeraldColors.primaryDeep, emeraldColors.pillTrack)
     }
 
-    val hasMerchantIdentity = movement.kind == MovementKind.CREDIT_PURCHASE &&
-        (!movement.merchantName.isNullOrBlank() || !movement.merchantLogoKey.isNullOrBlank())
+    val merchantLogoKey = display.merchantLogoKey
     val context = LocalContext.current
-    val merchantDrawableId = remember(movement.merchantLogoKey) {
-        movement.merchantLogoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
+    val merchantDrawableId = remember(merchantLogoKey) {
+        merchantLogoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
-    val remoteMerchantLogoUrl = remember(movement.merchantLogoKey) {
-        val supabaseUrl = com.kipu.app.BuildConfig.SUPABASE_URL.trimEnd('/')
-        movement.merchantLogoKey
-            ?.takeIf { it.isNotBlank() && supabaseUrl.isNotBlank() }
-            ?.let { "$supabaseUrl/storage/v1/object/public/merchant-logos/${Uri.encode(it, "/")}" }
+    val remoteMerchantLogoUrl = display.merchantLogoUrl
+    val categoryIcon = if (movement.kind == MovementKind.CREDIT_PURCHASE) {
+        display.categoryIcon?.takeIf(String::isNotBlank)
+    } else {
+        null
     }
+    val avatarPresentation = movementAvatarPresentation(
+        merchantAvatarAllowed = movement.kind == MovementKind.CREDIT_PURCHASE,
+        merchantName = display.merchantName,
+        hasUsableMerchantLogo = merchantDrawableId != 0 || remoteMerchantLogoUrl != null,
+        categoryIcon = categoryIcon,
+    )
+    val showMerchantAvatar = avatarPresentation == MovementAvatarPresentation.MERCHANT_AVATAR ||
+        avatarPresentation == MovementAvatarPresentation.MERCHANT_INITIALS
 
     val title = when (movement.kind) {
         MovementKind.CARD_PAYMENT_LIABILITY, MovementKind.CARD_PAYMENT_CASH -> "Pago Tarjeta de Crédito"
-        MovementKind.CREDIT_PURCHASE -> movement.merchantName?.takeIf { it.isNotBlank() } ?: "Consumo con tarjeta"
+        MovementKind.CREDIT_PURCHASE -> display.merchantName?.takeIf { it.isNotBlank() } ?: "Consumo con tarjeta"
         MovementKind.ADJUSTMENT -> "Ajuste de crédito"
         MovementKind.REVERSAL -> "Reverso de movimiento"
         MovementKind.OPENING -> "Apertura"
@@ -2807,27 +2817,47 @@ private fun CreditCardMovementRow(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = if (hasMerchantIdentity) Color.Transparent else boxBg,
+            color = if (showMerchantAvatar) Color.Transparent else boxBg,
             modifier = Modifier.size(42.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                when {
-                    hasMerchantIdentity -> MerchantAvatar(
+                when (avatarPresentation) {
+                    MovementAvatarPresentation.MERCHANT_AVATAR -> MerchantAvatar(
                         drawableId = merchantDrawableId,
                         remoteLogoUrl = remoteMerchantLogoUrl,
                         profile = getMerchantVisualProfile(
-                            movement.merchantName ?: "Comercio",
-                            movement.merchantBrandColor,
+                            display.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
+                            display.merchantBrandColor,
                         ),
                         size = 42.dp,
+                        fallbackContent = categoryIcon?.let { iconKey ->
+                            {
+                                MovementCategoryIconAvatar(
+                                    iconKey = iconKey,
+                                    background = boxBg,
+                                    tint = iconTint,
+                                    shape = RoundedCornerShape(12.dp),
+                                    size = 42.dp,
+                                    iconSize = 22.dp,
+                                )
+                            }
+                        },
                     )
-                    movement.kind == MovementKind.CREDIT_PURCHASE && !movement.categoryIcon.isNullOrBlank() -> Icon(
-                        imageVector = resolveCategoryIcon(movement.categoryIcon),
-                        contentDescription = null,
+                    MovementAvatarPresentation.MERCHANT_INITIALS -> MerchantAvatar(
+                        drawableId = 0,
+                        remoteLogoUrl = null,
+                        profile = getMerchantVisualProfile(display.merchantName.orEmpty(), display.merchantBrandColor),
+                        size = 42.dp,
+                    )
+                    MovementAvatarPresentation.CATEGORY_ICON -> MovementCategoryIconAvatar(
+                        iconKey = categoryIcon.orEmpty(),
+                        background = boxBg,
                         tint = iconTint,
-                        modifier = Modifier.size(22.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        size = 42.dp,
+                        iconSize = 22.dp,
                     )
-                    else -> Icon(
+                    MovementAvatarPresentation.TYPE_ICON -> Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconTint,

@@ -138,6 +138,7 @@ data class MerchantCatalogEntry(
     val priority: String = "B",
     val logoKey: String? = null,
     val brandColor: String? = null,
+    val logoUrl: String? = null,
 )
 
 data class MerchantCategoryFilter(
