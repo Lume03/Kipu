@@ -70,6 +70,30 @@ class MovementHistoryScreenTest {
     }
 
     @Test
+    fun walletPaymentChannelIsShownAlongsideItsLinkedBankAccount() {
+        val item = TransactionItem(
+            transaction = Transaction(
+                id = "yape-movement",
+                userId = "test-user",
+                type = MovementType.EXPENSE,
+                amountMinor = 2_500L,
+                currency = "PEN",
+                sourceAccountId = "bcp-account",
+                occurredAt = 1_758_000_000_000L,
+                paymentChannel = "YAPE",
+            ),
+            sourceAccountAlias = "BCP Ahorros",
+        )
+
+        compose.setContent {
+            TestViewport { TransactionRow(item) }
+        }
+
+        compose.onNodeWithText("Yape · BCP Ahorros").assertIsDisplayed()
+        compose.onNodeWithTag("tx_payment_channel_yape-movement").assertIsDisplayed()
+    }
+
+    @Test
     fun activeTransactionShowsEditAndVoidActionsAndNeverShowsDelete() {
         val item = TransactionItem(
             transaction = Transaction(
