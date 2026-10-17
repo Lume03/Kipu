@@ -101,6 +101,13 @@ class PlanSelectionScreenTest {
     fun controlsAndIconsAreAccessibleAndAtLeast48Dp() {
         setScreen()
 
+        compose.onAllNodesWithContentDescription("Incluido").fetchSemanticsNodes().forEach { node ->
+            assertMinimumTouchTarget(node.boundsInRoot)
+        }
+        val infoIconBounds = compose.onNodeWithContentDescription("Informaci\u00f3n del periodo de prueba")
+            .performScrollTo().assertExists().fetchSemanticsNode().boundsInRoot
+        assertMinimumTouchTarget(infoIconBounds)
+
         listOf("ANNUAL", "MONTHLY", "LIFETIME").forEach { option ->
             val bounds = compose.onNodeWithTag("plan-option-$option").performScrollTo().assertHasClickAction()
                 .fetchSemanticsNode().boundsInRoot

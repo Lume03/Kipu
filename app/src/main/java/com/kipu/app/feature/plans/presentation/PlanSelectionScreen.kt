@@ -5,6 +5,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,9 +40,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +64,8 @@ import com.kipu.app.ui.theme.KipuMotionTokens
 
 private val CardShape = RoundedCornerShape(16.dp)
 private val ControlShape = RoundedCornerShape(12.dp)
+private val ConfirmPlanRestColor = Color(0xFF0F766E)
+private val ConfirmPlanPressedColor = Color(0xFF005C55)
 
 @Composable
 fun PlanSelectionScreen(
@@ -68,6 +74,14 @@ fun PlanSelectionScreen(
     onConfirm: () -> Unit,
     onContinueFree: () -> Unit,
 ) {
+    val confirmInteractionSource = remember { MutableInteractionSource() }
+    val isConfirmPressed by confirmInteractionSource.collectIsPressedAsState()
+    val confirmContainerColor = if (isConfirmPressed) {
+        ConfirmPlanPressedColor
+    } else {
+        ConfirmPlanRestColor
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -126,12 +140,13 @@ fun PlanSelectionScreen(
 
         Button(
             onClick = onConfirm,
+            interactionSource = confirmInteractionSource,
             enabled = !state.isConfirming,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = ControlShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = confirmContainerColor,
+                contentColor = Color.White,
             ),
         ) {
             if (state.isConfirming) {
@@ -195,10 +210,15 @@ private fun FreeFeatureRow(@StringRes feature: Int) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(24.dp).semantics { contentDescription = included },
+            modifier = Modifier.size(48.dp).semantics { contentDescription = included },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                Icons.Filled.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
         Text(stringResource(feature), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
     }
@@ -290,10 +310,15 @@ private fun CommercialInfoNote() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier.size(24.dp).semantics { contentDescription = description },
+                modifier = Modifier.size(48.dp).semantics { contentDescription = description },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 stringResource(R.string.plan_trial_info),
