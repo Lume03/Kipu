@@ -753,7 +753,7 @@ private fun MovementFiltersSheetContent(
                             onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
                         )
                         MovementTypeSegment(
-                            title = "Transf.",
+                            title = "Transferencias",
                             isSelected = draft.movementType == MovementType.TRANSFER,
                             bulletColor = semanticColors.transferBlue,
                             activeColor = semanticColors.transferBlue,

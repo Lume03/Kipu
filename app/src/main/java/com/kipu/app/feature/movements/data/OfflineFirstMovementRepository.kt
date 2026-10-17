@@ -65,6 +65,7 @@ class OfflineFirstMovementRepository @Inject constructor(
                     val destAlias = domain.destinationAccountId?.let { accountsById[it]?.alias }
                     val card = domain.cardId?.let(cardsById::get)
                     val category = domain.categoryId?.let(categoriesById::get)
+                    val merchant = domain.merchantId?.let(merchantsById::get)
                     TransactionItem(
                         transaction = domain,
                         sourceAccountAlias = sourceAlias,
@@ -73,8 +74,15 @@ class OfflineFirstMovementRepository @Inject constructor(
                         cardLastFourDigits = card?.lastFourDigits,
                         categoryName = category?.name,
                         categoryIcon = category?.icon,
-                        merchantName = domain.merchantProvisionalText
-                            ?: domain.merchantId?.let { merchantsById[it]?.name },
+                        merchantName = domain.merchantProvisionalText ?: merchant?.name,
+                        merchantLogoKey = merchant?.logoKey,
+                        merchantLogoUrl = merchant?.logoKey?.let {
+                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                                com.kipu.app.BuildConfig.SUPABASE_URL,
+                                it,
+                            )
+                        },
+                        merchantBrandColor = merchant?.brandColor,
                     )
                 }
             }
@@ -223,6 +231,7 @@ class OfflineFirstMovementRepository @Inject constructor(
             val destAlias = domain.destinationAccountId?.let { accounts[it]?.alias }
             val card = domain.cardId?.let(cards::get)
             val category = domain.categoryId?.let(presentations::get)
+            val merchant = domain.merchantId?.let(merchants::get)
             TransactionItem(
                 transaction = domain,
                 sourceAccountAlias = sourceAlias,
@@ -231,8 +240,15 @@ class OfflineFirstMovementRepository @Inject constructor(
                 cardLastFourDigits = card?.lastFourDigits,
                 categoryName = category?.name,
                 categoryIcon = category?.icon,
-                merchantName = domain.merchantProvisionalText
-                    ?: domain.merchantId?.let { merchants[it]?.name },
+                merchantName = domain.merchantProvisionalText ?: merchant?.name,
+                merchantLogoKey = merchant?.logoKey,
+                merchantLogoUrl = merchant?.logoKey?.let {
+                    com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                        com.kipu.app.BuildConfig.SUPABASE_URL,
+                        it,
+                    )
+                },
+                merchantBrandColor = merchant?.brandColor,
             )
         }
     }

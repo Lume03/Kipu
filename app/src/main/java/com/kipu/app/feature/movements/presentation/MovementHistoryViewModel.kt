@@ -237,12 +237,9 @@ class MovementHistoryViewModel @Inject constructor(
             accessRefresh = accessRefresh,
             retry = retry,
             invalidation = 0,
-            entitlementTick = 0,
         )
-    }.combine(combine(_datasetInvalidation, _entitlementTick) { invalidation, entitlementTick ->
-        invalidation to entitlementTick
-    }) { request, (invalidation, entitlementTick) ->
-        request.copy(invalidation = invalidation, entitlementTick = entitlementTick)
+    }.combine(_datasetInvalidation) { request, invalidation ->
+        request.copy(invalidation = invalidation)
     }.distinctUntilChanged { previous, next -> previous.key == next.key }
 
     init {
@@ -251,6 +248,7 @@ class MovementHistoryViewModel @Inject constructor(
         }
         viewModelScope.launch {
             historyRequests.combine(_advancedFilters) { request, filters -> request to filters.showPanel }
+                .combine(_entitlementTick) { (request, showPanel), _ -> request to showPanel }
                 .collect { (request, showPanel) ->
                     val decision = try {
                         queryMovementHistoryUseCase?.evaluateAccess(
@@ -351,7 +349,7 @@ class MovementHistoryViewModel @Inject constructor(
     }
 
     fun onFilterTypeSelected(type: MovementType?) {
-        _selectedFilterType.value = type
+        _selectedFilterType.value = if (_selectedFilterType.value == type) null else type
     }
 
     fun onDateRangeSelected(from: Long?, to: Long?) {
@@ -624,7 +622,6 @@ class MovementHistoryViewModel @Inject constructor(
             accessRefresh = _accessRefresh.value,
             retry = _readRetry.value,
             invalidation = _datasetInvalidation.value,
-            entitlementTick = _entitlementTick.value,
         )
     }
 
@@ -726,10 +723,9 @@ private data class HistoryRequest(
     val accessRefresh: Int,
     val retry: Int,
     val invalidation: Int,
-    val entitlementTick: Int,
 ) {
     // Access refreshes and dataset invalidations intentionally produce a new generation, not a new page cursor.
-    val key = HistoryKey(ownerId, query, accessRefresh, retry, invalidation, entitlementTick)
+    val key = HistoryKey(ownerId, query, accessRefresh, retry, invalidation)
 }
 
 private data class HistoryKey(
@@ -738,7 +734,6 @@ private data class HistoryKey(
     val accessRefresh: Int,
     val retry: Int,
     val invalidation: Int,
-    val entitlementTick: Int,
 )
 
 private data class HistoryLoadState(

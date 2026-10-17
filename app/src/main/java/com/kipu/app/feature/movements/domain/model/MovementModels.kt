@@ -144,6 +144,9 @@ data class TransactionItem(
     val categoryName: String? = null,
     val categoryIcon: String? = null,
     val merchantName: String? = null,
+    val merchantLogoKey: String? = null,
+    val merchantLogoUrl: String? = null,
+    val merchantBrandColor: String? = null,
     val cardAlias: String? = null,
     val cardLastFourDigits: String? = null,
 )
