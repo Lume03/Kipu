@@ -14,7 +14,7 @@ import java.time.Instant
 private fun AccountDetailThemePreview() = KipuTheme {
     AccountDetailContent(
         account = Account(AccountId("e3900000-0000-4000-8000-000000000001"), UserId("e3900000-0000-4000-8000-000000000002"), alias = "Ahorro de ejemplo",
-            type = AccountType.SAVINGS, currency = Currency.PEN, preset = AccountPreset.YAPE,
+            type = AccountType.SAVINGS, currency = Currency.PEN, preset = AccountPreset.GENERIC,
             initialBalance = Money(25000, Currency.PEN), openedAt = Instant.parse("2026-10-01T00:00:00Z")),
         card = null, currentBalance = Money(25000, Currency.PEN), creditCardSummary = null,
         isLoading = false, onNavigateBack = {}, onSaveAppearance = { _, _ -> },

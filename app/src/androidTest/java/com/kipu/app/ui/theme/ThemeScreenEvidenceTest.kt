@@ -47,7 +47,7 @@ class ThemeScreenEvidenceTest {
         val screen = mutableStateOf("accounts")
         val dark = mutableStateOf(false)
         val account = Account(AccountId("e3900000-0000-4000-8000-000000000001"), UserId("e3900000-0000-4000-8000-000000000002"), alias = "Ahorro de ejemplo",
-            type = AccountType.SAVINGS, currency = Currency.PEN, preset = AccountPreset.YAPE,
+            type = AccountType.SAVINGS, currency = Currency.PEN, preset = AccountPreset.GENERIC,
             initialBalance = Money(25000, Currency.PEN), openedAt = Instant.parse("2026-10-01T00:00:00Z"))
         val debt = DebtSummary("theme-debt", "e3900000-0000-4000-8000-000000000002", DebtObligationType.PAYABLE,
             "Préstamo de ejemplo", 30000, 20000, "PEN", LocalDate.of(2026, 10, 1),

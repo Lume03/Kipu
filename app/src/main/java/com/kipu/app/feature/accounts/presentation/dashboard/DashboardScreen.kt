@@ -301,11 +301,8 @@ fun DashboardScreen(
                     )
                 } else if (isEmptyState) {
                     EmptyDashboardContent(
-                        quotaCount = data?.activeComputableCount ?: instruments.activeComputableCount,
-                        maxQuota = data?.maxFreeQuota ?: instruments.maxFreeQuota,
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
-                        onNavigateToPlans = onNavigateToPlans,
                     )
                 } else {
                     ActiveDashboardContent(
@@ -380,11 +377,8 @@ internal fun shouldShowEmptyDashboard(
 
 @Composable
 internal fun EmptyDashboardContent(
-    quotaCount: Int,
-    maxQuota: Int,
     onNavigateToNewAccount: () -> Unit,
     onNavigateToNewCard: () -> Unit,
-    onNavigateToPlans: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -424,42 +418,6 @@ internal fun EmptyDashboardContent(
                         ),
                         color = heroContentColor,
                     )
-                }
-            }
-        }
-
-        item(key = "quota_strip") {
-            if (maxQuota > 0) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = emeraldColors.surfaceCard,
-                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Cupo Free · $quotaCount de $maxQuota cuentas y tarjetas",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = emeraldColors.primaryText,
-                            )
-                            Text(
-                                text = "Te quedan ${(maxQuota - quotaCount).coerceAtLeast(0)} espacios disponibles",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = emeraldColors.secondaryMuted,
-                            )
-                        }
-                        TextButton(
-                            onClick = onNavigateToPlans,
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        ) {
-                            Text("Ver planes", color = emeraldColors.primaryDeep)
-                        }
-                    }
                 }
             }
         }

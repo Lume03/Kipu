@@ -9,11 +9,8 @@ import com.kipu.app.ui.theme.KipuThemePreviews
 private fun DashboardEmptyStateThemePreview() {
     KipuTheme {
         EmptyDashboardContent(
-            quotaCount = 0,
-            maxQuota = 4,
             onNavigateToNewAccount = {},
             onNavigateToNewCard = {},
-            onNavigateToPlans = {},
         )
     }
 }

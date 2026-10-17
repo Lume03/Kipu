@@ -68,6 +68,7 @@ class DashboardEmptyStateTest {
         compose.onAllNodesWithText("Aún no tienes cuentas registradas").assertCountEquals(0)
         compose.onNodeWithText("Agrega una cuenta o efectivo para ver tu saldo aquí.").assertDoesNotExist()
         compose.onNodeWithText("Cupo Free").assertDoesNotExist()
+        compose.onNodeWithText("Ver planes").assertDoesNotExist()
         compose.onNodeWithText("En cuentas").assertDoesNotExist()
         compose.onNodeWithText("En efectivo").assertDoesNotExist()
         compose.onNodeWithText("Tus datos permanecen privados y protegidos", substring = true).assertDoesNotExist()
@@ -92,11 +93,8 @@ class DashboardEmptyStateTest {
                         )
                     } else {
                         EmptyDashboardContent(
-                            quotaCount = 0,
-                            maxQuota = 4,
                             onNavigateToNewAccount = { showInstrumentIntro.value = true },
                             onNavigateToNewCard = {},
-                            onNavigateToPlans = { navigatedToPlans = true },
                         )
                     }
                 }
@@ -119,11 +117,8 @@ class DashboardEmptyStateTest {
                 KipuTheme {
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                         EmptyDashboardContent(
-                            quotaCount = 0,
-                            maxQuota = 4,
                             onNavigateToNewAccount = {},
                             onNavigateToNewCard = {},
-                            onNavigateToPlans = {},
                         )
                     }
                 }
@@ -149,11 +144,8 @@ class DashboardEmptyStateTest {
             KipuTheme(darkTheme = dark) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     EmptyDashboardContent(
-                        quotaCount = 0,
-                        maxQuota = 4,
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
-                        onNavigateToPlans = {},
                     )
                 }
             }
