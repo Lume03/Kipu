@@ -921,6 +921,7 @@ private fun MovementFiltersSheetContent(
                             onDraftChange = ::updateDraft,
                             errors = errors,
                             allowed = true,
+                            compactLayout = compactLayout,
                             accounts = accounts,
                             categories = categories,
                             cards = cards,
@@ -1347,14 +1348,13 @@ private fun AdvancedFiltersControls(
     onDraftChange: (MovementFilterDraft) -> Unit,
     errors: Map<String, FilterDraftError>,
     allowed: Boolean,
+    compactLayout: Boolean,
     accounts: List<MovementReferenceOption>,
     categories: List<MovementReferenceOption>,
     cards: List<MovementReferenceOption>,
     merchants: List<MovementReferenceOption>,
 ) {
     val themeColors = rememberKipuColors()
-    val compactLayout = LocalConfiguration.current.screenWidthDp < 380 ||
-        LocalConfiguration.current.fontScale >= 1.3f
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Cuentas
         ReferenceSelector(
