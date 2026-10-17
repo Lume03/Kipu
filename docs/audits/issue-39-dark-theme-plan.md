@@ -251,11 +251,11 @@ Salida: resultados JVM/build/lint, pruebas runtime, ratios y revisión visual. U
 7. Preparar descripción de PR con problema, comportamiento resultante, archivos/recorridos, validación, excepciones y capturas. Incluir `Closes #39` solo cuando estén satisfechos todos sus criterios.
 8. Realizar revisión de código por otro revisor y resolver hallazgos antes de considerar terminada la corrección.
 
-Salida: cambio revisable con evidencia. El responsable autorizó posteriormente ejecutar el plan, usar el dispositivo conectado y guardar/subir la rama. El merge queda fuera de esta entrega.
+Salida: cambio revisable con evidencia. El responsable autorizó posteriormente ejecutar el plan, usar el dispositivo conectado y guardar/subir la rama. La integración local con `origin/main` se realizó el 2026-10-17 en el worktree de revisión; sigue sin commit ni push y no equivale al merge de la PR en GitHub.
 
 ## 5. Tareas y dependencias
 
-I39-01 a I39-18 implementadas y verificadas con las pruebas aplicables registradas. I39-19 e I39-20 tienen inventario, revisión de capturas y evidencia de dispositivo; sus límites de accesibilidad manual/API mínima figuran en el README. I39-21 prepara la entrega y su trazabilidad. I39-22 permanece pendiente de revisión independiente y aceptación humana. Los hallazgos de la sección 2 conservan el inventario inicial.
+La implementación y la validación registradas originalmente corresponden al código de `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` en `d5667ab`. La integración local conserva los cambios de ambas ramas y actualiza previews reales, pero no se ejecutaron build, lint ni pruebas sobre el resultado integrado. I39-15 queda parcial: se añadieron previews claro/oscuro para componentes de acceso, ajustes, categorías, planes y el dashboard de primer uso; los editores de presentación de categoría y clasificación de movimiento renderizan su contenido real con estado/callbacks de muestra. `UnifiedInstrumentFormScreen` queda sin preview de pantalla completa por el acoplamiento del flujo multietapa a efectos y operaciones de `AccountsViewModel`. I39-18 y la aceptación visual de I39-19 deben repetirse sobre el resultado integrado. TalkBack hablado, runtime API 24 y aceptación visual humana siguen pendientes. I39-22 permanece abierta. Los hallazgos de la sección 2 conservan el inventario inicial.
 
 | ID | Trabajo | Depende de | Criterio de terminación |
 |---|---|---|---|
@@ -303,17 +303,17 @@ Las tareas 09–14 comparten la dependencia de roles, pero pueden resolverse sec
 - [x] Filtros oscuro integrado: contenedor, tarjetas, campos, iconos, chips, pie y modales anidados.
 - [ ] Textos habilitados cumplen el requisito de contraste en claro y oscuro; controles e iconos necesarios también tienen contraste medido.
 - [x] Claro/oscuro/SYSTEM siguen la preferencia efectiva de la app.
-- [x] Todas las pantallas implementadas fueron revisadas y los defectos de tema encontrados fueron corregidos.
-- [x] Metas/presupuestos tienen resultado verificable de revisión o no aplicable, según la base final.
+- [x] Las rutas implementadas del inventario original fueron revisadas; la verificación de la nueva versión integrada queda limitada a las superficies de dashboard y registro rápido señaladas en esta actualización.
+- [x] Metas/presupuestos no tienen pantallas en el código integrado; quedan documentados como no aplicables, sin marcar pantallas inexistentes como completadas.
 - [x] Excepciones cromáticas justificadas; colores personalizados persistidos conservados.
-- [x] Previews claras/oscuras de componentes reales intervenidos.
-- [x] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada.
-- [x] Build/JVM/lint y pruebas de dispositivo aplicables con resultados registrados.
-- [x] Capturas comparativas y tabla de contraste preparadas para el PR.
+- [ ] Previews claras/oscuras para todos los componentes intervenidos; ya existen previews reales para los componentes enumerados en el README, pero quedan componentes acoplados a ViewModels/fixtures sin cubrir.
+- [ ] Regresión de borrador, selección, aplicar/cancelar/limpiar, acceso, enmascaramiento y cambio de propietario validada sobre el resultado integrado. La evidencia histórica de `0118a19` no valida la integración local.
+- [ ] Build/JVM/lint y pruebas de dispositivo aplicables sobre el resultado integrado. Los resultados históricos de `0118a19` se conservan como evidencia de esa revisión anterior.
+- [ ] Capturas comparativas actuales de las superficies cambiadas por la integración; las capturas versionadas son de `0118a19` y no muestran el dashboard/registro rápido integrados.
 - [ ] Trazabilidad de la corrección y revisión de código completas.
 
 ## 8. Registro inicial y ejecución
 
 Se leyó el issue y se inspeccionaron tema, archivos candidatos, navegación disponible, configuración de pruebas y evidencia existente. Se calcularon cuatro parejas preliminares de contraste.
 
-En la entrega inicial de planificación no se ejecutaron builds ni suites. Después de la autorización de ejecución se completaron implementación, compilación, lint, regresiones JVM y pruebas instrumentadas en el dispositivo físico. La [auditoría](issue-39-dark-theme-audit.md) y el [README de evidencia](evidence/issue-39/README.md) registran resultados finales y límites. Las parejas de contraste medidas pasan AA; no se declara certificada toda la accesibilidad de la aplicación ni la revisión independiente todavía pendiente.
+En la entrega inicial de planificación no se ejecutaron builds ni suites. La implementación original registró compilación, lint, regresiones JVM y pruebas instrumentadas en un dispositivo físico; esas ejecuciones y capturas corresponden a `0118a19`, no al resultado integrado local. La [auditoría](issue-39-dark-theme-audit.md) y el [README de evidencia](evidence/issue-39/README.md) conservan ambos alcances. Las 28 parejas registradas pasan 4,5:1 dentro de esa matriz; esto no certifica todos los textos, píxeles ni la accesibilidad completa. No se atribuyen TalkBack hablado, runtime API 24 ni aceptación visual humana.

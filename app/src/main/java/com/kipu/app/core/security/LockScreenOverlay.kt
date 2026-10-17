@@ -69,6 +69,21 @@ fun LockScreenOverlay(
         triggerPrompt()
     }
 
+    LockScreenContent(
+        errorMessage = errorMessage,
+        onUnlockClick = ::triggerPrompt,
+        onSignOutRequested = onSignOutRequested,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun LockScreenContent(
+    errorMessage: String?,
+    onUnlockClick: () -> Unit,
+    onSignOutRequested: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // Completely opaque barrier consuming all touch events
     Box(
         modifier = modifier
@@ -127,7 +142,7 @@ fun LockScreenOverlay(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { triggerPrompt() },
+                onClick = onUnlockClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),

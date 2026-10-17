@@ -348,7 +348,9 @@ Corrección autorizada en `fix/dark-mode-filters-theme-audit`; detalle en `docs/
 - [x] T119 Inventariar superficies reales y clasificar colores, con base sintética `f8e7ea3` y excepciones de marcas/colores personalizados documentadas (I39-01–03).
 - [x] T120 Corregir roles compartidos y tematizar filtros, calendario, upsell y selector de referencias; conservar borrador, validaciones y acceso (I39-04–08).
 - [x] T121 Auditar cuentas, registro/editor/historial, categorías/comercios, instrumentos/tasas, deudas, ajustes/acceso/planes/notificaciones y corregir presentación (I39-09–14; metas/presupuestos no aplicables).
-- [x] T122 Agregar previews de componentes reales y pruebas de contraste/tema efectivo/cambio con borrador abierto (I39-15–17).
-- [x] T123 Ejecutar build/JVM/lint y regresiones instrumentadas, registrar comparativas claras/oscuras y contexto compacto con teclado/texto ampliado (I39-18–20; límites manuales explícitos).
+- [ ] T122 Agregar previews claro/oscuro de los componentes reales intervenidos y cubrir contraste/tema efectivo/cambio con borrador abierto (I39-15–17). Hay previews de contenido real de los editores de presentación de categoría y clasificación de movimiento con estado/callbacks de muestra; `UnifiedInstrumentFormScreen` aún carece de preview de pantalla completa por su flujo multietapa acoplado al `AccountsViewModel`.
+- [ ] T123 Repetir build/JVM/lint y regresiones instrumentadas sobre la integración de `origin/main`; volver a capturar las superficies que cambiaron y registrar contexto compacto/teclado/texto ampliado (I39-18–20). Los resultados previos de `0118a19` no validan la integración.
 - [x] T124 Registrar auditoría, resultados por método, imágenes sintéticas y trazabilidad; preparar entrega revisable (I39-21).
 - [ ] T125 Obtener revisión independiente y aceptación visual humana, resolver hallazgos y verificar criterios finales antes de cerrar #39 (I39-22; depende de T124).
+
+Estado actualizado el 2026-10-17: T122 y T123 quedan abiertas tras integrar `origin/main` localmente, porque no se ejecutaron pruebas/renderizados en el resultado integrado y la cobertura de previews aún es parcial. TalkBack hablado, runtime API 24 y aceptación visual humana no se atribuyen. T110 y las tareas de otras épicas conservan su estado previo.

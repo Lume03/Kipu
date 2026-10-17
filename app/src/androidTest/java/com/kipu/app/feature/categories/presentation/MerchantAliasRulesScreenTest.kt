@@ -1,15 +1,15 @@
 package com.kipu.app.feature.categories.presentation
 
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.MerchantId
@@ -22,34 +22,33 @@ class MerchantAliasRulesScreenTest {
     @get:Rule val composeTestRule = createComposeRule()
 
     @Test
-    fun freeUserCanReviewManualFlowButCannotSaveANewRule() {
+    fun freeUserSeesCompactPremiumBenefitInsteadOfBlockedAliasForm() {
         val tambo = MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo")
+        var openedPremium = false
         composeTestRule.setContent {
             MerchantAliasRulesContent(
                 state = MerchantAliasRulesUiState(
                     isPremiumVerified = false,
-                    sourceText = "IZIPAY*TAMBO",
-                    merchantQuery = "Tambo",
                     merchants = listOf(tambo),
-                    selectedMerchant = tambo,
                 ),
                 onSourceTextChange = {},
                 onMerchantQueryChange = {},
                 onSelectMerchant = {},
                 onSave = {},
                 onDelete = {},
+                onNavigateToPremium = { openedPremium = true },
             )
         }
 
-        composeTestRule.onNodeWithText("Texto fuente exacto").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Comercio confirmado").assertIsDisplayed()
-        composeTestRule.onNode(hasText("Tambo") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
-            .assertHasClickAction()
-        composeTestRule.onNodeWithText("Premium necesario para crear una regla nueva").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Si Premium o el consentimiento no están vigentes, puedes registrar el movimiento manualmente.").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Sin coincidencia, el comercio no se asigna y el texto queda disponible para revisión.").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Si las reglas apuntan a comercios distintos, la decisión requiere revisión manual.").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Guardar alias").assertIsNotEnabled().assertHeightIsAtLeast(48.dp)
+        composeTestRule.onNodeWithContentDescription("Volver").assertIsDisplayed().assertHasClickAction()
+        composeTestRule.onNodeWithText("Reglas de alias").assertIsDisplayed()
+        composeTestRule.onNodeWithText("PREMIUM").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Automatiza tus comercios frecuentes").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ver Premium").assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick()
+        composeTestRule.runOnIdle { assert(openedPremium) }
+        composeTestRule.onAllNodesWithText("Texto fuente exacto").assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("Guardar alias").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Sin reglas de alias aún").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -75,6 +74,8 @@ class MerchantAliasRulesScreenTest {
         composeTestRule.onNodeWithText(" IZIPAY*TÁMBO ").assertIsDisplayed()
         composeTestRule.onNodeWithText("Comercio canónico: Tambo").assertIsDisplayed()
         composeTestRule.onNodeWithText("Coincidencia exacta normalizada; la puntuación se conserva.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cómo funcionan las reglas").performClick()
+        composeTestRule.onNodeWithText("Sin coincidencia, el comercio no se asigna y el texto queda disponible para revisión.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Guardar alias").assertIsDisplayed().assertHeightIsAtLeast(48.dp)
     }
 }

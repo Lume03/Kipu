@@ -1,6 +1,6 @@
 # Evidencia de #39: temas y filtros
 
-Fecha de ejecución: 2026-10-13, America/Lima. Base anterior: `f8e7ea3`. El estado posterior corresponde al código incluido en el commit de implementación de esta rama. [Issue](https://github.com/Lume03/Kipu/issues/39), [plan](../../issue-39-dark-theme-plan.md), [auditoría y excepciones](../../issue-39-dark-theme-audit.md).
+Evidencia generada el 2026-10-13, America/Lima. Base anterior: `f8e7ea3`. Las capturas, medidas y resultados de validación corresponden a la implementación `0118a19` (PR head documental `d22e308`), antes de integrar `origin/main` (`d5667ab`) el 2026-10-17. La integración actual está sin commit y no se volvió a compilar ni probar; por tanto, esta evidencia no certifica el código integrado ni sus nuevas superficies de dashboard/registro rápido. [Issue](https://github.com/Lume03/Kipu/issues/39), [plan](../../issue-39-dark-theme-plan.md), [auditoría y excepciones](../../issue-39-dark-theme-audit.md).
 
 Dispositivo físico 23129RA5FL, Android 15/API 35, 1080×2400, 440 dpi, fuente del sistema 1,0. La prueba compacta usa un contexto Android local con densidad ×1,25 y fuente ×1,6; no altera los ajustes del celular. Las pruebas usan `com.kipu.app.lab`, configuración remota vacía, modelos sintéticos válidos y callbacks sin efectos financieros. No contienen datos de la sesión personal.
 
@@ -40,9 +40,23 @@ La APK base y la posterior usan el mismo fixture `MovementFilterVisualEvidenceTe
 
 Pantalla compacta y texto ampliado: [filtros con teclado](after-compact-keyboard-dark.png), [calendario con entrada manual](after-compact-calendar-input-dark.png).
 
+## Previews de fuente añadidas en la integración local
+
+Estas previews envuelven contenido real de producción en `KipuTheme` y generan variantes claro/oscuro. Son declaraciones de preview en Kotlin; no se renderizaron ni sustituyen capturas de la integración actual.
+
+- Dashboard de primer uso (`EmptyDashboardContent`), ahora coincide con la estructura incorporada desde `main`.
+- Formulario de acceso, diálogo de cierre de sesión con cambios pendientes y contenido visual del bloqueo local.
+- Contenido de ajustes biométricos en estado disponible/no disponible y componentes visuales de perfil/tema.
+- Formulario real de categoría, búsqueda/lista de comercios, resumen de tarjeta de crédito, diálogo de anulación y `PurchasePriceShimmer`.
+- Editores de presentación de categoría y clasificación de movimiento, renderizando su contenido real con estado de muestra y callbacks aislados del `ViewModel`.
+
+El preview del bloqueo muestra `LockScreenContent` sin disparar el gateway biométrico. El preview biométrico cubre el cuerpo que consume el `ViewModel`; el preview de perfil cubre tarjetas, estado de sincronización y selector de tema, no la pantalla completa. La lista de comercios renderiza su contenido real dentro de `MerchantPicker`, no la ventana de `MerchantPickerBottomSheet`. `CategoryPresentationEditor` y `MovementClassificationEditor` exponen su contenido real con estado/callbacks de muestra, sin instanciar sus `ViewModel`. `UnifiedInstrumentFormScreen` sigue sin preview de pantalla completa: concentra un flujo multietapa con efectos de ciclo de vida y muchas operaciones del `AccountsViewModel`; extraer un estado de preview fiable excede esta integración. I39-15 continúa parcial por esa cobertura y porque las previews nuevas aún no se han renderizado sobre el código integrado.
+
 ## Validación
 
 Los resultados instrumentados por método y el recuento JVM están en [validation-results.json](validation-results.json). Se registra el último resultado de cada método; no se suman ejecuciones repetidas. Las comparativas de filtros se ejecutan además en ambos temas. Los logs completos, incluidos intentos fallidos, permanecen en `scratch/issue-39/` y no se presentan como PASS.
+
+Todos los resultados listados a continuación son históricos de `0118a19`; no hubo ejecución posterior a la integración local de `d5667ab`.
 
 - JVM: 521 pruebas, 0 fallos, 0 errores, 0 omitidas.
 - Dispositivo: 84 métodos distintos con último resultado PASS, sin pendientes de ejecución en la selección. La corrida conjunta de 83 dejó dos assertions de formato monetario; su reejecución pasó y se añadió el caso de barras de la ventana modal. La última tanda de tema/capturas/contexto compacto es `OK (7 tests)` y la comparativa clara adicional es `OK (1 test)`.
@@ -74,4 +88,4 @@ El runner acepta clases o `clase#método` separadas por comas, `--serial`/`ANDRO
 
 ## Límites de aceptación
 
-No se ejecutó TalkBack hablado ni runtime API 24. La cobertura de semántica y acciones no equivale a una sesión manual de escucha. Las parejas medidas no certifican todos los píxeles, logos, estados deshabilitados ni toda la accesibilidad de la aplicación. No se simularon compras, permisos concedidos por el usuario ni consultas remotas. Una ejecución interrumpida por bloqueo del celular fue descartada y repetida con el dispositivo desbloqueado. La revisión independiente y aceptación visual humana corresponden al PR; el issue permanece abierto hasta entonces.
+No se ejecutó TalkBack hablado ni runtime API 24. La cobertura de semántica y acciones no equivale a una sesión manual de escucha. Las parejas medidas no certifican todos los píxeles, logos, estados deshabilitados ni toda la accesibilidad de la aplicación. No se simularon compras, permisos concedidos por el usuario ni consultas remotas. Una ejecución interrumpida por bloqueo del celular fue descartada y repetida con el dispositivo desbloqueado. La aceptación visual humana de la integración actual no se realizó; la revisión independiente y la aceptación visual siguen pendientes y el issue permanece abierto.

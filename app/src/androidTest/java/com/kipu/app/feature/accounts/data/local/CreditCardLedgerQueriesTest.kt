@@ -36,7 +36,7 @@ class CreditCardLedgerQueriesTest {
     }
 
     @Test
-    fun nextPaymentSuggestionSumsUnpaidPrincipalForEarliestDueDate() = runTest {
+    fun outstandingInstallmentsApplyPaymentsAndSortByDueDate() = runTest {
         val nextDue = LocalDate.parse("2026-11-10").toEpochDay()
         val laterDue = LocalDate.parse("2026-12-10").toEpochDay()
         val firstPurchase = transaction(
@@ -101,6 +101,9 @@ class CreditCardLedgerQueriesTest {
         val rows = database.financialMovementDao().observeByCard(userId, cardId).first()
 
         assertEquals(listOf(payment.id, purchase.id), rows.map { it.id })
+        assertEquals(listOf("CARD_PAYMENT_CASH", "CREDIT_PURCHASE"), rows.map { it.kind })
+        assertEquals(listOf(2_500L, 2_500L), rows.map { it.amountMinorUnits })
+        assertEquals(listOf(cardId, cardId), rows.map { it.cardId })
     }
 
     private fun cardMovement(id: String, kind: String, occurredAt: Long, status: String = "POSTED") =

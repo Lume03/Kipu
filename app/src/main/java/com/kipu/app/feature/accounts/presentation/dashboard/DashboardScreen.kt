@@ -32,11 +32,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import java.math.BigInteger
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CheckCircle
@@ -64,6 +64,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -109,6 +110,8 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.Card as DomainCard
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
+import com.kipu.app.feature.accounts.presentation.DashboardUiState
+import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
 import com.kipu.app.feature.notifications.presentation.UnreadNotificationBadge
@@ -170,11 +173,7 @@ fun DashboardScreen(
     }
 
     val data = state.dashboardData
-    val isEmptyState = !state.isLoading && state.errorMessage == null &&
-        data?.liquidAccounts.isNullOrEmpty() &&
-        data?.creditCards.isNullOrEmpty() &&
-        instruments.activeAccounts.isEmpty() &&
-        instruments.activeCards.isEmpty()
+    val isEmptyState = shouldShowEmptyDashboard(state, instruments)
 
     CompositionLocalProvider(LocalBalanceMasked provides isMasked) {
         Scaffold(
@@ -287,7 +286,7 @@ fun DashboardScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                if (state.isLoading) {
+                if (state.isLoading || instruments.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = emeraldColors.primaryDeep,
@@ -302,8 +301,8 @@ fun DashboardScreen(
                     )
                 } else if (isEmptyState) {
                     EmptyDashboardContent(
-                        quotaCount = data?.activeComputableCount ?: 0,
-                        maxQuota = data?.maxFreeQuota ?: 4,
+                        quotaCount = data?.activeComputableCount ?: instruments.activeComputableCount,
+                        maxQuota = data?.maxFreeQuota ?: instruments.maxFreeQuota,
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
                         onNavigateToPlans = onNavigateToPlans,
@@ -365,11 +364,22 @@ fun DashboardScreen(
     }
 }
 
-/**
- * State 1: Empty Dashboard Content
- */
+internal fun shouldShowEmptyDashboard(
+    state: DashboardUiState,
+    instruments: InstrumentsUiState,
+): Boolean {
+    val data = state.dashboardData
+    return data != null && !state.isLoading && !instruments.isLoading && state.errorMessage == null &&
+        data.liquidAccounts.isEmpty() &&
+        data.creditCards.isEmpty() &&
+        instruments.activeAccounts.isEmpty() &&
+        instruments.activeCards.isEmpty() &&
+        instruments.archivedAccounts.isEmpty() &&
+        instruments.archivedCards.isEmpty()
+}
+
 @Composable
-private fun EmptyDashboardContent(
+internal fun EmptyDashboardContent(
     quotaCount: Int,
     maxQuota: Int,
     onNavigateToNewAccount: () -> Unit,
@@ -378,228 +388,105 @@ private fun EmptyDashboardContent(
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val heroContentColor = readableContentColor(emeraldColors.heroGradientStart)
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Hero zero balance
         item {
             Card(
-                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.fillMaxWidth().testTag("dashboard_empty_balance"),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = emeraldColors.heroGradientStart),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .drawBehind {
-                        drawCircle(
-                            color = Color.White.copy(alpha = 0.06f),
-                            radius = size.width * 0.45f,
-                            center = Offset(size.width * 0.95f, size.height * 0.1f),
-                            style = Stroke(width = 30f),
-                        )
-                    },
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Surface(shape = CircleShape, color = Color(0xFF6EE7B7), modifier = Modifier.size(7.dp)) {}
-                            Text(
-                                text = "TOTAL DISPONIBLE",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp),
-                                color = Color(0xFFA7F3D0),
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     Text(
-                        text = "S/ 0.00",
+                        text = "Saldo registrado",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp,
+                        ),
+                        color = heroContentColor,
+                    )
+                    MoneyText(
+                        minorUnits = 0L,
+                        currency = Currency.PEN,
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp,
                             fontFeatureSettings = "tnum",
                         ),
-                        color = Color.White,
+                        color = heroContentColor,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Empieza agregando tu primera cuenta o efectivo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f),
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = emeraldColors.heroSubcardBg,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("En cuentas", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White.copy(alpha = 0.8f))
-                                Text("S/ 0.00", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White)
-                            }
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = emeraldColors.heroSubcardBg,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("En efectivo", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White.copy(alpha = 0.8f))
-                                Text("S/ 0.00", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White)
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        // Plan strip
-        item {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = emeraldColors.surfaceCard,
-                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+        item(key = "quota_strip") {
+            if (maxQuota > 0) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = emeraldColors.surfaceCard,
+                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = emeraldColors.incomeBg,
-                            modifier = Modifier.size(34.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.PieChart,
-                                    contentDescription = null,
-                                    tint = emeraldColors.incomeText,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        }
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Cupo Free · $quotaCount de $maxQuota cuentas y tarjetas",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = emeraldColors.primaryText,
                             )
                             Text(
-                                text = "Te quedan ${(maxQuota - quotaCount).coerceAtLeast(0)} cuentas y tarjetas disponibles",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                text = "Te quedan ${(maxQuota - quotaCount).coerceAtLeast(0)} espacios disponibles",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = emeraldColors.secondaryMuted,
                             )
                         }
-                    }
-                    Text(
-                        text = "Ver planes >",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = emeraldColors.primaryDeep,
-                        modifier = Modifier
-                            .clickable(onClick = onNavigateToPlans)
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                    )
-                }
-            }
-        }
-
-        // Section Title: Cuentas y efectivo
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "Cuentas y efectivo",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = emeraldColors.primaryText,
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = emeraldColors.pillTrack,
-                    ) {
-                        Text(
-                            text = "0 registradas",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = emeraldColors.secondaryMuted,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                        TextButton(
+                            onClick = onNavigateToPlans,
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) {
+                            Text("Ver planes", color = emeraldColors.primaryDeep)
+                        }
                     }
                 }
             }
         }
 
-        // Central Empty Card: Aún no tienes cuentas registradas
         item {
             Card(
+                modifier = Modifier.fillMaxWidth().testTag("dashboard_empty_setup"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.Start,
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = emeraldColors.incomeBg,
-                        border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                        modifier = Modifier.size(52.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.AccountBalanceWallet,
-                                contentDescription = null,
-                                tint = emeraldColors.incomeText,
-                                modifier = Modifier.size(26.dp),
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "Aún no tienes cuentas registradas",
+                        text = "Empieza con una cuenta",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = emeraldColors.primaryText,
-                        textAlign = TextAlign.Center,
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Registra tus cuentas bancarias, billeteras digitales o efectivo físico para tener control de tus finanzas.",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "Registra una cuenta bancaria, billetera o efectivo. Después podrás anotar tus gastos e ingresos.",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = emeraldColors.secondaryMuted,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 18.sp,
+                        lineHeight = 20.sp,
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = onNavigateToNewAccount,
                         colors = ButtonDefaults.buttonColors(
@@ -607,129 +494,32 @@ private fun EmptyDashboardContent(
                             contentColor = emeraldColors.onPrimaryDeep,
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.heightIn(min = 48.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("dashboard_empty_add_account"),
                     ) {
-                        Text(
-                            text = "+ Agregar primera cuenta",
-                            fontWeight = FontWeight.Bold,
-                            color = emeraldColors.onPrimaryDeep,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Text("Agregar primera cuenta", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // Tarjetas de crédito empty
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "Tarjetas de crédito",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = emeraldColors.primaryText,
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = emeraldColors.pillTrack,
-                    ) {
-                        Text(
-                            text = "0 activas",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = emeraldColors.secondaryMuted,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
-                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                            modifier = Modifier.size(40.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.CreditCard,
-                                    contentDescription = null,
-                                    tint = emeraldColors.secondaryMuted,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = "Sin tarjetas de crédito vinculadas",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = emeraldColors.primaryText,
-                            )
-                            Text(
-                                text = "Controla límites de crédito y fechas de pago",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = emeraldColors.secondaryMuted,
-                            )
-                        }
-                    }
-                    TextButton(onClick = onNavigateToNewCard, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("+ Vincular", fontWeight = FontWeight.Bold, color = emeraldColors.primaryDeep)
-                    }
-                }
-            }
-        }
-
-        // Privacy Guarantee Card
-        item {
-            Surface(
+            OutlinedButton(
+                onClick = onNavigateToNewCard,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("dashboard_empty_add_card"),
                 shape = RoundedCornerShape(12.dp),
-                color = emeraldColors.incomeBg,
-                border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = emeraldColors.primaryDeep),
             ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = emeraldColors.incomeText,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = "Tus datos permanecen privados y protegidos. Puedes comenzar agregando una cuenta de ahorros o el efectivo que llevas contigo.",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = emeraldColors.primaryDeep,
-                        lineHeight = 16.sp,
-                    )
-                }
+                Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Agregar tarjeta de crédito")
             }
-            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        item(key = "bottom_space") {
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }

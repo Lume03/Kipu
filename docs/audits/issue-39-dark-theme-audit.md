@@ -96,3 +96,11 @@ Las aserciones obsoletas de cuentas/tasas también fallaron contra la APK base `
 - No se dispone de un emulador API 24 en PATH; no se atribuye cobertura runtime de esa API.
 - Las imágenes prueban apariencia de los estados capturados; las pruebas y revisión de código complementan esa evidencia.
 - La revisión independiente de código y la aceptación visual humana permanecen como pasos del PR. No se realiza merge ni se cierra el issue automáticamente.
+
+## Estado de la integración local (2026-10-17)
+
+La cabeza revisada de la PR es `d22e308`; la rama actual de GitHub `main` es `d5667ab`. Se integró `origin/main` en el worktree local sin crear commit ni hacer push. Se resolvieron los conflictos de `feature/accounts/presentation/dashboard/DashboardScreen.kt` y `feature/movements/presentation/QuickMovementScreen.kt`, manteniendo el dashboard de primer uso y el plegado de detalles de `main`, y conservando roles de color accesibles de la PR. El texto del saldo inicial del dashboard ahora toma un foreground que cumple el umbral medido sobre la superficie hero.
+
+Las cifras JVM, lint, instrumentación, contraste y PNG de este informe son de `0118a19`, antes de la integración. No se ejecutaron pruebas, builds, lint ni capturas para la integración local. El preview del dashboard se actualizó para renderizar el `EmptyDashboardContent` real de `main`; se añadieron previews claro/oscuro para componentes reales de acceso, ajustes, categorías, tarjetas, comercios, anulación y planes, además de los contenidos reales de los editores de presentación de categoría y clasificación de movimiento. `UnifiedInstrumentFormScreen` sigue sin preview de pantalla completa por el acoplamiento de su flujo multietapa. La matriz y los límites están detallados en el [README de evidencia](evidence/issue-39/README.md).
+
+No se declara aceptación visual humana de la integración, TalkBack hablado ni runtime API 24. La PR en GitHub no se ha fusionado ni actualizado, y el issue #39 continúa abierto. La búsqueda de rutas del código integrado no encontró pantallas de metas/presupuestos; quedan como no aplicables, no como pantallas completadas. T110 permanece abierto y fuera de este alcance.

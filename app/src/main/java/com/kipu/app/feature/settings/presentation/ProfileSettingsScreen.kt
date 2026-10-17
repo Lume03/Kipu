@@ -31,10 +31,12 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +82,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.feature.auth.presentation.SignOutDialog
 import com.kipu.app.feature.settings.domain.model.SyncState
 import com.kipu.app.feature.settings.domain.model.ThemeMode
+import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.KipuThemePreviews
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -483,7 +487,7 @@ fun ProfileSettingsScreen(
 
                 onNavigateToMerchantAliases?.let {
                     SettingsActionCard(
-                        icon = Icons.Default.Category,
+                        icon = Icons.Default.Link,
                         title = "Reglas de alias",
                         subtitle = "Relaciona un texto de operación con un comercio confirmado",
                         onClick = it,
@@ -492,7 +496,7 @@ fun ProfileSettingsScreen(
 
                 onNavigateToMerchantCategoryPreferences?.let {
                     SettingsActionCard(
-                        icon = Icons.Default.Category,
+                        icon = Icons.Default.Storefront,
                         title = "Categoría por comercio",
                         subtitle = "Elige la primera categoría sugerida para operaciones futuras",
                         onClick = it,
@@ -606,6 +610,7 @@ private fun SettingsActionCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    iconContentDescription: String = "Ir a $title",
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -628,7 +633,7 @@ private fun SettingsActionCard(
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = null,
+                    contentDescription = iconContentDescription,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
@@ -703,4 +708,33 @@ private fun ThemeOptionChip(
             selectedLabelColor = MaterialTheme.colorScheme.primary,
         ),
     )
+}
+
+@KipuThemePreviews
+@Composable
+private fun ProfileSettingsComponentsThemePreview() {
+    KipuTheme {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SyncStateBanner(SyncState.PENDING)
+            SettingsCard(
+                icon = Icons.Default.Payments,
+                title = "Divisa y apariencia",
+                subtitle = "Preferencias de esta cuenta",
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeOptionChip(selected = false, onClick = {}, icon = Icons.Default.LightMode, label = "Claro")
+                    ThemeOptionChip(selected = true, onClick = {}, icon = Icons.Default.DarkMode, label = "Oscuro")
+                }
+            }
+            SettingsActionCard(
+                icon = Icons.Default.Fingerprint,
+                title = "Bloqueo local",
+                subtitle = "Administra la protección de acceso",
+                onClick = {},
+            )
+        }
+    }
 }

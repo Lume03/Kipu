@@ -299,6 +299,8 @@ fun QuickMovementContent(
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showSourceAccountPicker by remember { mutableStateOf(false) }
     var showDestinationAccountPicker by remember { mutableStateOf(false) }
+    var sourceAccountPickerCurrency by remember { mutableStateOf<String?>(null) }
+    var showOptionalFields by remember { mutableStateOf(false) }
 
     // Separate field validation errors from general transient errors
     val fieldErrors = remember(uiState.amountError, uiState.accountError, uiState.categoryError, uiState.destinationAccountError) {
@@ -485,35 +487,58 @@ fun QuickMovementContent(
 
                         // Segmented Currency Selector: PEN / USD
                         val hasPen = remember(uiState.availableAccounts, uiState.availableCreditCards, uiState.type) {
-                            uiState.availableAccounts.any { it.currency.name == "PEN" } ||
+                            uiState.availableAccounts.any {
+                                it.type != com.kipu.app.feature.accounts.domain.model.AccountType.CREDIT_LIABILITY &&
+                                    it.currency.name == "PEN"
+                            } ||
                                 (uiState.type == MovementType.EXPENSE && uiState.availableCreditCards.any { it.currency.name == "PEN" })
                         }
                         val hasUsd = remember(uiState.availableAccounts, uiState.availableCreditCards, uiState.type) {
-                            uiState.availableAccounts.any { it.currency.name == "USD" } ||
+                            uiState.availableAccounts.any {
+                                it.type != com.kipu.app.feature.accounts.domain.model.AccountType.CREDIT_LIABILITY &&
+                                    it.currency.name == "USD"
+                            } ||
                                 (uiState.type == MovementType.EXPENSE && uiState.availableCreditCards.any { it.currency.name == "USD" })
                         }
                         val isPen = uiState.currency == "PEN"
                         val isUsd = uiState.currency == "USD"
 
-                        FlowRow(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(emeraldColors.pillTrack)
-                                .padding(2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            CurrencyCapsuleTab(
-                                label = "PEN (S/)",
-                                selected = isPen,
-                                enabled = hasPen,
-                                onSelect = { showSourceAccountPicker = true }
-                            )
+                        if (hasPen && hasUsd) {
+                            FlowRow(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(emeraldColors.pillTrack)
+                                    .padding(2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                CurrencyCapsuleTab(
+                                    label = "PEN (S/)",
+                                    selected = isPen,
+                                    onSelect = {
+                                        sourceAccountPickerCurrency = "PEN"
+                                        showSourceAccountPicker = true
+                                    },
+                                    modifier = Modifier.testTag("currency_pen"),
+                                )
 
-                            CurrencyCapsuleTab(
-                                label = "USD ($)",
-                                selected = isUsd,
-                                enabled = hasUsd,
-                                onSelect = { showSourceAccountPicker = true }
+                                CurrencyCapsuleTab(
+                                    label = "USD ($)",
+                                    selected = isUsd,
+                                    onSelect = {
+                                        sourceAccountPickerCurrency = "USD"
+                                        showSourceAccountPicker = true
+                                    },
+                                    modifier = Modifier.testTag("currency_usd"),
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = if (hasUsd) "USD ($)" else "PEN (S/)",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = emeraldColors.secondaryMuted,
+                                modifier = Modifier
+                                    .testTag("currency_single_option")
+                                    .semantics { contentDescription = "Moneda ${if (hasUsd) "USD" else "PEN"}" },
                             )
                         }
                     }
@@ -821,91 +846,135 @@ fun QuickMovementContent(
                 )
             }
 
-            // Merchant Row (for Expense)
-            AnimatedVisibility(
-                visible = uiState.type == MovementType.EXPENSE,
-                enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
-                exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .toggleable(
+                        value = showOptionalFields,
+                        role = Role.Button,
+                        onValueChange = { showOptionalFields = it },
+                    )
+                    .semantics {
+                        stateDescription = if (showOptionalFields) "Expandido" else "Contraído"
+                    }
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
-                    Color(0xFF451A03) to Color(0xFFFDBA74)
-                } else {
-                    Color(0xFFFEF3C7) to emeraldColors.warningText
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Más detalles (opcional)",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = emeraldColors.secondaryMuted,
+                    )
+                    if (!showOptionalFields && uiState.merchantName.isNotBlank()) {
+                        Text(
+                            text = uiState.merchantName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = emeraldColors.secondaryMuted,
+                        )
+                    }
                 }
-                val hasMerchant = uiState.merchantName.isNotBlank()
-
-                CalmEmeraldSelectionRow(
-                    icon = Icons.Default.Storefront,
-                    iconContainer = merchantBg,
-                    iconTint = merchantTint,
-                    label = "Comercio o Pagador",
-                    value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
-                    supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
-                    onClick = onOpenMerchantPicker,
-                    modifier = Modifier.testTag("input_merchant"),
-                    trailingContent = if (hasMerchant) {
-                        {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = onClearMerchant,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .testTag("btn_clear_merchant")
-                                        .semantics { contentDescription = "Limpiar comercio" },
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = null,
-                                        tint = emeraldColors.secondaryMuted,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                                IconButton(
-                                    onClick = onOpenMerchantPicker,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .semantics { contentDescription = "Editar comercio" },
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = null,
-                                        tint = emeraldColors.secondaryMuted,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = emeraldColors.secondaryMuted,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    },
+                Icon(
+                    imageVector = if (showOptionalFields) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = emeraldColors.secondaryMuted,
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
-            // Date & Time Row
-            val (dateBg, dateTint) = if (emeraldColors.isDark) {
-                Color(0xFF082F49) to Color(0xFF7DD3FC)
-            } else {
-                Color(0xFFE0F2FE) to Color(0xFF0284C7)
-            }
-            val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
+            AnimatedVisibility(
+                visible = showOptionalFields,
+                enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
+                exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
+            ) {
+                // Merchant Row (for Expense)
+                AnimatedVisibility(
+                    visible = uiState.type == MovementType.EXPENSE,
+                    enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
+                    exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
+                ) {
+                    val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
+                        Color(0xFF451A03) to Color(0xFFFDBA74)
+                    } else {
+                        Color(0xFFFEF3C7) to emeraldColors.warningText
+                    }
+                    val hasMerchant = uiState.merchantName.isNotBlank()
 
-            CalmEmeraldSelectionRow(
-                icon = Icons.Default.CalendarToday,
-                iconContainer = dateBg,
-                iconTint = dateTint,
-                label = "Fecha y hora",
-                value = formattedDate,
-                supportingText = "Toca para cambiar la fecha",
-                onClick = onOpenDatePicker,
-                modifier = Modifier.testTag("selector_occurred_at"),
-            )
+                    CalmEmeraldSelectionRow(
+                        icon = Icons.Default.Storefront,
+                        iconContainer = merchantBg,
+                        iconTint = merchantTint,
+                        label = "Comercio o Pagador",
+                        value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
+                        supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
+                        onClick = onOpenMerchantPicker,
+                        modifier = Modifier.testTag("input_merchant"),
+                        trailingContent = if (hasMerchant) {
+                            {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = onClearMerchant,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("btn_clear_merchant")
+                                            .semantics { contentDescription = "Limpiar comercio" },
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = null,
+                                            tint = emeraldColors.secondaryMuted,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onOpenMerchantPicker,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .semantics { contentDescription = "Editar comercio" },
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = null,
+                                            tint = emeraldColors.secondaryMuted,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = emeraldColors.secondaryMuted,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        },
+                    )
+                }
+
+                // Date & Time Row
+                val (dateBg, dateTint) = if (emeraldColors.isDark) {
+                    Color(0xFF082F49) to Color(0xFF7DD3FC)
+                } else {
+                    Color(0xFFE0F2FE) to Color(0xFF0284C7)
+                }
+                val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
+
+                CalmEmeraldSelectionRow(
+                    icon = Icons.Default.CalendarToday,
+                    iconContainer = dateBg,
+                    iconTint = dateTint,
+                    label = "Fecha y hora",
+                    value = formattedDate,
+                    supportingText = "Toca para cambiar la fecha",
+                    onClick = onOpenDatePicker,
+                    modifier = Modifier.testTag("selector_occurred_at"),
+                )
+            }
 
             // Collapsible Notes Section
             Row(
@@ -1065,23 +1134,38 @@ fun QuickMovementContent(
     }
 
     if (showSourceAccountPicker) {
+        val sourceAccounts = uiState.availableAccounts.filter { account ->
+            sourceAccountPickerCurrency == null || account.currency.name == sourceAccountPickerCurrency
+        }
+        val sourceCards = uiState.availableCreditCards.filter { card ->
+            sourceAccountPickerCurrency == null || card.currency.name == sourceAccountPickerCurrency
+        }
         AccountSelectorBottomSheet(
-            onDismissRequest = { showSourceAccountPicker = false },
-            accounts = uiState.availableAccounts,
-            creditCards = uiState.availableCreditCards,
-            selectedAccountId = uiState.selectedSourceAccountId,
-            selectedCardId = uiState.selectedSourceCardId,
+            onDismissRequest = {
+                showSourceAccountPicker = false
+                sourceAccountPickerCurrency = null
+            },
+            accounts = sourceAccounts,
+            creditCards = sourceCards,
+            selectedAccountId = uiState.selectedSourceAccountId?.takeIf { selectedId ->
+                sourceAccounts.any { it.id.value == selectedId }
+            },
+            selectedCardId = uiState.selectedSourceCardId?.takeIf { selectedId ->
+                sourceCards.any { it.id.value == selectedId }
+            },
             allowCreditCards = uiState.type == MovementType.EXPENSE,
             accountBalances = accountBalances,
             cardDebts = creditCardDebts,
             cardAvailableCredits = creditCardAvailableCredits,
             mostUsedAccountId = mostUsedAccountId,
             title = if (uiState.type == MovementType.INCOME) "Seleccionar cuenta destino" else "Seleccionar cuenta",
-            subtitle = if (uiState.type == MovementType.INCOME) "Elige dónde recibir el ingreso" else "Elige de dónde sale el movimiento",
             onAccountIdSelected = onSourceAccountSelected,
             onCardIdSelected = onSourceCardSelected,
+            subtitle = sourceAccountPickerCurrency?.let { "Elige un instrumento en $it" }
+                ?: if (uiState.type == MovementType.INCOME) "Elige dónde recibir el ingreso" else "Elige de dónde sale el movimiento",
             onNewAccountClick = {
                 showSourceAccountPicker = false
+                sourceAccountPickerCurrency = null
                 onNavigateToNewAccount()
             },
         )
@@ -1187,8 +1271,8 @@ private fun CalmEmeraldTypeTab(
 private fun CurrencyCapsuleTab(
     label: String,
     selected: Boolean,
-    enabled: Boolean = true,
     onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val bgColor = when {
@@ -1196,7 +1280,6 @@ private fun CurrencyCapsuleTab(
         else -> Color.Transparent
     }
     val textColor = when {
-        !enabled -> emeraldColors.secondaryMuted.copy(alpha = 0.4f)
         selected -> emeraldColors.primaryText
         else -> emeraldColors.secondaryMuted
     }
@@ -1205,14 +1288,8 @@ private fun CurrencyCapsuleTab(
         shape = RoundedCornerShape(6.dp),
         color = bgColor,
         shadowElevation = if (selected) 1.dp else 0.dp,
-        modifier = Modifier
-            .then(
-                if (enabled) {
-                    Modifier.clickable(onClick = onSelect)
-                } else {
-                    Modifier
-                }
-            )
+        modifier = modifier
+            .clickable(onClick = onSelect)
             .heightIn(min = 48.dp),
     ) {
         Box(
