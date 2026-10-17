@@ -2742,7 +2742,7 @@ private fun CreditCardMovementsSection(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
             ) {
-                items(items = filteredMovements, key = { it.id.value }) { movement ->
+                items(items = filteredMovements, key = { it.movement.id.value }) { movement ->
                     CreditCardMovementRow(movement, dateFormatter, emeraldColors)
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 }
