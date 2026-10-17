@@ -7,17 +7,22 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import com.kipu.app.core.finance.domain.model.AccountId
+import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.CardNetwork
+import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -173,6 +178,42 @@ class AccountDetailScreenTest {
         compose.runOnIdle { assertTrue(navigatedBack) }
     }
 
+    @Test
+    fun activeCreditCardDebtStaysVisibleAndPaymentActionIsAvailable() {
+        var paymentRequested = false
+        setCardScreen(creditCard(), onPayCreditCard = { paymentRequested = true })
+
+        compose.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Pagar tarjeta").performScrollTo().performClick()
+
+        compose.runOnIdle { assertTrue(paymentRequested) }
+    }
+
+    @Test
+    fun archivedCreditCardDebtStaysVisibleAndRequiresReactivationBeforePayment() {
+        var reactivated = false
+        setCardScreen(creditCard(isArchived = true), onReactivate = { reactivated = true })
+
+        compose.onNodeWithText("Deuda pendiente").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Tarjeta archivada · Solo lectura").assertIsDisplayed()
+        compose.onAllNodesWithText("Pagar tarjeta").assertCountEquals(0)
+        compose.onNodeWithText("Reactivar tarjeta").performScrollTo().performClick()
+        compose.runOnIdle { assertFalse(reactivated) }
+        compose.onNodeWithText("Reactivar").performClick()
+        compose.runOnIdle { assertTrue(reactivated) }
+    }
+
+    @Test
+    fun creditCardTermsActionRemainsReachableWithoutChangingDebtPresentation() {
+        var editRequested = false
+        setCardScreen(creditCard(), onEditCreditCardTerms = { editRequested = true })
+
+        compose.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Editar tarjeta").performClick()
+
+        compose.runOnIdle { assertTrue(editRequested) }
+    }
+
     private fun setScreen(
         account: Account,
         onNavigateBack: () -> Unit = {},
@@ -201,6 +242,32 @@ class AccountDetailScreenTest {
         }
     }
 
+    private fun setCardScreen(
+        card: CreditCard,
+        onPayCreditCard: () -> Unit = {},
+        onEditCreditCardTerms: () -> Unit = {},
+        onReactivate: () -> Unit = {},
+    ) {
+        compose.setContent {
+            MaterialTheme {
+                AccountDetailContent(
+                    account = null,
+                    card = card,
+                    currentBalance = null,
+                    creditCardSummary = cardSummary(card),
+                    isLoading = false,
+                    onNavigateBack = {},
+                    onSaveAppearance = { _, _ -> },
+                    onCorrectOpeningBalance = {},
+                    onArchive = {},
+                    onReactivate = onReactivate,
+                    onPayCreditCard = onPayCreditCard,
+                    onEditCreditCardTerms = onEditCreditCardTerms,
+                )
+            }
+        }
+    }
+
     private fun account() = Account(
         id = AccountId.generate(),
         userId = UserId.generate(),
@@ -210,6 +277,27 @@ class AccountDetailScreenTest {
         preset = AccountPreset.BCP,
         initialBalance = Money(10_000L, Currency.PEN),
         openedAt = Instant.parse("2025-01-01T00:00:00Z"),
+    )
+
+    private fun creditCard(isArchived: Boolean = false) = CreditCard(
+        id = CardId.generate(),
+        userId = UserId.generate(),
+        alias = "Visa principal",
+        issuer = "Banco",
+        network = CardNetwork.VISA,
+        lastFourDigits = "4242",
+        currency = Currency.PEN,
+        creditLimitMinorUnits = 100_000L,
+        billingDay = 10,
+        dueDay = 20,
+        isArchived = isArchived,
+    )
+
+    private fun cardSummary(card: CreditCard) = CreditCardWithSummary(
+        card = card,
+        debt = Money(3_000L, Currency.PEN),
+        availableCredit = Money(card.creditLimitMinorUnits - 3_000L, Currency.PEN),
+        utilizationPercentage = 3.0,
     )
 
 }

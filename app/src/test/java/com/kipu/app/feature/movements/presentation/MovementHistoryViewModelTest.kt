@@ -27,13 +27,19 @@ import java.math.BigInteger
 import androidx.lifecycle.SavedStateHandle
 import com.kipu.app.feature.plans.domain.model.BillingVerificationResult
 import com.kipu.app.feature.plans.purchase.BillingPurchaseRepository
+import com.kipu.app.feature.plans.data.entitlement.offlineEntitlementRefreshTicker
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -69,6 +75,79 @@ class MovementHistoryViewModelTest {
         assertEquals(99L, viewModel.uiState.value.totalFilteredCount)
         assertEquals(BigInteger.TEN, viewModel.uiState.value.netByCurrency["PEN"])
         assertEquals("cash", viewModel.uiState.value.mostUsedAccountId)
+    }
+
+    @Test
+    fun entitlementRefreshReevaluatesAccessWithoutReloadingHistoryOrDroppingCursor() = runTest {
+        val refreshTicks = Channel<Unit>(Channel.UNLIMITED)
+        mockkStatic(::offlineEntitlementRefreshTicker)
+        every { offlineEntitlementRefreshTicker() } returns refreshTicks.receiveAsFlow()
+
+        try {
+            val cursor = MovementHistoryCursor(20, "first")
+            val repository = FakeHistoryRepository { query ->
+                if (query.cursor == null) {
+                    MovementHistoryPage(listOf(item("first", 20)), cursor, true, MovementHistoryAccessDecision.Allowed)
+                } else {
+                    MovementHistoryPage(listOf(item("second", 10)), null, false, MovementHistoryAccessDecision.Allowed)
+                }
+            }
+            var entitlementEvaluations = 0
+            var currentDecision: MovementHistoryAccessDecision = MovementHistoryAccessDecision.Allowed
+            val useCase = QueryMovementHistory(
+                repository = repository,
+                accessPolicy = object : MovementHistoryAccessPolicy {
+                    override fun evaluate(
+                        userId: String?,
+                        query: MovementHistoryQuery,
+                        evidence: MovementEntitlementEvidence?,
+                        requiresAdvancedAccess: Boolean,
+                    ) = currentDecision
+                },
+                entitlementProvider = object : MovementEntitlementProvider {
+                    override suspend fun getEffectiveEntitlement(userId: String): MovementEntitlementEvidence {
+                        entitlementEvaluations++
+                        return MovementEntitlementEvidence(
+                            verified = false,
+                            verifiedServerTimeMillis = 0L,
+                            entitlementExpiresAtMillis = null,
+                        )
+                    }
+                },
+            )
+            val viewModel = viewModel(repository, useCase = useCase)
+
+            advanceUntilIdle()
+            viewModel.onToggleAdvancedFilterPanel(true)
+            advanceUntilIdle()
+            assertEquals(1, repository.queries.size)
+            assertEquals(cursor, viewModel.uiState.value.currentCursor)
+
+            val evaluationsBeforeTick = entitlementEvaluations
+            currentDecision = MovementHistoryAccessDecision.RevalidationRequired(MovementHistoryQuery())
+            refreshTicks.send(Unit)
+            runCurrent()
+
+            assertTrue(entitlementEvaluations > evaluationsBeforeTick)
+            assertEquals(currentDecision, viewModel.uiState.value.accessStatus)
+            assertEquals("A refresh tick must not reload the first history page", 1, repository.queries.size)
+            assertEquals(cursor, viewModel.uiState.value.currentCursor)
+
+            currentDecision = MovementHistoryAccessDecision.Allowed
+            refreshTicks.send(Unit)
+            runCurrent()
+            assertEquals(MovementHistoryAccessDecision.Allowed, viewModel.uiState.value.accessStatus)
+            assertEquals(1, repository.queries.size)
+
+            viewModel.onLoadMore()
+            advanceUntilIdle()
+            assertEquals(2, repository.queries.size)
+            assertEquals(cursor, repository.queries.last().cursor)
+            assertEquals(listOf("first", "second"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
+        } finally {
+            refreshTicks.close()
+            unmockkStatic(::offlineEntitlementRefreshTicker)
+        }
     }
 
     @Test

@@ -548,6 +548,14 @@ class OfflineFirstCategoriesRepository @Inject constructor(
         priority = entity.priority,
         logoKey = entity.logoKey,
         brandColor = entity.brandColor,
+        logoUrl = if (entity.priority != "A") {
+            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                com.kipu.app.BuildConfig.SUPABASE_URL,
+                entity.logoKey,
+            )
+        } else {
+            null
+        },
     )
 
     override fun observeMerchantAliasRules(userId: UserId): Flow<List<MerchantAliasRule>> {
