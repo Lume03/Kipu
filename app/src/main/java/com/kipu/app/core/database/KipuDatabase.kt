@@ -26,6 +26,12 @@ import com.kipu.app.feature.debts.data.local.DebtInstallmentEntity
 import com.kipu.app.feature.debts.data.local.DebtOutboxDao
 import com.kipu.app.feature.debts.data.local.DebtOutboxEntity
 import com.kipu.app.feature.debts.data.local.DebtSyncCheckpointEntity
+import com.kipu.app.feature.goals.data.local.GoalDao
+import com.kipu.app.feature.goals.data.local.GoalEntity
+import com.kipu.app.feature.goals.data.local.GoalEventEntity
+import com.kipu.app.feature.goals.data.local.GoalOutboxDao
+import com.kipu.app.feature.goals.data.local.GoalOutboxEntity
+import com.kipu.app.feature.goals.data.local.GoalSyncCheckpointEntity
 import com.kipu.app.feature.categories.data.local.MerchantCatalogDao
 import com.kipu.app.feature.categories.data.local.MerchantCatalogEntity
 import com.kipu.app.feature.categories.data.local.MerchantAliasRuleEntity
@@ -92,6 +98,10 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         DebtEventEntity::class,
         DebtOutboxEntity::class,
         DebtSyncCheckpointEntity::class,
+        GoalEntity::class,
+        GoalEventEntity::class,
+        GoalOutboxEntity::class,
+        GoalSyncCheckpointEntity::class,
         TransactionRevisionEntity::class,
         MovementOfficialRevisionEntity::class,
         MovementLedgerEffectEntity::class,
@@ -108,7 +118,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         AppNotificationEntity::class,
         NotificationSyncOutboxEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -129,6 +139,8 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun movementDao(): MovementDao
     abstract fun debtDao(): DebtDao
     abstract fun debtOutboxDao(): DebtOutboxDao
+    abstract fun goalDao(): GoalDao
+    abstract fun goalOutboxDao(): GoalOutboxDao
     abstract fun creditDao(): CreditDao
     abstract fun appNotificationDao(): AppNotificationDao
     abstract fun notificationSyncOutboxDao(): NotificationSyncOutboxDao
