@@ -53,6 +53,10 @@ import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxEntity
+import com.kipu.app.feature.notifications.data.local.ReminderScheduleDao
+import com.kipu.app.feature.notifications.data.local.ReminderScheduleEntity
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventDao
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventEntity
 import com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity
 import com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao
 import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
@@ -125,8 +129,10 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         RecurrenceEntity::class,
         RecurrenceCommandOutboxEntity::class,
         RecurrenceSyncCheckpointEntity::class,
+        ReminderScheduleEntity::class,
+        LocalReminderEventEntity::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -154,4 +160,6 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun notificationSyncOutboxDao(): NotificationSyncOutboxDao
     abstract fun recurrenceDao(): RecurrenceDao
     abstract fun recurrenceOutboxDao(): RecurrenceOutboxDao
+    abstract fun reminderScheduleDao(): ReminderScheduleDao
+    abstract fun localReminderEventDao(): LocalReminderEventDao
 }

@@ -42,6 +42,7 @@ object CoreModule {
                 com.kipu.app.core.database.MIGRATION_20_21,
                 com.kipu.app.core.database.MIGRATION_21_22,
                 com.kipu.app.core.database.MIGRATION_22_23,
+                com.kipu.app.core.database.MIGRATION_23_24,
             )
             .build()
 
@@ -71,6 +72,8 @@ object CoreModule {
     @Provides fun goalOutboxDao(database: KipuDatabase): com.kipu.app.feature.goals.data.local.GoalOutboxDao = database.goalOutboxDao()
     @Provides fun creditDao(database: KipuDatabase): com.kipu.app.feature.accounts.data.local.CreditDao = database.creditDao()
     @Provides fun appNotificationDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.AppNotificationDao = database.appNotificationDao()
+    @Provides fun reminderScheduleDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.ReminderScheduleDao = database.reminderScheduleDao()
+    @Provides fun localReminderEventDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.LocalReminderEventDao = database.localReminderEventDao()
     @Provides fun notificationSyncOutboxDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao = database.notificationSyncOutboxDao()
     @Provides fun recurrenceDao(database: KipuDatabase): com.kipu.app.feature.recurrences.data.local.RecurrenceDao = database.recurrenceDao()
     @Provides fun recurrenceOutboxDao(database: KipuDatabase): com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao = database.recurrenceOutboxDao()
