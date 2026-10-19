@@ -31,6 +31,7 @@ import com.kipu.app.core.database.MIGRATION_18_19
 import com.kipu.app.core.database.MIGRATION_19_20
 import com.kipu.app.core.database.MIGRATION_20_21
 import com.kipu.app.core.database.MIGRATION_21_22
+import com.kipu.app.core.database.MIGRATION_22_23
 import java.io.IOException
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -106,7 +107,7 @@ class KipuDatabaseSchemaTest {
         }
 
         helper.runMigrationsAndValidate(
-            DATABASE_NAME, 22, true, *MIGRATIONS,
+            DATABASE_NAME, 23, true, *MIGRATIONS,
         ).close()
         val database = Room.databaseBuilder(context, KipuDatabase::class.java, DATABASE_NAME)
             .addMigrations(*MIGRATIONS)
@@ -182,7 +183,7 @@ class KipuDatabaseSchemaTest {
             MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
             MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
             MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
-            MIGRATION_21_22,
+            MIGRATION_21_22, MIGRATION_22_23,
         )
     }
 }

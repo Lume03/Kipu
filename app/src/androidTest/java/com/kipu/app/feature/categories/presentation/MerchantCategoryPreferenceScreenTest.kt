@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.UserId
@@ -115,7 +116,7 @@ class MerchantCategoryPreferenceScreenTest {
         val categoryFilter = composeTestRule.onAllNodes(hasSetTextAction())
         categoryFilter.assertCountEquals(1)
         categoryFilter[0].performTextInput("trans")
-        composeTestRule.onNodeWithText("Transporte").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Transporte").performScrollTo().assertIsDisplayed()
         composeTestRule.onAllNodesWithText("Alimentación").assertCountEquals(0)
         composeTestRule.onNodeWithText("La categoría seleccionada no coincide con el filtro.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Guardar preferencia").assertIsDisplayed().assertHeightIsAtLeast(48.dp).assertIsNotEnabled()

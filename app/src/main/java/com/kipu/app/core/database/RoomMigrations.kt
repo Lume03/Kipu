@@ -831,7 +831,7 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
                 "SELECT a.user_id, a.id, COALESCE(SUM(le.signed_amount_minor), 0), a.currency, " +
                 "COALESCE(MAX(le.created_at), a.opened_at), a.updated_at FROM accounts a " +
                 "LEFT JOIN ledger_entries le ON le.user_id = a.user_id AND le.account_id = a.id " +
-                "WHERE a.type = 'CREDIT_LIABILITY' GROUP BY a.user_id, a.id, a.currency, a.opened_at, a.updated_at",
+                "GROUP BY a.user_id, a.id, a.currency, a.opened_at, a.updated_at",
         )
     }
 }
@@ -1184,6 +1184,38 @@ val MIGRATION_21_22 = object : Migration(21, 22) {
                 PRIMARY KEY(user_id)
             )""",
         )
+    }
+}
+
+/** Adds recurrence projections and their retry-safe command outbox without touching financial history. */
+val MIGRATION_22_23 = object : Migration(22, 23) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `recurrences` (
+            `id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `template_transaction` TEXT NOT NULL,
+            `amount_mode` TEXT NOT NULL, `frequency` TEXT NOT NULL, `interval_count` INTEGER NOT NULL,
+            `custom_interval_unit` TEXT, `start_date` TEXT NOT NULL, `end_date` TEXT,
+            `next_due_date` TEXT NOT NULL, `reminder_lead_days` INTEGER NOT NULL,
+            `status` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `revision` INTEGER NOT NULL,
+            `deleted_at` INTEGER, `sync_state` TEXT NOT NULL, `sync_error` TEXT,
+            `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL,
+            PRIMARY KEY(`user_id`, `id`)
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurrences_user_id_status_updated_at` ON `recurrences` (`user_id`, `status`, `updated_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurrences_user_id_next_due_date_status` ON `recurrences` (`user_id`, `next_due_date`, `status`)")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `recurrence_command_outbox` (
+            `user_id` TEXT NOT NULL, `operation_id` TEXT NOT NULL, `recurrence_id` TEXT NOT NULL,
+            `command_type` TEXT NOT NULL, `request_hash` TEXT NOT NULL, `contract_version` INTEGER NOT NULL,
+            `expected_revision` INTEGER, `payload` TEXT NOT NULL, `state` TEXT NOT NULL,
+            `attempt_count` INTEGER NOT NULL, `next_attempt_at` INTEGER, `lease_until` INTEGER,
+            `last_error_code` TEXT, `result_payload` TEXT, `created_at` INTEGER NOT NULL,
+            `updated_at` INTEGER NOT NULL, PRIMARY KEY(`user_id`, `operation_id`)
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurrence_command_outbox_user_id_state_next_attempt_at_created_at` ON `recurrence_command_outbox` (`user_id`, `state`, `next_attempt_at`, `created_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurrence_command_outbox_user_id_recurrence_id_created_at` ON `recurrence_command_outbox` (`user_id`, `recurrence_id`, `created_at`)")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `recurrence_sync_checkpoints` (
+            `user_id` TEXT NOT NULL, `sequence` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL,
+            PRIMARY KEY(`user_id`)
+        )""")
     }
 }
 

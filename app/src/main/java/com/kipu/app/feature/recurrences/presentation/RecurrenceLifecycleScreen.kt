@@ -1,0 +1,88 @@
+package com.kipu.app.feature.recurrences.presentation
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
+import com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus
+import com.kipu.app.feature.recurrences.domain.model.RecurrenceSyncState
+import java.time.LocalDate
+
+@Composable
+fun RecurrenceLifecycleScreen(
+    recurrences: List<RecurrenceRule>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onPause: (RecurrenceRule) -> Unit,
+    onRequestResume: (RecurrenceRule) -> Unit,
+    onCancel: (RecurrenceRule) -> Unit,
+    onConfirmResume: () -> Unit,
+    onDismissConfirmation: () -> Unit,
+    resumeDate: LocalDate? = null,
+    pendingOperation: Boolean = false,
+    onBack: () -> Unit,
+) {
+    var cancelTarget by remember { mutableStateOf<RecurrenceRule?>(null) }
+    Column(
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Mis recurrencias", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        if (isLoading && recurrences.isEmpty()) CircularProgressIndicator()
+        if (recurrences.isEmpty() && !isLoading) Text("Todavía no tienes recurrencias")
+        recurrences.forEach { rule ->
+            Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(rule.templateTransaction["concept"]?.toString()?.trim('"') ?: "Obligación", style = MaterialTheme.typography.titleMedium)
+                    Text("Estado: ${rule.status} · Próxima fecha: ${rule.nextDueDate} · Revisión ${rule.revision}", modifier = Modifier.testTag("recurrence_state_${rule.id}"))
+                    when (rule.syncState) {
+                        RecurrenceSyncState.PENDING -> Text("Pendiente de sincronización local", modifier = Modifier.testTag("recurrence_offline_${rule.id}"))
+                        RecurrenceSyncState.CONFLICT -> Text("Conflicto de sincronización · requiere revisión", color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_conflict_${rule.id}"))
+                        RecurrenceSyncState.FAILED -> Text("No se pudo sincronizar · vuelve a intentarlo", color = MaterialTheme.colorScheme.error)
+                        RecurrenceSyncState.SYNCED -> Unit
+                    }
+                    if (rule.status == RecurrenceStatus.ACTIVE) TextButton(onClick = { onPause(rule) }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_pause_${rule.id}")) { Text("Pausar") }
+                    if (rule.status == RecurrenceStatus.PAUSED) TextButton(onClick = { onRequestResume(rule) }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_resume_${rule.id}")) { Text("Reanudar") }
+                    if (rule.status != RecurrenceStatus.CANCELLED) TextButton(onClick = { cancelTarget = rule }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_cancel_${rule.id}")) { Text("Cancelar recurrencia") }
+                }
+            }
+        }
+        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_lifecycle_error")) }
+        if (pendingOperation) CircularProgressIndicator(Modifier.testTag("recurrence_lifecycle_loading"))
+        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver") }
+    }
+    if (resumeDate != null) AlertDialog(
+        onDismissRequest = onDismissConfirmation,
+        title = { Text("Confirmar reanudación") },
+        text = { Text("La próxima fecha válida será $resumeDate. No se crearán gastos de periodos omitidos.") },
+        confirmButton = { TextButton(onClick = onConfirmResume, modifier = Modifier.testTag("recurrence_resume_confirm")) { Text("Confirmar") } },
+        dismissButton = { TextButton(onClick = onDismissConfirmation, modifier = Modifier.testTag("recurrence_resume_back")) { Text("Volver") } },
+    )
+    cancelTarget?.let { rule -> AlertDialog(
+        onDismissRequest = { cancelTarget = null },
+        title = { Text("Cancelar recurrencia") },
+        text = { Text("La regla quedará cancelada y su historial se conservará.") },
+        confirmButton = { TextButton(onClick = { cancelTarget = null; onCancel(rule) }, modifier = Modifier.testTag("recurrence_cancel_confirm")) { Text("Confirmar cancelación") } },
+        dismissButton = { TextButton(onClick = { cancelTarget = null }, modifier = Modifier.testTag("recurrence_cancel_back")) { Text("Volver") } },
+    ) }
+}

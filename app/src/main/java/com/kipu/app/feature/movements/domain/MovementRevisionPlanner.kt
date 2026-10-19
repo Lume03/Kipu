@@ -28,7 +28,12 @@ class MovementRevisionPlanner {
             MovementRevisionPlanningResult.AlreadyVoided else reject("ALREADY_VOIDED_FOR_EDIT")
         val before = head.payload
         val after = (command as? MovementRevisionCommand.Revise)?.payload ?: before
-        if (after.type != before.type || after.currency != before.currency || after.operationKind != before.operationKind) return reject("IMMUTABLE_FINANCIAL_KIND")
+        fun normalizedOperationKind(operationKind: String?): String? =
+            operationKind ?: if (context.legacyStandardVerified) "STANDARD" else null
+        if (after.type != before.type || after.currency != before.currency ||
+            normalizedOperationKind(after.operationKind) != normalizedOperationKind(before.operationKind)) {
+            return reject("IMMUTABLE_FINANCIAL_KIND")
+        }
         if (after.amountMinor <= 0L) return reject("INVALID_AMOUNT")
         if (after.sourceAccountId.isNullOrBlank()) return reject("INVALID_REFERENCE")
         if (after.type == MovementType.TRANSFER && (after.destinationAccountId.isNullOrBlank() ||
