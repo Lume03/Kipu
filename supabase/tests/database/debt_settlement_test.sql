@@ -34,10 +34,10 @@ INSERT INTO auth.users (id, email)
 SELECT owner_id, owner_id::text || '@debt-settlement.kipu.test' FROM debt_settlement_ids
 UNION ALL
 SELECT other_id, other_id::text || '@debt-settlement.kipu.test' FROM debt_settlement_ids;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-SELECT account_id, owner_id, 'Owner cash', 'SAVINGS'::public.account_type, 'PEN' FROM debt_settlement_ids
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+SELECT account_id, owner_id, 'Owner cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM debt_settlement_ids
 UNION ALL
-SELECT foreign_account_id, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN' FROM debt_settlement_ids;
+SELECT foreign_account_id, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM debt_settlement_ids;
 INSERT INTO public.categories (id, user_id, name, category_type, origin, is_active)
 SELECT expense_category_id, owner_id, 'Debt interest', 'EXPENSE', 'CUSTOM', true FROM debt_settlement_ids
 UNION ALL
