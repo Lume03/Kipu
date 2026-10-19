@@ -144,6 +144,7 @@ fun DashboardScreen(
     onToggleMasked: (() -> Unit)? = null,
     openRegisterMovement: Boolean = false,
     onConsumeRegisterMovement: () -> Unit = {},
+    onNavigateToGoals: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val state by viewModel.dashboardUiState.collectAsStateWithLifecycle()
@@ -304,6 +305,7 @@ fun DashboardScreen(
                     EmptyDashboardContent(
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
+                        onNavigateToGoals = onNavigateToGoals,
                     )
                 } else {
                     ActiveDashboardContent(
@@ -326,6 +328,7 @@ fun DashboardScreen(
                         onNavigateToPlans = onNavigateToPlans,
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
+                        onNavigateToGoals = onNavigateToGoals,
                     )
                 }
             }
@@ -380,6 +383,7 @@ internal fun shouldShowEmptyDashboard(
 internal fun EmptyDashboardContent(
     onNavigateToNewAccount: () -> Unit,
     onNavigateToNewCard: () -> Unit,
+    onNavigateToGoals: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -477,6 +481,12 @@ internal fun EmptyDashboardContent(
             }
         }
 
+        item {
+            OutlinedButton(onClick = onNavigateToGoals, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Ver metas y reservas")
+            }
+        }
+
         item(key = "bottom_space") {
             Spacer(modifier = Modifier.height(72.dp))
         }
@@ -501,6 +511,7 @@ private fun ActiveDashboardContent(
     onNavigateToPlans: () -> Unit,
     onNavigateToNewAccount: () -> Unit,
     onNavigateToNewCard: () -> Unit,
+    onNavigateToGoals: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -877,6 +888,15 @@ private fun ActiveDashboardContent(
                     }
                 }
             }
+            }
+        }
+
+        item(key = "goals_entry") {
+            OutlinedButton(
+                onClick = onNavigateToGoals,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("dashboard_open_goals"),
+            ) {
+                Text("Metas y reservas")
             }
         }
 

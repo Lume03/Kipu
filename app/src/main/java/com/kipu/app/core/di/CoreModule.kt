@@ -40,6 +40,7 @@ object CoreModule {
                 com.kipu.app.core.database.MIGRATION_18_19,
                 com.kipu.app.core.database.MIGRATION_19_20,
                 com.kipu.app.core.database.MIGRATION_20_21,
+                com.kipu.app.core.database.MIGRATION_21_22,
             )
             .build()
 
@@ -65,6 +66,8 @@ object CoreModule {
     @Provides fun movementDao(database: KipuDatabase): com.kipu.app.feature.movements.data.local.MovementDao = database.movementDao()
     @Provides fun debtDao(database: KipuDatabase): com.kipu.app.feature.debts.data.local.DebtDao = database.debtDao()
     @Provides fun debtOutboxDao(database: KipuDatabase): com.kipu.app.feature.debts.data.local.DebtOutboxDao = database.debtOutboxDao()
+    @Provides fun goalDao(database: KipuDatabase): com.kipu.app.feature.goals.data.local.GoalDao = database.goalDao()
+    @Provides fun goalOutboxDao(database: KipuDatabase): com.kipu.app.feature.goals.data.local.GoalOutboxDao = database.goalOutboxDao()
     @Provides fun creditDao(database: KipuDatabase): com.kipu.app.feature.accounts.data.local.CreditDao = database.creditDao()
     @Provides fun appNotificationDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.AppNotificationDao = database.appNotificationDao()
     @Provides fun notificationSyncOutboxDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao = database.notificationSyncOutboxDao()

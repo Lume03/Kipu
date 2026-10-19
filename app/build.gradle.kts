@@ -22,6 +22,11 @@ fun configurationValue(name: String): String =
 fun String.asBuildConfigString(): String =
     "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
+val goalRemoteCommandsEnabled = providers.gradleProperty("goalRemoteCommandsEnabled")
+    .orNull
+    ?.toBooleanStrictOrNull()
+    ?: false
+
 android {
     namespace = "com.kipu.app"
     testBuildType = if (providers.gradleProperty("isolatedAndroidTests").orNull == "true") "lab" else "debug"
@@ -38,6 +43,12 @@ android {
 
         versionCode = appVersionCode
         versionName = appVersionName
+
+        buildConfigField(
+            "boolean",
+            "GOALS_REMOTE_COMMANDS_ENABLED",
+            goalRemoteCommandsEnabled.toString(),
+        )
 
         buildConfigField(
             "String",

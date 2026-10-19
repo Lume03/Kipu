@@ -1102,6 +1102,91 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
     }
 }
 
+val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS goals (
+                id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                target_minor INTEGER NOT NULL,
+                currency_code TEXT NOT NULL,
+                target_date TEXT,
+                linked_account_id TEXT,
+                icon_key TEXT,
+                color_argb INTEGER,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                revision INTEGER NOT NULL DEFAULT 0,
+                sync_state TEXT NOT NULL DEFAULT 'PENDING',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(user_id, id),
+                FOREIGN KEY(user_id, linked_account_id) REFERENCES accounts(user_id, id) ON UPDATE NO ACTION ON DELETE NO ACTION
+            )""",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goals_user_id_status_updated_at ON goals (user_id, status, updated_at)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goals_user_id_linked_account_id ON goals (user_id, linked_account_id)")
+
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS goal_events (
+                id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                goal_id TEXT NOT NULL,
+                transaction_id TEXT,
+                event_type TEXT NOT NULL,
+                delta_minor INTEGER NOT NULL,
+                currency_code TEXT NOT NULL,
+                backing_account_id TEXT,
+                operation_id TEXT,
+                occurred_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(user_id, id),
+                FOREIGN KEY(user_id, goal_id) REFERENCES goals(user_id, id) ON UPDATE NO ACTION ON DELETE NO ACTION,
+                FOREIGN KEY(user_id, backing_account_id) REFERENCES accounts(user_id, id) ON UPDATE NO ACTION ON DELETE NO ACTION,
+                FOREIGN KEY(user_id, transaction_id) REFERENCES transactions(user_id, id) ON UPDATE NO ACTION ON DELETE NO ACTION
+            )""",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_events_user_id_goal_id_occurred_at_id ON goal_events (user_id, goal_id, occurred_at, id)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_events_user_id_backing_account_id_occurred_at ON goal_events (user_id, backing_account_id, occurred_at)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_events_user_id_transaction_id ON goal_events (user_id, transaction_id)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_events_user_id_operation_id ON goal_events (user_id, operation_id)")
+
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS goal_command_outbox (
+                user_id TEXT NOT NULL,
+                operation_id TEXT NOT NULL,
+                goal_id TEXT NOT NULL,
+                command_type TEXT NOT NULL,
+                request_hash TEXT NOT NULL,
+                contract_version INTEGER NOT NULL DEFAULT 1,
+                expected_revision INTEGER,
+                payload TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'PENDING',
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at INTEGER,
+                lease_until INTEGER,
+                last_error_code TEXT,
+                result_payload TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(user_id, operation_id),
+                FOREIGN KEY(user_id, goal_id) REFERENCES goals(user_id, id) ON UPDATE NO ACTION ON DELETE NO ACTION
+            )""",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_command_outbox_user_id_state_next_attempt_at_created_at ON goal_command_outbox (user_id, state, next_attempt_at, created_at)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_goal_command_outbox_user_id_goal_id_created_at ON goal_command_outbox (user_id, goal_id, created_at)")
+
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS goal_sync_checkpoints (
+                user_id TEXT NOT NULL,
+                sequence INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY(user_id)
+            )""",
+        )
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {
