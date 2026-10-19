@@ -17,6 +17,26 @@ class SettleDebtTest {
     private val useCase = SettleDebt()
 
     @Test
+    fun `payable principal-only settlement from 10000 leaves 7000 without operating expense`() {
+        val settlement = (plan(DebtObligationType.PAYABLE, principal = 3_000L, interest = 0L) as DebtPlanResult.Valid).value
+
+        assertEquals(7_000L, settlement.remainingPrincipalMinor)
+        assertEquals(-3_000L, settlement.cashDeltaMinor)
+        assertEquals(0L, settlement.operatingExpenseMinor)
+        assertEquals(0L, settlement.operatingIncomeMinor)
+    }
+
+    @Test
+    fun `receivable principal-only settlement reduces receivable and increases cash without operating income`() {
+        val settlement = (plan(DebtObligationType.RECEIVABLE, principal = 2_000L, interest = 0L) as DebtPlanResult.Valid).value
+
+        assertEquals(8_000L, settlement.remainingPrincipalMinor)
+        assertEquals(2_000L, settlement.cashDeltaMinor)
+        assertEquals(0L, settlement.operatingIncomeMinor)
+        assertEquals(0L, settlement.operatingExpenseMinor)
+    }
+
+    @Test
     fun `payable settlement splits principal and categorized interest`() {
         val result = plan(DebtObligationType.PAYABLE)
 
