@@ -49,6 +49,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -101,6 +103,10 @@ import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.movements.domain.model.TransactionStatus
 import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
+import com.kipu.app.feature.recurrences.presentation.RecurrenceLifecycleScreen
+import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel
+import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationState
+import com.kipu.app.feature.recurrences.presentation.RecurrenceRegistrationScreen
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.MoneyText
@@ -124,6 +130,7 @@ fun MovementHistoryRoute(
     onNavigateToPlans: () -> Unit = {},
     onNavigateToEditor: (String) -> Unit = {},
     viewModel: MovementHistoryViewModel = hiltViewModel(),
+    recurrenceViewModel: RecurrencePresentationViewModel? = null,
     prewarmQuickMovement: Boolean = false,
     modifier: Modifier = Modifier,
     savedMessage: Boolean = false,
@@ -132,6 +139,8 @@ fun MovementHistoryRoute(
     onConsumeRegisterMovement: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val recurrenceState by recurrenceViewModel?.state?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(RecurrencePresentationState()) }
     val voidBalances by viewModel.voidBalanceState.collectAsStateWithLifecycle()
     val quickMovementViewModel = if (prewarmQuickMovement) hiltViewModel<QuickMovementViewModel>() else null
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,6 +154,8 @@ fun MovementHistoryRoute(
         context.getSharedPreferences("movement_receipts_v1", Context.MODE_PRIVATE)
     }
     val detailItem = uiState.selectedDetail
+    var recurrenceSource by remember { mutableStateOf<TransactionItem?>(null) }
+    var showRecurrenceList by remember { mutableStateOf(false) }
     var receiptUriText by remember(detailItem?.transaction?.userId, detailItem?.transaction?.id) {
         mutableStateOf(detailItem?.let { row ->
             receiptPreferences.getString(movementReceiptPreferenceKey(row), null)
@@ -760,7 +771,50 @@ fun MovementHistoryRoute(
                 receiptPreferences.edit().remove(movementReceiptPreferenceKey(item)).apply()
                 receiptUriText = null
             },
+            onRegisterRecurrence = {
+                recurrenceSource = item
+                showRecurrenceList = false
+                viewModel.onCloseDetail()
+            },
         )
+    }
+
+    recurrenceViewModel?.let { recurrenceVm ->
+    recurrenceSource?.let { source ->
+        Dialog(onDismissRequest = { recurrenceSource = null; recurrenceVm.clearSavedRule() }) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                RecurrenceRegistrationScreen(
+                    source = source,
+                    onDismiss = { recurrenceSource = null; recurrenceVm.clearSavedRule() },
+                    onCreate = recurrenceVm::create,
+                    isSaving = recurrenceState.isSaving,
+                    saveError = recurrenceState.errorMessage,
+                    savedRule = recurrenceState.savedRule,
+                    onManageRecurrences = { showRecurrenceList = true },
+                )
+            }
+        }
+    }
+
+    if (showRecurrenceList) {
+        Dialog(onDismissRequest = { showRecurrenceList = false; recurrenceVm.dismissConfirmation() }) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                RecurrenceLifecycleScreen(
+                    recurrences = recurrenceState.recurrences,
+                    isLoading = recurrenceState.isLoading,
+                    errorMessage = recurrenceState.errorMessage,
+                    onPause = recurrenceVm::pause,
+                    onRequestResume = recurrenceVm::requestResume,
+                    onCancel = recurrenceVm::cancel,
+                    onConfirmResume = recurrenceVm::confirmResume,
+                    onDismissConfirmation = recurrenceVm::dismissConfirmation,
+                    resumeDate = recurrenceState.resumePreview?.firstFutureDueDate,
+                    pendingOperation = recurrenceState.isSaving,
+                    onBack = { showRecurrenceList = false; recurrenceVm.dismissConfirmation() },
+                )
+            }
+        }
+    }
     }
 
     if (uiState.selectedTransactionForVoid != null) {

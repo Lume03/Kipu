@@ -12,8 +12,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.kipu.app.feature.movements.presentation.MovementEditorRoute
 import com.kipu.app.feature.movements.presentation.MovementHistoryRoute
+import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel
 
 const val MOVEMENTS_HISTORY_ROUTE = "movements/history"
 const val MOVEMENTS_HISTORY_PATTERN = "movements/history?accountId={accountId}&categoryId={categoryId}&query={query}&paymentChannel={paymentChannel}"
@@ -105,6 +107,7 @@ internal fun MovementHistoryContent(navController: NavController, historyEntry: 
         val saved by historyEntry.savedStateHandle.getStateFlow("movement_saved", false).collectAsStateWithLifecycle()
         val openRegisterMovement by historyEntry.savedStateHandle.getStateFlow("open_register_movement", false).collectAsStateWithLifecycle()
         MovementHistoryRoute(
+            recurrenceViewModel = hiltViewModel<RecurrencePresentationViewModel>(),
             savedMessage = saved,
             onSavedMessageConsumed = { historyEntry.savedStateHandle["movement_saved"] = false },
             onNavigateToSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },

@@ -111,6 +111,7 @@ class MovementHistoryScreenTest {
                 amountMinor = 2_500L,
                 currency = "PEN",
                 sourceAccountId = "bcp-account",
+                categoryId = "food-category",
                 occurredAt = 1_758_000_000_000L,
                 paymentChannel = "YAPE",
             ),
@@ -122,7 +123,7 @@ class MovementHistoryScreenTest {
         }
 
         compose.onNodeWithText("Yape · BCP Ahorros").assertIsDisplayed()
-        compose.onNodeWithTag("tx_payment_channel_yape-movement").assertIsDisplayed()
+        compose.onNodeWithTag("tx_payment_channel_yape-movement", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

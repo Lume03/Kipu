@@ -51,6 +51,7 @@ fun MovementDetailSheet(
     onAttachReceipt: () -> Unit = {},
     onOpenReceipt: () -> Unit = {},
     onRemoveReceipt: () -> Unit = {},
+    onRegisterRecurrence: () -> Unit = {},
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val tx = item.transaction
@@ -545,6 +546,16 @@ fun MovementDetailSheet(
             }
 
             // === 4. BOTONES DE ACCIÓN INFERIORES ===
+            if (!voided && tx.type == MovementType.EXPENSE && !specialized) {
+                OutlinedButton(
+                    onClick = onRegisterRecurrence,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("detail_register_recurrence"),
+                ) {
+                    Icon(Icons.Rounded.Repeat, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Registrar pago recurrente")
+                }
+            }
             if (!voided && !specialized) {
                 Row(
                     modifier = Modifier

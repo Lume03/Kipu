@@ -62,6 +62,11 @@ import com.kipu.app.feature.plans.data.local.PlanQuotaSelectionEntity
 import com.kipu.app.feature.plans.data.local.PlanQuotaSelectionItemEntity
 import com.kipu.app.feature.plans.data.local.PlanSelectionSyncStateEntity
 import com.kipu.app.feature.plans.data.local.SyncOutboxEntity
+import com.kipu.app.feature.recurrences.data.local.RecurrenceCommandOutboxEntity
+import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
+import com.kipu.app.feature.recurrences.data.local.RecurrenceEntity
+import com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao
+import com.kipu.app.feature.recurrences.data.local.RecurrenceSyncCheckpointEntity
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
 import com.kipu.app.feature.settings.data.local.DeviceAccountSettingsEntity
 import com.kipu.app.feature.settings.data.local.InstallationPermissionStateEntity
@@ -117,8 +122,11 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CreditPaymentAllocationEntity::class,
         AppNotificationEntity::class,
         NotificationSyncOutboxEntity::class,
+        RecurrenceEntity::class,
+        RecurrenceCommandOutboxEntity::class,
+        RecurrenceSyncCheckpointEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -144,4 +152,6 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun creditDao(): CreditDao
     abstract fun appNotificationDao(): AppNotificationDao
     abstract fun notificationSyncOutboxDao(): NotificationSyncOutboxDao
+    abstract fun recurrenceDao(): RecurrenceDao
+    abstract fun recurrenceOutboxDao(): RecurrenceOutboxDao
 }

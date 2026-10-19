@@ -138,7 +138,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     }
 
     private suspend fun processCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean {
-        if (cmd.commandType == "CONFIRM_CREDIT_PURCHASE" || cmd.commandType == "PAY_CREDIT_CARD") {
+        if (cmd.commandType in setOf("CONFIRM_CREDIT_PURCHASE", "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
             return processCanonicalCreditCommand(cmd, nowMicros)
         }
         if (cmd.commandType == "UPDATE_CARD_PERSONAL_TEA") {
@@ -266,7 +266,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         val response = try {
             when (cmd.commandType) {
                 "CONFIRM_CREDIT_PURCHASE" -> api.registerCreditPurchase(request)
-                "PAY_CREDIT_CARD" -> api.allocateCreditPayment(request)
+                "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT" -> api.allocateCreditPayment(request)
                 else -> error("Unsupported canonical credit command")
             }
         } catch (e: Exception) {
@@ -488,7 +488,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         database.withTransaction {
             val transaction = movementDao.getTransactionById(cmd.userId, transactionId)
             val creditDao = database.creditDao()
-            val paymentAllocations = if (cmd.commandType == "PAY_CREDIT_CARD") {
+            val paymentAllocations = if (cmd.commandType in setOf("PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
                 creditDao.getAllocationsForPayment(cmd.userId, transactionId)
             } else emptyList()
 
@@ -618,7 +618,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         }
                     }
                 }
-                if (cmd.commandType == "PAY_CREDIT_CARD") {
+                if (cmd.commandType in setOf("PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
                     paymentAllocations.map { it.installmentId }.distinct().forEach { installmentId ->
                         val installment = creditDao.getInstallmentById(cmd.userId, installmentId) ?: return@forEach
                         if (installment.status == "VOIDED") return@forEach
