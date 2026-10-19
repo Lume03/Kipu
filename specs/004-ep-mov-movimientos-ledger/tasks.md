@@ -377,3 +377,14 @@ T123 sigue abierta: no se capturo el IME real ni se repitio la suite instrumenta
 En `docs/audits/evidence/issue-39/integrated-head-2026-10-17/full-suite-revalidation.md` se registró la ejecución de `:app:connectedDebugAndroidTest` en `fe6de0b`: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas del alcance de tema/filtros/evidencia pasaron. Los 12 fallos antes no atribuidos se repitieron individualmente sobre `origin/main` (`e440bc1`) y fallaron también; los otros cuatro ya tenían reproducción en esa base. No se identificaron regresiones nuevas atribuibles a #55.
 
 T123 sigue abierta: falta una captura del IME real y la suite global continúa con fallos reproducibles en la base. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta aceptación visual humana; no se cierra #39.
+
+## Phase 10: US7 — HU-24 Aplicar movimientos a obligaciones y metas (S6)
+
+**Propagated**: 2026-10-19 — HU-24 añade solo la trazabilidad de identidad transferencia→ledger local/remoto y tareas ejecutables para su atomicidad. Los contratos existentes de EP-DEU mantienen la autoridad contable de liquidaciones; no reabre HU-20–23/25.
+
+- [x] T126 [P] [US7] Agregar una aserción de integración DB que exija que el ID de transacción de `reserve_goal_v1` sea el `operation_id` explícito; demostrar RED antes del cambio y conservar las verificaciones existentes de propietario, moneda, origen=destino, reintento y dos asientos en `supabase/tests/database/goal_reserve_test.sql`.
+- [x] T127 [US7] Añadir migración aditiva idempotencia/reconciliación para que `reserve_goal_v1` use el ID estable del comando como `transaction_id`, preservando owner/grants, transacción y compatibilidad de la definición vigente en `supabase/migrations/20261019190000_ep_mov_goal_transfer_identity.sql`.
+- [x] T128 [US7] Probar en Room la transferencia explícita offline con transacción TRANSFER, dos asientos net-zero, saldo/proyecciones, evento de meta enlazado y outbox pendiente en `app/src/androidTest/java/com/kipu/app/feature/goals/data/GoalReplacementRoomIntegrationTest.kt`.
+- [x] T129 [US7] Inyectar fallo del outbox y probar rollback conjunto de transacción, ledger, proyecciones, evento de reserva y recibo; validar además contabilidad de principal/interés con pruebas domain y sync existentes de EP-DEU.
+- [ ] T130 [US7] Obtener cross-review independiente de seguridad, integridad financiera y pruebas; atender observaciones antes de cualquier merge.
+- [x] T131 Ejecutar pruebas focalizadas Room/unitarias y DB local, compilar Kotlin, revisar migración/diff y registrar veredicto y límites del alcance HU-24 en `verification-report.md`; no aplicar a hosted/prod.
