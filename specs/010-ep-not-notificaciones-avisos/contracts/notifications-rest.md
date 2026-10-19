@@ -50,3 +50,10 @@ The API performs no insert and no physical delete. Read-all is represented as id
 ## Database privileges
 
 Authenticated clients retain SELECT and receive column-level UPDATE only for `is_read` and `deleted_at`. RLS policy `app_notifications_own` restricts those operations to `auth.uid() = user_id`. No client INSERT, DELETE, or UPDATE privilege for producer-owned columns is introduced.
+
+## HU-44 local reminder events
+
+- HU-44 reminders are persisted in account-scoped Room tables and joined into the HU-42 center locally. They are not inserted into `public.app_notifications` and do not use this REST contract or the remote mutation outbox.
+- `POST_NOTIFICATIONS` controls only Android system presentation. Denial/revocation does not remove the local center event.
+- Local reminders are device-local; this contract makes no cross-device synchronization or app-data-recovery promise for them.
+- Existing `GET`/`PATCH`, `event_key` producer idempotency, RLS, and privilege behavior for server-created notices remain unchanged.

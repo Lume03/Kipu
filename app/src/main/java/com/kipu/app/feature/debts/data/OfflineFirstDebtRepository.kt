@@ -62,6 +62,7 @@ class OfflineFirstDebtRepository @Inject constructor(
         val result = localDataSource.openDebt(userId, command, hasPremiumAccess)
         if (result is DebtCommandResult.Applied || result is DebtCommandResult.Duplicate || result is DebtCommandResult.Retryable) {
             syncScheduler.schedule(userId)
+            reminderReconciler.reconcile(userId, command.debtId)
         }
         return result
     }
@@ -72,7 +73,10 @@ class OfflineFirstDebtRepository @Inject constructor(
         patch: DebtDescriptionPatch,
         identity: DebtCommandIdentity,
     ): DebtDetailsEditResult = localDataSource.editDebtDetails(userId, debtId, patch, identity).also { result ->
-        if (result is DebtDetailsEditResult.Applied) syncScheduler.schedule(userId)
+        if (result is DebtDetailsEditResult.Applied) {
+            syncScheduler.schedule(userId)
+            reminderReconciler.reconcile(userId, debtId)
+        }
     }
 
     override suspend fun deleteDebtIfUnreferenced(

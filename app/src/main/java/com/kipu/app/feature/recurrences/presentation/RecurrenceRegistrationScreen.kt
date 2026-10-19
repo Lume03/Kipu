@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -60,6 +62,7 @@ fun RecurrenceRegistrationScreen(
     var customIntervalUnit by remember { mutableStateOf("WEEK") }
     var customInterval by remember { mutableStateOf("1") }
     var nextDueDate by remember { mutableStateOf("") }
+    var reminderLeadDays by remember { mutableStateOf("2") }
     var concept by remember(source) {
         mutableStateOf(source.merchantName?.takeIf(String::isNotBlank)
             ?: source.categoryName?.takeIf(String::isNotBlank) ?: "Obligación")
@@ -119,6 +122,15 @@ fun RecurrenceRegistrationScreen(
             isError = validationError != null && parsedDate == null,
             modifier = Modifier.fillMaxWidth().testTag("recurrence_next_due_date"),
         )
+        OutlinedTextField(
+            value = reminderLeadDays,
+            onValueChange = { reminderLeadDays = it.filter(Char::isDigit).take(3); validationError = null },
+            label = { Text("Avisar días antes") },
+            supportingText = { Text("Entre 0 y 30 días; 0 desactiva los recordatorios") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("recurrence_reminder_lead_days"),
+        )
         validationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_save_error")) }
         savedRule?.let {
@@ -139,6 +151,7 @@ fun RecurrenceRegistrationScreen(
                         date == null -> validationError = "Selecciona la próxima fecha de vencimiento"
                         concept.isBlank() -> validationError = "Escribe un concepto"
                         frequency !in FREQUENCIES -> validationError = "Selecciona una frecuencia válida"
+                        reminderLeadDays.toIntOrNull()?.let { it in 0..30 } != true -> validationError = "El aviso debe estar entre 0 y 30 días"
                         frequency == "CUSTOM" && customInterval.toLongOrNull()?.let { it in if (customIntervalUnit == "WEEK") 1L..5200L else 1L..1200L } != true -> validationError = "El intervalo debe estar dentro del rango permitido"
                         !RecurrenceScheduleCalculator.isOccurrence(date, frequency, if (frequency == "CUSTOM") customInterval.toLong() else 1L, if (frequency == "CUSTOM") customIntervalUnit else null, date) -> validationError = "La próxima fecha no pertenece a la secuencia"
                         else -> {
@@ -165,7 +178,7 @@ fun RecurrenceRegistrationScreen(
                                     startDate = date,
                                     endDate = null,
                                     nextDueDate = date,
-                                    reminderLeadDays = 2,
+                                    reminderLeadDays = reminderLeadDays.toInt(),
                                 ),
                             )
                         }

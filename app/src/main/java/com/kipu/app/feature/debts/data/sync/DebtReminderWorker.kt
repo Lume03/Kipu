@@ -16,9 +16,18 @@ import com.kipu.app.MainActivity
 import com.kipu.app.R
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.debts.data.local.DebtDao
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventDao
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventEntity
+import com.kipu.app.feature.notifications.data.local.ReminderScheduleDao
+import com.kipu.app.feature.notifications.data.local.ReminderScheduleEntity
+import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+import java.time.Instant
 import java.time.LocalDate
+import java.util.UUID
 import java.util.Currency
 import java.util.Locale
 import java.text.NumberFormat
@@ -34,24 +43,55 @@ class DebtReminderWorker @AssistedInject constructor(
     private val debtDao: DebtDao,
     private val sessionCoordinator: SessionCoordinator,
     private val permissionChecker: DebtNotificationPermissionChecker,
+    private val reminderScheduleDao: ReminderScheduleDao,
+    private val localReminderEventDao: LocalReminderEventDao,
+    private val coordinator: ReminderReconciliationCoordinator,
 ) : CoroutineWorker(appContext, workerParams) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = coordinator.exclusive { runReminder() }
+
+    private suspend fun runReminder(): Result {
         val userId = inputData.getString(KEY_USER_ID) ?: return Result.failure()
         val debtId = inputData.getString(KEY_DEBT_ID) ?: return Result.failure()
         val installmentId = inputData.getString(KEY_INSTALLMENT_ID) ?: return Result.failure()
         val activeOwner = sessionCoordinator.currentOwner?.verifiedUserId
-        if (activeOwner != userId || !permissionChecker.canPostDebtReminder()) return Result.success()
+        if (activeOwner != userId) return Result.success()
 
         val debt = debtDao.getDebt(userId, debtId) ?: return Result.success()
         val installment = debtDao.getInstallment(userId, debtId, installmentId) ?: return Result.success()
         val dueDate = inputData.getString(KEY_DUE_DATE)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: return Result.failure()
         val leadDays = inputData.getInt(KEY_LEAD_DAYS, -1)
-        if (debt.status != "ACTIVE" || debt.reminderLeadDays != leadDays || installment.status !in setOf("PENDING", "PARTIAL") ||
-            installment.dueDate != dueDate.toString() || permissionChecker.canPostDebtReminder().not()
+        if (debt.status != "ACTIVE" || debt.reminderLeadDays != leadDays || leadDays <= 0 ||
+            installment.status !in setOf("PENDING", "PARTIAL") || installment.dueDate != dueDate.toString()
         ) return Result.success()
         val remaining = debtDao.getInstallmentRemaining(userId, debtId, installmentId)
         if (remaining <= 0L) return Result.success()
+
+        val now = Instant.now()
+        reminderScheduleDao.cancelReplacedSchedules(userId, installmentId, dueDate.toString(), now)
+        reminderScheduleDao.upsert(
+            ReminderScheduleEntity(
+                userId = userId,
+                sourceId = installmentId,
+                dueDate = dueDate.toString(),
+                leadDays = leadDays,
+                updatedAt = now,
+            ),
+        )
+        reminderScheduleDao.markDelivered(
+            userId, installmentId, ReminderScheduleEntity.BILLING_DUE, dueDate.toString(), now,
+        )
+        localReminderEventDao.tombstoneReplacedEvents(userId, installmentId, dueDate.toString(), now)
+        localReminderEventDao.upsert(
+            LocalReminderEventEntity(
+                id = localReminderId(userId, installmentId, dueDate.toString()),
+                userId = userId,
+                sourceId = installmentId,
+                dueDate = dueDate.toString(),
+                createdAt = now,
+            ),
+        )
+        if (sessionCoordinator.currentOwner?.verifiedUserId != userId || !permissionChecker.canPostDebtReminder()) return Result.success()
 
         createChannel()
         val number = inputData.getInt(KEY_INSTALLMENT_NUMBER, installment.installmentNumber)
@@ -79,6 +119,7 @@ class DebtReminderWorker @AssistedInject constructor(
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .addExtras(android.os.Bundle().apply { putString(KEY_DUE_DATE, dueDate.toString()) })
             .build()
         try {
             NotificationManagerCompat.from(applicationContext).notify(
@@ -106,8 +147,22 @@ class DebtReminderWorker @AssistedInject constructor(
     private fun formatAmount(amountMinor: Long, currencyCode: String): String {
         val formatter = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("es").setRegion("PE").build())
         runCatching { Currency.getInstance(currencyCode) }.getOrNull()?.let { formatter.currency = it }
-        return formatter.format(amountMinor / 100.0)
+        return formatter.format(java.math.BigDecimal.valueOf(amountMinor).movePointLeft(2))
     }
+
+    private fun localReminderId(userId: String, sourceId: String, dueDate: String): String {
+        fun encode(value: String): ByteArray {
+            val bytes = value.toByteArray(Charsets.UTF_8)
+            return ByteBuffer.allocate(Int.SIZE_BYTES + bytes.size).putInt(bytes.size).put(bytes).array()
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+        listOf(userId, sourceId, ReminderScheduleEntity.BILLING_DUE, dueDate)
+            .map(::canonicalTuplePart)
+            .forEach { digest.update(encode(it)) }
+        return "local-reminder:v1:" + digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun canonicalTuplePart(value: String): String = runCatching { UUID.fromString(value).toString() }.getOrDefault(value)
 
     companion object {
         const val KEY_USER_ID = "debt_reminder_user_id"

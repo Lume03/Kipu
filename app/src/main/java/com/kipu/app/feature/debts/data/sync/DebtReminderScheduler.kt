@@ -14,6 +14,8 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.kipu.app.feature.debts.data.local.DebtDao
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
+import com.kipu.app.feature.notifications.data.local.ReminderEventReconciler
+import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -89,15 +91,14 @@ class WorkManagerDebtReminderScheduler @Inject constructor(
 ) : DebtReminderScheduler {
     override fun schedule(request: DebtReminderRequest) {
         if (request.userId.isBlank() || request.debtId.isBlank() || request.installmentId.isBlank() ||
-            request.leadDays !in 0..365 || request.remainingPrincipalMinor <= 0L
+            request.leadDays !in 0..365 || request.remainingPrincipalMinor <= 0L || request.leadDays == 0
         ) {
             cancel(request.userId, request.debtId, request.installmentId)
             return
         }
-        if (!permissionChecker.canPostDebtReminder()) {
-            cancel(request.userId, request.debtId, request.installmentId)
-            return
-        }
+
+        cancelPostedNotificationIfObsolete(DebtReminderScheduler.notificationTag(request), request.dueDate.toString())
+
         val notificationAt = request.dueDate.minusDays(request.leadDays.toLong())
             .atStartOfDay(LIMA_ZONE).toInstant().toEpochMilli()
         val delayMillis = (notificationAt - System.currentTimeMillis()).coerceAtLeast(0L)
@@ -129,14 +130,40 @@ class WorkManagerDebtReminderScheduler @Inject constructor(
 
     override fun cancel(userId: String, debtId: String, installmentId: String) {
         workManager.cancelUniqueWork("debt-reminder:$userId:$debtId:$installmentId")
+        cancelPostedNotification("debt-reminder:$userId:$debtId:$installmentId")
     }
 
     override fun cancelDebt(userId: String, debtId: String) {
         workManager.cancelAllWorkByTag(DebtReminderScheduler.debtTag(userId, debtId))
+        cancelPostedNotifications("debt-reminder:$userId:$debtId:")
     }
 
     override fun cancelUser(userId: String) {
         workManager.cancelAllWorkByTag(DebtReminderScheduler.userTag(userId))
+        cancelPostedNotifications("debt-reminder:$userId:")
+    }
+
+    private fun cancelPostedNotifications(tagPrefix: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
+        manager.activeNotifications.filter { it.tag?.startsWith(tagPrefix) == true }.forEach {
+            NotificationManagerCompat.from(context).cancel(it.tag, it.id)
+        }
+    }
+
+    private fun cancelPostedNotification(tag: String) {
+        NotificationManagerCompat.from(context).cancel(tag, 0)
+    }
+
+    private fun cancelPostedNotificationIfObsolete(tag: String, dueDate: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
+        val active = manager.activeNotifications.firstOrNull { it.tag == tag && it.id == 0 } ?: return
+        val postedDueDate = active.notification.extras?.getString(DebtReminderWorker.KEY_DUE_DATE)
+        val canonicalPostedDate = postedDueDate?.let { value ->
+            runCatching { LocalDate.parse(value).takeIf { it.toString() == value } }.getOrNull()
+        }
+        if (canonicalPostedDate != null && canonicalPostedDate.toString() != dueDate) {
+            NotificationManagerCompat.from(context).cancel(tag, 0)
+        }
     }
 
     private companion object {
@@ -156,40 +183,50 @@ object NoOpDebtReminderReconciler : DebtReminderReconciler {
 class LocalDebtReminderReconciler @Inject constructor(
     private val debtDao: DebtDao,
     private val scheduler: DebtReminderScheduler,
+    private val reminderEventReconciler: ReminderEventReconciler,
+    private val coordinator: ReminderReconciliationCoordinator,
 ) : DebtReminderReconciler {
     override suspend fun reconcile(userId: String, debtId: String?) {
         if (userId.isBlank()) return
-        val summaries = debtDao.observeSummaries(userId).first()
-        if (debtId == null) {
-            scheduler.cancelUser(userId)
-        } else {
-            scheduler.cancelDebt(userId, debtId)
-        }
-        summaries.asSequence()
-            .filter { debtId == null || it.debtId == debtId }
-            .filter { it.status == DebtLifecycleStatus.ACTIVE.name && it.reminderLeadDays != null }
-            .forEach { debt ->
-                debtDao.getInstallments(userId, debt.debtId)
-                    .asSequence()
-                    .filter { it.status == "PENDING" || it.status == "PARTIAL" }
-                    .forEach { installment ->
-                        val remaining = debtDao.getInstallmentRemaining(userId, debt.debtId, installment.id)
-                        if (remaining > 0L) {
-                            scheduler.schedule(
-                                DebtReminderRequest(
-                                    userId = userId,
-                                    debtId = debt.debtId,
-                                    installmentId = installment.id,
-                                    dueDate = LocalDate.parse(installment.dueDate),
-                                    leadDays = requireNotNull(debt.reminderLeadDays),
-                                    counterpartyName = debt.counterpartyName,
-                                    installmentNumber = installment.installmentNumber,
-                                    remainingPrincipalMinor = remaining,
-                                    currencyCode = debt.currencyCode,
-                                ),
-                            )
+        coordinator.exclusive {
+            val summaries = debtDao.observeSummaries(userId).first()
+            summaries.asSequence()
+                .filter { debtId == null || it.debtId == debtId }
+                .forEach { debt ->
+                    val installments = debtDao.getInstallments(userId, debt.debtId)
+                    val leadDays = debt.reminderLeadDays ?: 0
+                    if (debt.status != DebtLifecycleStatus.ACTIVE.name || leadDays !in 1..365) {
+                        installments.forEach {
+                            scheduler.cancel(userId, debt.debtId, it.id)
+                            reminderEventReconciler.invalidateSource(userId, it.id, java.time.Instant.now())
+                        }
+                    } else {
+                        installments.forEach { installment ->
+                            val remaining = if (installment.status == "PENDING" || installment.status == "PARTIAL") {
+                                debtDao.getInstallmentRemaining(userId, debt.debtId, installment.id)
+                            } else 0L
+                            if (remaining > 0L) {
+                                reminderEventReconciler.retainCurrentDate(userId, installment.id, installment.dueDate, java.time.Instant.now())
+                                scheduler.schedule(
+                                    DebtReminderRequest(
+                                        userId = userId,
+                                        debtId = debt.debtId,
+                                        installmentId = installment.id,
+                                        dueDate = LocalDate.parse(installment.dueDate),
+                                        leadDays = leadDays,
+                                        counterpartyName = debt.counterpartyName,
+                                        installmentNumber = installment.installmentNumber,
+                                        remainingPrincipalMinor = remaining,
+                                        currencyCode = debt.currencyCode,
+                                    ),
+                                )
+                            } else {
+                                scheduler.cancel(userId, debt.debtId, installment.id)
+                                reminderEventReconciler.invalidateSource(userId, installment.id, java.time.Instant.now())
+                            }
                         }
                     }
-            }
+                }
+        }
     }
 }

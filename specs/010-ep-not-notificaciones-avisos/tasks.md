@@ -1,8 +1,10 @@
-# Tasks: EP-NOT — Centro de Notificaciones y Avisos (HU-42)
+# Tasks: EP-NOT — Centro de Notificaciones y Avisos (HU-42 + Sprint 6 HU-44)
 
 **Input**: Design documents in `/specs/010-ep-not-notificaciones-avisos/`.
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, and `contracts/notifications-rest.md`.
 **Tests**: Included because HU-42, its plan, and the user prompt explicitly require JVM, Room, Compose, and Supabase verification. Write tests before the implementation they cover.
+
+**Propagated**: 2026-10-19 — Updated from spec.md refinement for Sprint 6 HU-44.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -154,3 +156,64 @@
 ## Phase 7: Convergence
 
 - [ ] T033 CRITICAL: Execute `./gradlew.bat :app:connectedDebugAndroidTest` on a representative Android emulator/device, resolve any failures, and record the runtime results in `specs/010-ep-not-notificaciones-avisos/quickstart.md` for platform-dependent navigation, badge, accessibility, and reduced-motion behavior per Constitution IX (missing).
+
+## Phase 8: HU-44 — Architecture Gate and RED Tests
+
+**Purpose**: Confirm the HU-44 local-only fallback boundary against HU-42, then add focused failing tests before implementation where the target API exists. The owner explicitly approved one bounded TDD sequencing exception: recurrence scheduler/worker tests move to T051 after T040 creates those classes.
+
+- [ ] T034 [US4] Read-only architecture review of the HU-44 persistence, idempotency, reprogramming, lead-zero, timezone, and permission assumptions in `specs/010-ep-not-notificaciones-avisos/{spec.md,plan.md,data-model.md,contracts/notifications-rest.md}`; return PASS or hold for a material unresolved decision. Do not edit code.
+- [ ] T035 [US4] Add RED Room tests for the non-destructive v23→v24 migration, owner scoping, tuple uniqueness, rescheduling/tombstone behavior, and retry idempotency in `app/src/androidTest/java/com/kipu/app/feature/notifications/data/local/ReminderStorageTest.kt` (depends on T034, T036).
+- [ ] T036 [US4] Add and execute RED instrumentation tests for debt scheduler/worker behavior only—default 2 days, custom lead, explicit 0 disabled, duplicate retries, date replacement, owner changes, and permission denied/revoked handling—in `app/src/androidTest/java/com/kipu/app/feature/debts/data/DebtReminderSchedulerTest.kt` and `app/src/androidTest/java/com/kipu/app/feature/debts/data/DebtReminderWorkerTest.kt` (depends on T034). Do not add recurrence tests here; those classes do not exist until T040.
+- [ ] T037 [US4] Add RED repository/domain tests proving local events join the center, remain owner-scoped, and never enter the remote PATCH outbox in `app/src/test/java/com/kipu/app/feature/notifications/data/OfflineFirstNotificationsRepositoryTest.kt` and `app/src/test/java/com/kipu/app/feature/notifications/data/LocalReminderCenterTest.kt` (depends on T039, T050).
+- [ ] T038 [US4] Add RED UI tests for default/custom lead and explicit-zero behavior without changing due-date or payment state in `app/src/androidTest/java/com/kipu/app/feature/debts/presentation/DebtScheduleAndClosureFlowTest.kt` and `app/src/androidTest/java/com/kipu/app/feature/recurrences/RecurrenceRegistrationFlowTest.kt` (depends on T034, T035).
+
+## Phase 9: HU-44 — Local Persistence, Scheduling, Integration, and UI
+
+**Purpose**: Implement the approved local reminder contract in bounded vertical slices; production code follows failing tests where APIs exist. Recurrence scheduler/worker tests are the explicitly owner-approved exception and are added after T040 under T051.
+
+- [ ] T039 [US4] Add owner-scoped `ReminderSchedule` and `LocalReminderEvent` Room entities/DAOs with a unique `(user_id, source_id, event_type, due_date)` key, register the v23→v24 migration and schema only; do not touch Supabase migrations or legacy migrations in `app/src/main/java/com/kipu/app/feature/notifications/data/local/{ReminderScheduleEntity.kt,ReminderScheduleDao.kt,LocalReminderEventEntity.kt,LocalReminderEventDao.kt}`, `app/src/main/java/com/kipu/app/core/database/{KipuDatabase.kt,RoomMigrations.kt}`, and `app/schemas/` (depends on T034, T035, T038, T050).
+- [ ] T040 [US4] Implement/reconcile WorkManager debt scheduling with permission-independent Room event persistence and Android-only permission gating; add the recurrence scheduler/worker using the same idempotent store and revalidation contract in `app/src/main/java/com/kipu/app/feature/debts/data/sync/{DebtReminderScheduler.kt,DebtReminderWorker.kt}` and new `app/src/main/java/com/kipu/app/feature/recurrences/data/sync/{RecurrenceReminderScheduler.kt,RecurrenceReminderWorker.kt}`. Run the debt-only T036 tests; do not claim recurrence behavioral coverage until T051 (depends on T034, T036, T037, T039).
+- [ ] T041 [US4] Reconcile scheduling on debt/recurrence creation, due-date change, prórroga, pause/cancel, and active-account changes; ensure old work cannot emit after state changes in `app/src/main/java/com/kipu/app/feature/debts/data/OfflineFirstDebtRepository.kt` and `app/src/main/java/com/kipu/app/feature/recurrences/{data/repository/OfflineFirstRecurrenceRepository.kt,data/local/RecurrenceDao.kt,di/RecurrencesModule.kt}` (depends on T040).
+- [ ] T042 [US4] Merge local reminder events into the HU-42 center model/flow and handle local read/dismiss without remote PATCH or outbox insertion in `app/src/main/java/com/kipu/app/feature/notifications/{domain/Notification.kt,domain/NotificationsRepository.kt,data/OfflineFirstNotificationsRepository.kt,presentation/NotificationsViewModel.kt}` (depends on T037, T039, T040, T041, T050).
+- [ ] T043 [US4] Expose per-rule lead configuration in debt/recurrence UI, default both to 2 days, preserve existing per-domain ranges, and keep 0 disabled in `app/src/main/java/com/kipu/app/feature/debts/presentation/{DebtScheduleScreen.kt,DebtScheduleViewModel.kt}` and `app/src/main/java/com/kipu/app/feature/recurrences/presentation/{RecurrenceRegistrationScreen.kt,RecurrencePresentationViewModel.kt}` (depends on T038, T041, T051).
+
+## Phase 10: HU-44 — Focused Verification and Release Gates
+
+**Purpose**: Verify only HU-44 acceptance on the configured local database and target device, then converge and release after independent PASS verdicts.
+
+- [ ] T044 [US4] Run only `pnpm exec supabase test db --local supabase/tests/database/notifications_center_test.sql` against the local Supabase database configured at port 54322; preserve raw pgTAP output and do not reset the database, apply a hosted migration, or change grants (depends on T039, T040, T041, T042, T043).
+- [ ] T045 [US4] Run focused JVM regression tests including the existing `SyncNotificationsWorkerTest` plus selected Room, debt/recurrence scheduler/worker, and lead-setting UI instrumentation classes on Samsung Galaxy A16 (`SM_A165M`), using instrumentation-runner class filters; verify XML reports intended classes, tests, device, and zero failures, and record evidence in `specs/010-ep-not-notificaciones-avisos/quickstart.md`. Do not run the global 413-test Android suite (depends on T039, T040, T041, T042, T043, T051).
+- [ ] T046 [US4] Initial independent Security review of the exact HU-44 candidate: owner-scoped Room keys/queries, account switching, permission separation, local-event no-remote-write boundary, recurrence scheduler/worker behavior, and no financial side effects; preserve its explicit PASS or findings as historical evidence (depends on T039, T040, T041, T042, T043, T051).
+- [ ] T047 [US4] Independent final QA audit of FR-014–FR-020, SC-007–SC-011, and assumptions 181–183 against the exact post-fix candidate and focused pgTAP/JVM/Room/WorkManager/A16 evidence; preserve T046 NO PASS and T055's pre-fix context, require current hash-bound T057 Security PASS, and explicitly assess Android-tray cancellation and the `DebtChangeFeedApplier` test gap without broadening product scope (depends on T044, T045, T046, T055, T057).
+- [ ] T048 [US4] After Security and QA PASS, run `speckit-converge` only if the owner explicitly invokes that exact step and the installed prerequisites verify `speckit-implement` ran against the current `tasks.md`; reconcile only HU-44 spec/plan/tasks/code drift and record the actual result (depends on T047).
+- [ ] T049 [US4] After GREEN and convergence, create granular conventional commits by docs/Room data/core/UI/tests, push this branch, open a PR to `main`, wait for required exact-head CI, merge, and verify the merge on `main`; user explicitly authorized this release sequence. No monolithic commit (depends on T048).
+
+### HU-44 Dependencies and Parallel Opportunities
+
+- T034 is the initial architecture gate. T036 is debt-only RED evidence; after it, T035 then T038 run serially on the shared worktree/device, and T039 waits for both test tasks plus T050. T037 waits for T039/T050 and provides RED center-integration evidence before T040/T042.
+- T040 waits for T036/T037/T039; T041 follows T040, then T042 follows the scheduling/lifecycle implementation. Owner-approved TDD exception: T051 adds and executes recurrence scheduler/worker tests only after T040, T041, and T042. T043 waits for T038, T041, and T051. T044–T046 are distinct pgTAP, pre-remediation device-test, and initial Security evidence gates. T053 analyzes SEC-044-01 read-only; T054 waits for T045, T046, and T053; T055 re-audits the post-T054/pre-T056 candidate; T056 corrects debt lead eligibility; T057 independently audits the exact post-T056 candidate. Run final T047 QA only after explicit T057 PASS while preserving T046/T055 history; T048/T049 remain sequential, separately authorized release gates.
+- T033 remains an incomplete HU-42 convergence item and is not part of HU-44. Do not run it as a substitute for focused HU-44 device tests.
+- Exclude BUG-CORE-MIG-001, legacy balance tests, and the global 413-test Android suite from HU-44 scope.
+
+## Phase 11: HU-44 — Notification Center API Contract Gate
+
+**Purpose**: Pin the local-event/domain/repository interface before center-integration tests or code consume it.
+
+- [ ] T050 [US4] Define and document the exact HU-44 local notification-center API against the existing `AppNotification`/`NotificationsRepository`: origin representation, collision-safe stable local ID derived from owner/source/type/date, mapping/display data, merged flow ordering, unread-count behavior, and local `markRead`/`markAllRead`/`dismiss` routing with no remote PATCH/outbox. Update only `data-model.md` and the relevant HU-44 plan section; inspect current symbols and preserve the HU-42 REST/RLS contract. No production code or tests. Return concrete Kotlin model/repository/DAO signatures and evidence; flag any product-level ambiguity instead of guessing (depends on T034).
+
+## Phase 12: HU-44 — Approved Recurrence Test Sequencing Gate
+
+**Purpose**: Add and run recurrence scheduler/worker behavioral tests after their production classes and lifecycle/center integrations exist; this is the explicitly authorized exception to the feature's test-first sequence.
+
+- [ ] T051 [US4] Add recurrence-only instrumentation coverage in `app/src/androidTest/java/com/kipu/app/feature/recurrences/data/RecurrenceReminderSchedulerTest.kt` and `app/src/androidTest/java/com/kipu/app/feature/recurrences/data/RecurrenceReminderWorkerTest.kt` for default/custom/zero lead, idempotent owner/source/type/date scheduling, date/prórroga replacement, PAUSED/CANCELLED revalidation, active-owner isolation, and permission-independent local event persistence. Run only these class filters on Samsung Galaxy A16 (`SM_A165M`); preserve exact XML/test counts and route any product failures without weakening assertions or changing production code in this test task. These tests intentionally follow T040/T041/T042 under explicit owner approval, and must be GREEN before T045/QA/release (depends on T040, T041, T042).
+
+## Phase 13: HU-44 — SEC-044-01 Remediation and Re-audit
+
+**Purpose**: Close the initial T046 Security finding without erasing its NO PASS history or expanding beyond HU-44.
+
+- [X] T052 [US4] Repair only `app/src/androidTest/java/com/kipu/app/feature/notifications/data/local/ReminderStorageTest.kt` so the Room test executes and validates the real v23→v24 migration, seeds fixtures for tombstone/reschedule/idempotency, and verifies owner isolation; focused SM-A165M run passed 5/5 with zero failures/errors/skips and `git diff --check` PASS.
+- [ ] T053 [US4] Read-only architecture assessment of SEC-044-01 covering debt/recurrence owner-scoped source IDs, state/date/lead reconciliation, local and change-feed physical deletion paths, test seams, and the minimum safe no-schema remediation; do not edit code/tests/spec artifacts (depends on T046).
+- [ ] T054 [US4] Following T053's accepted design, add Room-backed failing tests first and then remediate immediate logical withdrawal of stale local events on source date changes, inactive/deleted/settled/no-longer-eligible state, or lead 0; preserve valid sibling and other-owner events and cancel obsolete work. Include only the minimum deletion-transition paths needed to retain source IDs; no remote writes, financial effects, migration/schema, or unrelated debt work. Run the focused affected tests on Samsung Galaxy A16 and append exact commands/XML counts/timestamps to `quickstart.md`; do not alter `ReminderStorageTest.kt` (depends on T045, T046, T053).
+- [ ] T055 [US4] Independent Security re-review of the exact post-T054 candidate and evidence. Return explicit PASS/NO PASS for SEC-044-01; verify owner+source scoping, immediate event withdrawal, active sibling/other-owner preservation, old-work cancellation, no remote/outbox or financial side effects, and record reviewed HEAD plus candidate file hashes (depends on T054).
+- [X] T056 [US4] Correct the debt reconciler eligibility range to `1..365` while preserving `0` as disabled; add Room-backed coverage for leads 31 and 365 and verify current event dates. TDD RED reproduced the old-range tombstone failure; GREEN compiled Kotlin/main AndroidTest and passed the filtered `DebtReminderReconciliationTest` 3/3 on Samsung Galaxy A16 SM_A165M / Android 16; no global 413-test suite or commit (depends on T054, T055).
+- [X] T057 [US4] Independently re-audit the exact post-T056 candidate for SEC-044-01, hash-bound to candidate file bytes rather than clean HEAD. PASS limited to SEC-044-01; filtered `DebtReminderReconciliationTest` passed 3/3 on SM_A165M / Android 16 and static review verified owner+source tombstones and transactional local/remote deletion paths. Preserve residuals: no dedicated incoming `DebtChangeFeedApplier` integration test and no Android notification-tray cancellation; this is not general HU-44 acceptance (depends on T056, T055).

@@ -3,6 +3,8 @@ package com.kipu.app.feature.notifications.data
 import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventDao
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventEntity
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxEntity
 import com.kipu.app.feature.notifications.data.remote.NotificationDto
@@ -11,6 +13,7 @@ import com.kipu.app.feature.notifications.data.remote.NotificationsApi
 import com.kipu.app.feature.notifications.data.remote.NotificationsApiResponse
 import com.kipu.app.feature.notifications.data.sync.NotificationSyncScheduler
 import com.kipu.app.feature.notifications.domain.AppNotification
+import com.kipu.app.feature.notifications.domain.NotificationOrigin
 import com.kipu.app.feature.notifications.domain.NotificationsRepository
 import java.time.Clock
 import java.time.Instant
@@ -18,11 +21,13 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 @Singleton
 class OfflineFirstNotificationsRepository @Inject constructor(
     private val notificationDao: AppNotificationDao,
+    private val localReminderEventDao: LocalReminderEventDao,
     private val outboxDao: NotificationSyncOutboxDao,
     private val api: NotificationsApi,
     private val transactionRunner: DatabaseTransactionRunner,
@@ -30,10 +35,22 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     private val clock: Clock,
 ) : NotificationsRepository {
 
-    override fun observeActive(userId: String): Flow<List<AppNotification>> =
-        notificationDao.observeActive(userId).map { rows -> rows.map { it.toDomain() } }
+    override fun observeActive(userId: String): Flow<List<AppNotification>> = combine(
+        notificationDao.observeActive(userId),
+        localReminderEventDao.observeActive(userId),
+    ) { remoteRows, localRows ->
+        (remoteRows.map { it.toDomain() } + localRows.map { it.toDomain() })
+            .sortedWith(
+                compareByDescending<AppNotification> { it.createdAt }
+                    .thenBy { it.origin.ordinal }
+                    .thenBy { it.id },
+            )
+    }
 
-    override fun observeUnreadCount(userId: String): Flow<Int> = notificationDao.observeUnreadCount(userId)
+    override fun observeUnreadCount(userId: String): Flow<Int> = combine(
+        notificationDao.observeUnreadCount(userId),
+        localReminderEventDao.observeUnreadCount(userId),
+    ) { remoteCount, localCount -> remoteCount + localCount }
 
     override suspend fun refresh(userId: String): Result<Unit> = runCatching {
         when (val response = api.fetchForUser(userId)) {
@@ -52,6 +69,12 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     }
 
     override suspend fun markRead(userId: String, notificationId: String): Result<Unit> = runCatching {
+        if (notificationId.startsWith(LOCAL_REMINDER_ID_PREFIX)) {
+            check(localReminderEventDao.markRead(userId, notificationId) == 1) {
+                "Local reminder is no longer active"
+            }
+            return@runCatching
+        }
         val changed = transactionRunner {
             val notice = notificationDao.getById(userId, notificationId)
                 ?: error("Notification is no longer available")
@@ -72,18 +95,26 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     override suspend fun markAllRead(userId: String): Result<Unit> = runCatching {
         val changed = transactionRunner {
             val unread = notificationDao.getAllActiveUnsorted(userId).filterNot { it.isRead || it.deletedAt != null }
-            if (unread.isEmpty()) return@transactionRunner false
-            notificationDao.markAllRead(userId)
-            unread.forEach { notice ->
-                val previous = outboxDao.getByNotice(userId, notice.id)
-                outboxDao.upsert(previous.coalesced(userId, notice.id, isRead = true, deletedAt = null))
+            if (unread.isNotEmpty()) {
+                notificationDao.markAllRead(userId)
+                unread.forEach { notice ->
+                    val previous = outboxDao.getByNotice(userId, notice.id)
+                    outboxDao.upsert(previous.coalesced(userId, notice.id, isRead = true, deletedAt = null))
+                }
             }
-            true
+            localReminderEventDao.markAllRead(userId)
+            unread.isNotEmpty()
         }
         if (changed) scheduleSafely(userId)
     }
 
     override suspend fun dismiss(userId: String, notificationId: String): Result<Unit> = runCatching {
+        if (notificationId.startsWith(LOCAL_REMINDER_ID_PREFIX)) {
+            check(localReminderEventDao.dismiss(userId, notificationId, clock.instant()) == 1) {
+                "Local reminder is no longer active"
+            }
+            return@runCatching
+        }
         val changed = transactionRunner {
             val notice = notificationDao.getById(userId, notificationId)
                 ?: error("Notification is no longer available")
@@ -162,6 +193,22 @@ class OfflineFirstNotificationsRepository @Inject constructor(
         createdAt = createdAt,
         deletedAt = deletedAt,
         eventPayloadJson = eventPayloadJson,
+        origin = NotificationOrigin.REMOTE,
+    )
+
+    private fun LocalReminderEventEntity.toDomain() = AppNotification(
+        id = id,
+        userId = userId,
+        title = LOCAL_REMINDER_TITLE,
+        body = LOCAL_REMINDER_BODY,
+        notificationType = eventType,
+        referenceEntityType = null,
+        referenceEntityId = null,
+        isRead = isRead,
+        createdAt = createdAt,
+        deletedAt = deletedAt,
+        eventPayloadJson = "{\"due_date\":\"$dueDate\"}",
+        origin = NotificationOrigin.LOCAL_REMINDER,
     )
 
     private fun NotificationDto.toEntity() = AppNotificationEntity(
@@ -177,4 +224,10 @@ class OfflineFirstNotificationsRepository @Inject constructor(
         deletedAt = deletedAt?.let(Instant::parse),
         eventPayloadJson = eventPayload?.toString() ?: "{}",
     )
+
+    private companion object {
+        const val LOCAL_REMINDER_ID_PREFIX = "local-reminder:v1:"
+        const val LOCAL_REMINDER_TITLE = "Recordatorio de vencimiento"
+        const val LOCAL_REMINDER_BODY = "Recordatorio local de vencimiento."
+    }
 }

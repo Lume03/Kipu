@@ -1,6 +1,8 @@
 package com.kipu.app.feature.recurrences.di
 
 import com.kipu.app.feature.recurrences.data.repository.OfflineFirstRecurrenceRepository
+import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderScheduler
+import com.kipu.app.feature.recurrences.data.sync.WorkManagerRecurrenceReminderScheduler
 import com.kipu.app.feature.recurrences.domain.RecurrenceRepository
 import dagger.Binds
 import dagger.Module
@@ -12,4 +14,7 @@ import dagger.hilt.components.SingletonComponent
 abstract class RecurrencesModule {
     @Binds
     abstract fun recurrenceRepository(implementation: OfflineFirstRecurrenceRepository): RecurrenceRepository
+
+    @Binds
+    abstract fun recurrenceReminderScheduler(implementation: WorkManagerRecurrenceReminderScheduler): RecurrenceReminderScheduler
 }

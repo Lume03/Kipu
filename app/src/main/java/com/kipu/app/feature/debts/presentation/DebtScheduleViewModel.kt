@@ -103,17 +103,18 @@ class DebtScheduleViewModel @Inject constructor(
             ?: return showError("Usa una fecha v\u00e1lida con formato AAAA-MM-DD.")
         val operationId = UUID.randomUUID().toString()
         val firstNumber = (current.installments.maxOfOrNull { it.installmentNumber } ?: 0) + 1
-        val plan = SetDebtSchedule().plan(debt, count, firstDueDate, current.reminderLeadDays, firstNumber, operationId)
+        val reminderLeadDays = current.reminderLeadDays ?: 2
+        val plan = SetDebtSchedule().plan(debt, count, firstDueDate, reminderLeadDays, firstNumber, operationId)
         if (plan !is DebtPlanResult.Valid) return showError(scheduleError((plan as DebtPlanResult.Invalid).code))
         val hash = DebtCommandHasher.sha256(
-            "SET_DEBT_SCHEDULE|1|$userId|${debt.debtId}|${debt.revision}|$count|$firstDueDate|${current.reminderLeadDays}|$operationId",
+            "SET_DEBT_SCHEDULE|1|$userId|${debt.debtId}|${debt.revision}|$count|$firstDueDate|$reminderLeadDays|$operationId",
         )
         val command = SetDebtScheduleCommand(
             identity = DebtCommandIdentity(operationId, hash),
             debtId = debt.debtId,
             expectedRevision = debt.revision,
             installments = plan.value.installments,
-            reminderLeadDays = current.reminderLeadDays,
+            reminderLeadDays = reminderLeadDays,
         )
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }

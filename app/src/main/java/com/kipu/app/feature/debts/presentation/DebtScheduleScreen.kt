@@ -465,7 +465,7 @@ private fun ScheduleProjectionTab(
         }
 
         // Avisar días antes
-        val leadDays = state.reminderLeadDays ?: 3
+        val leadDays = state.reminderLeadDays ?: 2
         Surface(
             modifier = Modifier.weight(1f),
             color = emeraldColors.surfaceCard,
@@ -498,6 +498,7 @@ private fun ScheduleProjectionTab(
                             Icon(Icons.Rounded.Notifications, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
                             Text(
                                 "$leadDays días",
+                            modifier = Modifier.testTag("debt_reminder_lead_days"),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                             )
                         }

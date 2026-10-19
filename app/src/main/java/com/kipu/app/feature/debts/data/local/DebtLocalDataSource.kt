@@ -41,8 +41,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.first
@@ -744,6 +749,13 @@ class DebtLocalDataSource @Inject constructor(
             if (priorReceipt.commandType != DELETE_DEBT_COMMAND || priorReceipt.requestHash != identity.requestHash) {
                 return@withTransaction DebtDeleteResult.Rejected("IDEMPOTENCY_KEY_REUSED")
             }
+            val installmentIds = runCatching {
+                Json.parseToJsonElement(priorReceipt.responsePayload.orEmpty())
+                    .jsonObject["installment_ids"]?.jsonArray
+                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                    .orEmpty()
+            }.getOrDefault(emptyList())
+            installmentIds.forEach { database.localReminderEventDao().tombstoneSource(userId, it, clock.instant()) }
             return@withTransaction DebtDeleteResult.Deleted(debtId)
         }
         val debt = debtDao.getDebt(userId, debtId)
@@ -754,14 +766,22 @@ class DebtLocalDataSource @Inject constructor(
         }
 
         val now = clock.millis()
+        val installmentIds = debtDao.getInstallments(userId, debtId).map { it.id }
         debtDao.deleteUnreferencedInstallments(userId, debtId)
         if (debtDao.deleteDebtIfUnreferenced(userId, debtId) != 1) {
             return@withTransaction DebtDeleteResult.Conflict(debt.revision)
         }
+        installmentIds.forEach { database.localReminderEventDao().tombstoneSource(userId, it, clock.instant()) }
         val payload = buildJsonObject {
             put("operation_id", identity.operationId)
             put("request_hash", identity.requestHash)
             put("debt_id", debtId)
+        }.toString()
+        val receiptPayload = buildJsonObject {
+            put("status", "APPLIED")
+            put("debt_id", debtId)
+            put("result", "DELETED")
+            put("installment_ids", buildJsonArray { installmentIds.forEach { add(JsonPrimitive(it)) } })
         }.toString()
         debtOutboxDao.insert(
             DebtOutboxEntity(
@@ -781,7 +801,7 @@ class DebtLocalDataSource @Inject constructor(
                 idempotencyKey = identity.operationId,
                 requestHash = identity.requestHash,
                 status = "PENDING",
-                responsePayload = "{\"status\":\"APPLIED\",\"debt_id\":\"$debtId\",\"result\":\"DELETED\"}",
+                responsePayload = receiptPayload,
                 contractVersion = identity.contractVersion,
                 commandType = DELETE_DEBT_COMMAND,
                 expectedRevision = debt.revision,

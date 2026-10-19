@@ -1219,6 +1219,28 @@ val MIGRATION_22_23 = object : Migration(22, 23) {
     }
 }
 
+/** Adds device-local reminder schedules/events without modifying existing rows or financial history. */
+val MIGRATION_23_24 = object : Migration(23, 24) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `reminder_schedules` (
+            `user_id` TEXT NOT NULL, `source_id` TEXT NOT NULL, `event_type` TEXT NOT NULL,
+            `due_date` TEXT NOT NULL, `lead_days` INTEGER NOT NULL, `status` TEXT NOT NULL,
+            `updated_at` INTEGER NOT NULL,
+            PRIMARY KEY(`user_id`, `source_id`, `event_type`, `due_date`)
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `reminder_schedules_owner_source_status_idx` ON `reminder_schedules` (`user_id`, `source_id`, `status`)")
+
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `local_reminder_events` (
+            `id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `source_id` TEXT NOT NULL,
+            `event_type` TEXT NOT NULL, `due_date` TEXT NOT NULL, `is_read` INTEGER NOT NULL,
+            `deleted_at` INTEGER, `created_at` INTEGER NOT NULL,
+            PRIMARY KEY(`user_id`, `id`)
+        )""")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `local_reminder_events_owner_source_type_date_uq` ON `local_reminder_events` (`user_id`, `source_id`, `event_type`, `due_date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `local_reminder_events_owner_created_idx` ON `local_reminder_events` (`user_id`, `created_at`)")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

@@ -6,8 +6,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.debts.data.local.DebtLocalDataSource
+import com.kipu.app.feature.debts.data.local.DebtInstallmentEntity
+import com.kipu.app.feature.debts.data.local.DebtEntity
 import com.kipu.app.feature.debts.domain.DebtCommandHasher
 import com.kipu.app.feature.debts.domain.model.DebtCommandIdentity
+import com.kipu.app.feature.debts.domain.model.DebtDeleteResult
 import com.kipu.app.feature.debts.domain.model.DebtCommandResult
 import com.kipu.app.feature.debts.domain.model.CloseDebtAction
 import com.kipu.app.feature.debts.domain.model.DebtClosureCommand
@@ -17,6 +20,8 @@ import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
 import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.SetDebtScheduleCommand
 import com.kipu.app.feature.debts.domain.model.OpenDebtCommand
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventEntity
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -54,6 +59,64 @@ class DebtLocalDataSourceTest {
     @After
     fun closeDatabase() {
         database.close()
+    }
+
+    @Test
+    fun physicalDebtDeleteTombstonesCapturedInstallmentsAndIdempotentReceiptRepeatsCleanup() = runBlocking {
+        val owner = "owner-delete"
+        val debtId = "81000000-0000-4000-8000-000000000101"
+        val installmentId = "81000000-0000-4000-8000-000000000102"
+        val deleteId = "81000000-0000-4000-8000-000000000103"
+        database.debtDao().insertDebt(
+            DebtEntity(
+                id = debtId,
+                userId = owner,
+                obligationType = "PAYABLE",
+                counterpartyName = "Proveedor",
+                totalMinor = 5_000L,
+                currencyCode = "PEN",
+                openedOn = "2026-10-01",
+                status = "ACTIVE",
+            ),
+        )
+        database.debtDao().insertInstallments(
+            listOf(
+                DebtInstallmentEntity(
+                    id = installmentId,
+                    userId = owner,
+                    debtId = debtId,
+                    installmentNumber = 1,
+                    dueDate = "2026-11-10",
+                    amountMinor = 5_000L,
+                    status = "PENDING",
+                ),
+            ),
+        )
+        val eventDao = database.localReminderEventDao()
+        eventDao.upsert(
+            LocalReminderEventEntity(
+                id = "delete-event-1",
+                userId = owner,
+                sourceId = installmentId,
+                dueDate = "2026-11-10",
+                createdAt = java.time.Instant.parse("2026-10-01T00:00:00Z"),
+            ),
+        )
+        val identity = DebtCommandIdentity(deleteId, DebtCommandHasher.sha256("delete:$debtId"))
+
+        assertTrue(source.deleteDebtIfUnreferenced(owner, debtId, identity) is DebtDeleteResult.Deleted)
+        assertTrue(eventDao.observeActive(owner).first().isEmpty())
+        eventDao.upsert(
+            LocalReminderEventEntity(
+                id = "delete-event-2",
+                userId = owner,
+                sourceId = installmentId,
+                dueDate = "2026-12-10",
+                createdAt = java.time.Instant.parse("2026-10-01T00:00:00Z"),
+            ),
+        )
+        assertTrue(source.deleteDebtIfUnreferenced(owner, debtId, identity) is DebtDeleteResult.Deleted)
+        assertTrue(eventDao.observeActive(owner).first().isEmpty())
     }
 
     @Test

@@ -1,10 +1,14 @@
 package com.kipu.app.feature.recurrences.data.repository
 
 import com.kipu.app.core.database.DatabaseTransactionRunner
+import com.kipu.app.feature.notifications.data.local.ReminderEventReconciler
+import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
 import com.kipu.app.feature.recurrences.data.local.RecurrenceCommandOutboxEntity
 import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceEntity
 import com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao
+import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderRequest
+import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderScheduler
 import com.kipu.app.feature.recurrences.domain.RecurrenceCommandHasher
 import com.kipu.app.feature.recurrences.domain.RecurrenceCommandReceipt
 import com.kipu.app.feature.recurrences.domain.RecurrenceDraft
@@ -34,6 +38,9 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     private val transactionRunner: DatabaseTransactionRunner,
     private val recurrenceDao: RecurrenceDao,
     private val outboxDao: RecurrenceOutboxDao,
+    private val reminderScheduler: RecurrenceReminderScheduler,
+    private val reminderEventReconciler: ReminderEventReconciler,
+    private val reminderCoordinator: ReminderReconciliationCoordinator,
     private val clock: Clock,
 ) : RecurrenceRepository {
     private val reconciliationMutex = Mutex()
@@ -57,6 +64,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         )
         val command = outbox(userId, operationId, recurrenceId, "CREATE_RECURRENCE", null, envelope, now)
         transactionRunner { recurrenceDao.insert(entity); outboxDao.insert(command) }
+        reconcileReminder(userId, recurrenceId)
         RecurrenceCommandResult.Pending(entity.toDomain(), operationId)
     } catch (exception: IllegalArgumentException) {
         RecurrenceCommandResult.Rejected("VALIDATION_FAILED", exception.message ?: "Invalid recurrence")
@@ -95,7 +103,10 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             if (changed == 1) outboxDao.insert(command)
         }
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
-        else RecurrenceCommandResult.Pending(updated.toDomain(), operationId)
+        else {
+            reconcileReminder(userId, recurrenceId)
+            RecurrenceCommandResult.Pending(updated.toDomain(), operationId)
+        }
     } catch (exception: IllegalArgumentException) {
         RecurrenceCommandResult.Rejected("VALIDATION_FAILED", exception.message ?: "Invalid recurrence update")
     } catch (exception: ArithmeticException) {
@@ -139,10 +150,13 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             if (changed == 1) outboxDao.insert(command)
         }
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
-        else RecurrenceCommandResult.Pending(current.toDomain().copy(
-            status = RecurrenceStatus.valueOf(target), revision = nextRevision, syncState = RecurrenceSyncState.PENDING,
-            nextDueDate = nextDate, updatedAt = Instant.ofEpochMilli(now),
-        ), operationId)
+        else {
+            reconcileReminder(userId, recurrenceId)
+            RecurrenceCommandResult.Pending(current.toDomain().copy(
+                status = RecurrenceStatus.valueOf(target), revision = nextRevision, syncState = RecurrenceSyncState.PENDING,
+                nextDueDate = nextDate, updatedAt = Instant.ofEpochMilli(now),
+            ), operationId)
+        }
     } catch (exception: IllegalArgumentException) {
         RecurrenceCommandResult.Rejected("VALIDATION_FAILED", exception.message ?: "Invalid lifecycle transition")
     } catch (exception: ArithmeticException) {
@@ -209,6 +223,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             }
             recurrenceDao.saveCheckpoint(com.kipu.app.feature.recurrences.data.local.RecurrenceSyncCheckpointEntity(userId, sequence, now))
         }
+        changes.forEach { recurrence -> reconcileReminder(userId, recurrence.id) }
     }
 
     private fun validateDraft(draft: RecurrenceDraft) {
@@ -266,6 +281,26 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         )
 
     private fun confirmedNextDateWithinEnd(date: LocalDate, endDate: String) = date <= LocalDate.parse(endDate)
+
+    private suspend fun reconcileReminder(userId: String, recurrenceId: String) {
+        reminderCoordinator.exclusive {
+            val current = recurrenceDao.get(userId, recurrenceId)
+            if (current == null || current.status != "ACTIVE" || !current.isActive || current.deletedAt != null || current.reminderLeadDays !in 1..30) {
+                reminderScheduler.cancel(userId, recurrenceId)
+                reminderEventReconciler.invalidateSource(userId, recurrenceId, clock.instant())
+                return@exclusive
+            }
+            reminderEventReconciler.retainCurrentDate(userId, recurrenceId, current.nextDueDate, clock.instant())
+            reminderScheduler.schedule(
+                RecurrenceReminderRequest(
+                    userId = userId,
+                    recurrenceId = recurrenceId,
+                    dueDate = LocalDate.parse(current.nextDueDate),
+                    leadDays = current.reminderLeadDays,
+                ),
+            )
+        }
+    }
 
     private fun RecurrenceEntity.toDomain() = RecurrenceRule(
         id, userId, kotlinx.serialization.json.Json.parseToJsonElement(templateTransaction) as JsonObject,

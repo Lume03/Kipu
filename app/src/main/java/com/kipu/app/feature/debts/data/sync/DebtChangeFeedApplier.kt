@@ -157,10 +157,12 @@ class DebtChangeFeedApplier @Inject constructor(
         if (events.isNotEmpty()) {
             throw InvalidDebtChangePage("REMOTE_DELETE_WOULD_REMOVE_FINANCIAL_HISTORY")
         }
+        val installmentIds = debtDao.getInstallments(userId, remote.id).map { it.id }
         debtDao.deleteUnreferencedInstallments(userId, remote.id)
         if (debtDao.deleteDebtIfUnreferenced(userId, remote.id) != 1) {
             throw InvalidDebtChangePage("REMOTE_DELETE_DEBT_STILL_REFERENCED")
         }
+        installmentIds.forEach { database.localReminderEventDao().tombstoneSource(userId, it, clock.instant()) }
     }
 
     private suspend fun applyEventChange(userId: String, change: SyncChangeItemDto) {

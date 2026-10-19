@@ -5,8 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionItem
@@ -72,7 +72,43 @@ class RecurrenceRegistrationFlowTest {
             assertEquals(selectedDate, submittedDraft?.startDate)
             assertEquals("account-1", submittedDraft?.templateTransaction?.get("source_account_id")?.toString()?.trim('"'))
             assertEquals("1250", submittedDraft?.templateTransaction?.get("amount_minor")?.toString())
+            assertEquals(2, submittedDraft?.reminderLeadDays)
         }
+    }
+
+    @Test
+    fun reminderLeadCanBeEditedWithinExistingRangeAndZeroDisablesItWithoutChangingSource() {
+        var draft: com.kipu.app.feature.recurrences.domain.RecurrenceDraft? = null
+        val source = movement()
+        compose.setContent { RecurrenceRegistrationScreen(source, {}, { draft = it }) }
+
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextClearance()
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextInput("30")
+        compose.onNodeWithTag("recurrence_next_due_date").performTextInput("2026-11-10")
+        compose.onNodeWithTag("recurrence_save").performClick()
+        compose.runOnIdle {
+            assertEquals(30, draft?.reminderLeadDays)
+            assertEquals("source-movement", source.transaction.id)
+            assertEquals(1_250L, source.transaction.amountMinor)
+        }
+
+        draft = null
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextClearance()
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextInput("0")
+        compose.onNodeWithTag("recurrence_save").performClick()
+        compose.runOnIdle { assertEquals(0, draft?.reminderLeadDays) }
+    }
+
+    @Test
+    fun reminderLeadOutsideExistingRangeIsRejected() {
+        var draft: com.kipu.app.feature.recurrences.domain.RecurrenceDraft? = null
+        compose.setContent { RecurrenceRegistrationScreen(movement(), {}, { draft = it }) }
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextClearance()
+        compose.onNodeWithTag("recurrence_reminder_lead_days").performTextInput("31")
+        compose.onNodeWithTag("recurrence_next_due_date").performTextInput("2026-11-10")
+        compose.onNodeWithTag("recurrence_save").performClick()
+        compose.onNodeWithText("El aviso debe estar entre 0 y 30 días").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(null, draft) }
     }
 
     @Test
