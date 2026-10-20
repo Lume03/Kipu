@@ -26,7 +26,7 @@ Las imágenes se obtienen de los componentes de producción mediante `OptionalDa
 - Texto al 160 % mediante `LocalDensity` en el fixture del formulario; no se cambia la escala global del celular.
 - La persistencia se verifica con Room en memoria y el flujo local existente; en metas el programador de sincronización está sustituido por un mock. La base se destruye al terminar cada prueba.
 - Las entidades de control mantienen `2027-06-30`; las editadas pasan de `2026-11-10` a `2028-02-29` y luego a `null`. Se comprueba que no se escriben transacciones ni asientos contables, y que metas no añade reservas/eventos.
-- TalkBack excluido de esta validación a petición del usuario. No se activa ni se certifica escucha asistida.
+- TalkBack: revisión asistida en `preview`, solicitada después de la tanda automatizada y confirmada por el usuario.
 
 ## Resultados
 
@@ -38,8 +38,11 @@ Las imágenes se obtienen de los componentes de producción mediante `OptionalDa
 | Persistencia y payload de limpieza de deuda, dinero prestado y meta; entidad de control intacta; sin escrituras financieras | 3/3 pruebas de `OptionalDatePersistenceTest` aprobadas. |
 | Regresiones de apertura, edición descriptiva, eliminación, cuentas compatibles, metas virtuales y sustitución por límite del plan | 15/15 pruebas existentes aprobadas. |
 | Compilación de app y pruebas `lab`, y APK `preview` final | `BUILD SUCCESSFUL`. |
+| Recorrido asistido con TalkBack de los controles de fecha | El usuario confirmó que todo funciona, sin repeticiones ni impedimentos. |
 
 Son 33 casos instrumentados distintos y 2 unitarios. Los resultados corresponden a ejecuciones focalizadas por clase; no se ejecutó la suite completa. Tras corregir la devolución de foco se repitieron los ocho casos del componente. Se probó Atrás para descartar el borrador y Enter para reabrir desde el botón enfocado. La restauración usa el foco de ventana y permite foco programático tras una interacción táctil, sin temporizadores en producción.
+
+La revisión asistida propuso recorrer el campo opcional, abrir el calendario, explorar días, aceptar, cancelar una selección alternativa y quitar la fecha en los formularios de deudas y metas. El usuario escuchó el celular y confirmó: «todo está bien, no hay repeticiones ni impediciones». Este resultado es su confirmación del recorrido propuesto; el agente no escuchó el audio ni obtuvo un registro individual de cada anuncio.
 
 El APK final se genera con el script existente que instala junto a la app original:
 
@@ -75,4 +78,4 @@ adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.L
 
 Las capturas se generan en `getExternalFilesDir(null)/issue-71`. Logs, dumps y auxiliares de trabajo quedan en `scratch/issue-71/`, excluido de Git, junto con el plan local de la raíz. Solo se versionan las capturas sintéticas y este registro de QA.
 
-Al finalizar se deja vacía la selección de idioma propia de `lab`, sin cambiar la configuración regional del celular. Se verifica que `accessibility_enabled=0` y no haya servicios de accesibilidad habilitados.
+Tras la tanda automatizada se dejó vacía la selección de idioma propia de `lab`, sin cambiar la configuración regional del celular, y se verificó TalkBack desactivado. Para la revisión asistida posterior, el usuario pidió activarlo. Se verificaron `accessibility_enabled=1` y el servicio `com.google.android.marvin.talkback/.TalkBackService` habilitado y conectado. TalkBack permanece activo hasta que el usuario solicite desactivarlo; su configuración original se conserva localmente para restaurarla.
