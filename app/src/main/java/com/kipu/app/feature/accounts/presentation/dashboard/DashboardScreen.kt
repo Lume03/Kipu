@@ -93,7 +93,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -253,13 +252,12 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.width(4.dp))
 
                         // Small white circular settings button with 48dp touch target
-                        Box(
+                        IconButton(
+                            onClick = onNavigateToSettings,
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .clickable(role = Role.Button, onClick = onNavigateToSettings)
                                 .semantics { contentDescription = settingsContentDescription },
-                            contentAlignment = Alignment.Center,
                         ) {
                             Surface(
                                 shape = CircleShape,
