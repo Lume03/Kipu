@@ -1,6 +1,16 @@
 <resources>
     <string name="app_name">Kipu</string>
     <string name="settings_access_content_description">Ajustes</string>
+    <string name="optional_date_iso_placeholder">AAAA-MM-DD</string>
+    <string name="optional_date_invalid">Ingresa una fecha válida con el formato AAAA-MM-DD.</string>
+    <string name="optional_date_clear">Quitar fecha</string>
+    <string name="optional_date_confirm">Aceptar</string>
+    <string name="optional_date_cancel">Cancelar</string>
+    <string name="optional_date_due_label">Fecha de vencimiento (opcional)</string>
+    <string name="optional_date_due_calendar">Elegir fecha de vencimiento</string>
+    <string name="optional_date_goal_label">Fecha objetivo (opcional)</string>
+    <string name="optional_date_goal_calendar">Elegir fecha objetivo</string>
+    <string name="optional_date_outside_calendar_range">La fecha actual se conserva. El calendario permite elegir años del 1 al 9999; también puedes escribir la fecha manualmente.</string>
     <string name="plan_selection_title">Selecciona tu Plan</string>
     <string name="plan_selection_subtitle">Configuración inicial de cuenta y suscripción</string>
     <string name="plan_free_title">Plan Free</string>
