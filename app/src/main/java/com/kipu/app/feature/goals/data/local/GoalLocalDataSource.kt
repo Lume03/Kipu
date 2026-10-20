@@ -202,6 +202,14 @@ class GoalLocalDataSource @Inject constructor(
                 return@withTransaction GoalCommandResult.Conflict("OPERATION_ID_REUSED")
             }
             val (sourceAccountId, destinationAccountId, currencyCode, amountMinor) = transferAccounts
+            val currentSource = goalDao.getBackingAccountPosition(userId, sourceAccountId)
+                ?: return@withTransaction GoalCommandResult.Rejected("OWNER_OR_ACCOUNT_INVALID")
+            if (currentSource.currencyCode != currencyCode) {
+                return@withTransaction GoalCommandResult.Rejected("CURRENCY_MISMATCH")
+            }
+            if (currentSource.availableMinor < amountMinor) {
+                return@withTransaction GoalCommandResult.Rejected("INSUFFICIENT_TRANSFER_SOURCE")
+            }
             val transaction = TransactionEntity(
                 id = operationId,
                 userId = userId,
