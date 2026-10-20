@@ -23,8 +23,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kipu.app.R
+import com.kipu.app.ui.component.KipuOptionalDateField
+import java.time.LocalDate
 
 data class DebtEditUiState(
     val counterpartyName: String = "",
@@ -90,12 +94,14 @@ fun DebtEditDetailsScreen(
                     Text(state.principalAmount, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
-            OutlinedTextField(
+            KipuOptionalDateField(
                 value = state.dueDate,
                 onValueChange = onDueDateChange,
-                label = { Text("Vencimiento (opcional, AAAA-MM-DD)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.optional_date_due_label),
+                calendarContentDescription = stringResource(R.string.optional_date_due_calendar),
+                tag = "edit-debt-due-date",
+                enabled = !state.isSaving && !state.isLoading,
+                isError = state.dueDate.isNotBlank() && runCatching { LocalDate.parse(state.dueDate) }.isFailure,
             )
             OutlinedTextField(
                 value = state.notes,

@@ -41,9 +41,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.kipu.app.R
+import com.kipu.app.ui.component.KipuOptionalDateField
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -268,17 +271,14 @@ private fun DebtOpeningFormScreen(
                 }
             }
 
-            OutlinedTextField(
+            KipuOptionalDateField(
                 value = state.dueDateInput,
                 onValueChange = onDueDateChange,
-                label = { Text("Fecha de vencimiento (opcional, AAAA-MM-DD)") },
+                label = stringResource(R.string.optional_date_due_label),
+                calendarContentDescription = stringResource(R.string.optional_date_due_calendar),
+                tag = "debt-due-date",
+                enabled = !state.isSaving,
                 isError = state.dueDateInput.length >= 10 && state.dueDate == null,
-                supportingText = if (state.dueDateInput.length >= 10 && state.dueDate == null) {
-                    { Text("Ingresa una fecha válida con el formato AAAA-MM-DD.") }
-                } else null,
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("debt-due-date"),
             )
             OutlinedTextField(
                 value = state.notes,
