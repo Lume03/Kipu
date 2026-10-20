@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,7 +37,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.kipu.app.R
+import com.kipu.app.ui.component.KipuOptionalDateField
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.model.Goal
@@ -91,7 +97,8 @@ fun GoalFormScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding()
+                .verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("La meta organiza tu avance. Crear o editarla no mueve dinero.", style = MaterialTheme.typography.bodyMedium)
@@ -123,13 +130,14 @@ fun GoalFormScreen(
                 isError = amount.isNotBlank() && parsedTarget == null,
                 modifier = Modifier.fillMaxWidth().testTag("goal_form_target"),
             )
-            OutlinedTextField(
+            KipuOptionalDateField(
                 value = dateText,
                 onValueChange = { dateText = it.take(10) },
-                label = { Text("Fecha objetivo (opcional, AAAA-MM-DD)") },
-                singleLine = true,
+                label = stringResource(R.string.optional_date_goal_label),
+                calendarContentDescription = stringResource(R.string.optional_date_goal_calendar),
+                tag = "goal_form_date",
+                enabled = !isSaving,
                 isError = !dateIsValid,
-                modifier = Modifier.fillMaxWidth().testTag("goal_form_date"),
             )
             Column {
                 Text("Cuenta vinculada (opcional)", style = MaterialTheme.typography.labelLarge)
@@ -154,7 +162,7 @@ fun GoalFormScreen(
                 Text("La cuenta real es solo una referencia; la reserva se elige al aportar.", style = MaterialTheme.typography.bodySmall)
             }
             if (errorMessage != null) Text(errorMessage, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = {
                     if (requiresReplacement) replacementDialogVisible = true

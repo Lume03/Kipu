@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.kipu.app.core.finance.domain.model.Currency
@@ -46,7 +47,7 @@ class GoalManagementFlowTest {
         compose.onNodeWithText("Sin cuenta vinculada · meta virtual").assertIsDisplayed()
         compose.onNodeWithTag("goal_form_name").performTextInput("Fondo de viaje")
         compose.onNodeWithTag("goal_form_target").performTextInput("120.50")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
 
         compose.runOnIdle {
             assertNull(savedGoalId)
@@ -109,7 +110,7 @@ class GoalManagementFlowTest {
 
         compose.onNodeWithTag("goal_form_name").performTextReplacement("Meta editada")
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(Triple("goal-edit", Money(15_000L, Currency.PEN), null), saved)
         }
@@ -134,7 +135,7 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithTag("goal_form_name").performTextReplacement("Renombrada")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
         compose.onAllNodesWithText("Elige una meta para pausar").assertCountEquals(0)
         compose.runOnIdle { assertNull(replacement) }
     }
@@ -158,7 +159,7 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
         compose.onNodeWithText("Elige una meta para pausar").assertIsDisplayed()
         compose.onNodeWithText("active-1").assertIsDisplayed()
         compose.onNodeWithText("Cancelar").performClick()
@@ -185,7 +186,7 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
         compose.onNodeWithTag("replacement_radio_active-2").performClick()
         compose.onNodeWithText("Confirmar").performClick()
         compose.runOnIdle { assertEquals("active-2", savedReplacement) }
@@ -213,7 +214,7 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
-        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.onNodeWithTag("goal_save_button").performScrollTo().performClick()
         compose.onAllNodesWithText("Elige una meta para pausar").assertCountEquals(0)
         compose.runOnIdle { assertEquals(1, saveCount) }
     }
