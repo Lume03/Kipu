@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Kipu</string>
+    <string name="settings_access_content_description">Ajustes</string>
     <string name="plan_selection_title">Selecciona tu Plan</string>
     <string name="plan_selection_subtitle">Configuración inicial de cuenta y suscripción</string>
     <string name="plan_free_title">Plan Free</string>

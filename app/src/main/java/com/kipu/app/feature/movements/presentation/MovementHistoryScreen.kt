@@ -147,6 +147,7 @@ fun MovementHistoryRoute(
     val scope = rememberCoroutineScope()
     val savedText = stringResource(R.string.history_saved_pending)
     val voidedText = stringResource(R.string.history_voided_pending)
+    val settingsContentDescription = stringResource(R.string.settings_access_content_description)
     val emeraldColors = rememberCalmEmeraldColors()
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -273,7 +274,7 @@ fun MovementHistoryRoute(
                         onClick = onNavigateToSettings,
                         modifier = Modifier
                             .size(48.dp)
-                            .semantics { contentDescription = "Ajustes" }
+                            .semantics { contentDescription = settingsContentDescription },
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Settings,

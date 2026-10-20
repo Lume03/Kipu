@@ -46,11 +46,11 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,6 +92,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -102,6 +104,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.R
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.Account
@@ -157,6 +160,7 @@ fun DashboardScreen(
     val vmMasked by viewModel.isMasked.collectAsStateWithLifecycle()
     val isMasked = vmMasked || LocalBalanceMasked.current
     val emeraldColors = rememberCalmEmeraldColors()
+    val settingsContentDescription = stringResource(R.string.settings_access_content_description)
 
     LaunchedEffect(feedbackMessage) {
         feedbackMessage?.let {
@@ -253,7 +257,8 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .clickable(onClick = onNavigateToSettings),
+                                .clickable(role = Role.Button, onClick = onNavigateToSettings)
+                                .semantics { contentDescription = settingsContentDescription },
                             contentAlignment = Alignment.Center,
                         ) {
                             Surface(
@@ -265,7 +270,7 @@ fun DashboardScreen(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Rounded.Settings,
-                                        contentDescription = "Configuración",
+                                        contentDescription = null,
                                         tint = emeraldColors.secondaryMuted,
                                         modifier = Modifier.size(18.dp),
                                     )
