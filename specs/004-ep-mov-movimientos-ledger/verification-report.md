@@ -7,7 +7,7 @@ Baseline: `58764f019d1fa1e224e45d0e244c17bbc304bd27` (main/HU-44)
 HEAD histórico de la primera verificación de implementación: `7940a3c07b1ed3ded9e0d60fb308bacde6f5dc5c`.
 HEAD de implementación/código revisado después de las correcciones funcionales: `a0649fda60dd016cdc28a3e47cef65fd60f03d27` (`test(app): cover goal transfer concurrency and replay`). Este es el commit de código verificado; no es el HEAD del repositorio al cierre documental.
 
-Este veredicto no significa aprobación independiente de Security/QA, aceptación de toda EP-MOV/S6, autorización de despliegue ni validación en un proyecto Supabase hosted. La cross-review de seguridad, integridad financiera y pruebas sigue pendiente (T130); no se abrió PR ni se hizo merge.
+Este veredicto está limitado a la verificación de implementación HU-24; no significa aceptación de toda EP-MOV/S6, autorización de despliegue ni validación en un proyecto Supabase hosted. Las cross-reviews independientes de Security y QA se registran por separado abajo.
 
 ## Cambios verificados
 
@@ -48,8 +48,14 @@ Commits granulares verificados en la rama:
 ## Límites
 
 - No se ejecutó la suite global de instrumentación; no era necesaria para el cambio focalizado.
-- La sesión aplicó la migración únicamente al contenedor PostgreSQL local indicado; no hubo uso de Supabase hosted, producción, deploy, push, PR ni merge.
-- `T130` requiere revisión independiente antes de merge. Ningún resultado de este reporte sustituye esa aprobación.
+- La migración se aplicó únicamente al contenedor PostgreSQL local indicado; no se probó ni modificó Supabase hosted o producción y no hubo despliegue.
+- No se realizó push.
+
+## Cross-review independiente previa al merge
+
+- Security (`t_e8f9cc0a`): APPROVED, sin hallazgos accionables, para el código HU-24 en `a0649fda60dd016cdc28a3e47cef65fd60f03d27` y el reporte hasta `cef4204267790afa5edd87b5bd27436d290318b3`. Revisión estática; no se ejecutaron pruebas en este pase ni se probó/aplicó nada en hosted/producción.
+- QA (`t_b1f28d03`): APPROVED WITH OBSERVATIONS, sin hallazgos accionables, para HU-24 en la misma versión de código y reporte. Ejecutó Room de metas 15/15, `SettleDebtTest` 8/8, `DebtSettlementSyncTest` 2/2 y `git diff --check` (exit 0); no ejecutó pgTAP ni la suite global y no utilizó hosted/producción.
+- Estos dictámenes son revisiones independientes acotadas a HU-24; no equivalen a aceptación integral de EP-MOV/S6, autorización de despliegue ni validación de base de datos hosted. No se atribuyen al veredicto de implementación de este informe.
 
 ## Correcciones de revisión — 2026-10-19
 
