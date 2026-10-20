@@ -82,6 +82,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -274,7 +276,14 @@ fun MovementHistoryRoute(
                         onClick = onNavigateToSettings,
                         modifier = Modifier
                             .size(48.dp)
-                            .semantics { contentDescription = settingsContentDescription },
+                            .clearAndSetSemantics {
+                                role = Role.Button
+                                contentDescription = settingsContentDescription
+                                onClick {
+                                    onNavigateToSettings()
+                                    true
+                                }
+                            },
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Settings,
