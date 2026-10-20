@@ -25,6 +25,8 @@ import com.kipu.app.feature.goals.domain.model.GoalCommandResult
 import com.kipu.app.feature.goals.domain.model.GoalCommandType
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
@@ -376,6 +378,73 @@ class GoalReplacementRoomIntegrationTest {
         assertEquals(operationId, event.transactionId)
         assertEquals(5_000L, event.deltaMinor)
         assertEquals(1, database.goalOutboxDao().getPendingForUser(userId).size)
+    }
+
+    @Test
+    fun concurrentGoalTransfersCannotOverspendOneSourceAccount() = runBlocking {
+        seedGoal("race-goal-a", "ACTIVE", revision = 1)
+        seedGoal("race-goal-b", "ACTIVE", revision = 1)
+        seedAccountWithLedgerBalance("race-source", 10_000)
+        seedAccountWithLedgerBalance("race-destination-a", 0)
+        seedAccountWithLedgerBalance("race-destination-b", 0)
+        val repository = OfflineFirstGoalRepository(local, mockk<GoalsSyncScheduler>(relaxed = true))
+        val transfers = listOf(
+            async(Dispatchers.IO) {
+                repository.reserveGoalFunds(userId, "race-goal-a", Money(7_000, Currency.PEN), "race-destination-a",
+                    com.kipu.app.feature.goals.domain.usecase.GoalTransferIntent("race-source", "race-destination-a", Currency.PEN))
+            },
+            async(Dispatchers.IO) {
+                repository.reserveGoalFunds(userId, "race-goal-b", Money(7_000, Currency.PEN), "race-destination-b",
+                    com.kipu.app.feature.goals.domain.usecase.GoalTransferIntent("race-source", "race-destination-b", Currency.PEN))
+            },
+        ).map { it.await() }
+
+        assertEquals(1, transfers.count { it is GoalCommandResult.Applied })
+        assertEquals(1, transfers.count { it == GoalCommandResult.Rejected("INSUFFICIENT_TRANSFER_SOURCE") })
+        assertEquals(3_000L, database.movementDao().calculateLedgerSumForAccount(userId, "race-source"))
+        assertEquals(3_000L, database.movementDao().getBalanceProjection(userId, "race-source")?.balanceMinor)
+        assertEquals(7_000L, listOf("race-destination-a", "race-destination-b").sumOf {
+            database.movementDao().calculateLedgerSumForAccount(userId, it) ?: 0L
+        })
+        assertEquals(1, database.goalOutboxDao().getPendingForUser(userId).size)
+        assertEquals(1, database.openHelper.readableDatabase.query(
+            "SELECT COUNT(*) FROM transactions WHERE user_id='$userId' AND operation_kind='GOAL_FUNDING'",
+        ).use { it.moveToFirst(); it.getInt(0) })
+    }
+
+    @Test
+    fun explicitGoalTransferSurvivesRoomReopenAndIdentityReplayIsIdempotent() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "goal-transfer-reopen-test.db"
+        context.deleteDatabase(name)
+        database.close()
+        database = Room.databaseBuilder(context, KipuDatabase::class.java, name).build()
+        local = GoalLocalDataSource(database, database.goalDao(), database.goalOutboxDao(), database.movementDao())
+        seedGoal("reopen-transfer-goal", "ACTIVE", revision = 1)
+        seedAccountWithLedgerBalance("reopen-source", 10_000)
+        seedAccountWithLedgerBalance("reopen-destination", 0)
+        val repository = OfflineFirstGoalRepository(local, mockk<GoalsSyncScheduler>(relaxed = true))
+        assertTrue(repository.reserveGoalFunds(userId, "reopen-transfer-goal", Money(5_000, Currency.PEN), "reopen-destination",
+            com.kipu.app.feature.goals.domain.usecase.GoalTransferIntent("reopen-source", "reopen-destination", Currency.PEN)) is GoalCommandResult.Applied)
+        val command = database.goalOutboxDao().getPendingForUser(userId).single()
+        database.close()
+        database = Room.databaseBuilder(context, KipuDatabase::class.java, name).build()
+        local = GoalLocalDataSource(database, database.goalDao(), database.goalOutboxDao(), database.movementDao())
+        assertEquals("TRANSFER", database.movementDao().getTransactionById(userId, command.operationId)?.type)
+        assertEquals(2, database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM ledger_entries WHERE transaction_id='${command.operationId}'").use { it.moveToFirst(); it.getInt(0) })
+        assertEquals(1, database.goalDao().getEvents(userId, "reopen-transfer-goal").size)
+        assertEquals(1, database.goalOutboxDao().getPendingForUser(userId).size)
+        assertEquals("PENDING", database.movementDao().getReceipt(userId, command.operationId)?.status)
+        val goal = database.goalDao().getGoalIncludingArchived(userId, "reopen-transfer-goal")!!.toDomain()
+        val replay = local.stageCommand(userId,
+            GoalCommandEnvelope(GoalCommandIdentity(command.operationId, command.requestHash), GoalCommandType.RESERVE_GOAL,
+                command.goalId, command.expectedRevision, buildJsonObject { }),
+            listOf(goal), mapOf(goal.id to command.expectedRevision))
+        assertTrue("Unexpected replay result: $replay", replay is GoalCommandResult.Duplicate)
+        assertEquals(1, database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM transactions WHERE operation_kind='GOAL_FUNDING'").use { it.moveToFirst(); it.getInt(0) })
+        assertEquals(1, database.goalDao().getEvents(userId, "reopen-transfer-goal").size)
+        context.deleteDatabase(name)
+        Unit
     }
 
     @Test
