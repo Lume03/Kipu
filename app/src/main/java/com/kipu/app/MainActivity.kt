@@ -83,6 +83,9 @@ import com.kipu.app.navigation.authDestinations
 import com.kipu.app.navigation.movementDestinations
 import com.kipu.app.navigation.movementsDestinations
 import com.kipu.app.navigation.notificationDestinations
+import com.kipu.app.navigation.goalDestinations
+import com.kipu.app.navigation.GOALS_LIST_ROUTE
+import com.kipu.app.navigation.GOAL_CREATE_ROUTE
 import com.kipu.app.navigation.planSelectionDestination
 import com.kipu.app.navigation.settingsDestinations
 import com.kipu.app.ui.component.LocalBalanceMasked
@@ -519,6 +522,9 @@ class MainActivity : FragmentActivity() {
                                     notificationDestinations(
                                         navController = navController,
                                     )
+                                    goalDestinations(
+                                        navController = navController,
+                                    )
                                 }
                             }
 
@@ -597,7 +603,9 @@ private fun isDetailRoute(route: String?): Boolean {
         route == CARD_FORM_ROUTE ||
         route == NOTIFICATION_CENTER_ROUTE ||
         route.startsWith("settings/") ||
-        route == PLAN_PURCHASE_ROUTE
+        route == PLAN_PURCHASE_ROUTE ||
+        route == GOALS_LIST_ROUTE ||
+        route == GOAL_CREATE_ROUTE
 }
 
 private fun isTopLevelRoute(route: String?): Boolean {
