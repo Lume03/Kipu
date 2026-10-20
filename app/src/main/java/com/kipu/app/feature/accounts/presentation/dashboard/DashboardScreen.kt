@@ -46,7 +46,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Wallet
@@ -264,7 +264,7 @@ fun DashboardScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.Tune,
+                                        imageVector = Icons.Rounded.Settings,
                                         contentDescription = "Configuración",
                                         tint = emeraldColors.secondaryMuted,
                                         modifier = Modifier.size(18.dp),
