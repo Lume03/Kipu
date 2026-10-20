@@ -24,10 +24,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ internal fun KipuOptionalDateField(
     val calendarFocus = remember(tag) { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
 
     fun closePicker() {
         showPicker = false
@@ -64,10 +67,15 @@ internal fun KipuOptionalDateField(
     LaunchedEffect(enabled) {
         if (!enabled) showPicker = false
     }
-    LaunchedEffect(showPicker, restoreCalendarFocus, enabled) {
+    LaunchedEffect(showPicker, restoreCalendarFocus, enabled, windowFocused) {
         if (!showPicker && restoreCalendarFocus) {
-            if (enabled) calendarFocus.requestFocus()
-            restoreCalendarFocus = false
+            // The dialog can still own Android's window focus after leaving composition.
+            // Wait for the form window, rather than losing the request during its dismissal.
+            if (!enabled) restoreCalendarFocus = false
+            else if (windowFocused) {
+                calendarFocus.requestFocus()
+                restoreCalendarFocus = false
+            }
         }
     }
 
@@ -92,7 +100,10 @@ internal fun KipuOptionalDateField(
                         showPicker = true
                     },
                     enabled = enabled,
-                    modifier = Modifier.size(48.dp).focusRequester(calendarFocus).testTag("$tag-calendar"),
+                    modifier = Modifier.size(48.dp)
+                        // Dialog dismissal also restores focus after touch input.
+                        .focusProperties { canFocus = enabled }
+                        .focusRequester(calendarFocus).testTag("$tag-calendar"),
                 ) {
                     Icon(Icons.Rounded.CalendarMonth, contentDescription = calendarContentDescription)
                 }
