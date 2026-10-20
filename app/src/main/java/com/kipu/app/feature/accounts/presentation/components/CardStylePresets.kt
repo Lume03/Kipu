@@ -46,7 +46,7 @@ object CardStylePresets {
         accentHex = "#80E2D8",
         textHex = "#FFFFFF",
         sourceLabel = "Kipu Andean Modernist",
-        sourceReference = "docs/stitch-design-system.md",
+        sourceReference = "docs/DESIGN.md",
     )
 
     private val genericCredit = CardStylePreset(
@@ -63,7 +63,7 @@ object CardStylePresets {
         accentHex = "#94A3B8",
         textHex = "#FFFFFF",
         sourceLabel = "Kipu Andean Modernist",
-        sourceReference = "docs/stitch-design-system.md",
+        sourceReference = "docs/DESIGN.md",
     )
 
     private val verifiedBankPresets: List<CardStylePreset> = """

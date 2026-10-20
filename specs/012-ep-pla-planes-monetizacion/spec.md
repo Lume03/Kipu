@@ -16,7 +16,7 @@
 
 **Refined**: 2026-09-15 — Adopción del design system Stitch "Kipu Andean Modernist" como única fuente de verdad visual de la Pantalla 1B; actualización de tokens de UI y lista de artefactos derivados; sin cambios funcionales (FR/RN/SC y user stories intactos).
 
-**Refined**: 2026-09-15 — Eliminación de las referencias residuales al sistema de diseño previo a Stitch; todas las referencias de diseño apuntan a `docs/stitch-design-system.md` (cleanup post-adopción del design system Stitch; sin cambios funcionales).
+**Refined**: 2026-09-15 — Eliminación de las referencias residuales al sistema de diseño previo a Stitch; todas las referencias de diseño apuntan a `docs/DESIGN.md` (cleanup post-adopción del design system Stitch; sin cambios funcionales).
 
 **Refined**: 2026-09-16 — Fidelidad total a Pantalla 1B Stitch (Kipu V4 Finale): copy, componentes y layout 1B autorizados; Free informativo no seleccionable, Trial estático, Anual preseleccionado, CTA secundario, badges, sufijos de precio, nota info literal y footer fiscal; los invariantes de dominio permanecen intactos.
 
@@ -218,8 +218,8 @@ Como usuario de Kipu, quiero elegir Free o conocer la prueba Premium voluntaria,
 
 - La pantalla no contiene Top Bar ni `KipuBottomBar`.
 - ~~La pantalla no contiene publicidad ni slogans comerciales.~~ *(Retirado: se autorizan exclusivamente los badges, mensajes comerciales y footer fiscal presentes en la Pantalla 1B Stitch.)*
-- ~~La maquetación tomaba como referencia los tokens del documento de diseño previo: Primary `#0F766E`, Ink `#0F172A` y radios de `16dp`/`12dp`.~~ *(Reemplazado por tokens del design system Stitch; la única fuente de verdad visual es `docs/stitch-design-system.md`.)*
-- La maquetación adopta el design system Stitch `Kipu Andean Modernist` (Pantalla 1B `b8b4bfdcf384409887e54a975c549797`, proyecto `projects/5775615138851387862`) como única fuente de verdad visual y usa su disposición y componentes como referencia de fidelidad. Tokens registrados en `docs/stitch-design-system.md`: background `#F7F9FB`; surface de tarjetas `#FFFFFF`; onSurface `#191C1E`; onSurfaceVariant `#3E4947`; outline `#6E7977`; outlineVariant `#BDC9C6`; primary (CTA) `#0F766E` con pressed `#005C55`; ring de selección (surface_tint) `#006A63`; secondary `#216963`; secondaryContainer `#A8ECE5`; onSecondaryContainer `#266D68`; error `#BA1A1A`; dark background `#0B1220`. Radios de `16dp` (tarjetas) y `12dp` (controles/CTA). Tipografía Inter obligatoria en toda la pantalla; montos con números tabulares (`tnum`). Grilla base 8dp, márgenes de página 16dp, separación de secciones 24dp, targets mínimos 48dp.
+- ~~La maquetación tomaba como referencia los tokens del documento de diseño previo: Primary `#0F766E`, Ink `#0F172A` y radios de `16dp`/`12dp`.~~ *(Reemplazado por tokens del design system Stitch; la única fuente de verdad visual es `docs/DESIGN.md`.)*
+- La maquetación adopta el design system Stitch `Kipu Andean Modernist` (Pantalla 1B `b8b4bfdcf384409887e54a975c549797`, proyecto `projects/5775615138851387862`) como única fuente de verdad visual y usa su disposición y componentes como referencia de fidelidad. Tokens registrados en `docs/DESIGN.md`: background `#F7F9FB`; surface de tarjetas `#FFFFFF`; onSurface `#191C1E`; onSurfaceVariant `#3E4947`; outline `#6E7977`; outlineVariant `#BDC9C6`; primary (CTA) `#0F766E` con pressed `#005C55`; ring de selección (surface_tint) `#006A63`; secondary `#216963`; secondaryContainer `#A8ECE5`; onSecondaryContainer `#266D68`; error `#BA1A1A`; dark background `#0B1220`. Radios de `16dp` (tarjetas) y `12dp` (controles/CTA). Tipografía Inter obligatoria en toda la pantalla; montos con números tabulares (`tnum`). Grilla base 8dp, márgenes de página 16dp, separación de secciones 24dp, targets mínimos 48dp.
 - La referencia de tooling es el MCP de Stitch AI y las pautas del Prompt 1 de `Stich Prompts.md`.
 
 **Flujo de navegación**:
@@ -424,7 +424,7 @@ Este addendum amplía EP-PLA para el Sprint 2 sin cambiar el alcance comercial d
 
 ### Gate de integración remota
 
-La verificación local de migrations/pgTAP no demuestra compatibilidad del proyecto Supabase remoto. El estado actual y los errores de catálogo están registrados en [`docs/s1-s2-remote-backend-readiness.md`](../../docs/s1-s2-remote-backend-readiness.md). No se declara habilitada la sincronización remota hasta que un despliegue ordenado y validado en un entorno desechable/staging confirme el contrato y RLS; ninguna intención de plan habilita Premium.
+La verificación local de migrations/pgTAP no demuestra compatibilidad del proyecto Supabase remoto. El registro citado originalmente es `docs/s1-s2-remote-backend-readiness.md` (referencia histórica no incorporada en este checkout; no es evidencia de estado remoto actual). Ver [control documental](../../docs/control-documental.md). No se declara habilitada la sincronización remota hasta que un despliegue ordenado y validado en un entorno desechable/staging confirme el contrato y RLS; ninguna intención de plan habilita Premium.
 
 ## Sprint 3 Addendum: HU-53, HU-54 y HU-56
 
@@ -705,8 +705,8 @@ Como persona usuaria con Premium verificado, quiero seguir usando capacidades Pr
 - `tasks.md`
 - `data-model.md`
 - `ADR-012-freemium-intent`
-- ~~El documento de diseño de marca previo~~ *(Sustituido por `docs/stitch-design-system.md` — design system Stitch `Kipu Andean Modernist` como autoridad.)*
-- `stitch-design-system.md`
+- ~~El documento de diseño de marca previo~~ *(Sustituido por `docs/DESIGN.md` — design system Stitch `Kipu Andean Modernist` como autoridad.)*
+- `DESIGN.md`
 - `Stich Prompts.md`
 # Refinamiento UI/UX aprobado — 2026-10-03
 

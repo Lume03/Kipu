@@ -1,4 +1,8 @@
-# Sistema de Diseño de Kipu — Tokens Stitch (Kipu Andean Modernist)
+# Diseño de Kipu — Sistema visual y tokens
+
+> **Nombre de archivo actualizado — 2026-10-20.** Este documento era `docs/stitch-design-system.md`. El cambio a `docs/DESIGN.md` organiza la guía por su función, no por la herramienta que la originó. Se conserva el contenido y la procedencia Stitch; no se reactiva el antiguo DESIGN previo a Stitch ni se cambia el estilo aprobado por pantalla.
+
+> **Control documental — 2026-10-20.** La declaración normativa conservada abajo difiere de la del [índice de mockups Calm Emerald](ux-ui/mockups/README.md). La reorganización no ratifica ni reemplaza ninguna de las dos: revisar el contrato aprobado por pantalla y la [diferencia registrada](control-documental.md).
 
 Este documento registra el design system **`Kipu Andean Modernist`** como la **única fuente de verdad visual normativa** del proyecto y es el punto de referencia de tokens para UI nativa en Jetpack Compose y Material 3.
 

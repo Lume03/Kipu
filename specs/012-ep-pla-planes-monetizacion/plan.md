@@ -8,7 +8,7 @@
 
 **Propagated**: 2026-09-15 — Updated from spec.md refinement (adopción de tokens del design system Stitch "Kipu Andean Modernist" como única fuente de verdad visual).
 
-**Propagated**: 2026-09-15 — Updated from spec.md refinement (cleanup sin cambios funcionales: eliminadas las referencias residuales al sistema de diseño previo; el plan ya apunta a `docs/stitch-design-system.md`).
+**Propagated**: 2026-09-15 — Updated from spec.md refinement (cleanup sin cambios funcionales: eliminadas las referencias residuales al sistema de diseño previo; el plan ya apunta a `docs/DESIGN.md`).
 
 **Propagated**: 2026-09-16 — Updated from spec.md refinement (fidelidad de layout, componentes y copy con Pantalla 1B Stitch; Free informativo, Trial estático, Anual preseleccionado, dos CTAs y criterios SC-002/SC-004/SC-008 actualizados).
 
@@ -95,7 +95,7 @@ La pantalla fue localizada mediante el MCP de Stitch AI, sin regenerarla:
 | Design system | `Kipu Andean Modernist` - `assets/a21e2e45f51e490fa03b92fb8cb83c55` |
 | Pantalla | `Pantalla 1B: Selección de Plan` - `b8b4bfdcf384409887e54a975c549797` |
 | Canvas | Mobile, `780x2412`, adecuado para scroll vertical continuo |
-| Autoridad local | `docs/stitch-design-system.md` y `spec.md` |
+| Autoridad local | `docs/DESIGN.md` y `spec.md` |
 
 La composición de Stitch se adopta como referencia normativa de fidelidad para jerarquía, orden, densidad, componentes y copy aprobado:
 
@@ -107,7 +107,7 @@ La composición de Stitch se adopta como referencia normativa de fidelidad para 
 | Premium Anual | Primera opción seleccionable y preseleccionada, con «Recomendado», «Ahorro equivalente a 50%» y «S/ 29.99 / año». |
 | Premium Mensual / Lifetime | Mostrar «S/ 4.99 / mes» y «S/ 49.99 pago único» con sus descripciones Stitch. |
 | Nota y acciones | Nota `info` literal, CTA primario «Confirmar Plan», CTA secundario «Continuar con Plan Free» y footer fiscal aprobado. |
-| Colores `#005c55`/`#f7f9fb` | Mantener como tokens normativos; referencia completa en `docs/stitch-design-system.md`. |
+| Colores `#005c55`/`#f7f9fb` | Mantener como tokens normativos; referencia completa en `docs/DESIGN.md`. |
 
 `PlanSelectionScreen` usa `Column.verticalScroll`, margen horizontal de 16dp, separación basada en 8dp, tarjetas de 16dp, controles de 12dp y targets mínimos de 48dp. Todos los precios usan `fontFeatureSettings = "tnum"`. La pantalla no aloja `KipuTopAppBar` ni `KipuBottomBar`; el host tampoco debe inyectarlos para esta ruta.
 
@@ -289,7 +289,7 @@ supabase/
 - **HU-01**: Debe entregar una sesión Supabase válida, `userId` estable y callback de registro exitoso. EP-PLA no implementa autenticación.
 - **Pantalla 1C**: El host debe aportar `BiometricConfigScreen`; EP-PLA solo emite confirmación. La ausencia actual impide afirmar el recorrido integrado, pero no bloquea construir/probar la feature aislada.
 - **Supabase de desarrollo**: Antes de migrar, inventariar objetos, grants y configuración real. No se asume que un mock o contrato equivale a despliegue.
-- **Stitch Prompt 1**: `Stich Prompts.md` no está presente en el repositorio. La pantalla y design system ya extraídos mediante MCP constituyen la referencia disponible; si el archivo se incorpora, debe archivarse para trazabilidad sin reemplazar `spec.md` ni el archivo de tokens `docs/stitch-design-system.md`.
+- **Stitch Prompt 1**: `Stich Prompts.md` no está presente en el repositorio. La pantalla y design system ya extraídos mediante MCP constituyen la referencia disponible; si el archivo se incorpora, debe archivarse para trazabilidad sin reemplazar `spec.md` ni el archivo de tokens `docs/DESIGN.md`.
 - **ADR**: `ADR-012-freemium-intent` debe aprobar separación de intención/entitlement, versionado y resolución de conflictos antes de implementar el backend.
 
 ## Definition of Done
@@ -299,7 +299,7 @@ supabase/
 - El worker y el backend demuestran APPLIED, DUPLICATE, STALE, CONFLICT y errores seguros.
 - RLS y autorización por objeto rechazan acceso cruzado y bypass de escritura.
 - Ningún camino desde intención escribe `entitlements` o `feature_access_cache`, invoca Billing o borra datos excedentes.
-- La Pantalla 1B coincide con los tokens, disposición, componentes y copy aprobados de Stitch (`docs/stitch-design-system.md`), es accesible, carece de Top/Bottom Bar y navega únicamente después del commit local del CTA Premium o Free.
+- La Pantalla 1B coincide con los tokens, disposición, componentes y copy aprobados de Stitch (`docs/DESIGN.md`), es accesible, carece de Top/Bottom Bar y navega únicamente después del commit local del CTA Premium o Free.
 - Migraciones Room/Supabase son versionadas, revisables, no destructivas y probadas con datos representativos.
 - WorkManager se valida en dispositivo real bajo red, Doze, batería, force-stop y reapertura.
 - Otro integrante aprueba la revisión cruzada y el flujo se demuestra en la Review de Sprint 1.

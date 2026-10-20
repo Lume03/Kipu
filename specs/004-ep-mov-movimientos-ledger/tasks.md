@@ -68,8 +68,8 @@
 - [x] T021 [US1] Implementar el cliente autenticado del RPC en `app/src/main/java/com/kipu/app/feature/movements/data/remote/MovementApi.kt`
 - [x] T022 [US1] Crear el esquema canónico, validaciones de pertenencia y `register_transaction_v1` en `supabase/migrations/20260922090000_ep_mov_ledger.sql`
 - [x] T023 [P] [US1] Implementar estado y eventos del formulario en `app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementViewModel.kt`
-- [x] T024 [US1] Implementar la Pantalla 11 (Modal de Registro en Bottom Sheet) con tabs Gasto/Ingreso/Transferencia, referencias tipadas por categoría, selectores, DatePicker, teclado numérico, números tabulares y feedback de guardado local/pendiente según Stich Prompts.md y docs/stitch-design-system.md en `app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt`
-- [x] T025 [P] [US1] Implementar la Pantalla 10 (Historial/Ledger) con TopBar, buscador, chips de filtro rápido, lista cronológica, badges de sincronización, colores por tokens y números tabulares según Stich Prompts.md y docs/stitch-design-system.md en `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryScreen.kt`
+- [x] T024 [US1] Implementar la Pantalla 11 (Modal de Registro en Bottom Sheet) con tabs Gasto/Ingreso/Transferencia, referencias tipadas por categoría, selectores, DatePicker, teclado numérico, números tabulares y feedback de guardado local/pendiente según Stich Prompts.md y docs/DESIGN.md en `app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt`
+- [x] T025 [P] [US1] Implementar la Pantalla 10 (Historial/Ledger) con TopBar, buscador, chips de filtro rápido, lista cronológica, badges de sincronización, colores por tokens y números tabulares según Stich Prompts.md y docs/DESIGN.md en `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryScreen.kt`
 - [x] T026 [US1] Conectar acción rápida e historial al grafo en `app/src/main/java/com/kipu/app/navigation/MovementsNavigation.kt` y `app/src/main/java/com/kipu/app/navigation/KipuNavHost.kt`
 
 **Checkpoint**: HU18 funciona offline para los tres tipos y su resultado es visible sin esperar al servidor.
@@ -343,7 +343,7 @@ El responsable acepta el resumen/retirada de filtros aplicados y el comportamien
 
 ## Issue #39 — Tema oscuro y auditoría de presentación (2026-10-13)
 
-Corrección autorizada en `fix/dark-mode-filters-theme-audit`; detalle en `docs/audits/issue-39-dark-theme-plan.md`. Mantener FR-034/039 y SC-014–017, sin modificar procedencia canónica ni cerrar T110.
+Corrección autorizada en `fix/dark-mode-filters-theme-audit`; detalle en `docs/audits/tema-oscuro/issue-39/plan.md`. Mantener FR-034/039 y SC-014–017, sin modificar procedencia canónica ni cerrar T110.
 
 - [x] T119 Inventariar superficies reales y clasificar colores, con base sintética `f8e7ea3` y excepciones de marcas/colores personalizados documentadas (I39-01–03).
 - [x] T120 Corregir roles compartidos y tematizar filtros, calendario, upsell y selector de referencias; conservar borrador, validaciones y acceso (I39-04–08).
@@ -361,7 +361,7 @@ Actualización posterior al integrar `main` tras los merges de PR #51, #52 y #56
 
 En la revisión local derivada del head `d57de66` se adaptaron la moneda, los campos de importe y las acciones inferiores para ancho menor a 380 dp o fuente desde ×1,3. El caso compacto ahora apila campos/acciones cuando hace falta y confirma que PEN, USD, mínimo, máximo, Limpiar y Aplicar siguen accesibles.
 
-Validación actual: `:app:testDebugUnitTest` pasó 526 tests; `:app:compileDebugKotlin`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug` y `:app:assembleLab` terminaron correctamente. En Pixel 10 AVD/API 37, `KipuThemeContrastTest` + `ThemeScreenEvidenceTest` pasaron 4 tests y `MovementFiltersIssue19Test` pasó 10. Se generaron capturas actuales de superficies claro/oscuro y una captura de importe a ancho aproximado 320 dp/fuente ×1,6 en `docs/audits/evidence/issue-39/integrated-head-2026-10-17/`.
+Validación actual: `:app:testDebugUnitTest` pasó 526 tests; `:app:compileDebugKotlin`, `:app:compileDebugAndroidTestKotlin`, `:app:lintDebug` y `:app:assembleLab` terminaron correctamente. En Pixel 10 AVD/API 37, `KipuThemeContrastTest` + `ThemeScreenEvidenceTest` pasaron 4 tests y `MovementFiltersIssue19Test` pasó 10. Se generaron capturas actuales de superficies claro/oscuro y una captura de importe a ancho aproximado 320 dp/fuente ×1,6 en `docs/audits/tema-oscuro/issue-39/evidencias/integrated-head-2026-10-17/`.
 
 La prueba compacta captura el árbol Compose después de entrada de texto; no demuestra visualmente el teclado IME del sistema. La suite instrumentada completa de 348 pruebas/17 fallos no se repitió después de este cambio. Por tanto T123 continúa abierta. T122 continúa abierta por cobertura parcial de previews, incluida la falta de preview de pantalla completa para `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta revisión independiente y aceptación visual humana. No se ejecutaron TalkBack hablado ni runtime API 24.
 
@@ -374,7 +374,7 @@ T123 sigue abierta: no se capturo el IME real ni se repitio la suite instrumenta
 
 ### Revalidación de suite completa y comparación con base (2026-10-17)
 
-En `docs/audits/evidence/issue-39/integrated-head-2026-10-17/full-suite-revalidation.md` se registró la ejecución de `:app:connectedDebugAndroidTest` en `fe6de0b`: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas del alcance de tema/filtros/evidencia pasaron. Los 12 fallos antes no atribuidos se repitieron individualmente sobre `origin/main` (`e440bc1`) y fallaron también; los otros cuatro ya tenían reproducción en esa base. No se identificaron regresiones nuevas atribuibles a #55.
+En `docs/audits/tema-oscuro/issue-39/evidencias/integrated-head-2026-10-17/full-suite-revalidation.md` se registró la ejecución de `:app:connectedDebugAndroidTest` en `fe6de0b`: 348 tests, 16 fallos, 0 errores y 0 omitidos. Las 26 pruebas del alcance de tema/filtros/evidencia pasaron. Los 12 fallos antes no atribuidos se repitieron individualmente sobre `origin/main` (`e440bc1`) y fallaron también; los otros cuatro ya tenían reproducción en esa base. No se identificaron regresiones nuevas atribuibles a #55.
 
 T123 sigue abierta: falta una captura del IME real y la suite global continúa con fallos reproducibles en la base. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta aceptación visual humana; no se cierra #39.
 

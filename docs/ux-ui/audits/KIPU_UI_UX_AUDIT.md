@@ -113,7 +113,7 @@ Las capturas de apoyo de esta auditoría se retiraron en la limpieza de artefact
 
 [OBSERVADO] Un ítem de la barra de Dashboard ocupa `y=2182..2317`; la barra del sistema comienza en `y=2205` y termina en `2340`. Intersección: `2317−2205=112 px`. Con densidad `450/160=2,8125`, son `39,82 dp`. De los aproximadamente 48 dp de ese ítem, quedan alrededor de **8,2 dp por encima** de la zona del sistema.
 
-[CÓDIGO] `KipuBottomBar` es una `Surface`/`Row` propia sin tratamiento local de `navigationBars` en [DashboardScreen](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L1668). Esta coincidencia explica el defecto de geometría; la ruta exacta de cada evento interceptado por Android no se instrumentó. El retorno a Ajustes es una observación; atribuirlo a un botón concreto del sistema sigue siendo [INFERENCIA].
+[CÓDIGO] `KipuBottomBar` es una `Surface`/`Row` propia sin tratamiento local de `navigationBars` en [DashboardScreen](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L1668). Esta coincidencia explica el defecto de geometría; la ruta exacta de cada evento interceptado por Android no se instrumentó. El retorno a Ajustes es una observación; atribuirlo a un botón concreto del sistema sigue siendo [INFERENCIA].
 
 ### Límites de las pruebas
 
@@ -127,9 +127,9 @@ No se ejecutaron transacciones válidas para probar doble envío, cancelación d
 
 [OBSERVADO] No hay navegación inferior en Historial. **Sí existe en Dashboard**, por lo que no sería correcto diagnosticar una ausencia total. Está situada en una pantalla secundaria, muestra Inicio/Movimientos/Mis Cuentas/Análisis y mantiene Mis Cuentas seleccionado.
 
-[CÓDIGO] [MainActivity:237](../../app/src/main/java/com/kipu/app/MainActivity.kt#L237) elige Historial como destino autenticado cuando la selección inicial de plan ya existe. Esta decisión explica el aterrizaje observado; no es consecuencia obligatoria de una regla contable. Se examinó esa decisión de destino, no los flujos de acceso excluidos.
+[CÓDIGO] [MainActivity:237](../../../app/src/main/java/com/kipu/app/MainActivity.kt#L237) elige Historial como destino autenticado cuando la selección inicial de plan ya existe. Esta decisión explica el aterrizaje observado; no es consecuencia obligatoria de una regla contable. Se examinó esa decisión de destino, no los flujos de acceso excluidos.
 
-[CÓDIGO] [DashboardScreen:162](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L162) define callbacks vacíos por defecto para Inicio y Análisis. [AccountsNavigation](../../app/src/main/java/com/kipu/app/navigation/AccountsNavigation.kt) no los conecta. La selección de Mis Cuentas es fija, en lugar de derivarse del destino del controlador de navegación.
+[CÓDIGO] [DashboardScreen:162](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L162) define callbacks vacíos por defecto para Inicio y Análisis. [AccountsNavigation](../../../app/src/main/java/com/kipu/app/navigation/AccountsNavigation.kt) no los conecta. La selección de Mis Cuentas es fija, en lugar de derivarse del destino del controlador de navegación.
 
 [DOCUMENTACIÓN] El mapa general del prototipo describe Inicio como raíz y navegación entre Inicio, Historial, Calendario, Planificación y Reportes. Esa arquitectura expresa la intención futura, pero no acredita que los cinco módulos estén completos hoy. Los prompts del prototipo son cascarones visuales; sus callbacks simulados no son un contrato de comportamiento válido para el producto activo.
 
@@ -174,11 +174,11 @@ El tratamiento de insets debe considerar que Android aplica edge-to-edge a aplic
 
 **[OBSERVADO] Problemas:** el bloque superior ocupa una porción amplia del viewport; crédito aparece después de cuentas y requiere recorrido adicional. La tarjeta de la lista muestra deuda y corte, pero disponible/utilización están en el detalle. La barra inferior está solapada; “100% conciliado” aparece sin explicar qué se concilió.
 
-**[CÓDIGO] QW-05:** ese porcentaje es una cadena literal en [DashboardScreen:1135](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L1135), no un cálculo de conciliación. Historial tiene filas “Requiere revisión”. Eso evidencia comunicación sin respaldo; **no prueba por sí solo que revisión, sincronización y conciliación bancaria sean el mismo estado**.
+**[CÓDIGO] QW-05:** ese porcentaje es una cadena literal en [DashboardScreen:1135](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt#L1135), no un cálculo de conciliación. Historial tiene filas “Requiere revisión”. Eso evidencia comunicación sin respaldo; **no prueba por sí solo que revisión, sincronización y conciliación bancaria sean el mismo estado**.
 
 **[PROPUESTA] Jerarquía:** disponible líquido → cuentas → crédito con deuda/disponible/utilización → próximas fechas pertinentes. Reducir espacios y preview decorativo antes de quitar información. Si se introduce patrimonio neto, debe usar el contrato de P22; no renombrar el disponible actual como patrimonio sin calcular pasivos/otros activos correctamente.
 
-**[PROPUESTA] HI-08:** reutilizar la capacidad del [CreditCardSummaryCard existente](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt), después de verificar su equivalencia con los modelos activos del Dashboard. Mostrar deuda, disponible crediticio, porcentaje utilizado y fecha; no confundirlos con liquidez. Los estados 50/80/100 deben respetar HU-10 y configuración, sin un nuevo umbral comercial inventado.
+**[PROPUESTA] HI-08:** reutilizar la capacidad del [CreditCardSummaryCard existente](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/components/CreditCardSummaryCard.kt), después de verificar su equivalencia con los modelos activos del Dashboard. Mostrar deuda, disponible crediticio, porcentaje utilizado y fecha; no confundirlos con liquidez. Los estados 50/80/100 deben respetar HU-10 y configuración, sin un nuevo umbral comercial inventado.
 
 **[PROPUESTA] QW-08:** “3 de 4 instrumentos”, con desglose al tocar el indicador. [DOCUMENTACIÓN] HU-57 cuenta una cuenta y su débito por separado; efectivo y cuenta interna de crédito no duplican cupo. [CÓDIGO] El repositorio suma cuentas computables y tarjetas. **Dos filas/secciones visibles no prueban un error en el contador 3/4.** Explicar el criterio es mejor que alterar el cálculo por intuición.
 
@@ -198,7 +198,7 @@ El tratamiento de insets debe considerar que Android aplica edge-to-edge a aplic
 
 **[PROPUESTA] HI-05:** compactar filas de cuenta/categoría/comercio manteniendo información de selección. Comercio permanece visible y opcional en Gasto. Fecha conserva resumen “Hoy” accesible; edición de fecha/nota queda en un nivel secundario. Gasto exige categoría según la regla; Ingreso la conserva opcional; Transferencia no la requiere. No añadir campos obligatorios por estética.
 
-**[OBSERVADO] QW-10:** Ingreso sin categorías sigue mostrando “Cargando categorías” en la recaptura. **[CÓDIGO]** [QuickMovementScreen:583](../../app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt#L583) deduce carga de `availableCategories.isEmpty()`. No diferencia vacío de una petición activa. **[PROPUESTA]** modelar Loading/Empty/Error; permitir continuar el ingreso sin categoría y ofrecer una salida local razonable. No exigir reconexión como explicación universal de una lista vacía.
+**[OBSERVADO] QW-10:** Ingreso sin categorías sigue mostrando “Cargando categorías” en la recaptura. **[CÓDIGO]** [QuickMovementScreen:583](../../../app/src/main/java/com/kipu/app/feature/movements/presentation/QuickMovementScreen.kt#L583) deduce carga de `availableCategories.isEmpty()`. No diferencia vacío de una petición activa. **[PROPUESTA]** modelar Loading/Empty/Error; permitir continuar el ingreso sin categoría y ofrecer una salida local razonable. No exigir reconexión como explicación universal de una lista vacía.
 
 ### Cuentas y tarjetas / detalle
 
@@ -206,7 +206,7 @@ El tratamiento de insets debe considerar que Android aplica edge-to-edge a aplic
 
 **[PROPUESTA]** Separar resumen operativo de “Editar datos/presentación”; mantener estilo y alias accesibles como acción secundaria. Reducir el preview, sin eliminar privacidad ni identidad del instrumento.
 
-**[OBSERVADO] HI-09:** crédito muestra próxima fecha de pago con deuda cero y el texto “Rango óptimo (< 30% no afecta score)”. **[CÓDIGO]** El texto es literal en [AccountDetailScreen:1341](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt#L1341). No se verificó una obligación de pago real ni una garantía sobre score. **[PROPUESTA]** distinguir “Fecha de pago configurada” de “Pago pendiente” según datos disponibles; describir uso de línea sin garantizar resultados crediticios.
+**[OBSERVADO] HI-09:** crédito muestra próxima fecha de pago con deuda cero y el texto “Rango óptimo (< 30% no afecta score)”. **[CÓDIGO]** El texto es literal en [AccountDetailScreen:1341](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/detail/AccountDetailScreen.kt#L1341). No se verificó una obligación de pago real ni una garantía sobre score. **[PROPUESTA]** distinguir “Fecha de pago configurada” de “Pago pendiente” según datos disponibles; describir uso de línea sin garantizar resultados crediticios.
 
 **[OBSERVADO] Tasas:** existe separación entre TEA referencial y personal: conservarla. La pantalla de catálogo expone estado técnico, URL y datos repetidos. **[PROPUESTA]** fecha de consulta/fuente humana, enlace de detalle y advertencia breve de referencia; no ocultar procedencia. No se auditó la exactitud actual de tasas ni se consultó una cotización bancaria: los valores capturados no son una recomendación financiera.
 
@@ -230,7 +230,7 @@ Este orden no obliga a convertir el formulario en un wizard largo. Primero proba
 
 ### Validación
 
-[OBSERVADO] En el alta de crédito la línea vacía se marca inválida. El mensaje de cuatro dígitos también aparece antes de escribir; distinguir si actúa como ayuda o error. [CÓDIGO] `parsedAmount == null` activa error sin estado touched en [UnifiedInstrumentFormScreen](../../app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/UnifiedInstrumentFormScreen.kt#L761). El botón inactivo resume “completa obligatorios”, pero no guía al primer campo pendiente.
+[OBSERVADO] En el alta de crédito la línea vacía se marca inválida. El mensaje de cuatro dígitos también aparece antes de escribir; distinguir si actúa como ayuda o error. [CÓDIGO] `parsedAmount == null` activa error sin estado touched en [UnifiedInstrumentFormScreen](../../../app/src/main/java/com/kipu/app/feature/accounts/presentation/instruments/UnifiedInstrumentFormScreen.kt#L761). El botón inactivo resume “completa obligatorios”, pero no guía al primer campo pendiente.
 
 [PROPUESTA] HI-03: ayuda neutral antes de interacción; validar formato tras abandonar campo o intentar guardar; eliminar el error cuando se corrija. Diferenciar **falta por completar** de **valor inválido**. Tras un intento, desplazar y enfocar el primer error pertinente. Evitar cambios de foco por cada tecla y mensajes que salten mientras se escribe un monto parcial.
 
@@ -310,7 +310,7 @@ Autoridad: Obsidian Mind, `work/active/kipu/Procesos/15-consultar-y-filtrar-hist
 
 ### Brechas funcionales separadas del rediseño
 
-- **CE-04 [CÓDIGO]:** [MovementHistoryViewModel:202](../../app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryViewModel.kt#L202) observa todas las transacciones; filtra y agrupa en memoria; `hasMorePages=false` en la UI. Existen contratos y tareas históricas que declaran paginación, pero no se verificó un camino paginado de esta pantalla. **[DOCUMENTACIÓN]** P15 exige cursor estable. **[INFERENCIA]** posible impacto con miles de movimientos; las tres filas actuales no demuestran lentitud. Investigar discrepancia y conectar la capacidad existente antes de crear otro motor de query.
+- **CE-04 [CÓDIGO]:** [MovementHistoryViewModel:202](../../../app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryViewModel.kt#L202) observa todas las transacciones; filtra y agrupa en memoria; `hasMorePages=false` en la UI. Existen contratos y tareas históricas que declaran paginación, pero no se verificó un camino paginado de esta pantalla. **[DOCUMENTACIÓN]** P15 exige cursor estable. **[INFERENCIA]** posible impacto con miles de movimientos; las tres filas actuales no demuestran lentitud. Investigar discrepancia y conectar la capacidad existente antes de crear otro motor de query.
 - **CE-05 [DOCUMENTACIÓN] + [CÓDIGO]:** filtro de **fuente/procedencia** aparece en P15/HU-22 y permanece abierto como T110 en el artefacto existente. No se debe inventar una procedencia a partir de cuenta, sync o texto. Confirmar contrato Room/dominio/datos remotos y preservar procedencia desconocida histórica. No se consulta ni modifica producción para el rediseño visual.
 
 ## 8. Light Mode vs Dark Mode — Contraste WCAG AA y Tokens
@@ -345,7 +345,7 @@ QW-03 propone usar el rol secundario de Claro, no el gris de Oscuro hardcodeado,
 
 [OBSERVADO] La mayor parte del texto del historial, formulario y detalle es legible. Existe un fallo **local** en comercios, no evidencia de que todo el tema oscuro falle.
 
-[CÓDIGO] [MerchantPicker](../../app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt#L245) combina `MaterialTheme.colorScheme.primary` con `Color.White`. En Oscuro, primary es `#80D5CB` y su pareja prevista `onPrimary` es oscura. **QW-04 [PROPUESTA]:** usar pares semánticos del esquema, nunca asumir que todo primary necesita blanco.
+[CÓDIGO] [MerchantPicker](../../../app/src/main/java/com/kipu/app/feature/categories/presentation/components/MerchantPicker.kt#L245) combina `MaterialTheme.colorScheme.primary` con `Color.White`. En Oscuro, primary es `#80D5CB` y su pareja prevista `onPrimary` es oscura. **QW-04 [PROPUESTA]:** usar pares semánticos del esquema, nunca asumir que todo primary necesita blanco.
 
 RV-02 propone revisar agrupación de cards y límites de campos oscuros. Si un borde es la única señal de un control activo, reforzarlo conforme al contraste no textual; no aclarar indiscriminadamente todos los contenedores. El estado seleccionado necesita texto/icono o forma, además de color.
 
@@ -370,7 +370,7 @@ RV-02 propone revisar agrupación de cards y límites de campos oscuros. Si un b
 | Tipografía | `titleMedium=18sp`, `titleLarge=16sp` | Mapeo invertido de jerarquía Material |
 | Dinero | Inter + `tnum` en MoneyText | Reutilización válida; falta uniformar dirección/contexto |
 
-[DOCUMENTACIÓN] `docs/stitch-design-system.md` propone Inter y roles `title-md` 18 / `title-sm` 16. Esos tamaños no son en sí incorrectos: **la inversión está en asignar el rol pequeño a `titleLarge`**. Otros roles de `Typography` no configurados pueden conservar defaults Material; revisar su uso antes de afirmar que todos usan Inter.
+[DOCUMENTACIÓN] `docs/DESIGN.md` propone Inter y roles `title-md` 18 / `title-sm` 16. Esos tamaños no son en sí incorrectos: **la inversión está en asignar el rol pequeño a `titleLarge`**. Otros roles de `Typography` no configurados pueden conservar defaults Material; revisar su uso antes de afirmar que todos usan Inter.
 
 ### Arquitectura recomendada CE-02 / CE-03
 
@@ -393,7 +393,7 @@ RV-01 incluye corregir mapa tipográfico y layouts a fuente grande. Definir role
 
 ### Inventario existente
 
-[CÓDIGO] [KipuMotionTokens](../../app/src/main/java/com/kipu/app/ui/theme/Motion.kt) declara 80/150/250/350/400/500 ms; Feedback=150. Hay duraciones compartidas, pero no roles comunes de easing/desplazamiento. [ReducedMotion](../../app/src/main/java/com/kipu/app/ui/motion/ReducedMotion.kt) observa las tres escalas globales y detecta cero.
+[CÓDIGO] [KipuMotionTokens](../../../app/src/main/java/com/kipu/app/ui/theme/Motion.kt) declara 80/150/250/350/400/500 ms; Feedback=150. Hay duraciones compartidas, pero no roles comunes de easing/desplazamiento. [ReducedMotion](../../../app/src/main/java/com/kipu/app/ui/motion/ReducedMotion.kt) observa las tres escalas globales y detecta cero.
 
 | Área | Implementación encontrada [CÓDIGO] | Evaluación |
 | :--- | :--- | :--- |
@@ -422,7 +422,7 @@ Estas son [PROPUESTA], no duraciones medidas del APK ni tokens ya aprobados. Las
 
 ### Riesgos específicos de implementación
 
-**MO-01 [CÓDIGO] + [INFERENCIA]:** [MovementAccessCard:60](../../app/src/main/java/com/kipu/app/feature/movements/presentation/MovementAccessCard.kt#L60) calcula `warning` con el contenido externo, mientras AnimatedContent presenta un `target`. Durante una transición, el contenido saliente puede recibir colores del entrante. Derivar pares por el estado animado donde corresponda. El botón principal protege `target == content`, pero la acción secundaria Ver Premium de NO_PURCHASE no usa esa misma condición. Revisar toques durante salida; no se reprodujo una navegación accidental por este caso.
+**MO-01 [CÓDIGO] + [INFERENCIA]:** [MovementAccessCard:60](../../../app/src/main/java/com/kipu/app/feature/movements/presentation/MovementAccessCard.kt#L60) calcula `warning` con el contenido externo, mientras AnimatedContent presenta un `target`. Durante una transición, el contenido saliente puede recibir colores del entrante. Derivar pares por el estado animado donde corresponda. El botón principal protege `target == content`, pero la acción secundaria Ver Premium de NO_PURCHASE no usa esa misma condición. Revisar toques durante salida; no se reprodujo una navegación accidental por este caso.
 
 **MO-04 [PROPUESTA]:** cambiar utilización rebotante por una transición acotada si pruebas muestran sobrepaso/confusión; el saldo no anima. **MO-05 [PROPUESTA]:** probar escala cero y reanudar escalas previas al terminar, verificando que la pantalla llegue al estado final y que acciones salientes no sigan activas.
 
@@ -591,10 +591,10 @@ No todo lo agrupado aquí es cosmético: RV-01 incluye accesibilidad; se separa 
 | Cambio | Artefactos afectados | Qué actualizar |
 | :--- | :--- | :--- |
 | CE-01 | Vault: `work/active/kipu/Prototipo/P1/Esquema de pantallas generales.md`, `Esquema de pantallas relacionadas con las HU.md`, `Descripción de Pantallas según Historias de Usuario.md`, `Stich Prompts.md`; [catálogo local](../references/stitch-redesign-catalog.md) | Raíces, destino inicial, barra con destinos efectivamente construidos, Ajustes y retornos. Diferenciar resumen actual de Inicio futuro |
-| QW-05/07/08, HI-08/09 | Vault: HU-04/HU-09/HU-10/HU-57 y P22; [UI cuentas](../../specs/002-ep-cta-cuentas-tarjetas/contracts/ui-contract.md) | Significado de indicadores, etiquetas de cupo, contexto monetario, resumen crediticio. No cambiar fórmulas/alertas por diseño |
-| HI-01/02, QW-09/12, CE-04/05 | Vault: HU-22/P15; [UI movimientos](../../specs/004-ep-mov-movimientos-ledger/contracts/ui-contract.md), [contrato de acceso](../../specs/012-ep-pla-planes-monetizacion/contracts/feature-access-policy.md) | Básicos/avanzados, borrador/aplicado/pausado, navegación del panel y fuente/paginación. Mantener gate en dominio |
-| HI-03/04/05/06/07/10, CE-06 | Vault: descripciones de Pantallas 4–7/10–11 y prompts correspondientes; contratos UI de EP-CTA/EP-MOV y [EP-CCO](../../specs/003-ep-cco-categorias-comercios/contracts/ui-contract.md) | Jerarquía de formulario, selección, validación y retención/cierre. No convertir campos opcionales en obligatorios |
-| CE-02/03, RV-01/02/03, MO-02/03/04 | [Design system](../../stitch-design-system.md), catálogo visual y prompts de las pantallas afectadas | Roles por tema, tipografía, componentes, motion y variantes de viewport |
+| QW-05/07/08, HI-08/09 | Vault: HU-04/HU-09/HU-10/HU-57 y P22; [UI cuentas](../../../specs/002-ep-cta-cuentas-tarjetas/contracts/ui-contract.md) | Significado de indicadores, etiquetas de cupo, contexto monetario, resumen crediticio. No cambiar fórmulas/alertas por diseño |
+| HI-01/02, QW-09/12, CE-04/05 | Vault: HU-22/P15; [UI movimientos](../../../specs/004-ep-mov-movimientos-ledger/contracts/ui-contract.md), [contrato de acceso](../../../specs/012-ep-pla-planes-monetizacion/contracts/feature-access-policy.md) | Básicos/avanzados, borrador/aplicado/pausado, navegación del panel y fuente/paginación. Mantener gate en dominio |
+| HI-03/04/05/06/07/10, CE-06 | Vault: descripciones de Pantallas 4–7/10–11 y prompts correspondientes; contratos UI de EP-CTA/EP-MOV y [EP-CCO](../../../specs/003-ep-cco-categorias-comercios/contracts/ui-contract.md) | Jerarquía de formulario, selección, validación y retención/cierre. No convertir campos opcionales en obligatorios |
+| CE-02/03, RV-01/02/03, MO-02/03/04 | [Design system](../../DESIGN.md), catálogo visual y prompts de las pantallas afectadas | Roles por tema, tipografía, componentes, motion y variantes de viewport |
 | Confirmación / conexiones entre journeys | Vault: `Procesos/14-corregir-o-anular-movimiento.md`, `15-consultar-y-filtrar-historial.md`, `22-consultar-situacion-y-analitica-financiera.md`, diagramas correspondientes si representan las rutas afectadas | Cambiar interacción/navegación cuando proceda, conservando compensación contable, autorización y reglas financieras |
 
 La tabla identifica qué revisar y dónde documentar la nueva fuente de verdad. No afirma que todas las HU deban modificarse: si solo cambia representación, bastan contratos de UI y mapas. Los artefactos Spec Kit se citan por trazabilidad; **no se ejecuta ni se inicia su workflow en esta auditoría**.
@@ -679,6 +679,6 @@ Obsidian Mind se consultó mediante `om.search`, `om.recall` y `om.expand`; para
 - `work/active/kipu/Procesos/15-consultar-y-filtrar-historial.md`: básicos Free, combinaciones Premium, historia completa y paginación.
 - `work/active/kipu/Procesos/22-consultar-situacion-y-analitica-financiera.md`: interpretación y composición de situación financiera.
 - `work/active/kipu/Prototipo/P1/`: mapas, descripción de pantallas y `Stich Prompts.md`, utilizados como referencias de intención después del runtime.
-- [Design system local](../../stitch-design-system.md), [catálogo visual](../references/stitch-redesign-catalog.md), contratos UI citados y [auditoría anterior](../../audits/KIPU_FULL_FUNCTIONAL_UX_AUDIT.md), esta última solo como antecedente.
+- [Design system local](../../DESIGN.md), [catálogo visual](../references/stitch-redesign-catalog.md), contratos UI citados y [auditoría anterior](../../audits/funcional/2026-09-28/informe.md), esta última solo como antecedente.
 
 **Cierre:** el entregable termina en este informe y sus evidencias. Las decisiones estructurales, de contratos o de representación quedan propuestas para aprobación; no se declara cerrado Sprint 4 ni implementado el roadmap.

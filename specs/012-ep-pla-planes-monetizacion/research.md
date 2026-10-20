@@ -16,7 +16,7 @@
 
 ## R-002 - Fuente de Diseño Stitch
 
-**Decision**: Usar como referencia visual y estructural autoritativa la pantalla Stitch `projects/5775615138851387862/screens/b8b4bfdcf384409887e54a975c549797`, dentro de `Kipu V4 Finale`, conciliada con los invariantes funcionales de `docs/stitch-design-system.md` y `spec.md`.
+**Decision**: Usar como referencia visual y estructural autoritativa la pantalla Stitch `projects/5775615138851387862/screens/b8b4bfdcf384409887e54a975c549797`, dentro de `Kipu V4 Finale`, conciliada con los invariantes funcionales de `docs/DESIGN.md` y `spec.md`.
 
 **Rationale**: El MCP confirmó la pantalla “Pantalla 1B: Selección de Plan”, canvas móvil 780x2412 y design system `Kipu Andean Modernist`. La composición aprobada incluye Free informativo, Trial estático, tres opciones Premium, precios, badges, dos CTA y footer fiscal. El comportamiento continúa limitado a persistir una preferencia sin cobro ni entitlement.
 
@@ -159,7 +159,7 @@
 - Recuperación post-commit: rescan de outbox + trabajo único + safety net periódico.
 - Elegibilidad sin Play: proyección server-only con vigencia explícita; `UNKNOWN` conservador cuando falta evidencia.
 - Conflicto entre `PREMIUM_REQUIRED` y spec: prevalece `PREMIUM_ENTITLEMENT_REQUIRED` de FR-018.
-- `Stich Prompts.md`: no existe localmente; el artefacto Stitch extraído y `docs/stitch-design-system.md` son la evidencia disponible, sin afirmaciones adicionales.
+- `Stich Prompts.md`: no existe localmente; el artefacto Stitch extraído y `docs/DESIGN.md` son la evidencia disponible, sin afirmaciones adicionales.
 # Sprint 3 — Google Play Billing: decisiones y prerequisitos
 
 ## Contrato comercial

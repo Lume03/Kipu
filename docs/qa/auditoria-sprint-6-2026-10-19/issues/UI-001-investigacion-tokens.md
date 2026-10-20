@@ -10,14 +10,14 @@
 
 ## Fuente esperada y fundamento
 
-`docs/stitch-design-system.md` declara en sus primeras líneas que Kipu Andean Modernist es la única fuente visual normativa. Especifica que los tokens del tema prevalecen sobre discrepancias de prosa. La expectativa verificable es que el tema utilice los valores aprobados o que las diferencias se documenten como overrides deliberados con alcance y precedencia claros.
+`docs/DESIGN.md` declara en sus primeras líneas que Kipu Andean Modernist es la única fuente visual normativa. Especifica que los tokens del tema prevalecen sobre discrepancias de prosa. La expectativa verificable es que el tema utilice los valores aprobados o que las diferencias se documenten como overrides deliberados con alcance y precedencia claros.
 
 El catálogo de rediseño `docs/ux-ui/references/stitch-redesign-catalog.md` está congelado hasta S3; no se convierte aquí en requisito funcional S6/S7. Esta investigación no obliga a volver a un mockup ni a alterar colores sin reconciliar la autoridad vigente.
 
 ## Reproducción estática
 
 1. Consultar el checkout base `dd6758a01a236aa61053ebf8ab24f25e0c835ba5`.
-2. Comparar los roles de `docs/stitch-design-system.md` con `app/src/main/java/com/kipu/app/ui/theme/Color.kt`.
+2. Comparar los roles de `docs/DESIGN.md` con `app/src/main/java/com/kipu/app/ui/theme/Color.kt`.
 3. Consultar `Theme.kt` y su asignación a `lightColorScheme`.
 4. Buscar una decisión/override aprobado que concilie cada diferencia antes de decidir qué archivo se debe actualizar.
 

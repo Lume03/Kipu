@@ -7,7 +7,7 @@
 
 ## 1. Alcance y método
 
-Se revisaron el informe funcional `informe.md`, el checkpoint de coordinación, las capturas QA disponibles, el sistema de diseño `docs/stitch-design-system.md`, el catálogo `docs/ux-ui/references/stitch-redesign-catalog.md` y los criterios de HU-18, HU-20–24 y HU-31–35 del backlog.
+Se revisaron el informe funcional `informe.md`, el checkpoint de coordinación, las capturas QA disponibles, el sistema de diseño `docs/DESIGN.md`, el catálogo `docs/ux-ui/references/stitch-redesign-catalog.md` y los criterios de HU-18, HU-20–24 y HU-31–35 del backlog.
 
 La evaluación considera claridad de navegación y acciones, prevención/recuperación de errores, formularios y conservación de estado, feedback de operaciones, significado de estados locales/remotos y estados vacíos o deshabilitados. Las capturas documentan pantallas concretas; no prueban por sí solas transiciones, persistencia o significado de etiquetas. Las observaciones del comportamiento se atribuyen a QA y no se presentan como sesiones realizadas por UX.
 

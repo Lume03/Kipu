@@ -6,7 +6,7 @@
 
 ## 1. Alcance y método
 
-Se revisaron el canon visual `docs/stitch-design-system.md`, el catálogo Stitch `docs/ux-ui/references/stitch-redesign-catalog.md`, `Color.kt`, `Type.kt` y `Theme.kt`, el informe QA, y capturas conservadas de búsqueda, borrador, deuda/cobro, meta, recurrencia y el estado vacío posterior a editar. La revisión se limita a evidencia visual disponible y comparación estática de tokens. No se operó el dispositivo ni se midieron contraste, dp/sp, áreas táctiles, accesibilidad asistida o rendimiento.
+Se revisaron el canon visual `docs/DESIGN.md`, el catálogo Stitch `docs/ux-ui/references/stitch-redesign-catalog.md`, `Color.kt`, `Type.kt` y `Theme.kt`, el informe QA, y capturas conservadas de búsqueda, borrador, deuda/cobro, meta, recurrencia y el estado vacío posterior a editar. La revisión se limita a evidencia visual disponible y comparación estática de tokens. No se operó el dispositivo ni se midieron contraste, dp/sp, áreas táctiles, accesibilidad asistida o rendimiento.
 
 El catálogo Stitch indica alcance funcional congelado hasta S3; se usa solo como referencia de composición y no como requisito funcional para S4–S6. El design system `Kipu Andean Modernist` es la fuente normativa de tokens. QA reporta que el hash del APK instalado coincide con el candidato QA Premium cuyo worktree base y delta están documentados; esta relación no equivale a una atestación reproducible de build ni identifica necesariamente la instalación de cada síntoma histórico. Las capturas por sí solas no prueban animación, navegación, interacción con lector de pantalla ni persistencia remota.
 
@@ -27,7 +27,7 @@ El catálogo Stitch indica alcance funcional congelado hasta S3; se usa solo com
 - **Severidad / prioridad:** INFO / P3. La incoherencia dificulta saber cuál paleta debe preservarse y puede afectar consistencia/contraste si esos roles se usan; no hay evidencia de perjuicio concreto para la persona usuaria.
 - **Frecuencia:** no aplica a una interacción reproducida; la discrepancia aparece en las definiciones consultadas.
 - **Esperado:** los roles de color del tema Compose deben corresponder a los tokens normativos, o la diferencia debe quedar documentada como una decisión deliberada/override aprobado.
-- **Observado en fuentes:** ejemplos de diferencias entre `stitch-design-system.md` y `app/src/main/java/com/kipu/app/ui/theme/Color.kt`:
+- **Observado en fuentes:** ejemplos de diferencias entre `DESIGN.md` y `app/src/main/java/com/kipu/app/ui/theme/Color.kt`:
   - `background`: norma `#F7F9FB`; fuente `KipuBackground = #F8FAFC`.
   - `on_surface`: norma `#191C1E`; fuente `KipuOnSurface = #0F172A`.
   - `surface_variant`: norma `#E0E3E5`; fuente `KipuSurfaceVariant = #F1F5F9`.
@@ -36,7 +36,7 @@ El catálogo Stitch indica alcance funcional congelado hasta S3; se usa solo com
   - `on_primary_container`: norma `#A3FAEF`; fuente `KipuOnPrimaryContainer = #134E4A`.
   - `surface_tint`/anillo de selección: norma `#006A63`; fuente `KipuSelectionRing = #0F766E`.
 - **Evidencia visual:** las capturas disponibles muestran fondos claros y acentos teal, pero no permiten muestrear fielmente el color del render (compresión/captura, perfil, densidad y estado de tema desconocidos). No se usa la apariencia de una captura como prueba de igualdad o desigualdad exacta de hex.
-- **Fundamento:** `docs/stitch-design-system.md` declara el canon como fuente única de verdad visual normativa y prioriza los tokens del tema; `Color.kt` contiene valores distintos en varios roles. `Theme.kt` asigna esos valores al `lightColorScheme` y `darkColorScheme`. Según la correlación de hash registrada por QA, el APK candidato instalado se asocia a este código base, con cambios exclusivos QA de provisioning/documentación; no se afirma que cada síntoma histórico provenga de la misma instalación.
+- **Fundamento:** `docs/DESIGN.md` declara el canon como fuente única de verdad visual normativa y prioriza los tokens del tema; `Color.kt` contiene valores distintos en varios roles. `Theme.kt` asigna esos valores al `lightColorScheme` y `darkColorScheme`. Según la correlación de hash registrada por QA, el APK candidato instalado se asocia a este código base, con cambios exclusivos QA de provisioning/documentación; no se afirma que cada síntoma histórico provenga de la misma instalación.
 - **Impacto:** el código base asociado al artefacto difiere de la paleta normativa en roles de tema; la diferencia puede afectar consistencia y decisiones de contraste. Contraste real y efecto para la persona usuaria no medidos.
 - **Causa:** diferencia observable en los archivos, motivo/autoría no confirmados. Podrían ser una actualización intencional no reflejada en el documento, valores históricos o una discrepancia efectiva.
 - **Propuesta (no aplicada):** que el responsable del sistema visual concilie documentación y tokens Compose, preserve el canon aprobado o registre el override autorizado, y luego valide contraste por combinación/estado en la build correcta.

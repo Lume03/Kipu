@@ -40,7 +40,7 @@
 
 ## R-005 — Visual design, accessibility, and motion
 
-**Decision**: Use `docs/stitch-design-system.md` semantic Kipu theme colors and the already bundled Inter typeface. Build filter chips and explicit archive actions with at least 48dp targets. Use accessible read/category labels, a semantic unread count, and a text-plus-dot distinction. Apply Compose enter/exit/badge motion only when reduced motion is not enabled.
+**Decision**: Use `docs/DESIGN.md` semantic Kipu theme colors and the already bundled Inter typeface. Build filter chips and explicit archive actions with at least 48dp targets. Use accessible read/category labels, a semantic unread count, and a text-plus-dot distinction. Apply Compose enter/exit/badge motion only when reduced motion is not enabled.
 
 **Evidence**: The product prompt fixes background `#F7F9FB`, white cards, teal `#0F766E`, Inter, and 48dp targets. `ui-ux-pro-max` search results for general financial apps recommended an unrelated palette and were rejected. `transitions-dev` motion timing examples are CSS-specific; their intent is adapted to native Compose, without adding dependencies.
 

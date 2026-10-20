@@ -97,7 +97,7 @@ Regla de formulario: la categoría es obligatoria para Gasto y opcional para Ing
 
 - Pantalla 11: tabs Gasto/Ingreso/Transferencia; monto, cuenta origen, destino para transferencia, categoría/comercio opcionales según reglas acordadas, fecha/hora, nota y confirmación de posible duplicado.
 - Pantalla 10 mínima: grupos cronológicos y filas con icono, descripción, cuenta, monto con signo y estado de sincronización.
-- Se implementa con fidelidad visual estricta a `docs/stitch-design-system.md` y `Stich Prompts.md` (Pantalla 10 para Historial y Pantalla 11 para Modal de Registro en Bottom Sheet). Reutiliza tema, componentes, tokens de color (Primary #0F766E, Income #16A34A, Expense #E85D5D) y números tabulares `tnum`.
+- Se implementa con fidelidad visual estricta a `docs/DESIGN.md` y `Stich Prompts.md` (Pantalla 10 para Historial y Pantalla 11 para Modal de Registro en Bottom Sheet). Reutiliza tema, componentes, tokens de color (Primary #0F766E, Income #16A34A, Expense #E85D5D) y números tabulares `tnum`.
 
 ### Sincronización
 
@@ -248,9 +248,9 @@ La prueba compacta usa un `ComposeView` con `ContextThemeWrapper` y configuraci�
 
 ## Issue #39 — Corrección de tema autorizada (2026-10-13)
 
-T119–T125 concretan la corrección cromática y auditoría de la aplicación. Resolver colores desde el tema efectivo de `KipuTheme`, usar parejas semánticas de foreground/fondo y preservar valores cromáticos persistidos. `incomeText`/`expenseText` distinguen texto accesible de acentos decorativos. Los componentes reales reciben previews claras/oscuras; la evidencia se obtiene con fixtures válidos en la variante aislada lab y se guarda en `docs/audits/evidence/issue-39/`.
+T119–T125 concretan la corrección cromática y auditoría de la aplicación. Resolver colores desde el tema efectivo de `KipuTheme`, usar parejas semánticas de foreground/fondo y preservar valores cromáticos persistidos. `incomeText`/`expenseText` distinguen texto accesible de acentos decorativos. Los componentes reales reciben previews claras/oscuras; la evidencia se obtiene con fixtures válidos en la variante aislada lab y se guarda en `docs/audits/tema-oscuro/issue-39/evidencias/`.
 
-La presentación de filtros conserva SC-014–017: privacidad y owner, aplicar/cancelar/limpiar, readonly y runtime verificable. Las pruebas nuevas miden roles de producción y cambio de tema con borrador abierto; la regresión existente verifica acceso y referencias. El registro por método distingue resultados aceptados de intentos fallidos. No reutilizar resultados antiguos de #19, declarar cobertura API 24/TalkBack hablado sin ejecución ni cerrar T110 con esta corrección. Plan detallado y matriz de excepciones en `docs/audits/issue-39-dark-theme-plan.md` y `docs/audits/issue-39-dark-theme-audit.md`. Revisión independiente pendiente antes del cierre.
+La presentación de filtros conserva SC-014–017: privacidad y owner, aplicar/cancelar/limpiar, readonly y runtime verificable. Las pruebas nuevas miden roles de producción y cambio de tema con borrador abierto; la regresión existente verifica acceso y referencias. El registro por método distingue resultados aceptados de intentos fallidos. No reutilizar resultados antiguos de #19, declarar cobertura API 24/TalkBack hablado sin ejecución ni cerrar T110 con esta corrección. Plan detallado y matriz de excepciones en `docs/audits/tema-oscuro/issue-39/plan.md` y `docs/audits/tema-oscuro/issue-39/informe.md`. Revisión independiente pendiente antes del cierre.
 
 **Propagated**: 2026-10-19 — HU-24/S6: transferencia explícita a meta persistida como `TRANSFER` y dos asientos con la identidad estable del comando; reserva/evento, ledger, proyecciones y outbox se confirman en una transacción Room. El RPC devuelve esa identidad como transaction ID para reconciliar antes/después de sync. Las funciones vigentes de liquidación de deuda/préstamo siguen siendo dueñas de su contabilización; no se introduce una segunda clasificación operativa.
 

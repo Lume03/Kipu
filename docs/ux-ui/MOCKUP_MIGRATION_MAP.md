@@ -66,16 +66,16 @@ Trazabilidad de las pantallas generadas en Stitch (`projects/8741755512585500557
 | ID Pantalla Stitch | Nombre Funcional en Canvas | Archivo Local | Tipo |
 |:---|:---|:---|:---|
 | `e838b11bf002412b8e6a445eac784af2` | Detalle de Tarjeta — Consumos Activos (Utilización Moderada) | [`mockups/canonical/cards/card-detail-active.png`](./mockups/canonical/cards/card-detail-active.png) | Canonical |
-| `5608f03b9490463a8a29ee3e3e64faac` | Detalle de Tarjeta — Saldo Cero y Utilización Óptima | [`mockups/states/cards/card-detail-zero-balance.png`](./mockups/states/cards/card-detail-zero-balance.png) | State |
-| `088822b35c854898a96a080165b055fc` | Detalle de Tarjeta — Alta Utilización y Alerta de Riesgo | [`mockups/states/cards/card-detail-high-utilization.png`](./mockups/states/cards/card-detail-high-utilization.png) | State |
-| `a9635ec5c9a84016baf4bb7dc1ab3874` | Detalle de Tarjeta — Estado Archivada e Inactiva | [`mockups/states/cards/card-detail-archived.png`](./mockups/states/cards/card-detail-archived.png) | State |
-| `974f502337444017b9711b9cc018fe5a` | Editar Tarjeta de Crédito — Modal de Configuración | [`mockups/states/cards/card-edit-modal.png`](./mockups/states/cards/card-edit-modal.png) | State |
+| `5608f03b9490463a8a29ee3e3e64faac` | Detalle de Tarjeta — Saldo Cero y Utilización Óptima | `mockups/states/cards/card-detail-zero-balance.png` (archivo pendiente) | State |
+| `088822b35c854898a96a080165b055fc` | Detalle de Tarjeta — Alta Utilización y Alerta de Riesgo | `mockups/states/cards/card-detail-high-utilization.png` (archivo pendiente) | State |
+| `a9635ec5c9a84016baf4bb7dc1ab3874` | Detalle de Tarjeta — Estado Archivada e Inactiva | `mockups/states/cards/card-detail-archived.png` (archivo pendiente) | State |
+| `974f502337444017b9711b9cc018fe5a` | Editar Tarjeta de Crédito — Modal de Configuración | `mockups/states/cards/card-edit-modal.png` (archivo pendiente) | State |
 | `bd4cb6a6f4164cd8876084d687f222de` | Tasas y TEA — Simulador con Comparador Visual Tarifario | [`mockups/canonical/cards/card-tea-simulator.png`](./mockups/canonical/cards/card-tea-simulator.png) | Canonical |
-| `3dcca7960d164f7abce51114a2e492c6` | Tasas y TEA — Vista Referencial y TEA Personalizada | [`mockups/states/cards/card-tea-custom.png`](./mockups/states/cards/card-tea-custom.png) | State |
-| `2901b24eefd1440086497318deb9348b` | Tasas y TEA — Alerta Crítica (Tasa Fuera de Rango) | [`mockups/states/cards/card-tea-alert-out-of-range.png`](./mockups/states/cards/card-tea-alert-out-of-range.png) | State |
-| `abaead4b70d941b38b2117c41a5d86a4` | Tasas y TEA — Confirmación de Tasa Actualizada con Éxito | [`mockups/states/cards/card-tea-updated-success.png`](./mockups/states/cards/card-tea-updated-success.png) | State |
-| `5e9e24c878d74039996e9d93476f3fbc` | Tasas y TEA — Estado Inicial Sin Personalizar (Tarifario Medio) | [`mockups/states/cards/card-tea-unconfigured.png`](./mockups/states/cards/card-tea-unconfigured.png) | State |
-| `dc84fa1d71cc4eedb3eb15f553f34f1c` | Tasas y TEA — Verificación SBS y Auditoría Contractual | [`mockups/states/cards/card-tea-sbs-verified.png`](./mockups/states/cards/card-tea-sbs-verified.png) | State |
+| `3dcca7960d164f7abce51114a2e492c6` | Tasas y TEA — Vista Referencial y TEA Personalizada | `mockups/states/cards/card-tea-custom.png` (archivo pendiente) | State |
+| `2901b24eefd1440086497318deb9348b` | Tasas y TEA — Alerta Crítica (Tasa Fuera de Rango) | `mockups/states/cards/card-tea-alert-out-of-range.png` (archivo pendiente) | State |
+| `abaead4b70d941b38b2117c41a5d86a4` | Tasas y TEA — Confirmación de Tasa Actualizada con Éxito | `mockups/states/cards/card-tea-updated-success.png` (archivo pendiente) | State |
+| `5e9e24c878d74039996e9d93476f3fbc` | Tasas y TEA — Estado Inicial Sin Personalizar (Tarifario Medio) | `mockups/states/cards/card-tea-unconfigured.png` (archivo pendiente) | State |
+| `dc84fa1d71cc4eedb3eb15f553f34f1c` | Tasas y TEA — Verificación SBS y Auditoría Contractual | `mockups/states/cards/card-tea-sbs-verified.png` (archivo pendiente) | State |
 
 ### D. Purchases (Nueva Compra y Simulación de Cuotas)
 | ID Pantalla Stitch | Nombre Funcional en Canvas | Archivo Local | Tipo |

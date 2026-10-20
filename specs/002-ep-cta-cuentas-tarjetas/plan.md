@@ -195,7 +195,7 @@ Arquitectura remota:
 
 ### 7. Screens 4 and 5
 
-`docs/stitch-design-system.md` es la fuente visual. No existen IDs/artefactos Stitch autoritativos de Pantallas 4/5 en el repositorio, por lo que el plan aplica tokens y composicion funcional sin afirmar fidelidad pixel-perfect a un artefacto ausente.
+`docs/DESIGN.md` es la fuente visual. No existen IDs/artefactos Stitch autoritativos de Pantallas 4/5 en el repositorio, por lo que el plan aplica tokens y composicion funcional sin afirmar fidelidad pixel-perfect a un artefacto ausente.
 
 **Pantalla 4 - Dashboard**:
 
@@ -306,7 +306,7 @@ No existen violaciones constitucionales que requieran excepcion. La outbox espec
    The linked schema observed does not satisfy this plan by itself: `accounts` lacks the opening snapshot, `cards.account_id` is required and uses `is_credit`, `transactions` does not model `OPENING`, `ledger_entries` rejects zero, and financial FKs are not owner-composite. Resolve differences only through reviewed forward-only migrations.
 2. Validar la cadena Room existente hasta v10 y aprobar la migración 10 -> 11, su JSON exportado y pruebas de preservación antes de fusionar persistencia.
 3. Agregar `Postgrest` al `SupabaseClient` si se usa `supabase.postgrest.rpc`; una prueba de integracion debe demostrar el plugin instalado.
-4. Actualizar `docs/stitch-design-system.md` antes de usar colores propios de Banco de la Nacion o afirmar fidelidad a Pantallas 4/5.
+4. Actualizar `docs/DESIGN.md` antes de usar colores propios de Banco de la Nacion o afirmar fidelidad a Pantallas 4/5.
 5. No iniciar Sprint 3 hasta que Sprint 2 demuestre saldo derivado, idempotencia, RLS y aislamiento sin defectos bloqueantes.
 
 ## Dependency Gate Evidence (2026-09-24)

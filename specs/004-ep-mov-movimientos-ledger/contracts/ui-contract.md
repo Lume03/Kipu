@@ -2,11 +2,11 @@
 
 ## Fuentes Visuales y Sistema de Diseño Normativo
 
-1. **Tokens y Sistema Visual**: [`docs/stitch-design-system.md`](../../../docs/stitch-design-system.md) (`Kipu Andean Modernist`).
+1. **Tokens y Sistema Visual**: [`docs/DESIGN.md`](../../../docs/DESIGN.md) (`Kipu Andean Modernist`).
    - Tokens de color: Base teal/CTA `#0F766E`, fondo `#F7F9FB`, tarjetas `#FFFFFF`, borde contenedor 16dp, esquinas de bottom sheet 24dp.
    - Colores semánticos financieros: Ingresos `#16A34A`, Gastos `#E85D5D`, Alertas/Warning `#F59E0B`.
    - Tipografía: Inter con números tabulares obligatorios (`fontFeatureSettings = "tnum"`) en todo monto, saldo o balance.
-2. **Prototipo Figma**: [`Kipu_Documentacion/Prototipo/Stich Prompts.md`](../../../../Kipu_Documentacion/Prototipo/Stich%20Prompts.md) (Prompt 5 de 9, líneas 280-355).
+2. **Prototipo Figma — referencia histórica**: `Kipu_Documentacion/Prototipo/Stich Prompts.md` (Prompt 5 de 9, líneas 280-355). Esa ruta no está incorporada en este checkout; conservar la cita no certifica disponibilidad del prototipo. Ver [control documental](../../../docs/control-documental.md) para la selección de prototipos y la guía de diseño actual, sin alterar los requisitos de este contrato.
 
 ---
 

@@ -1,5 +1,7 @@
 # Índice de Mockups UI/UX de Kipu (Calm Emerald)
 
+> **Control documental — 2026-10-20.** Este índice declara Calm Emerald como oficial, mientras [Tokens Stitch](../../DESIGN.md) declara Andean Modernist como fuente normativa. La reorganización no decide una sustitución visual. Consultar el contrato aprobado de la pantalla y la [diferencia registrada](../../control-documental.md) antes de cambiar tokens o regenerar diseños.
+
 Este directorio consolida los mockups visuales oficiales de Kipu bajo el estándar **Calm Emerald Fintech**. Las referencias se dividen en diseños canónicos (`canonical/`), variantes interactivas (`states/`), flujos de autenticación (`Sesion/`) e inspiración (`inspiration/`). 
 
 Todas las pantallas provienen del proyecto de diseño oficial en Stitch AI (**Kipu V4.2 Rediseño UI/UX**, `projects/8741755512585500557`) y sirven de especificación visual directa para la implementación en Jetpack Compose.
@@ -43,26 +45,29 @@ Todas las pantallas provienen del proyecto de diseño oficial en Stitch AI (**Ki
 | **Movements** | Filtros — Filtros Avanzados Desbloqueados (Plan Pro) | State | [`states/movements/movement-filters-pro-unlocked.png`](./states/movements/movement-filters-pro-unlocked.png) | Filtros Pro activos por cuenta bancaria, categoría específica y rango numérico de importes. |
 
 ### 4. Cards (Catálogo, Configuración, Detalle y Tasas TEA)
+
+**Disponibilidad de archivos (2026-10-20):** las nueve rutas marcadas «Pendiente» no existen en este checkout. Se conservan como inventario de referencia, no como diseños disponibles o aprobados; no se generan assets para completar la tabla.
+
 | Área | Mockup | Tipo | Archivo | Uso |
 |:---|:---|:---|:---|:---|
 | **Cards** | Seleccionar tarjeta (Paso 2) | Canonical | [`canonical/cards/select-card.png`](./canonical/cards/select-card.png) | Paso 2 de 3: Selección de producto de crédito del catálogo BCP, filtros rápidos y sticky CTA. |
 | **Cards** | Configura tu tarjeta (Paso 3) | Canonical | [`canonical/cards/configure-card.png`](./canonical/cards/configure-card.png) | Paso 3 de 3: Datos contractuales (línea de crédito, día de corte, día de pago, 4 dígitos y alertas). |
 | **Cards** | Detalle de Tarjeta — Consumos Activos | Canonical | [`canonical/cards/card-detail-active.png`](./canonical/cards/card-detail-active.png) | Vista principal de tarjeta con consumos devengados (S/ 2,840.50), disponible y barra de utilización moderada. |
-| **Cards** | Detalle de Tarjeta — Saldo Cero / Utilización Óptima | State | [`states/cards/card-detail-zero-balance.png`](./states/cards/card-detail-zero-balance.png) | Estado con deuda devengada en cero (S/ 0.00), línea total disponible y utilización baja (<10%). |
-| **Cards** | Detalle de Tarjeta — Alta Utilización y Alerta de Riesgo | State | [`states/cards/card-detail-high-utilization.png`](./states/cards/card-detail-high-utilization.png) | Estado de alerta financiera por utilización del 84.5%, vencimiento inminente y CTA "Pagar tarjeta". |
-| **Cards** | Detalle de Tarjeta — Archivada e Inactiva | State | [`states/cards/card-detail-archived.png`](./states/cards/card-detail-archived.png) | Tarjeta archivada con ciclos congelados, sin impacto en balance y opción para reactivar. |
-| **Cards** | Editar Tarjeta de Crédito Modal | State | [`states/cards/card-edit-modal.png`](./states/cards/card-edit-modal.png) | Modal bottom sheet de edición de línea de crédito, día de corte y día de pago. |
+| **Cards** | Detalle de Tarjeta — Saldo Cero / Utilización Óptima | Pendiente | `states/cards/card-detail-zero-balance.png` | Estado con deuda devengada en cero (S/ 0.00), línea total disponible y utilización baja (<10%). |
+| **Cards** | Detalle de Tarjeta — Alta Utilización y Alerta de Riesgo | Pendiente | `states/cards/card-detail-high-utilization.png` | Estado de alerta financiera por utilización del 84.5%, vencimiento inminente y CTA "Pagar tarjeta". |
+| **Cards** | Detalle de Tarjeta — Archivada e Inactiva | Pendiente | `states/cards/card-detail-archived.png` | Tarjeta archivada con ciclos congelados, sin impacto en balance y opción para reactivar. |
+| **Cards** | Editar Tarjeta de Crédito Modal | Pendiente | `states/cards/card-edit-modal.png` | Modal bottom sheet de edición de línea de crédito, día de corte y día de pago. |
 | **Cards** | Seleccionar entidad emisora | State | [`states/cards/select-bank.png`](./states/cards/select-bank.png) | Hoja modal con grilla 2x2 de bancos principales (BCP, BBVA, IBK, SCO) y tarjetas de retail. |
 | **Cards** | Búsqueda de tarjeta con resultados | State | [`states/cards/card-search.png`](./states/cards/card-search.png) | Búsqueda dinámica dentro del catálogo (ej. query "latam") con chip de resultado. |
 | **Cards** | Tarjeta no encontrada (Empty search) | State | [`states/cards/card-not-found.png`](./states/cards/card-not-found.png) | Búsqueda sin coincidencias con fallback para "Registrar tarjeta personalizada" / "Crear manual". |
 | **Cards** | Configurar tarjeta con TEA expandida | State | [`states/cards/card-tea-expanded.png`](./states/cards/card-tea-expanded.png) | Progressive disclosure con tasa contractual manual y tasa de mercado sugerida con botón `[ Aplicar ]`. |
 | **Cards** | Tarjeta configurada con éxito | State | [`states/cards/card-created-success.png`](./states/cards/card-created-success.png) | Modal bottom sheet de confirmación tras el guardado real con grid 2x2 de métricas financieras. |
 | **Cards** | Tasas y TEA — Simulador con Comparador Visual | Canonical | [`canonical/cards/card-tea-simulator.png`](./canonical/cards/card-tea-simulator.png) | Simulador de TEA acordada (42.00%) con termómetro visual vs rango del tarifario oficial BCP. |
-| **Cards** | Tasas y TEA — Vista Referencial y TEA Personalizada | State | [`states/cards/card-tea-custom.png`](./cards/card-tea-custom.png) | Ficha contractual con TEA personalizada activa (38.50%) y comparativo porcentual. |
-| **Cards** | Tasas y TEA — Alerta Crítica (Tasa Fuera de Rango) | State | [`states/cards/card-tea-alert-out-of-range.png`](./states/cards/card-tea-alert-out-of-range.png) | Alerta roja cuando la tasa ingresada (68.50%) excede el límite máximo del tarifario y la SBS. |
-| **Cards** | Tasas y TEA — Confirmación de Tasa Actualizada | State | [`states/cards/card-tea-updated-success.png`](./states/cards/card-tea-updated-success.png) | Feedback de tasa guardada con recálculo automático en compras futuras. |
-| **Cards** | Tasas y TEA — Estado Inicial Sin Personalizar | State | [`states/cards/card-tea-unconfigured.png`](./states/cards/card-tea-unconfigured.png) | Estado por defecto con uso de tarifario medio y card explicativa de consulta contractual. |
-| **Cards** | Tasas y TEA — Verificación SBS y Auditoría Contractual | State | [`states/cards/card-tea-sbs-verified.png`](./states/cards/card-tea-sbs-verified.png) | Vista con validación oficial SBS, card educativa sobre TCEA y guardado contractual (42.5%). |
+| **Cards** | Tasas y TEA — Vista Referencial y TEA Personalizada | Pendiente | `states/cards/card-tea-custom.png` | Ficha contractual con TEA personalizada activa (38.50%) y comparativo porcentual. |
+| **Cards** | Tasas y TEA — Alerta Crítica (Tasa Fuera de Rango) | Pendiente | `states/cards/card-tea-alert-out-of-range.png` | Alerta roja cuando la tasa ingresada (68.50%) excede el límite máximo del tarifario y la SBS. |
+| **Cards** | Tasas y TEA — Confirmación de Tasa Actualizada | Pendiente | `states/cards/card-tea-updated-success.png` | Feedback de tasa guardada con recálculo automático en compras futuras. |
+| **Cards** | Tasas y TEA — Estado Inicial Sin Personalizar | Pendiente | `states/cards/card-tea-unconfigured.png` | Estado por defecto con uso de tarifario medio y card explicativa de consulta contractual. |
+| **Cards** | Tasas y TEA — Verificación SBS y Auditoría Contractual | Pendiente | `states/cards/card-tea-sbs-verified.png` | Vista con validación oficial SBS, card educativa sobre TCEA y guardado contractual (42.5%). |
 
 ### 5. Purchases (Nueva Compra y Simulación de Cuotas)
 | Área | Mockup | Tipo | Archivo | Uso |
@@ -100,9 +105,9 @@ Todas las pantallas provienen del proyecto de diseño oficial en Stitch AI (**Ki
 | **Sesión** | Onboarding 2 | State | [`Sesion/Omboarding 2.png`](./Sesion/Omboarding%202.png) | Pantalla 2 del carrusel introductorio. |
 | **Sesión** | Onboarding 3 | State | [`Sesion/Omboarding 3 - Corregido.png`](./Sesion/Omboarding%203%20-%20Corregido.png) | Pantalla 3 del carrusel introductorio. |
 | **Sesión** | Registro de Usuario | State | [`Sesion/Registro de Usuario.png`](./Sesion/Registro%20de%20Usuario.png) | Formulario de creación de cuenta nueva. |
-| **Sesión** | Recuperar Contraseña | State | [`Sesion/Recuperar Contrasea.png`](./Sesion/Recuperar%20Contrase%EF%BF%BDa.png) | Solicitud de envío de enlace de restablecimiento. |
-| **Sesión** | Recuperar Contraseña — Paso 2 | State | [`Sesion/Recuperar Contrasea - Paso 2.png`](./Sesion/Recuperar%20Contrase%EF%BF%BDa%20-%20Paso%202.png) | Confirmación de correo de restablecimiento enviado. |
-| **Sesión** | Recuperar Contraseña — Correo Incorrecto | State | [`Sesion/Recuperar contrasea - Correo incorrecto.png`](./Sesion/Recuperar%20contrase%EF%BF%BDa%20-%20Correo%20incorrecto.png) | Error cuando el correo no se encuentra registrado. |
+| **Sesión** | Recuperar Contraseña | State | [`Sesion/Recuperar Contraseña.png`](./Sesion/Recuperar%20Contrase%C3%B1a.png) | Solicitud de envío de enlace de restablecimiento. |
+| **Sesión** | Recuperar Contraseña — Paso 2 | State | [`Sesion/Recuperar Contraseña - Paso 2.png`](./Sesion/Recuperar%20Contrase%C3%B1a%20-%20Paso%202.png) | Confirmación de correo de restablecimiento enviado. |
+| **Sesión** | Recuperar Contraseña — Correo Incorrecto | State | [`Sesion/Recuperar contraseña - Correo incorrecto.png`](./Sesion/Recuperar%20contrase%C3%B1a%20-%20Correo%20incorrecto.png) | Error cuando el correo no se encuentra registrado. |
 
 ### 9. Inspiration & Design System
 | Área | Mockup | Tipo | Archivo | Uso |

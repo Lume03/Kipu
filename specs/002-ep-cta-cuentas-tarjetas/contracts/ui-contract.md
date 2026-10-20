@@ -2,7 +2,7 @@
 
 ## Visual Authority
 
-`docs/stitch-design-system.md` is the sole local source for color, typography, spacing, shapes and accessibility tokens. Screen 4/5 assets are not present with stable Stitch IDs, so implementation may claim token compliance but not pixel-perfect prototype fidelity until those assets are approved.
+`docs/DESIGN.md` is the sole local source for color, typography, spacing, shapes and accessibility tokens. Screen 4/5 assets are not present with stable Stitch IDs, so implementation may claim token compliance but not pixel-perfect prototype fidelity until those assets are approved.
 
 ## Screen 4 - Dashboard
 

@@ -7,7 +7,7 @@
 ## 1. Autoridad funcional y alcance
 
 - El Product Backlog V4.2 asigna HU-33 (8 puntos) y HU-35 (3 puntos) a S6. HU-33 depende de HU-18; HU-35 depende de HU-33. HU-34 pertenece a S8 y depende de HU-33/HU-46/HU-51; no se incorpora a esta entrega.
-- La matriz histórica de EP-MOV conserva HU-18 como trabajo S2 y `docs/audits/KIPU_FULL_FUNCTIONAL_UX_AUDIT.md` (28-09-2026) la clasificó INCOMPLETA. T001 aceptó una dependencia parcial de contrato de HU-18, no bloqueante para HU-33/HU-35; no es evidencia de que HU-18 esté íntegramente completada ni se debe ampliar este alcance para cerrar gaps ajenos.
+- La matriz histórica de EP-MOV conserva HU-18 como trabajo S2 y `docs/audits/funcional/2026-09-28/informe.md` (28-09-2026) la clasificó INCOMPLETA. T001 aceptó una dependencia parcial de contrato de HU-18, no bloqueante para HU-33/HU-35; no es evidencia de que HU-18 esté íntegramente completada ni se debe ampliar este alcance para cerrar gaps ajenos.
 - HU-33 exige registrar una regla recurrente, sus frecuencias (semanal, quincenal, mensual, anual o personalizada), importe fijo o aproximado, próxima fecha y anticipación; explicita que Kipu no ejecuta el pago.
 - HU-35 define Activa, Pausada y Cancelada, preserva historia al pausar/cancelar, reanuda sin crear gastos atrasados ficticios y deja el estado intacto si se abandona la confirmación de cancelación.
 - HU-44 está relacionado y es S6, pero pertenece a EP-NOT. Producto aprobó `reminder_lead_days` entero requerido/no nulo, default de cliente 2 antes del hash y rango inclusivo 0–30; omisión y `null` se rechazan. Entrega, deduplicación, centro de notificaciones y la semántica de 0 días quedan fuera de EP-REC y requieren contrato de integración por estado.
