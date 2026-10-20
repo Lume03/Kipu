@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -95,11 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -262,31 +256,23 @@ fun DashboardScreen(
                             onClick = onNavigateToSettings,
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(CircleShape)
-                                .clearAndSetSemantics {
-                                    role = Role.Button
-                                    contentDescription = settingsContentDescription
-                                    onClick {
-                                        onNavigateToSettings()
-                                        true
-                                    }
-                                },
+                                .drawBehind {
+                                    val borderWidth = 1.dp.toPx()
+                                    drawCircle(emeraldColors.surfaceCard, radius = 19.dp.toPx())
+                                    drawCircle(
+                                        emeraldColors.borderSubtle,
+                                        radius = 19.dp.toPx() - borderWidth / 2,
+                                        style = Stroke(width = borderWidth),
+                                    )
+                                }
+                                .semantics { contentDescription = settingsContentDescription },
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .wrapContentSize()
-                                    .size(38.dp)
-                                    .background(emeraldColors.surfaceCard, CircleShape)
-                                    .border(1.dp, emeraldColors.borderSubtle, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = null,
-                                    tint = emeraldColors.secondaryMuted,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = null,
+                                tint = emeraldColors.secondaryMuted,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
