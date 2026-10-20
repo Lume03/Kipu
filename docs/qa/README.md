@@ -3,6 +3,7 @@
 ## Auditorías
 
 - [Auditoría funcional, UI y UX — Sprint 6 (2026-10-19)](auditoria-sprint-6-2026-10-19/README.md): matriz de casos, observaciones, seguimiento de issues y evidencia revisada.
+- [Revisiones de Pull Request](pr-reviews/README.md): informes por PR, plantilla y evidencia visual cuando aplique.
 
 ## Convenciones de publicación
 
