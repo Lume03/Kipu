@@ -38,6 +38,8 @@ Los recortes de 300 × 155 px contienen únicamente el extremo derecho de las ca
 | Texto al 150 % | Ambos accesos conservan el tamaño, el foco y la navegación. |
 | Tab/Enter | Aprobado en ambas pantallas: enfocar Ajustes, activar con Enter y volver al origen mediante eventos de teclado enviados por ADB. |
 | Acción vecina de notificaciones | Abre `Avisos` y permite regresar a Mi dinero. |
+| Escucha con TalkBack en Mi dinero | El usuario confirmó: «Ajustes, botón», una sola vez. |
+| Escucha con TalkBack en Movimientos | El usuario confirmó que se escucha una sola vez. |
 
 ## Compilación y alcance de la validación
 
@@ -48,6 +50,8 @@ git diff dd6758a..d84ee90 --check
 
 La compilación del código final terminó con `BUILD SUCCESSFUL` (44 s). El APK instalado tiene SHA-256 `FB521F42C7004E777D955171CB4AEEFEF53E5DFF5B9E5E2CEA9AFB11705548F9`.
 
-La accesibilidad se verificó mediante los nodos expuestos por Android y los recorridos de interacción. No se realizó una revisión auditiva con TalkBack ni se ejecutó la suite completa de pruebas unitarias. No se añadieron tests de implementación para esta sustitución visual.
+La accesibilidad se verificó mediante los nodos expuestos por Android, los recorridos de interacción y una escucha asistida con TalkBack en el mismo celular el 20 de octubre de 2026. El usuario escuchó los anuncios y confirmó que cada acceso anuncia «Ajustes, botón» una sola vez. Esta confirmación auditiva corresponde al usuario; el agente no escuchó el audio del celular.
+
+TalkBack queda activo por indicación expresa del usuario, quien avisará cuándo desactivarlo. La configuración previa de accesibilidad se conserva localmente para su restauración posterior. No se ejecutó la suite completa de pruebas unitarias ni se añadieron tests de implementación para esta sustitución visual.
 
 El cambio conserva navegación y reglas financieras. Los dumps completos, capturas de trabajo y scripts auxiliares permanecen en `scratch/issue-70/`, fuera de Git; solo se versionan estos recortes y el resultado de QA.
