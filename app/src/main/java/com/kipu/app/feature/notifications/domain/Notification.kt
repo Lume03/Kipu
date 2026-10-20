@@ -14,9 +14,15 @@ data class AppNotification(
     val createdAt: Instant,
     val deletedAt: Instant?,
     val eventPayloadJson: String = "{}",
+    val origin: NotificationOrigin = NotificationOrigin.REMOTE,
 ) {
     val category: NotificationCategory get() = NotificationType.categoryOf(notificationType)
     val referenceType: NotificationReferenceType? get() = NotificationType.referenceTypeOf(referenceEntityType)
+}
+
+enum class NotificationOrigin {
+    REMOTE,
+    LOCAL_REMINDER,
 }
 
 sealed interface NotificationDestination {

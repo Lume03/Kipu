@@ -9,12 +9,17 @@ import com.kipu.app.feature.goals.domain.model.GoalCommandResult
 import com.kipu.app.feature.goals.domain.model.GoalCommandType
 import com.kipu.app.feature.goals.domain.model.GoalEvent
 import com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity
+import com.kipu.app.feature.movements.data.local.LedgerEntryEntity
 import com.kipu.app.feature.movements.data.local.MovementDao
+import com.kipu.app.feature.movements.data.local.TransactionEntity
 import java.time.Clock
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -190,6 +195,66 @@ class GoalLocalDataSource @Inject constructor(
         }
 
         val now = clock.millis()
+        val operationId = envelope.identity.operationId
+        val transferAccounts = explicitTransferAccounts(envelope)
+        if (transferAccounts != null) {
+            if (movementDao.getTransactionById(userId, operationId) != null) {
+                return@withTransaction GoalCommandResult.Conflict("OPERATION_ID_REUSED")
+            }
+            val (sourceAccountId, destinationAccountId, currencyCode, amountMinor) = transferAccounts
+            val currentSource = goalDao.getBackingAccountPosition(userId, sourceAccountId)
+                ?: return@withTransaction GoalCommandResult.Rejected("OWNER_OR_ACCOUNT_INVALID")
+            if (currentSource.currencyCode != currencyCode) {
+                return@withTransaction GoalCommandResult.Rejected("CURRENCY_MISMATCH")
+            }
+            if (currentSource.availableMinor < amountMinor) {
+                return@withTransaction GoalCommandResult.Rejected("INSUFFICIENT_TRANSFER_SOURCE")
+            }
+            val transaction = TransactionEntity(
+                id = operationId,
+                userId = userId,
+                type = "TRANSFER",
+                amountMinor = amountMinor,
+                currencyCode = currencyCode,
+                sourceAccountId = sourceAccountId,
+                destinationAccountId = destinationAccountId,
+                occurredAt = now,
+                note = "Transferencia explícita para reserva de meta",
+                status = "ACTIVE",
+                syncStatus = "PENDING",
+                createdAt = now,
+                updatedAt = now,
+                operationKind = "GOAL_FUNDING",
+            )
+            movementDao.insertTransaction(transaction)
+            movementDao.insertLedgerEntries(
+                listOf(
+                    LedgerEntryEntity(
+                        id = UUID.randomUUID().toString(), userId = userId, transactionId = operationId,
+                        accountId = sourceAccountId, role = "SOURCE", signedAmountMinor = -amountMinor,
+                        currencyCode = currencyCode, createdAt = now,
+                    ),
+                    LedgerEntryEntity(
+                        id = UUID.randomUUID().toString(), userId = userId, transactionId = operationId,
+                        accountId = destinationAccountId, role = "DESTINATION", signedAmountMinor = amountMinor,
+                        currencyCode = currencyCode, createdAt = now,
+                    ),
+                ),
+            )
+            listOf(sourceAccountId, destinationAccountId).distinct().forEach { accountId ->
+                val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
+                movementDao.upsertBalanceProjection(
+                    com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
+                        userId = userId,
+                        accountId = accountId,
+                        balanceMinor = balance,
+                        currencyCode = currencyCode,
+                        lastTransactionAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
+        }
         goals.forEach { goal ->
             val state = if (envelope.type == GoalCommandType.DELETE_EMPTY_GOAL) "DELETE_PENDING" else "PENDING"
             val entity = goal.toEntity(syncState = state)
@@ -199,7 +264,14 @@ class GoalLocalDataSource @Inject constructor(
                 goalDao.upsertGoal(entity)
             }
         }
-        events.forEach { goalDao.insertEvent(it.toEntity()) }
+        events.forEach { event ->
+            val linkedEvent = if (transferAccounts != null && event.type.name == "ALLOCATION") {
+                event.copy(transactionId = operationId)
+            } else {
+                event
+            }
+            goalDao.insertEvent(linkedEvent.toEntity())
+        }
 
         val payload = envelope.toRpcPayload().toString()
         outboxDao.insert(
@@ -228,7 +300,9 @@ class GoalLocalDataSource @Inject constructor(
                 userId = userId,
                 idempotencyKey = envelope.identity.operationId,
                 requestHash = envelope.identity.requestHash,
-                transactionId = events.firstOrNull()?.transactionId,
+                transactionId = events.firstOrNull()?.let { event ->
+                    if (transferAccounts != null && event.type.name == "ALLOCATION") operationId else event.transactionId
+                },
                 status = "PENDING",
                 responsePayload = response,
                 contractVersion = envelope.identity.contractVersion,
@@ -241,4 +315,27 @@ class GoalLocalDataSource @Inject constructor(
         )
         GoalCommandResult.Applied(primaryGoal.id, primaryGoal.revision, eventId)
     }
+
+    private fun explicitTransferAccounts(
+        envelope: GoalCommandEnvelope,
+    ): TransferAccounts? {
+        if (envelope.type != GoalCommandType.RESERVE_GOAL) return null
+        val payload = envelope.payload
+        val transfer = payload["transfer"]?.takeUnless { it is kotlinx.serialization.json.JsonNull }
+            ?: return null
+        val values = (transfer as? kotlinx.serialization.json.JsonObject)?.toMap() ?: return null
+        val source = values["source_account_id"]?.jsonPrimitive?.contentOrNull ?: return null
+        val destination = values["destination_account_id"]?.jsonPrimitive?.contentOrNull ?: return null
+        val currency = values["currency_code"]?.jsonPrimitive?.contentOrNull ?: return null
+        val amount = payload["amount_minor"]?.jsonPrimitive?.longOrNull ?: return null
+        if (source.isBlank() || destination.isBlank() || source == destination || amount <= 0L) return null
+        return TransferAccounts(source, destination, currency, amount)
+    }
+
+    private data class TransferAccounts(
+        val sourceAccountId: String,
+        val destinationAccountId: String,
+        val currencyCode: String,
+        val amountMinor: Long,
+    )
 }

@@ -1,17 +1,21 @@
 # Implementation Plan: EP-NOT — Centro de Notificaciones y Avisos
 
-**Branch**: `010-ep-not-notificaciones-avisos` | **Date**: 2026-09-26 | **Spec**: [spec.md](spec.md)
+**Branch**: `feat/010-ep-not-hu-44-recordatorios` | **Date**: 2026-10-19 | **Spec**: [spec.md](spec.md)
+
+**Propagated**: 2026-10-19 — Updated from spec.md refinement for Sprint 6 HU-44.
 
 ## Summary
 
 Implement HU-42 as a local-first financial notification center. Supabase remains the owner-scoped source for server-created notices; a Room projection provides immediate reads and offline actions, and a per-user WorkManager outbox retries idempotent read/soft-delete patches. Compose exposes PNOT from the dashboard bell, with a resilient destination resolver and accessible filtering, empty, read, and dismissed states.
 
+Sprint 6 HU-44 adds configurable local reminders for debt and recurrence due dates, idempotent per-owner scheduling, rescheduling on due-date/state changes, and a Room-backed local center event independent of Android's notification permission. Server-owned `public.app_notifications` and its no-client-INSERT contract remain unchanged.
+
 ## Technical Context
 
 **Language/Version**: Kotlin, JDK 17, Android minSdk 24 / targetSdk 36.
 **Primary Dependencies**: Jetpack Compose Material 3, AndroidX Navigation, Room, Hilt, Kotlin Coroutines/Flow, WorkManager, Ktor, existing Supabase Auth/PostgREST client. No new library required.
-**Storage**: Supabase Postgres `public.app_notifications`; Room `app_notifications` projection and `notification_sync_outbox` (schema version 12).
-**Testing**: JUnit/Kotlin test, MockK, Room testing, Compose UI tests, and Supabase pgTAP via `supabase test db --local` when local Supabase is available.
+**Storage**: HU-42 was planned at Room schema v12; this branch starts from KipuDatabase v23 and adds only a forward Room migration 23→24 for local reminder state/events. Supabase `public.app_notifications` remains server-owned and unchanged.
+**Testing**: Focused JUnit/Room/Compose and WorkManager tests; connected instrumentation filtered to reminder classes on Samsung Galaxy A16; targeted Supabase pgTAP file via `pnpm exec supabase test db --local <path>` (configured local database port 54322). Do not run the global 413-test Android suite for HU-44.
 **Target Platform**: Android.
 **Project Type**: Existing Android mobile application with Supabase backend.
 **Performance Goals**: Display the latest Room snapshot within the existing dashboard navigation and within the specified 2-second center-load criterion; badge and filters derive from Room Flow.
@@ -110,7 +114,7 @@ app/src/main/java/com/kipu/app/
 │   ├── data/sync/{NotificationSyncScheduler.kt,SyncNotificationsWorker.kt}
 │   ├── di/NotificationsModule.kt
 │   ├── domain/{NotificationsRepository.kt,usecase/*}
-│   ├── domain/model/Notification.kt
+│   ├── domain/Notification.kt
 │   └── presentation/{NotificationsViewModel.kt,NotificationCenterScreen.kt}
 ├── navigation/{AccountsNavigation.kt,KipuNavHost.kt,NotificationsNavigation.kt}
 └── feature/accounts/presentation/dashboard/DashboardScreen.kt
@@ -125,6 +129,53 @@ supabase/tests/database/notifications_center_test.sql
 ## Constitution Check After Design
 
 *PASS.* Design preserves existing financial truth and producer records, scopes local/remote access by account, stores offline mutations durably, performs only soft deletion, and defines tests at Room, API, RLS, navigation, and UI boundaries. Cross-review and validation remain implementation completion gates, not design exceptions.
+
+## Sprint 6 Increment — HU-44
+
+### Scope and architectural boundary
+
+- Deliver HU-44 for debts (HU-29) and recurrence rules/occurrences (HU-33/HU-35), using the existing per-source lead setting and a default of two days. Preserve the current per-domain validation ranges; explicit `0` disables reminders.
+- Extend the current Room database from v23 to v24 with owner-scoped `ReminderSchedule` and local center-event records. Uniqueness is enforced by `(user_id, source_id, event_type, due_date)`; `event_type` is `BILLING_DUE`, and `source_id` identifies a recurrence, debt installment, or single-due debt.
+- Keep HU-42's server-created `public.app_notifications` rows and REST contract unchanged. HU-44 center events are local Room data, never client INSERTs or remote outbox mutations; the event is visible on this device but cross-device sync/recovery after app-data loss is not promised.
+- The center combines server notices and local HU-44 events while retaining their origin. Read/dismiss operations on a local reminder remain local and must not enqueue a remote PATCH.
+
+### Notification-center API contract gate
+
+- `AppNotification` is the existing type in `feature/notifications/domain/Notification.kt`, package `com.kipu.app.feature.notifications.domain` (not `domain.model.Notification`). Preserve its HU-42 fields and append `origin: NotificationOrigin = NotificationOrigin.REMOTE`; define `NotificationOrigin { REMOTE, LOCAL_REMINDER }` alongside it. Keep the existing `NotificationsRepository` API: `observeActive(userId): Flow<List<AppNotification>>`, `observeUnreadCount(userId): Flow<Int>`, `refresh(userId): Result<Unit>`, `markRead(userId, notificationId): Result<Unit>`, `markAllRead(userId): Result<Unit>`, `dismiss(userId, notificationId): Result<Unit>`, and `syncPending(userId): Result<Unit>` (suspend for the five `Result` operations).
+- T039 adds `LocalReminderEventDao` at `feature/notifications/data/local/LocalReminderEventDao.kt`: `observeActive(userId): Flow<List<LocalReminderEventEntity>>`, `observeUnreadCount(userId): Flow<Int>`, `markRead(userId, id): Int`, `markAllRead(userId): Int`, and `dismiss(userId, id, deletedAt: Instant): Int`. Each query/mutation filters by `user_id`; active rows require `deleted_at IS NULL`. `OfflineFirstNotificationsRepository` combines the existing remote DAO flow and this local flow; `observeActive` maps explicit origins and orders by `createdAt DESC`, then origin (`REMOTE` first on ties), then ID ascending. `observeUnreadCount` sums both scoped active unread counts (the badge keeps its existing `99+` presentation).
+- Local events use ID `local-reminder:v1:<lowercase SHA-256 hex>` over an unambiguously length-prefixed UTF-8 tuple `(normalized user_id, normalized source_id, BILLING_DUE, ISO due_date)`; retain the `(user_id, source_id, event_type, due_date)` unique constraint and reject rather than overwrite an ID/tuple collision. Local presentation is title `Recordatorio de vencimiento`, body `Recordatorio local de vencimiento.`, `BILLING_DUE`, null destination references, and stored ISO `due_date` consumed by the existing `expectedDueDateLabel()` helper; mapping and collision details are normative in `data-model.md`.
+- `markRead`/`dismiss` route this local ID namespace only to the owner-scoped local DAO. `markAllRead` updates both sources, but only remote rows update/merge the HU-42 outbox and schedule remote sync; local operations never touch `NotificationSyncOutboxDao`, `NotificationsApi`, or remote PATCH. Remote UUID IDs and their current mutation behavior remain unchanged. There is no cross-origin semantic deduplication: keep both records if their meaning/date appears similar because HU-42 has no shared correlation key, and do not alter DTO, `app_notifications`, RLS, or grants.
+- T050 pins this contract for T039/T037/T042. Tests should assert owner scoping, deterministic merge order/count, stable collision-safe local IDs, local read/read-all/dismiss without outbox/PATCH, and unchanged HU-42 behavior.
+
+### Reminder scheduling and delivery
+
+- Reconcile the existing `DebtReminderScheduler`/`DebtReminderWorker` path rather than leave two independent schedulers for debts; add the recurrence scheduling path against the same idempotent local storage contract.
+- Schedule one current WorkManager job per owner/source/type. On a due-date change or prórroga, cancel/replace the prior job, withdraw any old local event with a logical tombstone, and schedule only the current due date.
+- Revalidate active owner, current source date, and source state at execution. Recurrences in `PAUSED` or `CANCELLED` and non-active debts do not emit, including on delayed/retried work. On every source reconciliation, immediately tombstone active local events when the source is missing, inactive, deleted, settled, no longer eligible, or has lead 0; scope each update by owner and source so other owners and active sibling installments remain intact.
+- Persist the local center event regardless of `POST_NOTIFICATIONS`; permission gates only Android system presentation. If allowed, OS notification is an additional rendering of the same event, not a second logical event. Recheck permission at execution in case it was revoked after scheduling.
+- Use due-date civil dates in `America/Lima`; WorkManager may defer execution and exact-second delivery is not an acceptance criterion. Reminders never modify financial state.
+- The repository has `DebtReminderWorker`, not an existing class named `NotificationWorker`; Android acceptance targets the actual debt worker and the new recurrence worker path.
+
+### HU-44 verification and exclusions
+
+- Add Room migration/storage, debt scheduler/worker, center-merge, and lead-setting tests before their corresponding production code. By explicit owner approval, recurrence scheduler/worker behavioral tests are the one bounded sequencing exception: they are added and run under T051 only after T040 provides the production types, with T051 and final T045 as blocking GREEN gates. A compile error caused by a missing recurrence type is not accepted as behavioral RED. Verify only the Room v23→24 migration; do not repair legacy migration/balance failures.
+- Run the focused `notifications_center_test.sql` pgTAP file against the configured local Supabase database on port 54322 to protect the HU-42 RLS/privilege boundary; no Supabase DDL or privilege change is part of this increment.
+- Run only selected Android test classes on the Samsung Galaxy A16 and verify the instrumentation XML identifies the intended classes/device. Do not run the global 413-test Android suite or broaden into BUG-CORE-MIG-001/legacy balance tests.
+- Preserve the original T046 verdict and findings. T055 is historical Security evidence for the pre-T056 candidate; after T056, require an explicit T057 hash-bound Security PASS against the exact post-fix candidate before final QA. Do not treat lifecycle `done` as a positive verdict.
+- After focused post-remediation tests, current hash-bound Security PASS, and independent QA PASS, convergence remains a separate owner-invoked gate: do not run `speckit-converge` unless the owner explicitly invokes that step and its installed prerequisites verify `speckit-implement` ran against the current `tasks.md`. The release steps remain sequential and gated; no monolithic commit.
+
+### Structure delta
+
+```text
+app/src/main/java/com/kipu/app/
+├── core/database/{KipuDatabase.kt,RoomMigrations.kt}  # v23→v24
+├── feature/notifications/data/local/{ReminderScheduleEntity.kt,ReminderScheduleDao.kt,LocalReminderEventEntity.kt,LocalReminderEventDao.kt}
+├── feature/notifications/data/{OfflineFirstNotificationsRepository.kt}
+├── feature/debts/data/sync/{DebtReminderScheduler.kt,DebtReminderWorker.kt}
+└── feature/recurrences/data/{repository/OfflineFirstRecurrenceRepository.kt,local/RecurrenceDao.kt,sync/RecurrenceReminderScheduler.kt,RecurrenceReminderWorker.kt}
+```
+
+**Complexity**: One Room migration and a separate device-local event source are required to satisfy strict idempotency and the no-permission center fallback without weakening HU-42 server privileges. No new remote service, Supabase schema, or Android dependency is introduced.
 
 ## Complexity Tracking
 

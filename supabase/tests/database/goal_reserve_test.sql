@@ -44,6 +44,8 @@ BEGIN
   r := public.reserve_goal_v1(command);
   IF r->>'status'<>'APPLIED' OR r->>'transaction_id' IS NULL OR
     r->>'confirmed_balance_minor'<>'30000' THEN RAISE EXCEPTION 'explicit transfer: %',r; END IF;
+  IF r->>'transaction_id' IS DISTINCT FROM command->>'operation_id' THEN
+    RAISE EXCEPTION 'transfer transaction id must match local idempotency identity: %',r; END IF;
   r := public.reserve_goal_v1(command);
   IF r->>'status'<>'DUPLICATE' THEN RAISE EXCEPTION 'transfer retry: %',r; END IF;
   r := public.reserve_goal_v1(pg_temp.goal_cmd('RESERVE_GOAL',g2,2,
@@ -56,6 +58,30 @@ BEGIN
     RAISE EXCEPTION 'transfer count changed'; END IF;
   IF (SELECT count(*) FROM public.goal_events WHERE user_id=auth.uid())<>3 THEN
     RAISE EXCEPTION 'reserve events duplicated'; END IF;
+END;
+$$;
+RESET ROLE;
+UPDATE public.goals SET status='LOCKED_BY_PLAN',revision=revision+1
+WHERE id='96000000-0000-4000-8000-000000000102';
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE r jsonb; transactions_before bigint; events_before bigint;
+BEGIN
+  SELECT count(*) INTO transactions_before FROM public.transactions
+    WHERE operation_kind='GOAL_FUNDING' AND user_id=auth.uid();
+  SELECT count(*) INTO events_before FROM public.goal_events WHERE user_id=auth.uid();
+  r := public.reserve_goal_v1(pg_temp.goal_cmd('RESERVE_GOAL',
+    '96000000-0000-4000-8000-000000000102',4,jsonb_build_object(
+      'event_id','96000000-0000-4000-8000-000000000204',
+      'goal_id','96000000-0000-4000-8000-000000000102',
+      'backing_account_id','96000000-0000-4000-8000-000000000012',
+      'currency_code','PEN','amount_minor',1000,
+      'transfer',jsonb_build_object('source_account_id','96000000-0000-4000-8000-000000000011',
+        'destination_account_id','96000000-0000-4000-8000-000000000012','currency_code','PEN'))));
+  IF r->>'error'<>'GOAL_NOT_ELIGIBLE' THEN RAISE EXCEPTION 'inactive goal must reject transfer: %',r; END IF;
+  IF (SELECT count(*) FROM public.transactions WHERE operation_kind='GOAL_FUNDING' AND user_id=auth.uid())
+      <>transactions_before OR (SELECT count(*) FROM public.goal_events WHERE user_id=auth.uid())<>events_before THEN
+    RAISE EXCEPTION 'inactive goal rejection left partial transaction or event'; END IF;
 END;
 $$;
 RESET ROLE;

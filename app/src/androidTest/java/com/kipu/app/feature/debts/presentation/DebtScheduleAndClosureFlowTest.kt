@@ -5,8 +5,10 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.runtime.mutableStateOf
 import com.kipu.app.feature.debts.data.sync.DebtReminderDestination
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
@@ -21,6 +23,35 @@ import org.junit.Test
 class DebtScheduleAndClosureFlowTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun reminderDefaultsToTwoDaysCanBeEditedAndDoesNotChangeDebtFinancialState() {
+        val originalDebt = debt().copy(dueDate = LocalDate.parse("2026-11-10"))
+        val leadDays = mutableStateOf<Int?>(null)
+        compose.setContent {
+            DebtScheduleScreen(
+                state = DebtScheduleUiState(debt = originalDebt, installmentCount = "3", firstDueDate = "2026-11-10", reminderLeadDays = leadDays.value),
+                onInstallmentCountChange = {}, onFirstDueDateChange = {},
+                onReminderLeadDaysChange = { leadDays.value = it },
+                onSchedule = {}, onCancelSchedule = {}, onCloseDebt = { _, _ -> }, onNavigateBack = {},
+            )
+        }
+
+        compose.onNodeWithText("2 días").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Más")[1].performClick()
+        compose.onNodeWithText("3 días").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Menos")[1].performClick()
+        compose.onNodeWithText("2 días").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Menos")[1].performClick()
+        compose.onNodeWithText("1 días").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(1, leadDays.value)
+            assertEquals(LocalDate.parse("2026-11-10"), originalDebt.dueDate)
+            assertEquals(10_000L, originalDebt.remainingPrincipalMinor)
+            assertEquals(DebtLifecycleStatus.ACTIVE, originalDebt.status)
+
+        }
+    }
 
     @Test
     fun scheduledInstallmentIsClearlyNotAPaymentAndReminderOpensItsDebt() {

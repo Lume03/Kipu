@@ -12,6 +12,8 @@
 
 **Refined**: 2026-10-02 — Correcciones del análisis aprobadas: consumo por periodo verificable sobre revisión vigente, corte temporal exacto y continuidad segura tras reinicio; contexto explícito EP-MOV y serialización de pruebas compartidas en tasks.md.
 
+**Refined**: 2026-10-19 — HU-24/S6: se aclara que la transferencia explícita a una meta conserva la identidad cliente de la operación como identidad de transacción para reconciliar el ledger local previo a sync; los escenarios y alcance de FR-020–022 no cambian.
+
 **Input**: Especificar funcionalmente EP-MOV completa, con HU-18 a HU-25; Sprint 2 entrega registro manual, saldos atómicos y detección de duplicados, y los sprints 4, 6 y 7 amplían correcciones, consulta, obligaciones, metas y reembolsos sin crear una segunda verdad financiera.
 
 ## Control de la Épica
@@ -304,7 +306,7 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 - **FR-018**: Kipu MUST volver a evaluar el acceso al abrir consultas o enlaces directos con filtros avanzados.
 - **FR-019**: Kipu MUST mantener la protección de integridad y deduplicación en Free y Premium.
 - **FR-020**: Kipu MUST vincular pagos de principal, cobros y aportes con su obligación o meta dentro de la misma confirmación financiera.
-- **FR-021**: Kipu MUST representar un aporte a meta mediante Transferencia hacia la reserva seleccionada, sin crear un cuarto tipo principal ni duplicar activos.
+- **FR-021**: Kipu MUST representar un aporte a meta mediante Transferencia hacia la reserva seleccionada, sin crear un cuarto tipo principal ni duplicar activos. En una transferencia explícita offline, el ID de transacción MUST ser la identidad cliente estable del comando para reconciliar la reserva/evento con el ledger local tras sync sin efectos duplicados.
 - **FR-022**: Kipu MUST impedir nuevas aplicaciones sobre un objeto sin cupo activo, conservando sus relaciones históricas y sus efectos existentes.
 - **FR-023**: Kipu MUST permitir reembolsos parciales y totales únicamente contra una compra propia confirmada.
 - **FR-024**: Kipu MUST calcular el saldo reembolsable descontando todas las devoluciones válidas previas.

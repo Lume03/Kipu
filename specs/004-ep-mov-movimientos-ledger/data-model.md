@@ -204,3 +204,7 @@ Fixture: A=[2026-09-01T00:00:00-05:00,2026-10-01T00:00:00-05:00), B=[2026-10-01T
 
 
 **Propagated**: 2026-10-03 — The current Kotlin/Room history projection lacks a persisted capture-source field; source in FR-017 remains an explicit baseline gap tracked by T110. Sync status and source/destination accounts must not be interpreted as capture provenance. No source migration/backfill is included in the approved UI refinement.
+
+## HU-24/S6 — transferencia explícita a meta (2026-10-19)
+
+Una reserva sin movimiento de fondos permanece como evento/reserva solamente. Cuando el usuario solicita explícitamente una transferencia entre cuentas propias, Room confirma en una única transacción: la transacción principal `TRANSFER` (`operation_kind=GOAL_FUNDING`), los asientos SOURCE negativos y DESTINATION positivos, proyecciones reconstruidas desde ledger, la actualización/reserva de meta, su evento enlazado y outbox/recibo. El `transaction_id` es igual al `operation_id` estable del comando; la RPC mantiene esa misma clave para que el feed/reintento concilie con la fila local. Dos asientos netean a cero y no se agrega gasto, ingreso ni activo duplicado. No se agrega entidad ni cambio de esquema Room.

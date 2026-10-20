@@ -1,10 +1,11 @@
 # Feature Specification: EP-NOT — Centro de Notificaciones y Avisos (HU-42)
 
-**Feature Branch**: `010-ep-not-notificaciones-avisos`
+**Feature Branch**: `feat/010-ep-not-hu-44-recordatorios`
 
 **Created**: 2026-09-26
 
-**Status**: Draft
+**Status**: Refined
+**Refined**: 2026-10-19 — Incremento Sprint 6 HU-44: anticipación configurable, deduplicación y reprogramación de recordatorios.
 
 **Input**: User description: "HU-42 (5 pts): centro único para consultar alertas y recordatorios, abrir el objeto relacionado con navegación resiliente, administrar lectura y borrado lógico, y mostrar el contador de avisos no leídos."
 
@@ -128,3 +129,55 @@ Como usuario, quiero filtrar, marcar avisos como leídos y retirar los que ya no
 - Los nombres de tipos y referencias aceptan mayúsculas de productores existentes y minúsculas de documentación; el modelo de presentación los normaliza sin reescribir avisos históricos.
 - Al no existir una instrucción normativa para marcar automáticamente un aviso al fallar su destino, el fallo de navegación no cambia su estado de lectura.
 - La hora de vencimiento se presenta como fecha prevista del recordatorio y no como confirmación de pago.
+
+## Incremento Sprint 6: HU-44 — Recordatorios y deduplicación
+
+**Historia**: Como usuario de Kipu, quiero configurar la anticipación de los recordatorios de pago y evitar avisos repetidos para atender obligaciones sin confundirlos con pagos realizados.
+
+**Estimación**: 5 puntos | **Sprint**: S6 | **Épica**: EP-NOT.
+
+**Dependencias bloqueantes**: HU-42, HU-09, HU-29 y HU-33. **Relacionadas**: HU-34, HU-35 y HU-40.
+
+### User Scenarios & Testing — HU-44
+
+#### User Story 4 — Recordar vencimientos sin duplicados (Priority: P1)
+
+Como usuario, quiero recibir un recordatorio configurable antes del vencimiento de una deuda o recurrencia, y encontrarlo en el centro de notificaciones aunque Android no permita mostrar notificaciones del sistema.
+
+**Independent Test**: Programar una deuda y una recurrencia, verificar la anticipación predeterminada de dos días y un valor configurable; repetir la reconciliación sin duplicar el aviso; cambiar la fecha o reanudar con prórroga, pausar/cancelar la regla y ejecutar con permiso concedido, denegado y revocado.
+
+**Acceptance Scenarios**:
+
+1. **Anticipación configurable** — Dada una deuda o recurrencia activa con vencimiento, cuando no hay un valor explícito, entonces el recordatorio se programa dos días antes; cuando el usuario cambia la anticipación, se usa el nuevo valor.
+2. **Reintento idempotente** — Dado un recordatorio ya programado o emitido, cuando se repite la reconciliación o el worker reintenta con la misma fuente, tipo y fecha de vencimiento, entonces permanece un solo evento activo y un solo aviso del sistema pendiente.
+3. **Cambio de fecha o prórroga** — Dado un recordatorio pendiente y una fecha de vencimiento corregida o prorrogada, cuando se guarda el cambio, entonces se cancela la programación anterior, se retira lógicamente cualquier aviso local anterior ya emitido y queda una sola programación para la fecha vigente.
+4. **Regla pausada o cancelada** — Dada una recurrencia en estado `PAUSED` o `CANCELLED`, cuando se alcanza una fecha previamente programada o se reintenta un worker atrasado, entonces no se emite recordatorio. Una deuda no activa tampoco genera recordatorios.
+5. **Permiso Android denegado o revocado** — Dado que el usuario no permite `POST_NOTIFICATIONS`, o lo revoca antes de la entrega, cuando vence la anticipación, entonces el recordatorio queda consultable en el centro HU-42 del dispositivo; si el permiso está concedido, también puede mostrarse como notificación Android.
+6. **Sin efecto financiero** — Dado que el usuario recibe o abre un recordatorio, cuando consulta sus movimientos y obligaciones, entonces el recordatorio no crea ni confirma un pago o movimiento financiero.
+
+### Functional Requirements — HU-44
+
+- **FR-014**: Para cada deuda o recurrencia activa con vencimiento, el sistema MUST programar un recordatorio con anticipación configurable en días y un valor predeterminado de 2 días.
+- **FR-015**: La identidad idempotente MUST incluir propietario, `source_id`, `event_type` y `due_date`; repetir el mismo evento MUST conservar un único recordatorio activo y no duplicar el trabajo ni la notificación del sistema.
+- **FR-016**: Al cambiar el vencimiento o registrar una prórroga, el sistema MUST cancelar el trabajo anterior, retirar lógicamente el evento local previamente generado si existe y programar únicamente la fecha vigente.
+- **FR-017**: Antes de entregar un recordatorio, el sistema MUST verificar propietario, fecha vigente y estado de la fuente; recurrencias `PAUSED`/`CANCELLED` y deudas no activas MUST quedar suprimidas, incluso ante trabajo atrasado o reintento.
+- **FR-018**: La denegación o revocación de `POST_NOTIFICATIONS` MUST impedir solo la publicación Android; MUST conservar el recordatorio consultable en el centro HU-42 del dispositivo.
+- **FR-019**: Los recordatorios MUST ser informativos y MUST NOT registrar, confirmar ni modificar movimientos, pagos, saldos o historial financiero.
+- **FR-020**: La programación MUST basarse en la fecha civil del vencimiento y no prometer ejecución exacta al segundo; una demora del planificador Android no cambia la fecha de vencimiento ni implica pago.
+
+### Success Criteria — HU-44
+
+- **SC-007**: Las pruebas confirman que el valor predeterminado es de 2 días y que un valor configurable vigente determina la fecha programada.
+- **SC-008**: En el 100% de las pruebas de reintento para una misma tupla de propietario, `source_id`, `event_type` y `due_date`, queda un único recordatorio activo.
+- **SC-009**: En el 100% de los cambios de vencimiento o prórrogas, el trabajo de la fecha anterior no emite después del cambio y solo existe una programación vigente.
+- **SC-010**: Ninguna prueba con recurrencia pausada/cancelada o deuda no activa produce un recordatorio visible del sistema o del centro.
+- **SC-011**: Con `POST_NOTIFICATIONS` denegado o revocado, el recordatorio sigue disponible en el centro interno del dispositivo y no crea efectos financieros.
+
+### Assumptions — HU-44
+
+- La anticipación se configura por regla/obligación mediante los valores existentes del dominio, no mediante una nueva preferencia global. Se conservan los límites ya validados por tipo; un valor explícito `0` desactiva el recordatorio, consistente con el copy actual de deuda.
+- `source_id` identifica la fuente del vencimiento: la regla de recurrencia para sus ocurrencias, la cuota para una deuda con cuotas y la deuda para un vencimiento único. `event_type` usa el tipo de recordatorio `BILLING_DUE`; `due_date` se serializa como fecha ISO `YYYY-MM-DD`.
+- Los vencimientos existentes sin valor explícito usan el valor predeterminado de 2 días; un valor `0` explícito se conserva como desactivado.
+- Los recordatorios de HU-44 se guardan como eventos locales Room del centro HU-42 en el dispositivo y no se insertan ni sincronizan en `public.app_notifications`; se conserva la prohibición HU-42 de INSERT desde el cliente. No se promete sincronización del evento local entre dispositivos ni recuperación tras perder los datos de la aplicación.
+- Si el permiso está concedido, la notificación del sistema es una presentación adicional del mismo evento local; al reprogramar, se cancela/reemplaza también la notificación anterior.
+- El planificador usa la zona `America/Lima` y la fecha civil de vencimiento. WorkManager/Android puede diferir la entrega; no se garantiza una hora exacta.

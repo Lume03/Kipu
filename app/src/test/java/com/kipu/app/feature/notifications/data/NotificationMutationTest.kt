@@ -3,6 +3,7 @@ package com.kipu.app.feature.notifications.data
 import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
+import com.kipu.app.feature.notifications.data.local.LocalReminderEventDao
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxEntity
 import com.kipu.app.feature.notifications.data.remote.NotificationsApi
@@ -99,6 +100,7 @@ class NotificationMutationTest {
         scheduler: RecordingScheduler,
     ) = OfflineFirstNotificationsRepository(
         notificationDao = dao,
+        localReminderEventDao = mockk<LocalReminderEventDao>(relaxed = true),
         outboxDao = outbox,
         api = mockk<NotificationsApi>(relaxed = true),
         transactionRunner = object : DatabaseTransactionRunner {
