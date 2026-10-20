@@ -1,0 +1,8 @@
+# Snapshot local sanitizado — deuda QA / pago parcial
+
+- Extracción de lectura del sandbox local `com.kipu.app`; consulta limitada a `QA_AUDIT_20261020_CRON` y agregados de outbox asociados. No se retuvieron IDs, payloads, hashes, cuentas ni filas individuales.
+- Snapshot posterior al pago QA y a los guardados de cronograma: revisión de deuda 10; principal original 10 000 minor units; estado `ACTIVE`; sync local `PENDING`.
+- Cuotas no eliminadas: 21 `CANCELLED` por 70 000 minor units y 3 `PENDING` por 10 000 minor units. El detalle UI mostró saldo pendiente de PEN 99.00 después de un pago de principal de PEN 1.00. El flujo de pago explorado no seleccionó una cuota específica; no se verificó `installmentId` en la fila del evento. Por ello no se afirma que el plan vigente deba haberse reducido automáticamente. Esta diferencia queda como observación, no defecto confirmado.
+- Eventos locales agregados: 1 `DISBURSEMENT`, 1 `PAYMENT`.
+- Outbox local asociado: `OPEN_DEBT` 1 `PENDING`, `SETTLE_DEBT` 1 `PENDING`, `SET_DEBT_SCHEDULE` 8 `PENDING`; `attempt_count=0` en todos. No se obtuvo error ni respuesta del backend; no se forzaron reintentos.
+- La lectura fue local y de solo lectura. Los archivos temporales DB/WAL generados para el snapshot fueron eliminados tras la consulta; no se incluyeron en el repositorio.

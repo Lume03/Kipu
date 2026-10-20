@@ -82,3 +82,7 @@ supabase/sprint_3_remote_baseline_routines.sql
 
 
 tmp/
+
+# QA screenshots supplied by the owner (originals) and evidence pending privacy review
+docs/qa/**/capturas/Capturas/
+docs/qa/**/capturas/_local-only/

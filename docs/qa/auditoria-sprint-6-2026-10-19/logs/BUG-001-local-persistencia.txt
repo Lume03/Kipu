@@ -1,0 +1,16 @@
+Contexto: solo la deuda QA `QA_AUDIT_20261020_CRON`; snapshot local filtrado por ese nombre, tras force-stop/relaunch. No se copiaron filas de otras cuentas ni se incluyeron IDs de usuario.
+
+| Punto de medición | revisión | cuotas CANCELLED | suma CANCELLED | cuotas PENDING | suma PENDING | principal/saldo principal |
+|---|---:|---:|---:|---:|---:|---:|
+| Antes de secuencia controlada de doble tap (snapshot) | 5 | 9 | 30,000 minor units | 3 | 10,000 minor units | 10,000 minor units |
+| Después de doble tap rápido | 6 | 12 | 40,000 minor units | 3 | 10,000 minor units | 10,000 minor units |
+| Después de cuatro taps rápidos durante la misma prueba | 8 | 18 | 60,000 minor units | 3 | 10,000 minor units | 10,000 minor units |
+| Tras reabrir app y guardar una vez más | 9 | 21 | 70,000 minor units | 3 | 10,000 minor units | 10,000 minor units |
+
+La proyección visible en UI continuó mostrando únicamente tres cuotas: 3,334 + 3,333 + 3,333 minor units = 10,000 minor units. Por estado, nunca se observó más de un conjunto de tres cuotas PENDING. Las cuotas previas persistieron localmente con estado CANCELLED; no se suman al principal pendiente.
+
+Después del relanzamiento: deuda local `ACTIVE`, `HISTORICAL`, `sync_state=PENDING`; una apertura `DISBURSEMENT` con `principal_delta_minor=0`; no hubo eventos de pago/amortización asociados al guardado del cronograma. El saldo de cuenta observado inmediatamente antes/después de la última prueba de guardar no mostró variación. Outbox local (20 s después): 8 comandos `SET_DEBT_SCHEDULE` permanecían `PENDING`, `attempt_count=0`, sin `last_error_code`; el comando inicial `OPEN_DEBT` también seguía `PENDING` sin intentos. Por tanto la persistencia remota no se verificó.
+
+Red observada: Wi-Fi conectada y validada; no se alteró conectividad ni permisos del dispositivo. La vista de cronograma post-reinicio mostró una sola proyección de tres cuotas y el botón para cancelar cuotas/avisos.
+
+Alcance del log: agregado y sanitizado; no contiene nombre de tercero, saldo personal, token, serial ADB ni identificadores UUID.
