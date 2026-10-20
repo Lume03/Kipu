@@ -49,9 +49,8 @@ venv/
 supabase/.temp/
 supabase/.branches/
 
-# QA test run evidence (heavy screenshots, dumps, SQLite dbs)
-docs/audits/evidence/*
-!docs/audits/evidence/issue-39/
+# Evidence organized by audit: unreviewed local captures remain excluded.
+/docs/audits/**/_local-only/
 
 # Local audit notes and Orca task prompts
 /AUDITORIA_Y_PLAN_FIXES.md
