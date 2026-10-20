@@ -40,6 +40,7 @@ Los recortes de 300 × 155 px contienen únicamente el extremo derecho de las ca
 | Acción vecina de notificaciones | Abre `Avisos` y permite regresar a Mi dinero. |
 | Escucha con TalkBack en Mi dinero | El usuario confirmó: «Ajustes, botón», una sola vez. |
 | Escucha con TalkBack en Movimientos | El usuario confirmó que se escucha una sola vez. |
+| Regreso con TalkBack | El usuario confirmó que regresó y escuchó correctamente el recorrido. |
 
 ## Compilación y alcance de la validación
 
@@ -52,6 +53,6 @@ La compilación del código final terminó con `BUILD SUCCESSFUL` (44 s). El APK
 
 La accesibilidad se verificó mediante los nodos expuestos por Android, los recorridos de interacción y una escucha asistida con TalkBack en el mismo celular el 20 de octubre de 2026. El usuario escuchó los anuncios y confirmó que cada acceso anuncia «Ajustes, botón» una sola vez. Esta confirmación auditiva corresponde al usuario; el agente no escuchó el audio del celular.
 
-TalkBack queda activo por indicación expresa del usuario, quien avisará cuándo desactivarlo. La configuración previa de accesibilidad se conserva localmente para su restauración posterior. No se ejecutó la suite completa de pruebas unitarias ni se añadieron tests de implementación para esta sustitución visual.
+Tras confirmar el regreso y la escucha correcta del recorrido, el usuario solicitó desactivar TalkBack. Se restauró y verificó la configuración original: sin servicios de accesibilidad habilitados y `accessibility_enabled=0`. No se ejecutó la suite completa de pruebas unitarias ni se añadieron tests de implementación para esta sustitución visual.
 
 El cambio conserva navegación y reglas financieras. Los dumps completos, capturas de trabajo y scripts auxiliares permanecen en `scratch/issue-70/`, fuera de Git; solo se versionan estos recortes y el resultado de QA.
