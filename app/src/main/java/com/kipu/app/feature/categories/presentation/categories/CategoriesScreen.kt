@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
@@ -84,6 +85,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -95,7 +98,7 @@ import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.presentation.parseHexColor
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.ui.theme.KipuMotionTokens
-import com.kipu.app.ui.theme.KipuUiColors
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.ui.theme.rememberKipuColors
 import java.text.Normalizer
 import java.util.Locale
@@ -109,10 +112,13 @@ fun CategoriesScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
+    val selectedAccent = if (state.selectedTab == CategoryTab.EXPENSE) semanticColors.expenseText else colors.primary
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Map to track expanded state of each root category
     val expandedStates = remember { mutableStateMapOf<String, Boolean>() }
+    var showInactive by remember { mutableStateOf(false) }
 
     // Interactive search & filter state
     var isSearchActive by remember { mutableStateOf(false) }
@@ -261,7 +267,8 @@ fun CategoriesScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.openCreateDialog(parentId = null) },
-                containerColor = colors.primary,
+                containerColor = if (state.isFreeLimitReachedFor(state.selectedTab.categoryType)) colors.surfaceVariant
+                    else if (state.selectedTab == CategoryTab.EXPENSE) semanticColors.expenseCoral else colors.primary,
                 contentColor = colors.onPrimary,
                 shape = CircleShape,
                 modifier = Modifier
@@ -269,9 +276,9 @@ fun CategoriesScreen(
                     .testTag("add_root_category_button"),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Agregar categoría raíz",
-                    tint = colors.onPrimary,
+                    imageVector = if (state.isFreeLimitReachedFor(state.selectedTab.categoryType)) Icons.Default.Lock else Icons.Default.Add,
+                    contentDescription = if (state.isFreeLimitReachedFor(state.selectedTab.categoryType)) "Cupo completo de categorías personalizadas" else "Agregar categoría raíz",
+                    tint = if (state.isFreeLimitReachedFor(state.selectedTab.categoryType)) colors.inkSecondary else colors.onPrimary,
                     modifier = Modifier.size(26.dp),
                 )
             }
@@ -301,7 +308,11 @@ fun CategoriesScreen(
                 val expenseCount = CategoryTab.EXPENSE.filterCategories(state.categories).count { it.category.isRoot }
                 val incomeCount = CategoryTab.INCOME.filterCategories(state.categories).count { it.category.isRoot }
 
-                CategoryTypeTabs(state.selectedTab, expenseCount, incomeCount, viewModel::onTabSelected)
+                CategoryTypeTabs(state.selectedTab, expenseCount, incomeCount) {
+                    expandedStates.clear()
+                    showInactive = false
+                    viewModel.onTabSelected(it)
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -310,6 +321,7 @@ fun CategoriesScreen(
                     QuotaBanner(
                         expenseCount = state.activeCustomExpenseRootsCount,
                         incomeCount = state.activeCustomIncomeRootsCount,
+                        selectedTab = state.selectedTab,
                         maxCount = state.maxCustomRoots,
                         isLimitReached = state.isFreeLimitReachedFor(state.selectedTab.categoryType),
                         onOpenQuotaSelection = if (state.activeCustomExpenseRootsCount > state.maxCustomRoots || state.activeCustomIncomeRootsCount > state.maxCustomRoots) {
@@ -348,17 +360,25 @@ fun CategoriesScreen(
                     }
                 }
 
+                if (searchQuery.isNotBlank()) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Resultados para “$searchQuery” · ${displayCategories.size}",
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = selectedAccent)
+                        TextButton(onClick = { searchQuery = "" }) { Text("Limpiar filtro", color = colors.primaryText) }
+                    }
+                }
                 // List of Categories
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(displayCategories, key = { it.category.id.value }) { rootItem ->
+                    items(displayCategories.filter { it.category.isActive }, key = { it.category.id.value }) { rootItem ->
                         val isExpanded = expandedStates[rootItem.category.id.value]
-                            ?: rootItem.subcategories.isNotEmpty()
+                            ?: false
 
                         CategoryRootCard(
                             item = rootItem,
+                            searchQuery = searchQuery,
                             isExpanded = isExpanded,
                             onToggleExpand = {
                                 expandedStates[rootItem.category.id.value] = !isExpanded
@@ -371,9 +391,31 @@ fun CategoriesScreen(
                         )
                     }
 
+                    val inactive = displayCategories.filterNot { it.category.isActive }
                     item {
-                        Spacer(modifier = Modifier.height(88.dp))
+                        Row(
+                            Modifier.fillMaxWidth().clickable { showInactive = !showInactive }
+                                .testTag("categories_inactive_toggle").padding(vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(18.dp))
+                            Text("  Inactivas (${inactive.size})", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                            Icon(Icons.Default.ExpandMore, contentDescription = if (showInactive) "Ocultar inactivas" else "Mostrar inactivas",
+                                modifier = Modifier.graphicsLayer { rotationZ = if (showInactive) 180f else 0f }, tint = colors.inkSecondary)
+                        }
                     }
+                    if (showInactive) items(inactive, key = { it.category.id.value }) { rootItem ->
+                        val expanded = expandedStates[rootItem.category.id.value] ?: false
+                        CategoryRootCard(
+                            item = rootItem, isExpanded = expanded, searchQuery = searchQuery,
+                            onToggleExpand = { expandedStates[rootItem.category.id.value] = !expanded },
+                            onEdit = { viewModel.openEditDialog(rootItem) },
+                            onToggleActive = { viewModel.toggleCategoryActive(rootItem.category.id, false) },
+                            onEditSubcategory = { viewModel.openEditDialog(it) },
+                            onDeleteSubcategory = { viewModel.requestDeleteCategory(it) },
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(88.dp)) }
                 }
             }
         }
@@ -583,106 +625,36 @@ fun QuotaBanner(
     isLimitReached: Boolean,
     modifier: Modifier = Modifier,
     onOpenQuotaSelection: (() -> Unit)? = null,
+    selectedTab: CategoryTab = CategoryTab.EXPENSE,
 ) {
     val colors = rememberKipuColors()
-
+    val semanticColors = rememberCalmEmeraldColors()
+    val count = if (selectedTab == CategoryTab.EXPENSE) expenseCount else incomeCount
+    val accent = if (selectedTab == CategoryTab.EXPENSE) semanticColors.expenseCoral else colors.primary
     Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = colors.surface),
-        border = BorderStroke(1.dp, if (isLimitReached) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else colors.border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surface), border = BorderStroke(1.dp, colors.border),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Categorías personalizadas",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.inkPrimary,
-                    )
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Categorías personalizadas", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold, color = colors.inkPrimary)
+                Surface(color = semanticColors.incomeBg, shape = RoundedCornerShape(4.dp)) {
+                    Text("Free", Modifier.padding(horizontal = 6.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = colors.primaryText)
                 }
-
-                if (onOpenQuotaSelection != null) {
-                    IconButton(
-                        onClick = onOpenQuotaSelection,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = "Elegir categorías del plan Free",
-                            tint = colors.inkSecondary,
-                        )
-                    }
+                Text("$count/$maxCount usadas", style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary)
+                if (onOpenQuotaSelection != null) IconButton(onClick = onOpenQuotaSelection, modifier = Modifier.size(44.dp)) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Elegir categorías del plan Free", tint = colors.inkSecondary)
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            CategoryQuotaProgressRow(
-                label = "Gastos",
-                count = expenseCount,
-                maxCount = maxCount,
-                colors = colors,
-                accent = MaterialTheme.colorScheme.error,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            CategoryQuotaProgressRow(
-                label = "Ingresos",
-                count = incomeCount,
-                maxCount = maxCount,
-                colors = colors,
-                accent = colors.primary,
-            )
-
-            if (isLimitReached) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Cupo completo · libera una categoría para activar otra.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                repeat(maxCount) { index ->
+                    Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp))
+                        .background(if (index < count) accent else colors.border))
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun CategoryQuotaProgressRow(
-    label: String,
-    count: Int,
-    maxCount: Int,
-    colors: KipuUiColors,
-    accent: Color,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = colors.inkSecondary)
-        Text(
-            "$count/$maxCount",
-            style = MaterialTheme.typography.labelSmall,
-            color = colors.inkSecondary,
-            modifier = Modifier.width(30.dp),
-        )
-        repeat(maxCount) { index ->
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(
-                        if (index < count) accent
-                        else if (colors.isDark) colors.surfaceVariant
-                        else colors.border
-                    ),
-            )
+            if (isLimitReached) Text("Cupo completo", style = MaterialTheme.typography.labelSmall,
+                color = if (selectedTab == CategoryTab.EXPENSE) semanticColors.expenseText else colors.primaryText)
         }
     }
 }
@@ -690,7 +662,7 @@ private fun CategoryQuotaProgressRow(
 @Composable
 fun CategoryRootCard(
     item: CategoryItem,
-    isExpanded: Boolean = true,
+    isExpanded: Boolean = false,
     onToggleExpand: () -> Unit = {},
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {},
@@ -700,6 +672,7 @@ fun CategoryRootCard(
     onAddSubcategory: (() -> Unit)? = null,
     onToggleSubcategoryActive: ((CategoryId, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    searchQuery: String = "",
 ) {
     val colors = rememberKipuColors()
     val isRootActive = item.category.isActive
@@ -722,7 +695,7 @@ fun CategoryRootCard(
         modifier = modifier
             .fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -731,20 +704,20 @@ fun CategoryRootCard(
                 // Category Squircle Icon
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(rootAppearance.tint.copy(alpha = if (colors.isDark) 0.30f else 0.16f)),
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(rootAppearance.tint.copy(alpha = if (colors.isDark) 0.25f else 0.08f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = resolveCategoryIcon(rootAppearance.iconId),
                         contentDescription = null,
                         tint = rootAppearance.tint,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 // Title, Subtitle, and Badge Column
                 Column(
@@ -760,8 +733,8 @@ fun CategoryRootCard(
                         },
                 ) {
                     Text(
-                        text = item.displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = highlightedCategoryName(item.displayName, searchQuery, colors.primary),
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = colors.inkPrimary,
                         maxLines = 1,
@@ -770,37 +743,25 @@ fun CategoryRootCard(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = when (item.subcategories.size) {
-                                0 -> "Sin subcategorías"
-                                1 -> "1 subcategoría"
-                                else -> "${item.subcategories.size} subcategorías"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.inkSecondary,
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (item.category.isCustom) colors.positiveContainer else colors.surfaceVariant,
-                        ) {
-                            Text(
-                                text = if (item.category.isCustom) {
-                                    "Personalizada"
-                                } else {
-                                    "Predeterminada"
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (item.category.isCustom) colors.onPositiveContainer else colors.inkSecondary,
-                            )
+                    Text(
+                        text = when (item.subcategories.size) {
+                            0 -> "Sin subcategorías"
+                            1 -> "1 subcategoría"
+                            else -> "${item.subcategories.size} subcategorías"
+                        },
+                        style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = colors.surfaceVariant) {
+                            Text(if (item.category.isCustom) "Personalizada" else "Predeterminada",
+                                Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = if (item.category.isCustom) colors.primaryText else colors.inkSecondary)
                         }
+                        Text(if (item.category.isCustom) "Usa 1 cupo" else "No consume cupo",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.inkSecondary)
                     }
-
                     // Status line if inactive or locked
                     if (item.category.isPlanLocked) {
                         Text(
@@ -811,7 +772,7 @@ fun CategoryRootCard(
                         )
                     } else if (!isRootActive) {
                         Text(
-                            text = "Inactiva · Bloquea nuevas asignaciones",
+                            text = "Inactiva",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium,
@@ -847,13 +808,13 @@ fun CategoryRootCard(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Inactivar", color = MaterialTheme.colorScheme.error) },
+                            text = { Text(if (isRootActive) "Inactivar" else "Reactivar", color = colors.primaryText) },
                             leadingIcon = {
                                 Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             },
                             onClick = {
                                 showRootMenu = false
-                                onDelete()
+                                if (isRootActive) onDelete() else onToggleActive?.invoke()
                             },
                         )
                     }
@@ -901,12 +862,13 @@ fun CategoryRootCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 9.dp, vertical = 7.dp),
+                                    .padding(horizontal = 9.dp, vertical = 4.dp),
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .width(2.dp)
                                         .height(32.dp)
+                                        .testTag("subcategory_branch_${subItem.category.id.value}")
                                         .clip(RoundedCornerShape(1.dp))
                                         .background(colors.primary.copy(alpha = 0.55f)),
                                 )
@@ -914,7 +876,7 @@ fun CategoryRootCard(
                                 // Subcategory Icon
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .size(30.dp)
                                         .clip(RoundedCornerShape(11.dp))
                                         .background(parseHexColor(subItem.color).copy(alpha = if (colors.isDark) 0.30f else 0.16f)),
                                     contentAlignment = Alignment.Center,
@@ -935,7 +897,7 @@ fun CategoryRootCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Text(
-                                            text = subItem.displayName,
+                                            text = highlightedCategoryName(subItem.displayName, searchQuery, colors.primary),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.inkPrimary,
@@ -998,12 +960,12 @@ fun CategoryRootCard(
                     }
 
                     // Button: Agregar subcategoría
-                    if (onAddSubcategory != null) {
+                    if (onAddSubcategory != null && isRootActive) {
                         TextButton(
                             onClick = onAddSubcategory,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
+                                .align(Alignment.Start)
+                                .heightIn(min = 44.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -1014,8 +976,8 @@ fun CategoryRootCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Agregar subcategoría",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
                                 color = colors.primaryText,
                             )
                         }
@@ -1053,6 +1015,7 @@ private fun categoryRootAppearance(item: CategoryItem): CategoryRootAppearance {
 @Composable
 internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incomeCount: Int, onSelected: (CategoryTab) -> Unit) {
     val colors = rememberKipuColors()
+    val semanticColors = rememberCalmEmeraldColors()
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = colors.surfaceVariant.copy(alpha = 0.6f),
@@ -1071,7 +1034,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                     .weight(1f)
                     .height(44.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isExpenseSelected) colors.primary else Color.Transparent)
+                    .background(if (isExpenseSelected) semanticColors.expenseCoral else Color.Transparent)
                     .clickable { onSelected(CategoryTab.EXPENSE) }
                     .semantics {
                         role = Role.Tab
@@ -1087,7 +1050,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                        tint = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1095,7 +1058,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                         text = "Gastos",
                         fontSize = 14.sp,
                         fontWeight = if (isExpenseSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                        color = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
@@ -1107,7 +1070,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isExpenseSelected) colors.onPrimary else colors.inkSecondary,
+                            color = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
                         )
                     }
                 }
@@ -1169,4 +1132,15 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
 @Composable
 private fun CategoryTypeTabsThemePreview() = KipuTheme {
     CategoryTypeTabs(CategoryTab.EXPENSE, 4, 2, {})
+}
+
+private fun highlightedCategoryName(name: String, query: String, accent: Color) = buildAnnotatedString {
+    append(name)
+    if (query.isNotBlank()) {
+        var index = name.indexOf(query.trim(), ignoreCase = true)
+        while (index >= 0) {
+            addStyle(SpanStyle(background = accent.copy(alpha = 0.12f), fontWeight = FontWeight.Bold), index, index + query.trim().length)
+            index = name.indexOf(query.trim(), index + query.trim().length, ignoreCase = true)
+        }
+    }
 }

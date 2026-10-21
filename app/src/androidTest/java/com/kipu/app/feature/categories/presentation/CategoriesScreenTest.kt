@@ -14,6 +14,14 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
+import java.io.File
+import io.mockk.verify
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.kipu.app.ui.theme.KipuTheme
@@ -46,6 +54,69 @@ class CategoriesScreenTest {
     val composeTestRule = createComposeRule()
 
     private val testUserId = UserId.generate()
+
+    @Test
+    fun categoriesStartCollapsedAndShowOnlyTheSelectedTabsQuota() {
+        val root = categoryItem("root", "Suscripciones", CategoryType.EXPENSE).let { item ->
+            item.copy(subcategories = listOf(categoryItem("child", "IA", CategoryType.EXPENSE)))
+        }
+        val state = MutableStateFlow(CategoriesUiState(isLoading = false, categories = listOf(root),
+            activeCustomRootsCount = 8, activeCustomExpenseRootsCount = 5, activeCustomIncomeRootsCount = 3))
+        val vm = mockk<CategoriesViewModel>(relaxed = true) {
+            every { uiState } returns state
+            every { onTabSelected(any()) } answers { state.value = state.value.copy(selectedTab = firstArg()) }
+        }
+        composeTestRule.setContent { KipuTheme { CategoriesScreen(vm, {}) } }
+        composeTestRule.onNodeWithText("IA").assertDoesNotExist()
+        composeTestRule.onNodeWithText("5/5 usadas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("3/5 usadas").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Expandir Suscripciones").performClick()
+        composeTestRule.onNodeWithText("IA").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("subcategory_branch_child", useUnmergedTree = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Ingresos").performClick()
+        composeTestRule.onNodeWithText("3/5 usadas").assertIsDisplayed()
+    }
+
+    @Test
+    fun inactiveCategoriesAreCollapsedAndCanBeReactivatedFromTheirMenu() {
+        val active = categoryItem("active", "Suscripciones", CategoryType.EXPENSE)
+        val inactive = categoryItem("inactive", "Anterior", CategoryType.EXPENSE).let { it.copy(category = it.category.copy(isActive = false)) }
+        val state = MutableStateFlow(CategoriesUiState(isLoading = false, categories = listOf(inactive, active)))
+        val vm = mockk<CategoriesViewModel>(relaxed = true) { every { uiState } returns state }
+        composeTestRule.setContent { KipuTheme { CategoriesScreen(vm, {}) } }
+        composeTestRule.onNodeWithText("Anterior").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("categories_inactive_toggle").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Anterior").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Editar Anterior").performClick()
+        composeTestRule.onNodeWithText("Reactivar").performClick()
+        verify(exactly = 1) { vm.toggleCategoryActive(inactive.category.id, false) }
+    }
+
+    @Test
+    fun capturesCompactCategoryTabsAndExpandedBranch() {
+        val root = categoryItem("root", "Suscripciones", CategoryType.EXPENSE).let {
+            it.copy(subcategories = listOf(categoryItem("child", "IA", CategoryType.EXPENSE)))
+        }
+        val state = MutableStateFlow(CategoriesUiState(isLoading = false,
+            categories = listOf(root, categoryItem("income", "Freelance", CategoryType.INCOME)),
+            activeCustomRootsCount = 8, activeCustomExpenseRootsCount = 5, activeCustomIncomeRootsCount = 3))
+        val vm = mockk<CategoriesViewModel>(relaxed = true) {
+            every { uiState } returns state
+            every { onTabSelected(any()) } answers { state.value = state.value.copy(selectedTab = firstArg()) }
+        }
+        composeTestRule.setContent { KipuTheme(darkTheme = false) { CategoriesScreen(vm, {}) } }
+        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "categories-polish").apply { mkdirs() }
+        fun capture(name: String) {
+            composeTestRule.waitForIdle()
+            val bitmap = composeTestRule.onRoot().captureToImage().asAndroidBitmap()
+            File(directory, name).outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        }
+        capture("gastos-contraidos.png")
+        composeTestRule.onNodeWithContentDescription("Expandir Suscripciones").performClick()
+        capture("gastos-subcategorias.png")
+        composeTestRule.onNodeWithText("Ingresos").performClick()
+        capture("ingresos-contraidos.png")
+    }
 
     @Test
     fun displaysHierarchyWithRootAndSubcategories() {
@@ -90,6 +161,7 @@ class CategoriesScreenTest {
         composeTestRule.setContent {
             CategoryRootCard(
                 item = rootItem,
+                isExpanded = true,
                 onToggleActive = {},
                 onAddSubcategory = {},
                 onToggleSubcategoryActive = { _, _ -> },
@@ -141,7 +213,7 @@ class CategoriesScreenTest {
             subcategories = listOf(subItem),
         )
 
-        composeTestRule.setContent { CategoryRootCard(item = rootItem) }
+        composeTestRule.setContent { CategoryRootCard(item = rootItem, isExpanded = true) }
 
         val rootNameY = composeTestRule.onNodeWithText("Alimentación")
             .fetchSemanticsNode().boundsInRoot.center.y
@@ -199,6 +271,7 @@ class CategoriesScreenTest {
         composeTestRule.setContent {
             CategoryRootCard(
                 item = inactiveRoot,
+                isExpanded = true,
                 onToggleActive = {},
                 onAddSubcategory = {},
                 onToggleSubcategoryActive = { _, _ -> },
@@ -206,7 +279,7 @@ class CategoriesScreenTest {
         }
 
         composeTestRule.onNodeWithText("Categoría Inactiva").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Inactiva · Bloquea nuevas asignaciones").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Inactiva").assertIsDisplayed()
         composeTestRule.onNodeWithText("Inactiva por categoría padre").assertIsDisplayed()
     }
 
@@ -220,10 +293,10 @@ class CategoriesScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("5/5").assertIsDisplayed()
-        composeTestRule.onNodeWithText("0/5").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5/5 usadas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("0/5 usadas").assertDoesNotExist()
         composeTestRule.onNodeWithText(
-            "Cupo completo · libera una categoría para activar otra."
+            "Cupo completo"
         ).assertIsDisplayed()
     }
 
@@ -243,8 +316,8 @@ class CategoriesScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("3/5").assertIsDisplayed()
-        composeTestRule.onNodeWithText("0/5").assertIsDisplayed()
+        composeTestRule.onNodeWithText("3/5 usadas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("0/5 usadas").assertDoesNotExist()
     }
 
     @Test
