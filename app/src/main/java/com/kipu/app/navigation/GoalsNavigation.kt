@@ -63,7 +63,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             isSaving = state.isSaving,
             errorMessage = state.errorMessage,
             onNavigateBack = { navController.popBackStack() },
-            onSave = { _, name, target, date, accountId, _ -> viewModel.saveGoal(null, name, target, date, accountId) },
+            onSave = { _, name, target, date, accountId, _, icon -> viewModel.saveGoal(null, name, target, date, accountId, iconKey = icon) },
         )
     }
 
@@ -95,7 +95,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
                 isSaving = state.isSaving,
                 errorMessage = state.errorMessage,
                 onNavigateBack = { navController.popBackStack() },
-                onSave = { id, name, target, date, accountId, replacementId -> viewModel.saveGoal(id, name, target, date, accountId, replacementId) },
+                onSave = { id, name, target, date, accountId, replacementId, icon -> viewModel.saveGoal(id, name, target, date, accountId, replacementId, icon) },
             )
         }
     }

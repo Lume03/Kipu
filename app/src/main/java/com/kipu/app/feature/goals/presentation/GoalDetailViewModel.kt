@@ -119,7 +119,7 @@ class GoalDetailViewModel @Inject constructor(
             when (result) {
                 is GoalCommandResult.Applied, is GoalCommandResult.Duplicate -> _state.value = _state.value.copy(
                     isSaving = false,
-                    message = "Guardado en este dispositivo; sincronización pendiente.",
+                    message = "Cambios guardados.",
                     errorMessage = null,
                 )
                 is GoalCommandResult.Conflict -> _state.value = _state.value.copy(

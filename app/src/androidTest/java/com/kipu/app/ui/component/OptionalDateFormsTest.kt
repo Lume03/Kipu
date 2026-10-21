@@ -145,7 +145,7 @@ private fun FixtureForm(scene: Scene, onSave: (LocalDate?) -> Unit = {}) {
             Scene.GOAL_NEW, Scene.GOAL_EDIT -> GoalFormScreen(
                 existingGoal = if (scene == Scene.GOAL_EDIT) fixtureGoal() else null,
                 accounts = emptyList(), isSaving = false, errorMessage = null, onNavigateBack = {},
-                onSave = { _, _, _, date, _, _ -> onSave(date) },
+                onSave = { _, _, _, date, _, _, _ -> onSave(date) },
             )
         }
     }

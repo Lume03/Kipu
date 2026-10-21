@@ -105,7 +105,7 @@ class GoalContributionViewModel @Inject constructor(
             }
             when (result) {
                 is GoalCommandResult.Applied, is GoalCommandResult.Duplicate -> {
-                    _state.value = _state.value.copy(isSaving = false, message = "La reserva quedó guardada localmente.", errorMessage = null)
+                    _state.value = _state.value.copy(isSaving = false, message = "Reserva guardada.", errorMessage = null)
                     _events.send(GoalContributionEvent.Saved)
                 }
                 is GoalCommandResult.Conflict -> _state.value = _state.value.copy(
@@ -113,7 +113,7 @@ class GoalContributionViewModel @Inject constructor(
                 )
                 is GoalCommandResult.Rejected -> _state.value = _state.value.copy(isSaving = false, errorMessage = result.message())
                 is GoalCommandResult.Retryable -> _state.value = _state.value.copy(
-                    isSaving = false, message = "Guardado localmente; la sincronización se reintentará.", errorMessage = null,
+                    isSaving = false, message = "Reserva guardada. Puedes seguir usando tus metas.", errorMessage = null,
                 )
             }
         }

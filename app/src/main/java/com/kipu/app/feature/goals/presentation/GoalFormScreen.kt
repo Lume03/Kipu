@@ -38,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -66,6 +67,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,8 +95,10 @@ fun GoalFormScreen(
     replacementCandidates: List<Goal> = emptyList(),
     currentReserved: Money? = null,
     hasPremiumAccess: Boolean = false,
-    onSave: (goalId: String?, name: String, target: Money, targetDate: LocalDate?, linkedAccountId: String?, replacementGoalId: String?) -> Unit,
+    onSave: (goalId: String?, name: String, target: Money, targetDate: LocalDate?, linkedAccountId: String?, replacementGoalId: String?, iconKey: String) -> Unit,
 ) {
+    var iconKey by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.iconKey ?: "savings") }
+    var iconSheetVisible by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.name.orEmpty()) }
     var amount by rememberSaveable(existingGoal?.id) {
         mutableStateOf(existingGoal?.target?.minorUnits?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty())
@@ -152,7 +156,7 @@ fun GoalFormScreen(
                         if (canSave) {
                             if (requiresReplacement) replacementDialogVisible = true
                             else parsedTarget?.let {
-                                onSave(existingGoal?.id, name.trim(), it, parsedDate, linkedAccount, null)
+                                onSave(existingGoal?.id, name.trim(), it, parsedDate, linkedAccount, null, iconKey)
                             }
                         }
                     },
@@ -208,6 +212,19 @@ fun GoalFormScreen(
                     shape = RoundedCornerShape(16.dp),
                     supportingText = if (nameError) ({ Text("Ingresa un nombre para tu meta de ahorro") }) else null,
                 )
+            }
+
+            OutlinedButton(
+                onClick = { iconSheetVisible = true },
+                modifier = Modifier.fillMaxWidth().testTag("goal_icon_picker"),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                GoalIconBadge(iconKey)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("Icono de la meta", style = MaterialTheme.typography.labelLarge)
+                    Text(goalIcon(iconKey).label, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("Cambiar")
             }
 
             Column(
@@ -357,6 +374,31 @@ fun GoalFormScreen(
         }
     }
 
+    if (iconSheetVisible) {
+        ModalBottomSheet(onDismissRequest = { iconSheetVisible = false }) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Elige un icono", style = MaterialTheme.typography.titleLarge)
+                goalIcons.chunked(4).forEach { options ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        options.forEach { option ->
+                            Column(
+                                Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                    .background(if (iconKey == option.key) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                                    .clickable(role = Role.RadioButton) { iconKey = option.key; iconSheetVisible = false }
+                                    .semantics { selected = iconKey == option.key }
+                                    .testTag("goal_icon_${option.key}").padding(vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                GoalIconBadge(option.key)
+                                Text(option.label, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (accountSheetVisible) {
         ModalBottomSheet(
             onDismissRequest = { accountSheetVisible = false },
@@ -451,7 +493,7 @@ fun GoalFormScreen(
                     enabled = selectedReplacementId != null && !isSaving,
                     onClick = {
                         val id = selectedReplacementId ?: return@TextButton
-                        parsedTarget?.let { onSave(existingGoal?.id, name.trim(), it, parsedDate, linkedAccount, id) }
+                        parsedTarget?.let { onSave(existingGoal?.id, name.trim(), it, parsedDate, linkedAccount, id, iconKey) }
                         replacementDialogVisible = false
                     },
                 ) { Text("Confirmar") }

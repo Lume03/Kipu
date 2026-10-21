@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -170,9 +171,12 @@ private fun ReceiptFlowScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            state.message?.let { message ->
+            val visibleMessage = state.message?.takeUnless { selected != null && it.startsWith("Lectura local terminada.") }
+            visibleMessage?.let { message ->
                 ReceiptFeedbackBanner(
                     message = message,
+                    warningTitle = state.warningTitle,
+                    onDismiss = viewModel::dismissMessage,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
                         .testTag("receipt_feedback"),
                 )
@@ -186,6 +190,7 @@ private fun ReceiptFlowScreen(
                         viewModel.edit(edit)
                     },
                     modifier = Modifier.weight(1f),
+                    showNotice = visibleMessage == null,
                 )
             } else if (sharedUri != null && !state.importConsumed) {
                 Column(
@@ -320,25 +325,29 @@ private fun ReceiptFlowScreen(
 }
 
 @Composable
-private fun ReceiptFeedbackBanner(
+internal fun ReceiptFeedbackBanner(
     message: String,
     modifier: Modifier = Modifier,
+    warningTitle: String? = null,
+    onDismiss: () -> Unit = {},
 ) {
     val palette = rememberCalmEmeraldColors()
     val scheme = MaterialTheme.colorScheme
     val isSuccess = message.startsWith("Lectura local terminada.")
     val isError = message.contains("no se pudo", ignoreCase = true) || message.contains("desbloquea", ignoreCase = true)
     val background = when {
+        warningTitle != null -> palette.warningBg
         isSuccess -> palette.incomeBg
         isError -> scheme.errorContainer
         else -> scheme.secondaryContainer
     }
     val foreground = when {
+        warningTitle != null -> palette.warningText
         isSuccess -> palette.incomeText
         isError -> scheme.onErrorContainer
         else -> scheme.onSecondaryContainer
     }
-    val title = if (isSuccess) "Lectura local terminada" else null
+    val title = warningTitle ?: if (isSuccess) "Lectura local terminada" else null
     val body = if (isSuccess) message.substringAfter(". ", message) else message
 
     Surface(
@@ -346,7 +355,7 @@ private fun ReceiptFeedbackBanner(
         shape = RoundedCornerShape(18.dp),
         color = background,
         contentColor = foreground,
-        border = BorderStroke(1.dp, if (isSuccess) palette.incomeBorder else scheme.outlineVariant),
+        border = BorderStroke(1.dp, if (warningTitle != null) palette.warningBorder else if (isSuccess) palette.incomeBorder else scheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -356,16 +365,19 @@ private fun ReceiptFeedbackBanner(
             Surface(shape = RoundedCornerShape(14.dp), color = background) {
                 Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Info,
+                        imageVector = if (warningTitle != null) Icons.Filled.WarningAmber else if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Info,
                         contentDescription = null,
                         tint = foreground,
                         modifier = Modifier.size(23.dp),
                     )
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 title?.let { Text(it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold) }
                 Text(body, style = MaterialTheme.typography.bodyMedium)
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Filled.Close, contentDescription = "Cerrar aviso")
             }
         }
     }
@@ -566,6 +578,7 @@ internal fun ReceiptMetadataEditor(
     busy: Boolean,
     onContinue: (ReceiptCandidateEdit, MovementType) -> Unit,
     modifier: Modifier = Modifier,
+    showNotice: Boolean = true,
 ) {
     val lima = remember { ZoneId.of("America/Lima") }
     val context = LocalContext.current
@@ -590,8 +603,8 @@ internal fun ReceiptMetadataEditor(
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ReceiptInfoNotice(
-                text = "Revisa los datos extraídos. Tu saldo no cambiará hasta que confirmes el movimiento.",
+            if (showNotice) ReceiptInfoNotice(
+                text = "Revisa los datos antes de confirmar. Tu saldo aún no cambia.",
                 prominent = true,
             )
 

@@ -22,6 +22,7 @@ interface GoalRepository {
         linkedAccountId: String?,
         targetDate: java.time.LocalDate?,
         hasPremiumAccess: Boolean,
+        iconKey: String? = null,
     ): GoalCommandResult
 
     suspend fun updateGoal(userId: String, goalId: String, command: UpdateGoalCommand): GoalCommandResult

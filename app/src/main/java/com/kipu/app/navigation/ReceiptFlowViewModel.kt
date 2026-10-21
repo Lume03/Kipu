@@ -25,6 +25,7 @@ data class ReceiptFlowState(
     val selected: ReceiptCandidate? = null,
     val busy: Boolean = false,
     val message: String? = null,
+    val warningTitle: String? = null,
     val readyForMovement: Boolean = false,
     val importConsumed: Boolean = false,
 )
@@ -76,8 +77,7 @@ class ReceiptFlowViewModel @Inject constructor(
             }
             is ReceiptImportResult.Duplicate -> {
                 consumeImport()
-                message("Este comprobante ya fue recibido. Revisa el candidato existente; no se creó otro movimiento.")
-                loadCandidate(result.existingCandidateId)
+                loadCandidate(result.existingCandidateId, duplicate = true)
             }
             ReceiptImportResult.AccessDenied -> {
                 consumeImport()
@@ -104,14 +104,29 @@ class ReceiptFlowViewModel @Inject constructor(
 
     fun select(id: String) = work { loadCandidate(id) }
 
-    private suspend fun loadCandidate(id: String) {
+    private suspend fun loadCandidate(id: String, duplicate: Boolean = false) {
         if (!hasAccess()) return
         val candidate = store.get(requireNotNull(owner), id)
         if (!hasAccess()) return
         if (candidate?.status == ReceiptCandidateStatus.PENDING) {
             savedState["selectedCandidate"] = id
-            _state.update { it.copy(selected = candidate, readyForMovement = false) }
-        } else message("El comprobante ya fue registrado o descartado. No se modificó el saldo.")
+            _state.update { it.copy(selected = candidate, readyForMovement = false, message = null, warningTitle = null) }
+            if (duplicate) _state.update { it.copy(
+                message = "Este comprobante ya está pendiente de revisión. Continúa aquí; no se creó otra entrada.",
+                warningTitle = "Comprobante repetido",
+            ) }
+        } else {
+            savedState.remove<String>("selectedCandidate")
+            _state.update { it.copy(
+                selected = null, readyForMovement = false,
+                message = when (candidate?.status) {
+                    ReceiptCandidateStatus.CONFIRMED -> candidate.registeredReceiptMessage()
+                    ReceiptCandidateStatus.DISCARDED -> "Este comprobante ya fue descartado. No se registró otro movimiento ni cambió tu saldo."
+                    else -> "Este comprobante ya no está disponible. Revisa la bandeja."
+                },
+                warningTitle = if (candidate?.status == ReceiptCandidateStatus.CONFIRMED) "Posible movimiento duplicado" else "Comprobante no disponible",
+            ) }
+        }
     }
 
     fun edit(edit: ReceiptCandidateEdit) = work {
@@ -140,7 +155,8 @@ class ReceiptFlowViewModel @Inject constructor(
     }
 
     fun closeMovement() { _state.update { it.copy(readyForMovement = false) } }
-    fun message(text: String) { _state.update { it.copy(message = text) } }
+    fun message(text: String) { _state.update { it.copy(message = text, warningTitle = null) } }
+    fun dismissMessage() { _state.update { it.copy(message = null, warningTitle = null) } }
 
     private fun work(block: suspend () -> Unit) {
         if (!hasAccess() || _state.value.busy) return
@@ -152,4 +168,15 @@ class ReceiptFlowViewModel @Inject constructor(
             finally { _state.update { it.copy(busy = false) } }
         }
     }
+}
+
+private fun ReceiptCandidate.registeredReceiptMessage(): String = buildString {
+    append("Ya registraste una operación")
+    reference?.takeIf(String::isNotBlank)?.let { append(" con el N.º $it") }
+    amountMinor?.let { append(" por S/ ${java.math.BigDecimal.valueOf(it, 2).toPlainString()}") }
+    occurredAt?.let {
+        val date = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.of("America/Lima"))
+        append(" el ${date.format(java.time.format.DateTimeFormatter.ofPattern("d 'de' MMMM", java.util.Locale.forLanguageTag("es-PE")))}")
+    }
+    append(". Revisa tus movimientos antes de registrar otra vez.")
 }

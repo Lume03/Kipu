@@ -98,6 +98,7 @@ class GoalListViewModel @Inject constructor(
         targetDate: LocalDate?,
         linkedAccountId: String?,
         replacementGoalId: String? = null,
+        iconKey: String? = null,
     ) {
         val current = _state.value
         val userId = current.userId ?: return _state.updateError("Inicia sesión para guardar una meta.")
@@ -113,6 +114,7 @@ class GoalListViewModel @Inject constructor(
                         linkedAccountId = linkedAccountId,
                         targetDate = targetDate,
                         hasPremiumAccess = current.hasPremiumAccess,
+                        iconKey = iconKey,
                     )
                 } else {
                     val goal = current.goals.firstOrNull { it.goal.id == goalId }?.goal
@@ -129,7 +131,7 @@ class GoalListViewModel @Inject constructor(
                             target = target,
                             targetDate = targetDate,
                             linkedAccountId = linkedAccountId,
-                            iconKey = goal.iconKey,
+                            iconKey = iconKey ?: goal.iconKey,
                             colorArgb = goal.colorArgb,
                             replacementGoalId = replacementGoalId,
                             replacementExpectedRevision = replacementGoalId?.let { id -> current.goals.firstOrNull { it.goal.id == id }?.goal?.revision },
@@ -172,7 +174,7 @@ class GoalListViewModel @Inject constructor(
             is GoalCommandResult.Applied, is GoalCommandResult.Duplicate -> {
                 _state.value = _state.value.copy(
                     isSaving = false,
-                    message = if (result is GoalCommandResult.Applied) "Guardado en este dispositivo; sincronización pendiente." else "La operación ya estaba guardada.",
+                    message = null,
                     errorMessage = null,
                 )
                 _events.send(if (isDelete) GoalListEvent.Deleted else GoalListEvent.Saved)

@@ -9,11 +9,22 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.compose.composable
@@ -23,6 +34,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.feature.goals.presentation.GoalFormScreen
 import com.kipu.app.feature.goals.presentation.GoalDetailScreen
 import com.kipu.app.feature.goals.presentation.GoalDetailUiState
+import com.kipu.app.feature.goals.presentation.GoalListScreen
+import com.kipu.app.feature.goals.presentation.GoalManagementUiState
+import com.kipu.app.feature.goals.presentation.GoalListItemState
+import com.kipu.app.feature.goals.presentation.GoalContributionSheet
+import com.kipu.app.feature.goals.presentation.GoalContributionUiState
+import com.kipu.app.feature.goals.domain.model.GoalStatus
 import com.kipu.app.feature.goals.domain.GoalProgressCalculator
 import com.kipu.app.feature.goals.domain.model.Goal
 import com.kipu.app.feature.goals.domain.model.GoalBackingAccount
@@ -53,7 +70,7 @@ class CellularCorrectionsTest {
     }
 
     @Test fun newGoalStartsWithoutValidationErrors() {
-        compose.setContent { KipuTheme { GoalFormScreen(null, emptyList(), false, null, {}, onSave = { _, _, _, _, _, _ -> }) } }
+        compose.setContent { KipuTheme { GoalFormScreen(null, emptyList(), false, null, {}, onSave = { _, _, _, _, _, _, _ -> }) } }
         compose.onNodeWithText("Ingresa un nombre para tu meta de ahorro").assertDoesNotExist()
         compose.onNodeWithText("El monto objetivo debe ser mayor a 0.00").assertDoesNotExist()
         compose.onNodeWithTag("goal_form_name").assertIsDisplayed()
@@ -70,7 +87,7 @@ class CellularCorrectionsTest {
     }
 
     @Test fun lightGoalFormMatchesTheReferenceWithoutInitialErrors() {
-        compose.setContent { KipuTheme(darkTheme = false) { GoalFormScreen(null, emptyList(), false, null, {}, onSave = { _, _, _, _, _, _ -> }) } }
+        compose.setContent { KipuTheme(darkTheme = false) { GoalFormScreen(null, emptyList(), false, null, {}, onSave = { _, _, _, _, _, _, _ -> }) } }
         compose.onNodeWithText("Ingresa un nombre para tu meta de ahorro").assertDoesNotExist()
         capture("nueva-meta-claro")
     }
@@ -136,6 +153,73 @@ class CellularCorrectionsTest {
                 assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
             }
         }
+    }
+
+    @Test fun duplicateWarningCanBeClosed() {
+        compose.setContent {
+            var visible by remember { mutableStateOf(true) }
+            KipuTheme(darkTheme = false) {
+                Column(Modifier.statusBarsPadding().padding(16.dp)) {
+                    if (visible) ReceiptFeedbackBanner(
+                    message = "Ya registraste una operación con el N.º 05862147 por S/ 80.00.",
+                    warningTitle = "Posible movimiento duplicado",
+                    onDismiss = { visible = false },
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Posible movimiento duplicado").assertIsDisplayed()
+        capture("duplicado-amarillo")
+        compose.onNodeWithContentDescription("Cerrar aviso").performClick()
+        compose.onNodeWithText("Posible movimiento duplicado").assertDoesNotExist()
+    }
+
+    @Test fun archivedGoalsStayCollapsedAndPendingSyncIsNotShown() {
+        val active = Goal("active", "owner", "Viaje", Money(100000, Currency.PEN), iconKey = "flight", createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        val archived = active.copy(id = "archived", name = "Meta anterior", status = GoalStatus.ARCHIVED)
+        val state = GoalManagementUiState(isLoading = false,
+            message = "Guardado en este dispositivo; sincronización pendiente.",
+            goals = listOf(archived, active).map { GoalListItemState(it, GoalProgressCalculator.calculate(it, emptyList())) })
+        compose.setContent { KipuTheme(darkTheme = false) { GoalListScreen(state, {}, {}, {}, {}, {}, {}) } }
+        compose.onNodeWithText("Viaje").assertIsDisplayed()
+        compose.onNodeWithText("Meta anterior").assertDoesNotExist()
+        compose.onNodeWithText("Guardado en este dispositivo; sincronización pendiente.").assertDoesNotExist()
+        capture("metas-limpias")
+        compose.onNodeWithTag("goal_archived_toggle").performScrollTo().performClick()
+        compose.onNodeWithTag("goal_card_archived").performScrollTo().assertIsDisplayed()
+        capture("metas-archivadas")
+        compose.onNodeWithTag("goal_archived_toggle").performScrollTo().performClick()
+        compose.onNodeWithText("Meta anterior").assertDoesNotExist()
+    }
+
+    @Test fun goalIconSelectionIsIncludedWhenSaving() {
+        var savedIcon: String? = null
+        compose.setContent {
+            KipuTheme { GoalFormScreen(null, emptyList(), false, null, {},
+                onSave = { _, _, _, _, _, _, icon -> savedIcon = icon }) }
+        }
+        compose.onNodeWithTag("goal_form_name").performTextInput("Laptop")
+        compose.onNodeWithTag("goal_icon_picker").performScrollTo().performClick()
+        compose.onNodeWithTag("goal_icon_laptop").performClick()
+        compose.onNodeWithTag("goal_form_target").performScrollTo().performTextInput("4800")
+        compose.onNodeWithTag("goal_save_button").performClick()
+        compose.runOnIdle { assertEquals("laptop", savedIcon) }
+        capture("meta-icono-elegido")
+    }
+
+    @Test fun contributionRejectsLettersAndKeepsDecimalAmount() {
+        val goal = Goal("fixture", "owner", "Viaje", Money(100000, Currency.PEN), createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        val funds = Money(10000, Currency.PEN)
+        val zero = Money(0, Currency.PEN)
+        val state = GoalContributionUiState(goal = goal, isLoading = false,
+            accounts = listOf(GoalBackingAccount("bank", "BBVA", Currency.PEN, funds, zero, funds, zero)))
+        var reserved: Money? = null
+        compose.setContent { KipuTheme { GoalContributionSheet(state, {}, { amount, _, _, _ -> reserved = amount }) } }
+        compose.onNodeWithTag("goal_contribution_amount").performTextInput("abc12.50")
+        capture("aporte-teclado-decimal")
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
+        compose.onNodeWithTag("goal_contribution_submit").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(Money(1250, Currency.PEN), reserved) }
     }
 
     private fun capture(name: String) {

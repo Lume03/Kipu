@@ -64,6 +64,7 @@ class OfflineFirstGoalRepository @Inject constructor(
         linkedAccountId: String?,
         targetDate: java.time.LocalDate?,
         hasPremiumAccess: Boolean,
+        iconKey: String?,
     ): GoalCommandResult {
         if (!hasPremiumAccess && local.countOperationalGoals(userId) >= FREE_ACTIVE_GOAL_LIMIT) {
             return GoalCommandResult.Rejected("GOAL_LIMIT")
@@ -75,6 +76,7 @@ class OfflineFirstGoalRepository @Inject constructor(
             target = target,
             linkedAccountId = linkedAccountId,
             targetDate = targetDate,
+            iconKey = iconKey,
             now = clock.instant(),
         )
         val goal = when (val result = CreateGoal().execute(command)) {

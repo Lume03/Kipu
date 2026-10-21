@@ -38,7 +38,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { id, _, target, _, accountId, _ ->
+                onSave = { id, _, target, _, accountId, _, _ ->
                     savedGoalId = id
                     savedTarget = target
                     linkedAccountId = accountId
@@ -68,7 +68,7 @@ class GoalManagementFlowTest {
             GoalListScreen(uiState, {}, {}, {}, {}, {}, {})
         }
 
-        compose.onNodeWithText("Plan Free  ·  2 de 2 metas activas").assertIsDisplayed()
+        compose.onNodeWithText("2 de 2 activas").assertIsDisplayed()
         compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
     }
 
@@ -77,7 +77,7 @@ class GoalManagementFlowTest {
         val uiState = state(goals = listOf(goal("goal-active", GoalStatus.ACTIVE), goal("goal-completed", GoalStatus.COMPLETED)))
         compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
 
-        compose.onNodeWithText("Plan Free  ·  1 de 2 metas activas").assertIsDisplayed()
+        compose.onNodeWithText("1 de 2 activas").assertIsDisplayed()
         compose.onNodeWithTag("goal_create_button").assertIsDisplayed()
     }
 
@@ -92,7 +92,7 @@ class GoalManagementFlowTest {
         )
         compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
 
-        compose.onNodeWithText("Plan Free  ·  2 de 2 metas activas").assertIsDisplayed()
+        compose.onNodeWithText("2 de 2 activas").assertIsDisplayed()
         compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
     }
 
@@ -108,7 +108,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { id, _, target, _, accountId, _ -> saved = Triple(id, target, accountId) },
+                onSave = { id, _, target, _, accountId, _, _ -> saved = Triple(id, target, accountId) },
             )
         }
 
@@ -134,7 +134,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { _, _, _, _, _, replacementId -> replacement = replacementId },
+                onSave = { _, _, _, _, _, replacementId, _ -> replacement = replacementId },
             )
         }
 
@@ -158,7 +158,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { _, _, _, _, _, _ -> saveCount++ },
+                onSave = { _, _, _, _, _, _, _ -> saveCount++ },
             )
         }
 
@@ -185,7 +185,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { _, _, _, _, _, replacementId -> savedReplacement = replacementId },
+                onSave = { _, _, _, _, _, replacementId, _ -> savedReplacement = replacementId },
             )
         }
 
@@ -211,7 +211,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { _, _, _, _, _, replacementId ->
+                onSave = { _, _, _, _, _, replacementId, _ ->
                     if (replacementId == null) saveCount++
                 },
             )
@@ -242,7 +242,7 @@ class GoalManagementFlowTest {
                 isSaving = false,
                 errorMessage = null,
                 onNavigateBack = {},
-                onSave = { _, _, _, _, accountId, _ -> linkedAccountId = accountId },
+                onSave = { _, _, _, _, accountId, _, _ -> linkedAccountId = accountId },
             )
         }
 

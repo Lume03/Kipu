@@ -894,15 +894,6 @@ private fun ActiveDashboardContent(
             }
         }
 
-        item(key = "goals_entry") {
-            OutlinedButton(
-                onClick = onNavigateToGoals,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("dashboard_open_goals"),
-            ) {
-                Text("Metas y reservas")
-            }
-        }
-
         // Credit notifications
         if (creditNotifications.isNotEmpty()) {
             items(creditNotifications, key = { it.id }) { notification ->
@@ -1137,8 +1128,8 @@ private fun BasicPlanLimitCard(
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.warningText,
-                        contentColor = if (colors.isDark) colors.onPrimaryDeep else colors.primaryText,
+                        containerColor = colors.warningBg,
+                        contentColor = colors.warningText,
                     ),
                 ) {
                     Text("Mejorar a PRO", style = MaterialTheme.typography.labelLarge,

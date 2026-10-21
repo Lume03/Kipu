@@ -77,6 +77,18 @@ class OfflineFirstGoalRepositoryTest {
     }
 
     @Test
+    fun selectedIconIsStagedWithTheNewGoalAndItsSyncCommand() = runTest {
+        coEvery { local.countOperationalGoals(USER_ID) } returns 0
+        val result = repository.createGoal(USER_ID, "Laptop", Money(480000, Currency.PEN), null, null, false, "laptop")
+        assertTrue(result is GoalCommandResult.Applied)
+        val stagedGoals = slot<List<com.kipu.app.feature.goals.domain.model.Goal>>()
+        val command = slot<GoalCommandEnvelope>()
+        coVerify(exactly = 1) { local.stageCommand(USER_ID, capture(command), capture(stagedGoals), any(), any()) }
+        assertEquals("laptop", stagedGoals.captured.single().iconKey)
+        assertEquals("laptop", command.captured.payload["icon_key"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun premiumCanReactivateCompletedGoalAtFreeActiveGoalLimitWithoutReplacement() = runTest {
         coEvery { local.countOperationalGoals(USER_ID) } returns 2
 

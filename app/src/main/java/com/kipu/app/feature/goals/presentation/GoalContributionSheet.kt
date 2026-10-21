@@ -8,6 +8,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -48,6 +56,7 @@ fun GoalContributionSheet(
     onReserve: (amount: Money, backingAccountId: String, confirmTransfer: Boolean, sourceAccountId: String?) -> Unit,
 ) {
     val goal = state.goal
+    val focusManager = LocalFocusManager.current
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var backingAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var sourceAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
@@ -83,7 +92,7 @@ fun GoalContributionSheet(
             state.isLoading -> CircularProgressIndicator(Modifier.padding(padding).padding(24.dp))
             goal == null -> Text("No encontramos esta meta.", Modifier.padding(padding).padding(24.dp))
             else -> Column(
-                Modifier.fillMaxSize().padding(padding).padding(20.dp),
+                Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Elige de qué cuenta se respalda. Una meta puede recibir reservas de varias cuentas de la misma moneda.")
@@ -93,6 +102,8 @@ fun GoalContributionSheet(
                     label = { Text("Importe") },
                     prefix = { Text(if (goal.currency.name == "PEN") "S/ " else "$ ") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().testTag("goal_contribution_amount"),
                 )
                 AccountChoice(
@@ -131,7 +142,7 @@ fun GoalContributionSheet(
                 CardNote(effectiveTransfer)
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = { amount?.let { onReserve(it, chosenBackingId, effectiveTransfer, sourceAccountId.takeIf(String::isNotBlank)) } },
                     enabled = !state.isSaving && canReserve,

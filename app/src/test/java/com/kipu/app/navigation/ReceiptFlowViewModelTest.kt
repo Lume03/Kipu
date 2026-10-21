@@ -56,6 +56,34 @@ class ReceiptFlowViewModelTest {
         coVerify(exactly = 1) { importer(any(), any(), any()) }
     }
 
+    @Test fun `registered receipt explains duplicate with operation and amount`() = runTest {
+        coEvery { importer("owner", any(), true) } returns ReceiptImportResult.Duplicate(candidate.id)
+        coEvery { store.get("owner", candidate.id) } returns candidate.copy(status = ReceiptCandidateStatus.CONFIRMED)
+        val vm = viewModel()
+        vm.import("content://receipts/test.png")
+        advanceUntilIdle()
+        val message = vm.state.value.message.orEmpty()
+        assertTrue(message, message.contains("Ya registraste"))
+        assertTrue(message, message.contains("01234567"))
+        assertTrue(message, message.contains("S/ 12.50"))
+        assertEquals("Posible movimiento duplicado", vm.state.value.warningTitle)
+        assertNull(vm.state.value.selected)
+        coVerify(exactly = 0) { confirmer(any(), any(), any()) }
+        vm.dismissMessage()
+        assertNull(vm.state.value.message)
+        assertNull(vm.state.value.warningTitle)
+    }
+
+    @Test fun `discarded receipt is not described as a registered movement`() = runTest {
+        coEvery { importer("owner", any(), true) } returns ReceiptImportResult.Duplicate(candidate.id)
+        coEvery { store.get("owner", candidate.id) } returns candidate.copy(status = ReceiptCandidateStatus.DISCARDED)
+        val vm = viewModel()
+        vm.import("content://receipts/test.png")
+        advanceUntilIdle()
+        assertTrue(vm.state.value.message.orEmpty().contains("descartado"))
+        assertFalse(vm.state.value.message.orEmpty().contains("registrado"))
+    }
+
     @Test fun `scan access denial gives manual fallback without confirming`() = runTest {
         coEvery { importer("owner", any(), true) } returns ReceiptImportResult.AccessDenied
         val vm = viewModel()
