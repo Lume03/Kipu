@@ -7,6 +7,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,6 +71,7 @@ private fun ReceiptFlowScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var reviewedType by rememberSaveable { mutableStateOf(MovementType.EXPENSE) }
+    var showShareHelp by rememberSaveable { mutableStateOf(false) }
     Scaffold(topBar = {
         TopAppBar(title = { Text("Comprobantes Yape") }, navigationIcon = {
             IconButton(onClick = { if (state.selected != null) viewModel.closeEditor() else onBack() }) {
@@ -97,18 +102,51 @@ private fun ReceiptFlowScreen(
                     }
                 }
             } else {
-                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = viewModel::manual, enabled = !state.busy) { Text("Registro manual") }
-                    TextButton(onClick = onHistory) { Text("Ver movimientos") }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = viewModel::manual, enabled = !state.busy, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.Edit, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Registro manual")
+                    }
+                    OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.History, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Ver movimientos")
+                    }
                 }
-                Text("Comparte una imagen desde Yape para leerla aquí. Nada se registra automáticamente.", Modifier.padding(16.dp))
+                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                        Text("Comparte un comprobante desde Yape para revisarlo aquí. Tu saldo no cambia hasta que confirmes el movimiento.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                    }
+                }
                 ReceiptReviewScreen(
                     candidates = state.candidates,
                     onReview = viewModel::select,
                     onEdit = viewModel::editCandidate,
                     onDiscard = viewModel::discard,
+                    onHowToShare = { showShareHelp = true },
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+    }
+    if (showShareHelp) {
+        ModalBottomSheet(onDismissRequest = { showShareHelp = false }) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("¿Cómo compartir desde Yape?", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showShareHelp = false }) { Icon(Icons.Filled.Close, contentDescription = "Cerrar ayuda") }
+                }
+                Text("Envía tu comprobante a Kipu para revisarlo antes de registrar el movimiento.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                listOf("Abre Yape y entra al movimiento que quieres compartir.", "Toca Compartir y elige Kipu en la lista de aplicaciones.", "Revisa los datos sugeridos en Kipu y confirma solo cuando estén correctos.").forEachIndexed { index, step ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) { Text("${index + 1}", Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium) }
+                            Text(step, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                Surface(color = androidx.compose.ui.graphics.Color(0xFFFFF3CD), contentColor = androidx.compose.ui.graphics.Color(0xFF664D03), shape = MaterialTheme.shapes.medium) {
+                    Text("También puedes compartir una captura desde Fotos usando el menú Compartir.", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
+                }
+                Button(onClick = { showShareHelp = false }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) { Text("Entendido, volver a comprobantes") }
             }
         }
     }
