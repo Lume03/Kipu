@@ -1,7 +1,7 @@
 package com.kipu.app.feature.receipts.di
 
 import com.kipu.app.feature.receipts.data.AndroidReceiptImageRecognizer
-import com.kipu.app.feature.receipts.data.PlansReceiptScanAccess
+import com.kipu.app.feature.receipts.data.LocalReceiptScanAccess
 import com.kipu.app.feature.receipts.data.local.ReceiptCandidateDao
 import com.kipu.app.feature.receipts.data.local.RoomReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateStore
@@ -20,7 +20,7 @@ import javax.inject.Singleton
 abstract class ReceiptsBindings {
     @Binds @Singleton abstract fun candidateStore(value: RoomReceiptCandidateStore): ReceiptCandidateStore
     @Binds @Singleton abstract fun imageRecognizer(value: AndroidReceiptImageRecognizer): ReceiptImageRecognizer
-    @Binds @Singleton abstract fun scanAccess(value: PlansReceiptScanAccess): ReceiptScanAccess
+    @Binds @Singleton abstract fun scanAccess(value: LocalReceiptScanAccess): ReceiptScanAccess
 }
 
 @Module

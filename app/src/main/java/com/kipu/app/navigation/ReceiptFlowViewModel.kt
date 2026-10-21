@@ -81,7 +81,7 @@ class ReceiptFlowViewModel @Inject constructor(
             }
             ReceiptImportResult.AccessDenied -> {
                 consumeImport()
-                message("El OCR requiere Kipu Premium y una autorización vigente. Puedes registrar manualmente sin leer la imagen.")
+                message("No se pudo autorizar la lectura local. Puedes registrar el movimiento manualmente sin leer la imagen.")
             }
             ReceiptImportResult.Unreadable -> {
                 consumeImport()

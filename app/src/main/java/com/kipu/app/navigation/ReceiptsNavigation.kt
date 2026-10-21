@@ -88,7 +88,7 @@ private fun ReceiptFlowScreen(
             } else if (sharedUri != null && !state.importConsumed) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("Recibimos una imagen compartida", style = MaterialTheme.typography.titleLarge)
-                    Text("Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. La imagen no se subirá ni se conservará. El OCR requiere Premium vigente.")
+                    Text("Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.")
                     Text("La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.")
                     Button(onClick = { viewModel.import(sharedUri) }, enabled = !state.busy,
                         modifier = Modifier.fillMaxWidth().testTag("receipt_authorize_ocr")) { Text("Autorizar OCR local de Yape") }

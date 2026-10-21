@@ -18,6 +18,11 @@ class FeatureAccessPolicyTest {
     }
 
     @Test
+    fun localYapeReceiptOcrIsAllowedWithoutAnEntitlement() {
+        assertEquals(allowed(), evaluate(Capability.YapeReceiptOcr))
+    }
+
+    @Test
     fun allFiveLimitsAllowBelowThresholdAndDenyAtThreshold() {
         val cases = listOf(
             Capability.Instruments to limits.instruments,

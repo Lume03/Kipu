@@ -16,7 +16,7 @@ class ImportYapeReceiptTest {
         assertEquals(false, opened)
     }
 
-    @Test fun deniedEntitlementDoesNotOpenUri() = runTest {
+    @Test fun deniedScanAccessDoesNotOpenUri() = runTest {
         var opened = false
         val useCase = importer(allowed = false, opened = { opened = true })
         assertIs<ReceiptImportResult.AccessDenied>(useCase("owner", mockk<Uri>(), true))
