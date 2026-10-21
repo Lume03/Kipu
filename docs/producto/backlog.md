@@ -3658,7 +3658,7 @@ Como usuario de Kipu, quiero conocer qué acciones incluye mi plan, para usar la
 
 ### Reglas de Negocio
 
-1. Nueva captura, OCR y categorización automática requieren Premium.
+1. La nueva captura y categorización automática requieren Premium. Excepción aprobada: el OCR local de comprobantes Yape está disponible en Free con autorización explícita, procesamiento local y revisión antes de registrar.
 2. Analítica histórica y filtros combinados requieren Premium.
 3. Manual, sync, consultas básicas y personalización ordinaria siguen Free.
 4. Comprobar acción en dominio, no solo ocultar botones.

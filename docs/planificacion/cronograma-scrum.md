@@ -681,7 +681,7 @@ Distribución sugerida para Sprint Planning. No crea responsables fijos de HU: e
 
 | Integrante | Épica(s) que coordina | Trabajo sugerido del sprint | Carga |
 | :--- | :--- | :--- | :--- |
-| Integrante 1 | EP-PLA | HU-06/49: integrar acceso a compartir y controles de privacidad/plan; entregar prohibición de OCR en Free y flujo manual alternativo. | 12 h dev + 4 h eventos + 4 h reserva |
+| Integrante 1 | EP-PLA | HU-06/49: integrar acceso a compartir y controles de privacidad/plan; criterio histórico de OCR refinado el 2026-10-21: OCR local Yape permitido en Free con consentimiento y revisión; conservar alternativas manuales. | 12 h dev + 4 h eventos + 4 h reserva |
 | Integrante 2 | EP-CCO / EP-INF | HU-41: desarrollar estadísticas y comparación Premium; entregar filtros, base cero y etiqueta de periodo parcial. | 12 h dev + 4 h eventos + 4 h reserva |
 | Integrante 3 | EP-MET / EP-PRE | HU-06/49: desarrollar exportación/restore UI y revisión de comprobante; entregar advertencias de eliminación de cuenta y datos no enviados. | 12 h dev + 4 h eventos + 4 h reserva |
 | Integrante 4 | EP-MOV | HU-49/41: implementar dedupe multifuente y conciliación de reportes; entregar dos compras iguales distintas y reembolso histórico. | 12 h dev + 4 h eventos + 4 h reserva |

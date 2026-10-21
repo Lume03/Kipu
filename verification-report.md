@@ -52,3 +52,23 @@ Para repetir la QA privada, instalar la variante lab y ejecutar `python scripts/
 - No se modificaron Supabase ni sus migraciones; pgTAP no aplica a esta migración SQLite. La sincronización remota existente no se certifica aquí como despliegue nuevo.
 - No se ejecutó Spec Kit ni se crearon/modificaron sus artefactos, conforme a la indicación del usuario.
 - AGy implementó/investigó parser y pruebas de edición. Los subagentes nativos se ejecutaron exclusivamente con `openai/gpt-6-luna#high`; OpenCode conservó integración y validación.
+
+## Refinamiento de acceso Free y limpieza de override QA — 2026-10-21
+
+**Veredicto: APPROVED** para el refinamiento acotado que habilita el OCR local de comprobantes Yape en Kipu Free y retira la asignación QA Premium del propietario. Este addendum complementa el alcance histórico de arriba; no cambia sus resultados ni certifica HU-49 completa.
+
+### Cambios verificados
+
+- `Capability.YapeReceiptOcr` se permite sin entitlement; las demás capacidades Premium mantienen la verificación vigente.
+- El OCR requiere consentimiento explícito. La imagen se procesa localmente, no se sube ni se conserva, y el candidato debe revisarse antes de confirmar un movimiento.
+- Supabase: se desactivó `internal.test_plan_override_gate` y se retiró el único override mediante las funciones internas auditadas. Verificación posterior: gate `false`, `0` overrides y dos eventos de auditoría (`GATE_DISABLED`, `RESET`). `v_feature_access` y `get_effective_plan_for_refresh` devuelven `FREE` / `COMMERCIAL` para la cuenta; no se alteraron compras ni billing. El esquema QA queda instalado e inactivo; no se aplicó migración.
+- El build instalado usa `TEST_PLAN_OVERRIDES_ENABLED=false`, por lo que tampoco acepta grants QA antiguos.
+
+### Validación de este refinamiento
+
+- `:app:testDebugUnitTest --tests com.kipu.app.feature.plans.domain.FeatureAccessPolicyTest --tests com.kipu.app.feature.receipts.domain.ReceiptScanAccessPolicyTest --tests com.kipu.app.feature.receipts.domain.ImportYapeReceiptTest` — `BUILD SUCCESSFUL`.
+- `:app:assembleDebug` — `BUILD SUCCESSFUL`.
+- `git diff --check` — sin errores.
+- Instalación de actualización `adb install -r -t` en Samsung SM-S926B (`R5CX10W7CZD`), `com.kipu.app` 0.1.0. La aplicación quedó abierta y `firstInstallTime` se conservó; no se desinstaló ni se borraron datos locales.
+- PgTAP no aplica a este refinamiento: no hubo DDL ni cambio de esquema; el estado administrativo se validó con consultas de lectura tras ejecutar las funciones internas.
+- No se modificaron movimientos, saldos, compras ni suscripciones.
