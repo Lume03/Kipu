@@ -3,6 +3,7 @@ package com.kipu.app.feature.goals.presentation
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -166,6 +167,59 @@ class GoalLifecycleFlowTest {
         compose.onNodeWithTag("goal_archive").performClick()
         compose.onNodeWithTag("goal_archive_confirm").performClick()
         compose.runOnIdle { assertEquals(true, archived) }
+    }
+
+    @Test
+    fun archivedGoalExplainsUnavailableActionsAndOffersSafeReturnWithoutFinancialCommands() {
+        val archivedGoal = goal("goal-archived", "Viaje", GoalStatus.ARCHIVED, 100_000L)
+        var backCalls = 0
+        var contributeCalls = 0
+        var releaseCalls = 0
+        var reassignCalls = 0
+        var archiveCalls = 0
+        compose.setContent {
+            GoalDetailScreen(
+                detailState(archivedGoal, emptyList(), emptyList()),
+                { backCalls++ },
+                { contributeCalls++ },
+                { _, _, _ -> releaseCalls++ },
+                { _, _, _ -> reassignCalls++ },
+                { archiveCalls++ },
+            )
+        }
+
+        compose.onNodeWithText("Archivada").assertIsDisplayed()
+        compose.onNodeWithTag("goal_archived_explanation").assertIsDisplayed()
+        compose.onNodeWithText("solo las metas activas aceptan aportes", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("elige otra meta activa", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithText("Aportar o reservar").assertCountEquals(0)
+        compose.onNodeWithTag("goal_release").assertIsNotEnabled()
+        compose.onNodeWithTag("goal_reassign").assertIsNotEnabled()
+        compose.onNodeWithTag("goal_archive").assertIsNotEnabled()
+        compose.onNodeWithTag("goal_archived_back_to_list").performClick()
+
+        compose.runOnIdle {
+            assertEquals(1, backCalls)
+            assertEquals(0, contributeCalls)
+            assertEquals(0, releaseCalls)
+            assertEquals(0, reassignCalls)
+            assertEquals(0, archiveCalls)
+        }
+    }
+
+    @Test
+    fun activeGoalStillOffersContributionAction() {
+        val active = goal("goal-active", "Ahorro", GoalStatus.ACTIVE, 100_000L)
+        compose.setContent {
+            GoalDetailScreen(
+                detailState(active, emptyList(), emptyList()),
+                {}, {}, { _, _, _ -> }, { _, _, _ -> }, {},
+            )
+        }
+
+        compose.onNodeWithText("Activa").assertIsDisplayed()
+        compose.onNodeWithText("Aportar o reservar", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithTag("goal_archived_explanation").assertCountEquals(0)
     }
 
     private fun detailState(

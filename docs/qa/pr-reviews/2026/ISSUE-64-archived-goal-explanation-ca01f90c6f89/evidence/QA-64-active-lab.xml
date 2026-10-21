@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-10-20T22:33:43" hostname="localhost">
+  <testsuite name="com.kipu.app.feature.goals.presentation.GoalLifecycleFlowTest" tests="1" failures="1" errors="0" skipped="0" time="1.892" timestamp="2026-10-20T22:33:43" hostname="localhost">
+    <properties>
+      <property name="device" value="DEVICE_REDACTED" />
+    </properties>
+    <testcase name="activeGoalStillOffersContributionAction" classname="com.kipu.app.feature.goals.presentation.GoalLifecycleFlowTest" time="1.892">
+      <failure>java.lang.AssertionError: Assert failed: The component with Text + InputText + EditableText contains 'Aportar o reservar' (ignoreCase: false) is not displayed!
+	at androidx.compose.ui.test.AssertionsKt.assertIsDisplayed(Assertions.kt:34)
+	at com.kipu.app.feature.goals.presentation.GoalLifecycleFlowTest.activeGoalStillOffersContributionAction(GoalLifecycleFlowTest.kt:221)
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
