@@ -99,6 +99,17 @@ fun GoalDetailScreen(
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Text(goal.status.detailLabel(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                if (goal.status == GoalStatus.ARCHIVED) {
+                    Text(
+                        "Esta meta está archivada. Se conserva su historial, pero solo las metas activas aceptan aportes. Para seguir ahorrando, vuelve a la lista y elige otra meta activa.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.testTag("goal_archived_explanation"),
+                    )
+                    OutlinedButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.fillMaxWidth().testTag("goal_archived_back_to_list"),
+                    ) { Text("Volver a mis metas") }
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
                         Text("Reservado", style = MaterialTheme.typography.labelMedium)
