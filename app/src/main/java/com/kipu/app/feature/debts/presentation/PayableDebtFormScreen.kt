@@ -277,6 +277,7 @@ private fun DebtOpeningFormScreen(
                 label = stringResource(R.string.optional_date_due_label),
                 calendarContentDescription = stringResource(R.string.optional_date_due_calendar),
                 tag = "debt-due-date",
+                calendarOnly = true,
                 enabled = !state.isSaving,
                 isError = state.dueDateInput.length >= 10 && state.dueDate == null,
             )

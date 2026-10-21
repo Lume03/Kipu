@@ -38,6 +38,17 @@ class OptionalDateFormsTest {
     @Test fun newGoalAllowsNoDateAndCalendarAndClearReachSave() = checkSave(Scene.GOAL_NEW)
     @Test fun goalEditCalendarAndClearReachSave() = checkSave(Scene.GOAL_EDIT)
 
+    @Test fun payableDateFieldOpensCalendarWhenTapped() = checkFieldTap(Scene.PAYABLE)
+    @Test fun receivableDateFieldOpensCalendarWhenTapped() = checkFieldTap(Scene.RECEIVABLE)
+
+    private fun checkFieldTap(scene: Scene) {
+        compose.setContent { KipuTheme { FixtureForm(scene) } }
+        compose.onNodeWithTag(scene.field).performScrollTo().performClick()
+        compose.onNodeWithTag("${scene.field}-dialog").assertIsDisplayed()
+        compose.onNodeWithTag("${scene.field}-cancel").performClick()
+        compose.onNodeWithTag(scene.field).assertTextContains("10/11/2026")
+    }
+
     private fun checkSave(scene: Scene) {
         val saved = mutableListOf<LocalDate?>()
         compose.setContent { KipuTheme { FixtureForm(scene, onSave = { saved += it }) } }
@@ -56,7 +67,7 @@ class OptionalDateFormsTest {
         compose.onNodeWithTag("${scene.field}-clear").performScrollTo().performClick()
         save(scene)
         compose.runOnIdle { assertEquals(listOf(LocalDate.parse("2026-11-15"), null), saved) }
-        if (scene != Scene.DEBT_EDIT) {
+        if (scene == Scene.GOAL_NEW || scene == Scene.GOAL_EDIT) {
             compose.onNodeWithTag(scene.field).performScrollTo().performTextReplacement("2026-02-30")
             compose.onNodeWithTag(scene.save).assertIsNotEnabled()
         }

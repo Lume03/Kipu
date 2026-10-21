@@ -1,6 +1,8 @@
 package com.kipu.app.ui.component
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,12 +33,16 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kipu.app.R
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /** Keeps the form's raw ISO input authoritative; the calendar owns only an unconfirmed draft. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +57,7 @@ internal fun KipuOptionalDateField(
     enabled: Boolean = true,
     isError: Boolean = false,
     shape: Shape = RoundedCornerShape(14.dp),
+    calendarOnly: Boolean = false,
 ) {
     var showPicker by rememberSaveable(tag) { mutableStateOf(false) }
     var restoreCalendarFocus by remember(tag) { mutableStateOf(false) }
@@ -58,6 +65,15 @@ internal fun KipuOptionalDateField(
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val windowFocused = LocalWindowInfo.current.isWindowFocused
+    val displayedDate = if (calendarOnly) runCatching {
+        LocalDate.parse(value).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    }.getOrDefault(value) else value
+
+    fun openPicker() {
+        keyboard?.hide()
+        focusManager.clearFocus()
+        showPicker = true
+    }
 
     fun closePicker() {
         showPicker = false
@@ -80,36 +96,40 @@ internal fun KipuOptionalDateField(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            label = { Text(label) },
-            placeholder = { Text(stringResource(R.string.optional_date_iso_placeholder)) },
-            singleLine = true,
-            isError = isError,
-            supportingText = if (isError) {
-                { Text(stringResource(R.string.optional_date_invalid)) }
-            } else null,
-            shape = shape,
-            trailingIcon = {
-                IconButton(
-                    onClick = {
-                        keyboard?.hide()
-                        focusManager.clearFocus()
-                        showPicker = true
-                    },
-                    enabled = enabled,
-                    modifier = Modifier.size(48.dp)
-                        // Dialog dismissal also restores focus after touch input.
-                        .focusProperties { canFocus = enabled }
-                        .focusRequester(calendarFocus).testTag("$tag-calendar"),
-                ) {
-                    Icon(Icons.Rounded.CalendarMonth, contentDescription = calendarContentDescription)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().testTag(tag),
-        )
+        Box {
+            OutlinedTextField(
+                value = displayedDate,
+                onValueChange = onValueChange,
+                readOnly = calendarOnly,
+                enabled = enabled,
+                label = { Text(label) },
+                placeholder = { Text(if (calendarOnly) "DD/MM/AAAA" else stringResource(R.string.optional_date_iso_placeholder)) },
+                singleLine = true,
+                isError = isError,
+                supportingText = if (isError) {
+                    { Text(stringResource(R.string.optional_date_invalid)) }
+                } else null,
+                shape = shape,
+                trailingIcon = {
+                    IconButton(
+                        onClick = ::openPicker,
+                        enabled = enabled,
+                        modifier = Modifier.size(48.dp)
+                            // Dialog dismissal also restores focus after touch input.
+                            .focusProperties { canFocus = enabled }
+                            .focusRequester(calendarFocus).testTag("$tag-calendar"),
+                    ) {
+                        Icon(Icons.Rounded.CalendarMonth, contentDescription = calendarContentDescription)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().testTag(tag),
+            )
+            if (calendarOnly) Box(
+                Modifier.matchParentSize()
+                    .clickable(enabled = enabled, role = Role.Button, onClickLabel = calendarContentDescription, onClick = ::openPicker)
+                    .semantics { contentDescription = calendarContentDescription },
+            )
+        }
         if (value.isNotEmpty()) {
             TextButton(
                 onClick = {
