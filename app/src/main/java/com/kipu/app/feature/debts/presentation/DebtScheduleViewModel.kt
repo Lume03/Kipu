@@ -20,6 +20,7 @@ import com.kipu.app.feature.debts.domain.usecase.SetDebtSchedule
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,7 @@ class DebtScheduleViewModel @Inject constructor(
     val state = _state.asStateFlow()
     private val _events = Channel<DebtScheduleUiEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+    private val scheduleSaveInFlight = AtomicBoolean(false)
 
     init {
         val userId = activeUserId()
@@ -94,18 +96,19 @@ class DebtScheduleViewModel @Inject constructor(
     fun onClosureReasonChange(value: String) = _state.update { it.copy(closureReason = value.take(500), errorMessage = null) }
 
     fun saveSchedule() {
-        val userId = activeUserId() ?: return showError("La sesi\u00f3n no est\u00e1 disponible.")
+        if (!scheduleSaveInFlight.compareAndSet(false, true)) return
+        val userId = activeUserId() ?: return rejectScheduleSave("La sesión no está disponible.")
         val current = _state.value
-        val debt = current.debt ?: return showError("No se encontr\u00f3 esta deuda.")
+        val debt = current.debt ?: return rejectScheduleSave("No se encontró esta deuda.")
         val count = current.installmentCount.toIntOrNull()
-            ?: return showError("Ingresa una cantidad de cuotas v\u00e1lida.")
+            ?: return rejectScheduleSave("Ingresa una cantidad de cuotas válida.")
         val firstDueDate = runCatching { LocalDate.parse(current.firstDueDate) }.getOrNull()
-            ?: return showError("Usa una fecha v\u00e1lida con formato AAAA-MM-DD.")
+            ?: return rejectScheduleSave("Usa una fecha válida con formato AAAA-MM-DD.")
         val operationId = UUID.randomUUID().toString()
         val firstNumber = (current.installments.maxOfOrNull { it.installmentNumber } ?: 0) + 1
         val reminderLeadDays = current.reminderLeadDays ?: 2
         val plan = SetDebtSchedule().plan(debt, count, firstDueDate, reminderLeadDays, firstNumber, operationId)
-        if (plan !is DebtPlanResult.Valid) return showError(scheduleError((plan as DebtPlanResult.Invalid).code))
+        if (plan !is DebtPlanResult.Valid) return rejectScheduleSave(scheduleError((plan as DebtPlanResult.Invalid).code))
         val hash = DebtCommandHasher.sha256(
             "SET_DEBT_SCHEDULE|1|$userId|${debt.debtId}|${debt.revision}|$count|$firstDueDate|$reminderLeadDays|$operationId",
         )
@@ -116,10 +119,24 @@ class DebtScheduleViewModel @Inject constructor(
             installments = plan.value.installments,
             reminderLeadDays = reminderLeadDays,
         )
+        _state.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }
-            handleScheduleResult(repository.setDebtSchedule(userId, command))
+            try {
+                handleScheduleResult(repository.setDebtSchedule(userId, command))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(errorMessage = "No se pudo confirmar el guardado. Revisa el cronograma antes de volver a intentarlo.") }
+            } finally {
+                scheduleSaveInFlight.set(false)
+                _state.update { it.copy(isSaving = false) }
+            }
         }
+    }
+
+    private fun rejectScheduleSave(message: String) {
+        scheduleSaveInFlight.set(false)
+        showError(message)
     }
 
     fun cancelSchedule() {
@@ -182,7 +199,7 @@ class DebtScheduleViewModel @Inject constructor(
     private suspend fun handleScheduleResult(result: DebtCommandResult) {
         when (result) {
             is DebtCommandResult.Applied, is DebtCommandResult.Duplicate ->
-                _state.update { it.copy(isSaving = false, successMessage = "Cronograma guardado sin registrar pagos.") }
+                _state.update { it.copy(isSaving = false, successMessage = "Guardado en este dispositivo. No se registraron pagos.") }
             is DebtCommandResult.Conflict -> showError("La deuda cambi\u00f3 en otro dispositivo. Actualiza el cronograma.")
             is DebtCommandResult.Rejected -> showError(scheduleError(result.code))
             is DebtCommandResult.Retryable -> _state.update { it.copy(isSaving = false, successMessage = "Guardado en este dispositivo; se sincronizar\u00e1 al recuperar la conexi\u00f3n.") }
