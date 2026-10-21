@@ -33,6 +33,7 @@ import com.kipu.app.feature.categories.domain.model.MovementClassification
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import com.kipu.app.feature.categories.domain.usecase.CreateCategory
 import com.kipu.app.feature.categories.domain.usecase.EnsureInitialCategoryCatalog
+import com.kipu.app.feature.categories.domain.usecase.ResolvePreferredCategory
 import com.kipu.app.feature.categories.data.sync.CategorySyncScheduler
 import com.kipu.app.core.finance.domain.model.MovementId
 import com.kipu.app.feature.movements.domain.MovementRepository
@@ -99,6 +100,7 @@ class QuickMovementViewModelTest {
             observeInstruments = observeInstruments,
             observeFinancialDashboard = ObserveFinancialDashboard(fakeInstrumentsRepo),
             observeCategories = ObserveCategories(fakeCategoriesRepo),
+            resolvePreferredCategory = ResolvePreferredCategory(fakeCategoriesRepo),
             createCategoryUseCase = CreateCategory(fakeCategoriesRepo),
             ensureInitialCategoryCatalog = EnsureInitialCategoryCatalog(fakeCategoriesRepo),
             categorySyncScheduler = object : CategorySyncScheduler {
@@ -318,16 +320,24 @@ class QuickMovementViewModelTest {
     }
 
     @Test
-    fun `selecting catalog merchant does not change category`() = runTest {
+    fun `catalog merchant category preference is suggested but not applied automatically`() = runTest {
         advanceUntilIdle()
         val merchant = MerchantCatalogEntry(
             MerchantId.generate(), "Tambo", "tambo", defaultCategoryId = testCategoryId,
+        )
+        fakeCategoriesRepo.merchantPreferences = listOf(
+            MerchantCategoryPreference(testUserId, merchant.id, fakeCategoriesRepo.preferenceCategoryId)
         )
         viewModel.onMerchantSelected(merchant)
         advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.selectedCategoryId)
+        assertEquals(fakeCategoriesRepo.preferenceCategoryId.value, viewModel.uiState.value.suggestedCategory?.id)
         assertEquals(merchant.id.value, viewModel.uiState.value.selectedMerchantId)
+
+        viewModel.onCategorySelected(requireNotNull(viewModel.uiState.value.suggestedCategory))
+        assertEquals(fakeCategoriesRepo.preferenceCategoryId.value, viewModel.uiState.value.selectedCategoryId)
+        assertNull(viewModel.uiState.value.suggestedCategory)
     }
 
     @Test
@@ -392,22 +402,34 @@ class QuickMovementViewModelTest {
         private val categoryId: CategoryId,
         private val incomeCategoryId: CategoryId,
     ) : CategoriesRepository {
+        val preferenceCategoryId = CategoryId.generate()
+        var merchantPreferences: List<MerchantCategoryPreference> = emptyList()
+
         private fun categories() = listOf(
             Category(categoryId, null, null, CategoryOrigin.SYSTEM, true, categoryType = CategoryType.EXPENSE),
             Category(incomeCategoryId, null, null, CategoryOrigin.SYSTEM, true, categoryType = CategoryType.INCOME),
+            Category(
+                id = preferenceCategoryId,
+                ownerId = userId,
+                parentId = null,
+                origin = CategoryOrigin.CUSTOM,
+                isActive = true,
+                categoryType = CategoryType.EXPENSE,
+            ),
         )
 
         override fun observeCategories(userId: UserId): Flow<List<Category>> = flowOf(categories())
         override fun observeCategoryPresentations(userId: UserId): Flow<List<CategoryPresentation>> = flowOf(listOf(
             CategoryPresentation(categoryId, this.userId, "Alimentación", "restaurant", "#ffffff"),
             CategoryPresentation(incomeCategoryId, this.userId, "Salario", "work", "#ffffff"),
+            CategoryPresentation(preferenceCategoryId, this.userId, "Compras", "shopping_cart", "#ffffff"),
         ))
         override suspend fun getCategory(categoryId: CategoryId): Category? = categories().firstOrNull { it.id == categoryId }
         override suspend fun createCategory(category: Category, presentation: CategoryPresentation): Result<Category> = Result.success(category)
         override suspend fun setCategoryActive(categoryId: CategoryId, isActive: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
         override suspend fun updateCategoryPresentation(presentation: CategoryPresentation, expectedRevision: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
         override fun searchMerchants(query: String): Flow<List<MerchantCatalogEntry>> = flowOf(emptyList())
-        override fun observeMerchantCategoryPreferences(userId: UserId): Flow<List<MerchantCategoryPreference>> = flowOf(emptyList())
+        override fun observeMerchantCategoryPreferences(userId: UserId): Flow<List<MerchantCategoryPreference>> = flowOf(merchantPreferences)
         override fun observeMovementClassification(movementId: MovementId): Flow<MovementClassification?> = flowOf(null)
         override suspend fun updateMovementClassification(classification: MovementClassification): Result<Unit> = Result.failure(UnsupportedOperationException())
         override suspend fun clearCategoryClassification(movementId: MovementId): Result<Unit> = Result.failure(UnsupportedOperationException())

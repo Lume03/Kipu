@@ -21,6 +21,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.ui.theme.KipuTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -237,9 +238,35 @@ class QuickMovementScreenTest {
 
         compose.onNodeWithText("Más detalles (opcional)").performClick()
         compose.onNodeWithText("Agregar comercio (opcional)").assertIsDisplayed()
-        compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction().performClick()
-        compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
+        val merchantRow = compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction()
+        val dateRow = compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
+        assertTrue(
+            "Merchant must be laid out before the date row",
+            merchantRow.fetchSemanticsNode().boundsInRoot.top < dateRow.fetchSemanticsNode().boundsInRoot.top,
+        )
+        merchantRow.performClick()
         assertTrue("Merchant row should open the catalog/provisional picker", merchantPickerOpened)
+    }
+
+    @Test
+    fun categorySuggestionRequiresExplicitConfirmation() {
+        val suggested = CategoryOption("food", "Alimentación", "restaurant", CategoryType.EXPENSE)
+        var appliedCategory: CategoryOption? = null
+        compose.setContent {
+            KipuTheme {
+                QuickMovementContentForTest(
+                    state = QuickMovementUiState(
+                        availableCategories = listOf(suggested),
+                        suggestedCategory = suggested,
+                    ),
+                    onCategorySelected = { appliedCategory = it },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("category_picker_open").assertIsDisplayed()
+        compose.onNodeWithTag("btn_apply_category_suggestion").assertIsDisplayed().performClick()
+        assertEquals(suggested, appliedCategory)
     }
 
     private fun account(alias: String, currency: Currency): Account = Account(
@@ -257,6 +284,7 @@ class QuickMovementScreenTest {
         state: QuickMovementUiState,
         onNavigateToNewAccount: () -> Unit = {},
         onOpenMerchantPicker: () -> Unit = {},
+        onCategorySelected: (CategoryOption) -> Unit = {},
     ) {
         QuickMovementContent(
             uiState = state,
@@ -265,7 +293,7 @@ class QuickMovementScreenTest {
             onSourceAccountSelected = {},
             onSourceCardSelected = {},
             onDestinationAccountSelected = {},
-            onCategorySelected = {},
+            onCategorySelected = onCategorySelected,
             onOpenMerchantPicker = onOpenMerchantPicker,
             onClearMerchant = {},
             onNoteChanged = {},
