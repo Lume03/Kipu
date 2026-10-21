@@ -6,6 +6,8 @@ Estado comprobado: 21/10/2026, después del recorrido final. El agente anterior 
 
 > Ampliación visual posterior: el propietario pidió ajustes mediante diez capturas. Se implementaron avisos de duplicado amarillos/cerrables, revisión sin mensajes redundantes, dashboard sin acceso repetido a metas, CTA Pro amarillo, teclado decimal para aportes, iconos elegibles y archivadas desplegables. Véase sección 8 de tareas e informe ampliado. Pruebas: 12 unitarias, 23 instrumentadas y 3 casos afectados tras últimos ajustes, sin sumar repeticiones como casos nuevos. No se usaron subagentes; los datos/importes siguientes pertenecen al recorrido original y no deben restaurarse sobre las operaciones posteriores del propietario.
 
+> Última ampliación: Categorías compactas y contraídas al entrar, conservando líneas de subcategoría; cupo por pestaña e inactivas plegables. En ambas altas de deuda, tocar toda la fecha abre el calendario y se muestra DD/MM/AAAA. Se cerraron 27 casos focalizados mediante ejecución inicial y caso reparado posterior, y se instaló la APK final conservando datos. El propietario autorizó expresamente commits granulares y push directo a `main`; esa instrucción sustituye las menciones históricas de «sin push» que siguen abajo. Consulte sección 9 de tareas y el último apartado del informe. Sin subagentes ni nuevas ramas/worktrees.
+
 ## Reglas del propietario
 
 - Repositorio: `C:\Users\Alume\orca\Kipu`; rama actual `main`.

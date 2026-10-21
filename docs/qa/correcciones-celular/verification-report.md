@@ -115,3 +115,25 @@ No se repitió la suite legacy. Se validó UTF-8/enlaces de documentación y whi
 Después de instalar, se abrió la aplicación principal: dashboard sin el acceso repetido y Planificación sin mensajes técnicos, con Grafica visible y archivadas contraídas. Al enfocar Importe en el aporte real se confirmó el teclado numérico con separador decimal. Se volvió atrás sin introducir ni guardar una reserva. La captura de esa comprobación contiene información privada y permanece ignorada.
 
 La sincronización remota de metas continúa desactivada; retirar el texto técnico no implica habilitarla ni certificarla. Siguen abiertos el bloqueo de pull, preferencias y selección de cupos documentados arriba. La APK principal se actualiza conservando datos. No se hace push ni se incluyen worktrees, bases, imágenes de referencia o capturas privadas.
+
+## Categorías y fechas de deuda — ampliación del 21/10/2026
+
+**Veredicto: APPROVED para este alcance de interfaz.** El propietario solicita trabajar en `main`, commits granulares y push directo. Esta autorización posterior reemplaza la ausencia de autorización de push descrita en los cierres históricos anteriores.
+
+Categorías sigue las referencias proporcionadas: selector de Gastos coral/Ingresos verde, cupo compacto solo del tipo seleccionado, tarjetas con nombre, cantidad de subcategorías, origen y uso de cupo. Al entrar o cambiar de pestaña la jerarquía empieza contraída. Se mantienen las líneas laterales por subcategoría. La búsqueda destaca coincidencias y permite limpiar; las categorías inactivas se agrupan abajo en una sección plegable y su menú usa la reactivación existente. El acceso de alta muestra candado al completar el cupo; conserva la explicación y validación del límite existente.
+
+En Registrar deuda y Registrar dinero prestado, toda la superficie de fecha abre el calendario y el campo deja de ser de escritura libre. Presentación DD/MM/AAAA; el callback y la persistencia siguen usando ISO. Seleccionar requiere confirmación, cancelar conserva la fecha previa y Quitar fecha deja el valor opcional vacío. La modalidad se activa únicamente en ambos formularios de alta; los otros consumidores del componente compartido conservan su modalidad anterior.
+
+| Evidencia privada/ignorada | Resultado |
+| --- | --- |
+| `.gradle/celular-categories-date-red-results.log` | Tres regresiones reproducidas: expansión inicial indebida y tocar el campo no abre calendario en ambas altas |
+| `.gradle/celular-categories-date-results.log` | 27 casos ejecutados: 26 verdes y un fallo por la expectativa antigua de texto/expansión de la tarjeta inactiva |
+| `.gradle/celular-categories-date-final-results.log` | Caso inactivo actualizado y dos casos afectados de categorías: `OK (3 tests)`; los dos últimos son repeticiones, no nuevos casos |
+| `.gradle/celular-categories-date-final-build.log` | debug/lab/androidTest: `BUILD SUCCESSFUL`, salida 0; APK principal instalada con `-r`, `Success` |
+| `.gradle/celular-categories-date-evidencia/` | Capturas revisadas de Gastos/Ingresos, jerarquía expandida y formularios/calendarios en claro/oscuro |
+
+Cobertura focalizada final: CategoriesScreenTest 10 casos, OptionalDateFormsTest 9 y KipuOptionalDateFieldTest 8; **27 casos distintos resueltos**, acreditados por la ejecución inicial y el resultado posterior del caso reparado. Incluye mantener las líneas laterales, cupo por tipo, inactivas/reactivación, apertura desde el campo, selección, cancelación, fecha opcional, navegación por calendario y foco. No se repite la suite legacy.
+
+No hay migraciones, cambios de reglas de cupo, registros de deuda reales ni cambios contables en esta ampliación. Las pruebas usan el paquete lab y fixtures. La instalación principal conserva los datos existentes. Se comprueban UTF-8, enlaces y whitespace; los archivos se seleccionan expresamente por capa para los commits. El push a `origin/main` incluye también los cinco commits de los cierres anteriores que aún estaban locales. Los hashes y la confirmación del remoto se entregan en la respuesta final.
+
+Se mantienen los límites de sincronización documentados en los apartados anteriores; este cierre no los certifica. Referencias originales, worktrees, bases locales y capturas privadas permanecen fuera de Git.

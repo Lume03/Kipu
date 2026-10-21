@@ -107,6 +107,19 @@ Solicitud del propietario mediante diez capturas el 21/10/2026; trabajo directo 
 
 Los importes/datos del apartado «Estado actual de los datos de prueba» corresponden al recorrido anterior. Las capturas posteriores del propietario muestran nuevas operaciones y reservas; esta ampliación no restablece aquellos importes ni modifica sus metas para recrear el fixture.
 
+## 9. Categorías y fechas de deudas — COMPLETADO
+
+Solicitud posterior del propietario el 21/10/2026: referencias de Categorías y campo de fecha de ambas altas de deuda. Se autoriza explícitamente push directo a `main` con commits separados y coherentes.
+
+- [x] Contraer categorías al entrar y al cambiar entre Gastos/Ingresos.
+- [x] Compactar tarjetas y cupo de la pestaña seleccionada; Gastos en coral e Ingresos en verde, con metadatos de categoría personalizada/predeterminada y uso de cupo.
+- [x] Conservar las líneas laterales de las subcategorías; resaltar coincidencias de búsqueda y permitir limpiar el filtro.
+- [x] Agrupar inactivas en una sección plegable al final y conectar Reactivar con la acción existente.
+- [x] Abrir calendario al tocar cualquier parte de la fecha en Registrar deuda y Registrar dinero prestado; mostrar DD/MM/AAAA y conservar selección, cancelación, borrado opcional e ISO interno.
+- [x] Reproducir las tres regresiones antes de corregir; verificar 27 casos instrumentados focalizados, sin repetir los que ya estaban verdes. El único fallo intermedio era una expectativa antigua de texto/expansión; el caso actualizado y dos casos visuales afectados pasaron después.
+- [x] Revisar capturas de categorías y formularios/calendarios claros/oscuros; compilar debug/lab/androidTest e instalar con `-r`, conservando datos.
+- [x] Crear commits por Categorías, fechas de deuda y documentación; publicar los commits pendientes de esta entrega en `origin/main`, excluyendo referencias originales, worktrees y archivos privados.
+
 ## Seguimiento abierto fuera de la aprobación acotada
 
 - [ ] Reconciliar el contrato de descarga financiera y el flujo remoto: CATEGORY desde secuencia 1 y salto 16 → 23 impiden aplicar la primera página. No adelantar manualmente el cursor ni omitir eventos desconocidos. Validar bootstrap/otro dispositivo después de resolverlo.
