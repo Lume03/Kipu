@@ -42,6 +42,9 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onEditGoal = { goalId -> navController.navigate("goals/$goalId/edit") },
             onDeleteGoal = viewModel::deleteEmptyGoal,
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+            onContributeGoal = { goalId -> navController.navigate("goals/$goalId/contribute") },
+            onNotifications = navController::navigateToNotifications,
+            onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
         )
     }
 

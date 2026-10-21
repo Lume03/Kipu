@@ -1,5 +1,6 @@
 package com.kipu.app.feature.auth.data.remote
 
+import com.kipu.app.core.logging.SecureLog
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -9,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 sealed interface ApiResponse<out T> {
     data class Success<T>(val data: T) : ApiResponse<T>
@@ -34,6 +36,8 @@ class AuthApi @Inject constructor(
                     ApiResponse.Error(response.status.value, problem, retryAfter)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ApiResponse.NetworkFailure(e)
         }
@@ -53,7 +57,10 @@ class AuthApi @Inject constructor(
                     ApiResponse.Error(response.status.value, problem, retryAfter)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            SecureLog.e("AuthApi", "Login request failed (${e.javaClass.simpleName})", e)
             ApiResponse.NetworkFailure(e)
         }
     }
@@ -72,6 +79,8 @@ class AuthApi @Inject constructor(
                     ApiResponse.Error(response.status.value, problem, retryAfter)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ApiResponse.NetworkFailure(e)
         }

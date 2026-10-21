@@ -54,4 +54,13 @@ class RootTabMotionTest {
             )
         }
     }
+
+    @Test
+    fun planningIsTheFourthRootTabAndTransitionsFromDashboard() {
+        assertEquals(3, RootTabMotion.indexOf(GOALS_LIST_ROUTE, selectedDashboardTab = 0))
+        assertTrue(RootTabMotion.isRootTransition(ACCOUNTS_DASHBOARD_ROUTE, GOALS_LIST_ROUTE, selectedDashboardTab = 0))
+        assertTrue(RootTabMotion.isForward(ACCOUNTS_DASHBOARD_ROUTE, GOALS_LIST_ROUTE, selectedDashboardTab = 0))
+        assertTrue(RootTabMotion.isRootTransition(GOALS_LIST_ROUTE, DEBT_LIST_ROUTE, selectedDashboardTab = 0))
+        assertFalse(RootTabMotion.isForward(GOALS_LIST_ROUTE, DEBT_LIST_ROUTE, selectedDashboardTab = 0))
+    }
 }

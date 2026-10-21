@@ -64,7 +64,6 @@ class OptionalDateFormsTest {
 
     private fun save(scene: Scene) {
         val button = compose.onNodeWithTag(scene.save)
-        if (scene == Scene.GOAL_NEW || scene == Scene.GOAL_EDIT) button.performScrollTo()
         button.performClick()
     }
 
@@ -78,7 +77,7 @@ class OptionalDateFormsTest {
         compose.onNodeWithTag("goal_form_date-calendar").performScrollTo().performClick()
         compose.onNodeWithTag("goal_form_date-cancel").assertIsDisplayed().performClick()
         compose.onNodeWithTag("goal_form_date-clear").performScrollTo().assertIsDisplayed().performClick()
-        compose.onNodeWithTag("goal_save_button").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("goal_save_button").assertIsDisplayed()
     }
 
     @Test fun captureSyntheticFormsInBothThemes() {

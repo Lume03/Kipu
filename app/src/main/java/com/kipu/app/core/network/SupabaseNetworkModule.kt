@@ -30,7 +30,7 @@ abstract class SupabaseNetworkModule {
 
     companion object {
         private val json = Json {
-            ignoreUnknownKeys = false
+            ignoreUnknownKeys = true
             explicitNulls = false
         }
 

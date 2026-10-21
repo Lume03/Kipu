@@ -1,5 +1,6 @@
 package com.kipu.app.feature.goals.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,30 +9,46 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,14 +56,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.model.GoalStatus
 import com.kipu.app.feature.goals.domain.model.GoalSyncState
 import com.kipu.app.ui.component.MoneyText
 import java.math.BigDecimal
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,15 +79,35 @@ fun GoalListScreen(
     onEditGoal: (String) -> Unit,
     onDeleteGoal: (String) -> Unit,
     onNavigateToPlans: () -> Unit,
+    onContributeGoal: ((String) -> Unit)? = null,
+    onNotifications: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
+    showBackButton: Boolean = false,
 ) {
     var pendingDelete by remember { mutableStateOf<GoalListItemState?>(null) }
+    var selectedForOptions by remember { mutableStateOf<GoalListItemState?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Metas") },
+                title = { Text("Planificación", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    if (showBackButton) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        }
+                    }
+                },
+                actions = {
+                    onNotifications?.let { action ->
+                        IconButton(onClick = action) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificaciones")
+                        }
+                    }
+                    onSettings?.let { action ->
+                        IconButton(onClick = action) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configuración")
+                        }
                     }
                 },
             )
@@ -76,64 +117,116 @@ fun GoalListScreen(
             state.isLoading -> CircularProgressIndicator(Modifier.padding(padding).padding(24.dp))
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                item { PlanningSelector() }
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            "Organiza tus objetivos y reserva dinero sin duplicar el saldo de tus cuentas.",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        if (!state.hasPremiumAccess) {
-                            Text(
-                                "Plan Free: ${state.activeGoalCount.coerceAtMost(2)} de 2 metas activas.",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            if (state.freeGoalLimitReached) {
-                                OutlinedButton(onClick = onNavigateToPlans, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Ver planes para crear más metas")
-                                }
-                            }
-                        }
-                        state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                        if (!state.freeGoalLimitReached || state.hasPremiumAccess) {
-                            Button(onClick = onCreateGoal, modifier = Modifier.fillMaxWidth().testTag("goal_create_button")) {
-                                Icon(Icons.Default.Add, contentDescription = null)
-                                Text("  Crear meta")
-                            }
-                        }
-                    }
-                }
-                if (state.goals.isEmpty()) {
-                    item {
-                        Card(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Todavía no tienes metas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Puedes empezar con una meta virtual. Vincular una cuenta real es opcional.")
-                            }
-                        }
-                    }
-                }
-                items(state.goals, key = { it.goal.id }) { item ->
-                    GoalSummaryCard(
-                        item = item,
-                        linkedAccountName = state.backingAccounts.firstOrNull { it.id == item.goal.linkedAccountId }?.name,
-                        onOpen = { onOpenGoal(item.goal.id) },
-                        onEdit = { onEditGoal(item.goal.id) },
-                        onDelete = { pendingDelete = item },
+                    SavingsCapacityCard(
+                        activeGoalCount = state.activeGoalCount,
+                        hasPremiumAccess = state.hasPremiumAccess,
+                        atLimit = state.freeGoalLimitReached,
+                        onNavigateToPlans = onNavigateToPlans,
                     )
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                item {
+                    if (state.freeGoalLimitReached) {
+                        OutlinedButton(
+                            onClick = onNavigateToPlans,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                        ) {
+                            Icon(Icons.Default.WorkspacePremium, contentDescription = null)
+                            Text("  Límite de metas alcanzado · Crear con Pro")
+                        }
+                    } else {
+                        Button(
+                            onClick = onCreateGoal,
+                            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("goal_create_button"),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Text("  Crear meta", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                state.errorMessage?.let { message ->
+                    item { Text(message, color = MaterialTheme.colorScheme.error) }
+                }
+                state.message?.let { message ->
+                    item { Text(message, color = MaterialTheme.colorScheme.primary) }
+                }
+                if (state.goals.isEmpty()) {
+                    item { EmptyGoalsCard() }
+                } else {
+                    if (state.freeGoalLimitReached) {
+                        item {
+                            Text(
+                                "TUS METAS ACTIVAS (${state.activeGoalCount}/${GoalManagementUiState.FREE_GOAL_LIMIT})",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    items(state.goals, key = { it.goal.id }) { item ->
+                        GoalSummaryCard(
+                            item = item,
+                            linkedAccountName = state.backingAccounts.firstOrNull { it.id == item.goal.linkedAccountId }?.name,
+                            onOpen = { onOpenGoal(item.goal.id) },
+                            onOptions = { selectedForOptions = item },
+                            onContribute = {
+                                val goalId = item.goal.id
+                                if (onContributeGoal != null) onContributeGoal(goalId) else onOpenGoal(goalId)
+                            },
+                        )
+                    }
+                }
+                if (!state.hasPremiumAccess && !state.freeGoalLimitReached) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                        ) {
+                            Text(
+                                "Te queda ${GoalManagementUiState.FREE_GOAL_LIMIT - state.activeGoalCount} " +
+                                    "${if (GoalManagementUiState.FREE_GOAL_LIMIT - state.activeGoalCount == 1) "espacio" else "espacios"} " +
+                                    "disponible${if (GoalManagementUiState.FREE_GOAL_LIMIT - state.activeGoalCount == 1) "" else "s"} en tu Plan Free",
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+                if (!state.hasPremiumAccess) {
+                    item { GoalsPremiumCard(onNavigateToPlans) }
+                }
+                item { Spacer(Modifier.height(20.dp)) }
             }
         }
     }
+
+    selectedForOptions?.let { item ->
+        GoalOptionsSheet(
+            item = item,
+            onDismiss = { selectedForOptions = null },
+            onContribute = {
+                selectedForOptions = null
+                val goalId = item.goal.id
+                if (onContributeGoal != null) onContributeGoal(goalId) else onOpenGoal(goalId)
+            },
+            onHistory = { selectedForOptions = null; onOpenGoal(item.goal.id) },
+            onEdit = { selectedForOptions = null; onEditGoal(item.goal.id) },
+            onArchive = { selectedForOptions = null; onOpenGoal(item.goal.id) },
+            onDelete = { selectedForOptions = null; pendingDelete = item },
+        )
+    }
+
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("Eliminar meta vacía") },
-            text = { Text("Solo se puede eliminar una meta sin aportes ni movimientos relacionados. ¿Continuar?") },
+            text = {
+                Text("Solo se elimina físicamente una meta sin aportes, movimientos relacionados ni operaciones pendientes. Las metas con historial deben conservarse y archivarse desde su detalle.")
+            },
             confirmButton = {
                 TextButton(onClick = { pendingDelete = null; onDeleteGoal(item.goal.id) }) { Text("Eliminar") }
             },
@@ -143,33 +236,192 @@ fun GoalListScreen(
 }
 
 @Composable
+private fun PlanningSelector() {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp)
+            .testTag("planning_selector"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface).padding(vertical = 12.dp)
+                .testTag("planning_goals_selector")
+                .semantics { selected = true },
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text("  Metas", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+        }
+        Row(
+            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                .clickable(enabled = false) {}.semantics { disabled() }.padding(vertical = 12.dp)
+                .testTag("planning_budgets_selector"),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            Text("  Presupuestos", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun SavingsCapacityCard(
+    activeGoalCount: Int,
+    hasPremiumAccess: Boolean,
+    atLimit: Boolean,
+    onNavigateToPlans: () -> Unit,
+) {
+    val slots = if (hasPremiumAccess) null else (activeGoalCount.coerceAtMost(GoalManagementUiState.FREE_GOAL_LIMIT))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Default.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Capacidad de ahorro", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = if (atLimit) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.weight(1.25f),
+                ) {
+                    Text(
+                        if (hasPremiumAccess) "Plan Pro · metas ilimitadas" else "Plan Free  ·  $slots de 2 metas activas",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+            if (slots != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    repeat(GoalManagementUiState.FREE_GOAL_LIMIT) { index ->
+                        LinearProgressIndicator(
+                            progress = { if (index < slots) 1f else 0f },
+                            modifier = Modifier.weight(1f).height(5.dp).clip(CircleShape),
+                        )
+                    }
+                }
+            }
+            Text(
+                "Reserva dinero virtualmente para tus objetivos sin congelar tus cuentas reales.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (atLimit) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Alcanzaste el límite de 2 metas activas de tu Plan Free.", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onNavigateToPlans) { Text("Ver planes Kipu Pro →") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyGoalsCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(64.dp)) {
+                Icon(Icons.Default.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(16.dp))
+            }
+            Text("Todavía no tienes metas de ahorro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Crea tu primera meta para comenzar a organizar tus ahorros y monitorear tu progreso.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GoalsPremiumCard(onNavigateToPlans: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(10.dp),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Ahorra sin límites con Kipu Pro", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Crea metas adicionales y conserva su historial.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+                Text("PRO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            }
+            Button(onClick = onNavigateToPlans, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Conocer planes Kipu Pro →")
+            }
+        }
+    }
+}
+
+@Composable
 private fun GoalSummaryCard(
     item: GoalListItemState,
     linkedAccountName: String?,
     onOpen: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    onOptions: () -> Unit,
+    onContribute: () -> Unit,
 ) {
     val goal = item.goal
+    val progress = item.progress.progressPercent
+    val progressFraction = progress.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f)
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(
-            Modifier.clickable(onClick = onOpen).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(goal.status.label(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.Smartphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
                 }
-                IconButton(onClick = onEdit, enabled = goal.status != GoalStatus.ARCHIVED) {
-                    Icon(Icons.Default.Edit, contentDescription = "Editar ${goal.name}")
+                Column(Modifier.weight(1f).clickable(onClick = onOpen).padding(start = 12.dp)) {
+                    Text(goal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        listOfNotNull(
+                            goal.status.label(),
+                            linkedAccountName?.let { "Cuenta $it" } ?: "Meta virtual",
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Más acciones de ${goal.name}")
+                IconButton(onClick = onOptions) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${goal.name}")
                 }
             }
             goal.syncState.message()?.let { message ->
@@ -178,41 +430,109 @@ private fun GoalSummaryCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = if (goal.syncState == GoalSyncState.CONFLICT || goal.syncState == GoalSyncState.FAILED) {
                         MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    } else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MoneyText(item.progress.reserved, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("  de ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                MoneyText(goal.target, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Text("${progress.stripTrailingZeros().toPlainString()}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
             LinearProgressIndicator(
-                progress = {
-                    item.progress.progressPercent.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f)
-                },
-                modifier = Modifier.fillMaxWidth(),
+                progress = { progressFraction },
+                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("Reservado", style = MaterialTheme.typography.labelSmall)
-                    MoneyText(item.progress.reserved, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Objetivo", style = MaterialTheme.typography.labelSmall)
-                    MoneyText(goal.target, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text("Reservado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                goal.targetDate?.let { date ->
+                    Text("Fecha estimada · ${date.format(DateTimeFormatter.ofPattern("MMM yyyy"))}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(
-                linkedAccountName?.let { "Cuenta vinculada: $it" } ?: "Meta virtual · sin cuenta vinculada",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            OutlinedButton(
+                onClick = onContribute,
+                enabled = goal.status == GoalStatus.ACTIVE,
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text("  Aportar a meta")
+            }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GoalOptionsSheet(
+    item: GoalListItemState,
+    onDismiss: () -> Unit,
+    onContribute: () -> Unit,
+    onHistory: () -> Unit,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Smartphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(item.goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Meta · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        MoneyText(item.progress.reserved, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(" acumulados", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            GoalOptionRow(Icons.Default.Add, "Registrar aporte a la meta", "Suma dinero a este objetivo", onContribute, enabled = item.goal.status == GoalStatus.ACTIVE)
+            GoalOptionRow(Icons.Default.History, "Ver historial de aportes", "Consulta el detalle y los movimientos", onHistory)
+            GoalOptionRow(Icons.Default.Edit, "Editar parámetros", "Modifica nombre, monto objetivo o fecha límite", onEdit, enabled = item.goal.status != GoalStatus.ARCHIVED)
+            GoalOptionRow(Icons.Default.Archive, "Archivar meta", "Resolver la reserva y conservar su historial", onArchive)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            GoalOptionRow(Icons.Default.Delete, "Eliminar meta vacía", "Solo si no tiene historia ni operaciones pendientes", onDelete, destructive = true)
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("Cancelar") }
+        }
+    }
+}
+
+@Composable
+private fun GoalOptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    destructive: Boolean = false,
+) {
+    val contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(42.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.padding(10.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(title, color = contentColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Text("›", color = if (destructive) contentColor else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 private fun GoalStatus.label(): String = when (this) {
     GoalStatus.ACTIVE -> "Activa"
-    GoalStatus.COMPLETED -> "Completada · la reserva sigue disponible"
+    GoalStatus.COMPLETED -> "Completada · reserva disponible"
     GoalStatus.ARCHIVED -> "Archivada"
-    GoalStatus.LOCKED_BY_PLAN -> "Pausada por el plan · se conserva la historia"
+    GoalStatus.LOCKED_BY_PLAN -> "Limitada por Plan Free · historia conservada"
 }
 
 private fun GoalSyncState.message(): String? = when (this) {

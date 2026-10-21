@@ -7,6 +7,7 @@ internal object RootTabMotion {
         route == MOVEMENTS_HISTORY_PATTERN || route == MOVEMENTS_HISTORY_ROUTE ||
             route?.startsWith("movements/history") == true -> 1
         route == DEBT_LIST_ROUTE -> 2
+        route == GOALS_LIST_ROUTE -> 3
         else -> null
     }
 
