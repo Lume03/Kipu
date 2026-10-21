@@ -3,6 +3,7 @@ package com.kipu.app.feature.plans.data
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantPublicKeyResolver
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantBase64UrlDecoder
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantVerifier
+import com.kipu.app.BuildConfig
 import com.kipu.app.feature.plans.data.entitlement.InstallationSigningKeyProvider
 import com.kipu.app.feature.plans.data.entitlement.InstallationPublicIdentity
 import com.kipu.app.feature.plans.domain.model.SignedOfflineEntitlementGrant
@@ -70,8 +71,21 @@ class OfflineEntitlementGrantVerifierTest {
         assertNull(verifier.verify(valid.copy(signature = Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(20))), owner))
     }
 
-    private fun signedGrant(): SignedOfflineEntitlementGrant {
-        val payload = """{"version":1,"keyId":"test-key-1","grantId":"d45373b2-9b32-4e19-a847-f585e59c50ba","userId":"$owner","installationKeyThumbprint":"$thumbprint","policyVersion":1,"tier":"PREMIUM","serverVerifiedAt":"2026-10-02T12:00:00.000Z","entitlementEndsAt":"2026-10-10T12:00:00.000Z","notAfter":"2026-10-05T12:00:00.000Z"}"""
+    @Test
+    fun rejectsTestOverrideGrantUnlessBuildOptedIn() {
+        val qaGrant = signedGrant(source = "TEST_OVERRIDE")
+        val claims = verifier.verify(qaGrant, owner)
+        if (BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) {
+            assertNotNull(claims)
+            assertEquals("TEST_OVERRIDE", claims?.source)
+        } else {
+            assertNull(claims)
+        }
+    }
+
+    private fun signedGrant(source: String? = null): SignedOfflineEntitlementGrant {
+        val sourceField = source?.let { ",\"source\":\"$it\"" }.orEmpty()
+        val payload = """{"version":1,"keyId":"test-key-1","grantId":"d45373b2-9b32-4e19-a847-f585e59c50ba","userId":"$owner","installationKeyThumbprint":"$thumbprint","policyVersion":1,"tier":"PREMIUM","serverVerifiedAt":"2026-10-02T12:00:00.000Z","entitlementEndsAt":"2026-10-10T12:00:00.000Z","notAfter":"2026-10-05T12:00:00.000Z"$sourceField}"""
         val bytes = payload.toByteArray(Charsets.UTF_8)
         val derSignature = Signature.getInstance("SHA256withECDSA").run {
             initSign(keyPair.private)
@@ -83,6 +97,11 @@ class OfflineEntitlementGrantVerifierTest {
             signature = Base64.getUrlEncoder().withoutPadding().encodeToString(derToP1363(derSignature)),
             keyId = "test-key-1",
         )
+    }
+
+    @Test
+    fun rejectsUnknownSignedGrantSources() {
+        assertNull(verifier.verify(signedGrant(source = "UNKNOWN_SOURCE"), owner))
     }
 
     private fun ecKeyPair(): KeyPair = KeyPairGenerator.getInstance("EC").run {

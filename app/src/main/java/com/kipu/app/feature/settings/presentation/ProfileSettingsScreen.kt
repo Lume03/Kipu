@@ -478,6 +478,47 @@ fun ProfileSettingsScreen(
                     )
                 }
 
+                if (state.testPlanOverridesEnabled) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = when (state.testPlanTier) {
+                                    "PREMIUM" -> "Premium de pruebas"
+                                    "FREE" -> "Free de pruebas"
+                                    else -> "Plan de pruebas no sincronizado"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            state.testPlanUserId?.let { id ->
+                                Text("ID de usuario: $id", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text(
+                                "El estado se toma del servidor QA. No realiza compras ni modifica tus datos financieros.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(
+                                onClick = viewModel::refreshTestPlan,
+                                enabled = !state.isSaving && !state.testPlanRefreshInProgress && state.testPlanUserId != null,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            ) {
+                                if (state.testPlanRefreshInProgress) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text("Actualizar plan de pruebas")
+                            }
+                        }
+                    }
+                }
+
                 // 6. Gestionar Categorías
                 SettingsActionCard(
                     icon = Icons.Default.Category,

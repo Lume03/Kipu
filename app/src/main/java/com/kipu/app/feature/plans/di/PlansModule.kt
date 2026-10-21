@@ -17,6 +17,7 @@ import com.kipu.app.feature.plans.data.entitlement.AndroidOfflineEntitlementCloc
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementClock
 import com.kipu.app.feature.plans.data.remote.PlanSelectionApi
 import com.kipu.app.feature.plans.data.remote.VerifyPurchaseApi
+import com.kipu.app.feature.plans.data.remote.RefreshEntitlementApi
 import com.kipu.app.feature.plans.domain.*
 import com.kipu.app.feature.plans.purchase.BillingPurchaseRepository
 import dagger.Binds
@@ -42,5 +43,6 @@ abstract class PlansModule {
         @Provides fun workManager(@ApplicationContext context: Context): WorkManager = WorkManager.getInstance(context)
         @Provides fun api(client: HttpClient): PlanSelectionApi = PlanSelectionApi(client, BuildConfig.SUPABASE_URL.trimEnd('/') + "/functions/v1")
         @Provides fun verifyPurchaseApi(client: HttpClient): VerifyPurchaseApi = VerifyPurchaseApi(client, BuildConfig.SUPABASE_URL)
+        @Provides fun refreshEntitlementApi(client: HttpClient): RefreshEntitlementApi = RefreshEntitlementApi(client, BuildConfig.SUPABASE_URL)
     }
 }

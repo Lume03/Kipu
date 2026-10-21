@@ -2,6 +2,7 @@ package com.kipu.app.feature.settings.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kipu.app.BuildConfig
 import com.kipu.app.core.session.PendingChangesRepository
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.auth.domain.AuthRepository
@@ -9,6 +10,10 @@ import com.kipu.app.feature.settings.data.sync.ProfileSyncScheduler
 import com.kipu.app.feature.settings.domain.ProfilePreferencesRepository
 import com.kipu.app.feature.settings.domain.model.ProfilePreferenceDelta
 import com.kipu.app.feature.settings.domain.model.ThemeMode
+import com.kipu.app.feature.plans.data.entitlement.TestPlanRefresh
+import com.kipu.app.feature.plans.data.entitlement.TestPlanRefreshResult
+import com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao
+import com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -16,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +35,8 @@ class SettingsViewModel @Inject constructor(
     private val profileSyncScheduler: ProfileSyncScheduler,
     private val authRepository: AuthRepository,
     private val pendingChangesRepository: PendingChangesRepository,
+    private val testPlanRefresh: TestPlanRefresh,
+    private val featureAccessCacheDao: FeatureAccessCacheDao,
 ) : ViewModel() {
 
     constructor(
@@ -50,6 +58,14 @@ class SettingsViewModel @Inject constructor(
             override suspend fun count(userId: UUID) = 0
             override suspend fun markWaitingForAuth(userId: UUID) = Unit
         },
+        testPlanRefresh = object : TestPlanRefresh {
+            override suspend fun refresh() = TestPlanRefreshResult(false, "TEST_PLANS_DISABLED")
+        },
+        featureAccessCacheDao = object : FeatureAccessCacheDao {
+            override suspend fun putVerified(entity: FeatureAccessCacheEntity) = Unit
+            override suspend fun get(userId: UUID): FeatureAccessCacheEntity? = null
+            override fun observe(userId: UUID) = kotlinx.coroutines.flow.flowOf(null)
+        },
     )
 
     private val _uiState = MutableStateFlow(SettingsUiState(isLoading = true))
@@ -63,8 +79,25 @@ class SettingsViewModel @Inject constructor(
         }
 
     init {
+        _uiState.update {
+            it.copy(
+                testPlanOverridesEnabled = BuildConfig.TEST_PLAN_OVERRIDES_ENABLED,
+                testPlanUserId = currentUserId?.toString(),
+            )
+        }
         val userId = currentUserId
         if (userId != null) {
+            if (BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) {
+                viewModelScope.launch {
+                    featureAccessCacheDao.observe(userId).collect { access ->
+                        _uiState.update {
+                            it.copy(testPlanTier = access?.takeIf { row ->
+                                row.source == "TEST_OVERRIDE" || row.source == "SIGNED_TEST_GRANT"
+                            }?.effectiveTier)
+                        }
+                    }
+                }
+            }
             viewModelScope.launch {
                 repository.observeProfile(userId).collectLatest { profile ->
                     if (profile != null) {
@@ -182,6 +215,31 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
+    }
+
+    fun refreshTestPlan() {
+        if (!BuildConfig.TEST_PLAN_OVERRIDES_ENABLED || _uiState.value.testPlanRefreshInProgress) return
+        _uiState.update { it.copy(testPlanRefreshInProgress = true, errorMessage = null, infoMessage = null) }
+        viewModelScope.launch {
+            val result = try {
+                testPlanRefresh.refresh()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                TestPlanRefreshResult(false, "REFRESH_UNAVAILABLE")
+            }
+            _uiState.update {
+                it.copy(
+                    testPlanRefreshInProgress = false,
+                    infoMessage = if (result.success) "Plan de pruebas actualizado" else null,
+                    errorMessage = if (result.success) null else when (result.code) {
+                        "TEST_PLANS_DISABLED" -> "Los planes de prueba están deshabilitados en el servidor."
+                        "UNAUTHENTICATED" -> "Inicia sesión para actualizar el plan de pruebas."
+                        else -> "No se pudo actualizar el plan de pruebas. Tu plan guardado no cambió."
+                    },
+                )
+            }
+        }
     }
 
     fun requestSignOut() {
