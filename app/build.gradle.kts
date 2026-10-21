@@ -154,6 +154,9 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // Platform Services
+    // Bundled Latin model: receipt OCR works offline, including the first import.
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.biometric)
     implementation(libs.play.billing)
 

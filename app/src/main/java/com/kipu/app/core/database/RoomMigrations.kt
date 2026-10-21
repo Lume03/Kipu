@@ -1241,6 +1241,30 @@ val MIGRATION_23_24 = object : Migration(23, 24) {
     }
 }
 
+val MIGRATION_24_25 = object : Migration(24, 25) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `receipt_candidates` (
+            `candidate_id` TEXT NOT NULL,
+            `owner_id` TEXT NOT NULL,
+            `provider` TEXT NOT NULL,
+            `amount_minor` INTEGER,
+            `occurred_at` INTEGER,
+            `recipient` TEXT,
+            `reference` TEXT,
+            `reference_fingerprint` TEXT,
+            `image_fingerprint` TEXT NOT NULL,
+            `status` TEXT NOT NULL,
+            `created_at` INTEGER NOT NULL,
+            `updated_at` INTEGER NOT NULL,
+            `is_income` INTEGER,
+            PRIMARY KEY(`candidate_id`)
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipt_candidates_owner_id_status_created_at` ON `receipt_candidates` (`owner_id`, `status`, `created_at`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_receipt_candidates_owner_id_image_fingerprint` ON `receipt_candidates` (`owner_id`, `image_fingerprint`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_receipt_candidates_owner_id_reference_fingerprint` ON `receipt_candidates` (`owner_id`, `reference_fingerprint`)")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

@@ -100,6 +100,7 @@ fun ProfileSettingsScreen(
     onNavigateToPurchase: (() -> Unit)? = null,
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onNavigateToReceipts: (() -> Unit)? = null,
 ) {
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
@@ -499,6 +500,15 @@ fun ProfileSettingsScreen(
                         icon = Icons.Default.Storefront,
                         title = "Categoría por comercio",
                         subtitle = "Elige la primera categoría sugerida para operaciones futuras",
+                        onClick = it,
+                    )
+                }
+
+                onNavigateToReceipts?.let {
+                    SettingsActionCard(
+                        icon = Icons.Default.Payments,
+                        title = "Comprobantes Yape",
+                        subtitle = "Revisa los candidatos compartidos antes de registrar",
                         onClick = it,
                     )
                 }

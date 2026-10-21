@@ -129,6 +129,69 @@ class QuickMovementViewModelTest {
     }
 
     @Test
+    fun `receipt prefill is editable and does not register before confirmation`() = runTest {
+        advanceUntilIdle()
+        val commands = mutableListOf<RegisterTransactionCommand>()
+        viewModel.prepareReceiptDraft("receipt-1", 1250L, 1792594800000L, "Ana") {
+            commands += it
+            RegisterTransactionResult.Failure("Retry")
+        }
+        assertEquals("12.50", viewModel.uiState.value.amountText)
+        assertEquals("Ana", viewModel.uiState.value.merchantName)
+        assertTrue(commands.isEmpty())
+        viewModel.onAmountChanged("15.20")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onSave()
+        advanceUntilIdle()
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(2, commands.size)
+        assertEquals(1520L, commands.first().amountMinor)
+        assertEquals("YAPE", commands.first().paymentChannel)
+        assertEquals(commands.first().idempotencyKey, commands.last().idempotencyKey)
+    }
+
+    @Test
+    fun `receipt cannot become credit purchase or foreign currency operation`() = runTest {
+        advanceUntilIdle()
+        var confirmations = 0
+        viewModel.prepareReceiptDraft("receipt-2", 1250L, null, null) {
+            confirmations++
+            RegisterTransactionResult.Failure("Unexpected")
+        }
+        viewModel.onSourceAccountSelected(usdAccountId.value)
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(0, confirmations)
+        assertNotNull(viewModel.uiState.value.generalError)
+    }
+
+    @Test
+    fun `received yape receipt prefills income rather than expense`() = runTest {
+        advanceUntilIdle()
+        viewModel.prepareReceiptDraft("income-receipt", 2000L, 1792594800000L, "Remitente", MovementType.INCOME) {
+            RegisterTransactionResult.Failure("Not confirmed")
+        }
+        assertEquals(MovementType.INCOME, viewModel.uiState.value.type)
+        assertEquals("20.00", viewModel.uiState.value.amountText)
+        assertTrue(viewModel.uiState.value.availableCategories.any { it.id == testIncomeCategoryId.value })
+    }
+
+    @Test
+    fun `receipt storage exception leaves editor retryable without exposing exception details`() = runTest {
+        advanceUntilIdle()
+        viewModel.prepareReceiptDraft("failed-receipt", 1250L, null, "Persona") {
+            throw IllegalStateException("Sensitive internal detail")
+        }
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(false, viewModel.uiState.value.isSaving)
+        assertTrue(viewModel.uiState.value.generalError.orEmpty().contains("reintentar"))
+        assertEquals(false, viewModel.uiState.value.generalError.orEmpty().contains("Sensitive"))
+    }
+
+    @Test
     fun `changing type clears previous errors`() = runTest {
         advanceUntilIdle()
         viewModel.onAmountChanged("")
@@ -271,6 +334,24 @@ class QuickMovementViewModelTest {
         advanceUntilIdle()
 
         assertEquals("USD", fakeMovementRepo.registeredCommands.single().currency)
+    }
+
+    @Test
+    fun `receipt similarity override preserves candidate identity`() = runTest {
+        advanceUntilIdle()
+        val register = RegisterTransaction(fakeMovementRepo, RegisterTransactionValidator())
+        viewModel.prepareReceiptDraft("receipt-similar", 3000L, null, "Ana") { register(it) }
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        fakeMovementRepo.triggerDuplicateWarning = true
+        viewModel.onSave()
+        advanceUntilIdle()
+        val candidateKey = viewModel.uiState.value.pendingCommandForDuplicate?.idempotencyKey
+        assertNotNull(candidateKey)
+        fakeMovementRepo.triggerDuplicateWarning = false
+        viewModel.onConfirmDuplicate()
+        advanceUntilIdle()
+        assertEquals(candidateKey, fakeMovementRepo.registeredCommands.single().idempotencyKey)
+        assertTrue(fakeMovementRepo.registeredCommands.single().ignoreSimilarityWarning)
     }
 
     @Test
