@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="16" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-10-20T22:18:39" hostname="localhost">
+  <testsuite name="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" tests="16" failures="1" errors="0" skipped="0" time="31.484" timestamp="2026-10-20T22:18:39" hostname="localhost">
+    <properties>
+      <property name="device" value="[redacted]" />
+    </properties>
+    <testcase name="archiveErrorShowsErrorAndDoesNotReturnToDashboard" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="7.056" />
+    <testcase name="savesAliasAndPresentationWithoutChangingOpeningBalance" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="3.639" />
+    <testcase name="legacySavingsWalletPresetDisplaysAndSavesAsOther" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.345" />
+    <testcase name="activeCreditCardDebtStaysVisibleAndPaymentActionIsAvailable" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.758" />
+    <testcase name="cancellingArchiveKeepsDetailAndDoesNotInvokeArchiveOrReturn" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.856" />
+    <testcase name="savingsAccountShowsOnlyBankPresets" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.851" />
+    <testcase name="creditCardTermsActionRemainsReachableWithoutChangingDebtPresentation" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.348" />
+    <testcase name="archivedCreditCardDebtStaysVisibleAndRequiresReactivationBeforePayment" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.521" />
+    <testcase name="accountDetailOpensItsMovementHistoryAction" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.159" />
+    <testcase name="archivedInstrumentCanBeReactivatedAfterConfirmationAndBackWorks" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.673" />
+    <testcase name="openingBalanceChangesOnlyAfterExplicitAuditedCorrectionConfirmation" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.963" />
+    <testcase name="dismissingArchiveConfirmationKeepsDetailAndDoesNotInvokeArchiveOrReturn" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.347">
+      <failure>java.lang.IllegalStateException: No compose hierarchies found in the app. Possible reasons include: (1) the Activity that calls setContent did not launch; (2) setContent was not called; (3) setContent was called before the ComposeTestRule ran. If setContent is called by the Activity, make sure the Activity is launched after the ComposeTestRule runs
+	at androidx.compose.ui.test.TestOwnerKt.getAllSemanticsNodes(TestOwner.kt:117)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNodes$ui_test(SemanticsNodeInteraction.kt:64)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNodes$ui_test$default(SemanticsNodeInteraction.kt:59)
+	at androidx.compose.ui.test.AndroidAssertions_androidKt.checkIsDisplayed(AndroidAssertions.android.kt:29)
+	at androidx.compose.ui.test.AssertionsKt.isDisplayed(Assertions.kt:380)
+	at androidx.compose.ui.test.AssertionsKt.assertIsDisplayed(Assertions.kt:33)
+	at com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest.dismissingArchiveConfirmationKeepsDetailAndDoesNotInvokeArchiveOrReturn(AccountDetailScreenTest.kt:182)
+</failure>
+    </testcase>
+    <testcase name="archiveRequiresConfirmationAndExplainsHistoryIsRetained" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.429" />
+    <testcase name="yapeDetailOpensItsAttributedMovementHistoryAction" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.099" />
+    <testcase name="creditCardDetailShowsCanonicalLimitAndAvailableCreditCopy" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.210" />
+    <testcase name="cashAccountDoesNotShowAnInstitutionSelectorAndNormalizesItsPreset" classname="com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest" time="1.230" />
+  </testsuite>
+</testsuites>
