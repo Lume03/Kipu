@@ -232,6 +232,8 @@ class QuickMovementScreenTest {
         compose.onNodeWithTag("input_note").assertDoesNotExist()
 
         compose.onNodeWithText("Más detalles (opcional)").performClick()
+        compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction()
+        compose.onNodeWithText("Comercio o pagador (opcional)").assertIsDisplayed()
         compose.onNodeWithText("Agregar comercio (opcional)").assertIsDisplayed()
         compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
     }

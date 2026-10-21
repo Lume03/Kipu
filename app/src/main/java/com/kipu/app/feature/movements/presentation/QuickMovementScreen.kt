@@ -889,91 +889,89 @@ fun QuickMovementContent(
                 enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
                 exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
             ) {
-                // Merchant Row (for Expense)
-                AnimatedVisibility(
-                    visible = uiState.type == MovementType.EXPENSE,
-                    enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
-                    exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
-                ) {
-                    val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
-                        Color(0xFF451A03) to Color(0xFFFDBA74)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Keep these optional controls in one visibility group so resizing the sheet
+                    // (for example, when the keyboard opens) cannot hide the merchant selector.
+                    val (dateBg, dateTint) = if (emeraldColors.isDark) {
+                        Color(0xFF082F49) to Color(0xFF7DD3FC)
                     } else {
-                        Color(0xFFFEF3C7) to emeraldColors.warningText
+                        Color(0xFFE0F2FE) to Color(0xFF0284C7)
                     }
-                    val hasMerchant = uiState.merchantName.isNotBlank()
+                    val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
 
                     CalmEmeraldSelectionRow(
-                        icon = Icons.Default.Storefront,
-                        iconContainer = merchantBg,
-                        iconTint = merchantTint,
-                        label = "Comercio o Pagador",
-                        value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
-                        supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
-                        onClick = onOpenMerchantPicker,
-                        modifier = Modifier.testTag("input_merchant"),
-                        trailingContent = if (hasMerchant) {
-                            {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = onClearMerchant,
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .testTag("btn_clear_merchant")
-                                            .semantics { contentDescription = "Limpiar comercio" },
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = null,
-                                            tint = emeraldColors.secondaryMuted,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = onOpenMerchantPicker,
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .semantics { contentDescription = "Editar comercio" },
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = null,
-                                            tint = emeraldColors.secondaryMuted,
-                                            modifier = Modifier.size(18.dp),
-                                        )
+                        icon = Icons.Default.CalendarToday,
+                        iconContainer = dateBg,
+                        iconTint = dateTint,
+                        label = "Fecha y hora",
+                        value = formattedDate,
+                        supportingText = "Toca para cambiar la fecha",
+                        onClick = onOpenDatePicker,
+                        modifier = Modifier.testTag("selector_occurred_at"),
+                    )
+
+                    if (uiState.type == MovementType.EXPENSE) {
+                        val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
+                            Color(0xFF451A03) to Color(0xFFFDBA74)
+                        } else {
+                            Color(0xFFFEF3C7) to emeraldColors.warningText
+                        }
+                        val hasMerchant = uiState.merchantName.isNotBlank()
+
+                        CalmEmeraldSelectionRow(
+                            icon = Icons.Default.Storefront,
+                            iconContainer = merchantBg,
+                            iconTint = merchantTint,
+                            label = "Comercio o pagador (opcional)",
+                            value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
+                            supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
+                            onClick = onOpenMerchantPicker,
+                            modifier = Modifier.testTag("input_merchant"),
+                            trailingContent = if (hasMerchant) {
+                                {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = onClearMerchant,
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .testTag("btn_clear_merchant")
+                                                .semantics { contentDescription = "Limpiar comercio" },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = emeraldColors.secondaryMuted,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = onOpenMerchantPicker,
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .semantics { contentDescription = "Editar comercio" },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = null,
+                                                tint = emeraldColors.secondaryMuted,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    tint = emeraldColors.secondaryMuted,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        },
-                    )
+                            } else {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = null,
+                                        tint = emeraldColors.secondaryMuted,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
-
-                // Date & Time Row
-                val (dateBg, dateTint) = if (emeraldColors.isDark) {
-                    Color(0xFF082F49) to Color(0xFF7DD3FC)
-                } else {
-                    Color(0xFFE0F2FE) to Color(0xFF0284C7)
-                }
-                val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
-
-                CalmEmeraldSelectionRow(
-                    icon = Icons.Default.CalendarToday,
-                    iconContainer = dateBg,
-                    iconTint = dateTint,
-                    label = "Fecha y hora",
-                    value = formattedDate,
-                    supportingText = "Toca para cambiar la fecha",
-                    onClick = onOpenDatePicker,
-                    modifier = Modifier.testTag("selector_occurred_at"),
-                )
             }
 
             // Collapsible Notes Section
