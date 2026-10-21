@@ -3,7 +3,8 @@ package com.kipu.app.feature.accounts.presentation.detail
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -24,16 +25,26 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
+import com.kipu.app.feature.accounts.presentation.AccountUiEvent
+import com.kipu.app.feature.accounts.presentation.AccountsViewModel
+import com.kipu.app.feature.accounts.presentation.DashboardUiState
+import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
+import io.mockk.every
+import io.mockk.mockk
 import java.time.Instant
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import androidx.test.espresso.Espresso.pressBack
 
 class AccountDetailScreenTest {
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun savesAliasAndPresentationWithoutChangingOpeningBalance() {
@@ -134,6 +145,48 @@ class AccountDetailScreenTest {
     }
 
     @Test
+    fun cancellingArchiveKeepsDetailAndDoesNotInvokeArchiveOrReturn() {
+        var archived = false
+        var navigatedBack = false
+        setScreen(
+            account = account(),
+            onArchive = { archived = true },
+            onNavigateBack = { navigatedBack = true },
+        )
+
+        compose.onNodeWithText("Archivar cuenta").performScrollTo().performClick()
+        compose.onNodeWithText("Cancelar").performClick()
+
+        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onAllNodesWithText("¿Archivar la cuenta?").assertCountEquals(0)
+        compose.runOnIdle {
+            assertFalse(archived)
+            assertFalse(navigatedBack)
+        }
+    }
+
+    @Test
+    fun dismissingArchiveConfirmationKeepsDetailAndDoesNotInvokeArchiveOrReturn() {
+        var archived = false
+        var navigatedBack = false
+        setScreen(
+            account = account(),
+            onArchive = { archived = true },
+            onNavigateBack = { navigatedBack = true },
+        )
+
+        compose.onNodeWithText("Archivar cuenta").performScrollTo().performClick()
+        pressBack()
+
+        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onAllNodesWithText("¿Archivar la cuenta?").assertCountEquals(0)
+        compose.runOnIdle {
+            assertFalse(archived)
+            assertFalse(navigatedBack)
+        }
+    }
+
+    @Test
     fun accountDetailOpensItsMovementHistoryAction() {
         val bankAccount = account()
         var openedAccount: Account? = null
@@ -227,6 +280,42 @@ class AccountDetailScreenTest {
         compose.onNodeWithContentDescription("Editar tarjeta").performClick()
 
         compose.runOnIdle { assertTrue(editRequested) }
+    }
+
+    @Test
+    fun archiveErrorShowsErrorAndDoesNotReturnToDashboard() {
+        val target = account()
+        val events = MutableSharedFlow<AccountUiEvent>(extraBufferCapacity = 1)
+        val viewModel = mockk<AccountsViewModel>(relaxed = true) {
+            every { instrumentsUiState } returns MutableStateFlow(
+                InstrumentsUiState(isLoading = false, activeAccounts = listOf(target)),
+            )
+            every { dashboardUiState } returns MutableStateFlow(DashboardUiState(isLoading = false))
+            every { creditNotifications } returns MutableStateFlow(emptyList())
+            every { purchaseCategories } returns MutableStateFlow(emptyList())
+            every { this@mockk.events } returns events
+            every { observeAccountBalance(target.id) } returns flowOf(Money(2_500L, Currency.PEN))
+        }
+        var returned = false
+
+        compose.setContent {
+            MaterialTheme {
+                AccountDetailScreen(
+                    instrumentId = target.id.value,
+                    isCard = false,
+                    viewModel = viewModel,
+                    onNavigateBack = {},
+                    onReturnToDashboard = { returned = true },
+                )
+            }
+        }
+        compose.runOnIdle { events.tryEmit(AccountUiEvent.Error("No se pudo archivar")) }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("No se pudo archivar").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.runOnIdle { assertFalse(returned) }
     }
 
     private fun setScreen(

@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-10-20T23:19:30" hostname="localhost">
+  <testsuite name="com.kipu.app.feature.goals.presentation.GoalLifecycleFlowTest" tests="1" failures="0" errors="0" skipped="0" time="2.279" timestamp="2026-10-20T23:19:30" hostname="localhost">
+    <properties>
+      <property name="device" value="[redacted]" />
+    </properties>
+    <testcase name="activeGoalStillOffersContributionAction" classname="com.kipu.app.feature.goals.presentation.GoalLifecycleFlowTest" time="2.279" />
+  </testsuite>
+</testsuites>

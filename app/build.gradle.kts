@@ -97,6 +97,12 @@ android {
         buildConfig = true
         compose = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+        }
+    }
 }
 
 room {
@@ -171,6 +177,7 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.mockk.jvm)
     testImplementation(libs.androidx.navigation.testing)
+    testImplementation(libs.robolectric)
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.compiler)
 

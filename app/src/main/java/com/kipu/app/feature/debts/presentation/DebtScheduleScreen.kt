@@ -83,6 +83,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -121,6 +124,7 @@ fun DebtScheduleScreen(
     val debt = state.debt
     val emeraldColors = rememberCalmEmeraldColors()
     var attemptedAction by remember(debt?.debtId) { mutableStateOf<CloseDebtAction?>(null) }
+    var showScheduleReplacementConfirmation by remember(debt?.debtId) { mutableStateOf(false) }
     var selectedTab by remember(debt?.debtId) {
         mutableIntStateOf(if (debt != null && debt.remainingPrincipalMinor == 0L) 1 else 0)
     }
@@ -235,7 +239,13 @@ fun DebtScheduleScreen(
                         onInstallmentCountChange = onInstallmentCountChange,
                         onFirstDueDateChange = onFirstDueDateChange,
                         onReminderLeadDaysChange = onReminderLeadDaysChange,
-                        onSchedule = onSchedule,
+                        onSchedule = {
+                            if (state.installments.any { it.status == "PENDING" || it.status == "PARTIAL" }) {
+                                showScheduleReplacementConfirmation = true
+                            } else {
+                                onSchedule()
+                            }
+                        },
                         onCancelSchedule = onCancelSchedule,
                     )
                 } else {
@@ -276,6 +286,23 @@ fun DebtScheduleScreen(
                 TextButton(onClick = { showContextualHelp = false }) {
                     Text("Entendido")
                 }
+            },
+        )
+    }
+
+    if (showScheduleReplacementConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showScheduleReplacementConfirmation = false },
+            title = { Text("Reemplazar cronograma") },
+            text = { Text("Las cuotas pendientes o parciales del cronograma actual pasarán al historial como canceladas. El saldo pendiente no cambia y no se registran pagos. ¿Quieres reemplazarlo?") },
+            confirmButton = {
+                Button(onClick = {
+                    showScheduleReplacementConfirmation = false
+                    onSchedule()
+                }) { Text("Reemplazar cronograma") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showScheduleReplacementConfirmation = false }) { Text("Conservar actual") }
             },
         )
     }
@@ -725,6 +752,22 @@ private fun ScheduleProjectionTab(
         }
     }
 
+    AnimatedVisibility(visible = state.errorMessage != null || state.successMessage != null) {
+        val feedback = state.errorMessage ?: state.successMessage.orEmpty()
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (state.errorMessage != null) semanticColors.expenseBg else emeraldColors.pillTrack,
+            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+        ) {
+            Text(
+                feedback,
+                color = if (state.errorMessage != null) semanticColors.expenseText else emeraldColors.primaryDeep,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                modifier = Modifier.padding(14.dp),
+            )
+        }
+    }
+
     Text(
         "Podrás modificar las fechas en cualquier momento",
         style = MaterialTheme.typography.labelSmall,
@@ -742,23 +785,6 @@ private fun ScheduleProjectionTab(
             border = BorderStroke(1.dp, semanticColors.expenseBorder),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = semanticColors.expenseText),
         ) { Text("Cancelar cuotas y avisos") }
-    }
-
-    AnimatedVisibility(visible = state.successMessage != null) {
-        state.successMessage?.let {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = emeraldColors.pillTrack,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    it,
-                    color = emeraldColors.primaryDeep,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    modifier = Modifier.padding(14.dp),
-                )
-            }
-        }
     }
 
     if (showDatePicker) {

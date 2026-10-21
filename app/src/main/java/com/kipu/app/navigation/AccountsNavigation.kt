@@ -61,9 +61,18 @@ internal fun Account.toMovementHistoryTarget(): AccountMovementHistoryTarget? = 
     else -> AccountMovementHistoryTarget(accountId = id.value)
 }
 
-private fun NavController.returnToAccountsDashboard(message: String) {
-    previousBackStackEntry?.savedStateHandle?.set(ACCOUNT_DASHBOARD_FEEDBACK_KEY, message)
-    popBackStack()
+internal fun NavController.returnToAccountsDashboard(message: String) {
+    val dashboardEntry = runCatching { getBackStackEntry(ACCOUNTS_DASHBOARD_ROUTE) }.getOrNull()
+    if (dashboardEntry != null) {
+        dashboardEntry.savedStateHandle[ACCOUNT_DASHBOARD_FEEDBACK_KEY] = message
+        popBackStack(ACCOUNTS_DASHBOARD_ROUTE, inclusive = false)
+    } else {
+        navigate(ACCOUNTS_DASHBOARD_ROUTE) {
+            popUpTo(graph.startDestinationId) { inclusive = true }
+            launchSingleTop = true
+        }
+        currentBackStackEntry?.savedStateHandle?.set(ACCOUNT_DASHBOARD_FEEDBACK_KEY, message)
+    }
 }
 
 fun NavController.navigateToAccountForm() {
