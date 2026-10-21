@@ -128,6 +128,7 @@ fun DebtScheduleScreen(
     var selectedTab by remember(debt?.debtId) {
         mutableIntStateOf(if (debt != null && debt.remainingPrincipalMinor == 0L) 1 else 0)
     }
+    var showContextualHelp by remember(debt?.debtId) { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -158,10 +159,17 @@ fun DebtScheduleScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                    IconButton(onClick = { /* Help dialog */ }) {
+                    IconButton(
+                        onClick = { showContextualHelp = true },
+                        modifier = Modifier.testTag("debt-contextual-help"),
+                    ) {
                         Icon(
                             if (selectedTab == 0) Icons.Rounded.HelpOutline else Icons.Rounded.Info,
-                            contentDescription = "Ayuda",
+                            contentDescription = if (selectedTab == 0) {
+                                "Ayuda sobre cuotas y cronograma"
+                            } else {
+                                "Ayuda sobre ajustes y cierre contable"
+                            },
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -256,6 +264,30 @@ fun DebtScheduleScreen(
                 }
             }
         }
+    }
+
+    if (showContextualHelp) {
+        val isScheduleHelp = selectedTab == 0
+        AlertDialog(
+            onDismissRequest = { showContextualHelp = false },
+            title = {
+                Text(if (isScheduleHelp) "Cuotas y cronograma" else "Ajustes y cierre contable")
+            },
+            text = {
+                Text(
+                    if (isScheduleHelp) {
+                        "El cronograma organiza el saldo pendiente en cuotas y fechas. Guardar el plan o llegar a un vencimiento no registra un pago ni reduce el saldo; los pagos reales se registran por separado."
+                    } else {
+                        "Un ajuste modifica el saldo de forma explícita y queda registrado en el historial con su motivo. La condonación también debe ser explícita. La deuda solo puede marcarse como liquidada cuando el saldo pendiente es cero. Esta ayuda no realiza cambios."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showContextualHelp = false }) {
+                    Text("Entendido")
+                }
+            },
+        )
     }
 
     if (showScheduleReplacementConfirmation) {
