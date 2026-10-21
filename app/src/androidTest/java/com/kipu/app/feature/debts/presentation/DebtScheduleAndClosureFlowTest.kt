@@ -3,6 +3,7 @@ package com.kipu.app.feature.debts.presentation
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -51,6 +52,39 @@ class DebtScheduleAndClosureFlowTest {
             assertEquals(DebtLifecycleStatus.ACTIVE, originalDebt.status)
 
         }
+    }
+
+    @Test
+    fun replacingScheduleRequiresExplicitConfirmationAndExplainsHistoryEffect() {
+        var saveCalls = 0
+        val state = DebtScheduleUiState(
+            debt = debt(),
+            installments = listOf(
+                DebtScheduleItem(INSTALLMENT_ID, 1, LocalDate.parse("2026-11-10"), 10_000L, status = "PARTIAL"),
+            ),
+        )
+        compose.setContent {
+            DebtScheduleScreen(
+                state = state,
+                onInstallmentCountChange = {},
+                onFirstDueDateChange = {},
+                onReminderLeadDaysChange = {},
+                onSchedule = { saveCalls++ },
+                onCancelSchedule = {},
+                onCloseDebt = { _, _ -> },
+                onNavigateBack = {},
+            )
+        }
+
+        compose.onNodeWithText("Guardar cronograma").performScrollTo().performClick()
+        compose.onNodeWithText("Las cuotas pendientes o parciales", substring = true).assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, saveCalls) }
+        compose.onNodeWithText("Conservar actual").performClick()
+        compose.runOnIdle { assertEquals(0, saveCalls) }
+
+        compose.onNodeWithText("Guardar cronograma").performScrollTo().performClick()
+        compose.onAllNodesWithText("Reemplazar cronograma")[1].performClick()
+        compose.runOnIdle { assertEquals(1, saveCalls) }
     }
 
     @Test

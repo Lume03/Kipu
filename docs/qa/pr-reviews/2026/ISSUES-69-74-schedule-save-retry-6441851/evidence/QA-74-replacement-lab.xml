@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="1" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-10-20T22:45:05" hostname="localhost">
+  <testsuite name="com.kipu.app.feature.debts.presentation.DebtScheduleAndClosureFlowTest" tests="1" failures="1" errors="0" skipped="0" time="3.451" timestamp="2026-10-20T22:45:05" hostname="localhost">
+    <properties>
+      <property name="device" value="DEVICE_REDACTED" />
+    </properties>
+    <testcase name="replacingScheduleRequiresExplicitConfirmationAndExplainsHistoryEffect" classname="com.kipu.app.feature.debts.presentation.DebtScheduleAndClosureFlowTest" time="3.451">
+      <failure>java.lang.AssertionError: Failed to inject touch input.
+Reason: Expected exactly '1' node but found '2' nodes that satisfy: (Text + InputText + EditableText contains 'Reemplazar cronograma' (ignoreCase: false))
+Nodes found:
+1) Node #198 at (l=63.0, t=63.0, r=674.0, b=139.0)px
+Text = '[Reemplazar cronograma]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+Has 3 siblings
+2) Node #206 at (l=279.0, t=447.0, r=777.0, b=552.0)px
+Focused = 'false'
+Role = 'Button'
+Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+Text = '[Reemplazar cronograma]'
+Actions = [ClearTextSubstitution, GetTextLayoutResult, OnClick, RequestFocus, SetTextSubstitution, ShowTextSubstitution]
+MergeDescendants = 'true'
+Has 3 siblings
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performTouchInput(Actions.kt:403)
+	at androidx.compose.ui.test.AndroidActions.performClickImpl(Actions.android.kt:23)
+	at androidx.compose.ui.test.ActionsKt.performClick(Actions.kt:61)
+	at com.kipu.app.feature.debts.presentation.DebtScheduleAndClosureFlowTest.replacingScheduleRequiresExplicitConfirmationAndExplainsHistoryEffect(DebtScheduleAndClosureFlowTest.kt:85)
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
