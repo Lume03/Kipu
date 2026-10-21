@@ -27,6 +27,7 @@ fun NavGraphBuilder.appDestinations(
     settingsDestinations(navController = navController, onSignOut = onSignOut)
     accountsDestinations(navController, movementsSelected, onSelectMoney = { movementsSelected.value = false })
     movementDestinations(navController = navController)
+    receiptDestinations(navController)
     movementsDestinations(navController = navController)
     debtDestinations(navController = navController)
     notificationDestinations(navController = navController)

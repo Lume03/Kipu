@@ -71,6 +71,8 @@ import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceEntity
 import com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceSyncCheckpointEntity
+import com.kipu.app.feature.receipts.data.local.ReceiptCandidateDao
+import com.kipu.app.feature.receipts.data.local.ReceiptCandidateEntity
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
 import com.kipu.app.feature.settings.data.local.DeviceAccountSettingsEntity
 import com.kipu.app.feature.settings.data.local.InstallationPermissionStateEntity
@@ -131,8 +133,9 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         RecurrenceSyncCheckpointEntity::class,
         ReminderScheduleEntity::class,
         LocalReminderEventEntity::class,
+        ReceiptCandidateEntity::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -162,4 +165,5 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun recurrenceOutboxDao(): RecurrenceOutboxDao
     abstract fun reminderScheduleDao(): ReminderScheduleDao
     abstract fun localReminderEventDao(): LocalReminderEventDao
+    abstract fun receiptCandidateDao(): ReceiptCandidateDao
 }

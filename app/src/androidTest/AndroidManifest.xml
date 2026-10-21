@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Test-only provider serves synthetic, non-personal receipts; never packaged in the app. -->
+        <provider android:name="com.kipu.app.feature.movements.data.local.YapeFixtureProvider"
+            android:authorities="${applicationId}.yape-fixture"
+            android:exported="true" android:grantUriPermissions="true" />
+    </application>
+</manifest>

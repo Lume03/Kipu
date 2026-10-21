@@ -81,6 +81,9 @@ import com.kipu.app.navigation.accountsDestinations
 import com.kipu.app.navigation.debtDestinations
 import com.kipu.app.navigation.authDestinations
 import com.kipu.app.navigation.movementDestinations
+import com.kipu.app.navigation.receiptDestinations
+import com.kipu.app.navigation.ReceiptShareIntent
+import com.kipu.app.navigation.navigateToReceiptImport
 import com.kipu.app.navigation.movementsDestinations
 import com.kipu.app.navigation.notificationDestinations
 import com.kipu.app.navigation.goalDestinations
@@ -132,6 +135,7 @@ class MainActivity : FragmentActivity() {
 
     private var pendingDeepLink by mutableStateOf<DeepLinkResult?>(null)
     private var pendingDebtReminderId by mutableStateOf<String?>(null)
+    private var pendingReceiptUri by mutableStateOf<String?>(null)
     private var restorationJob: Job? = null
     private val authCallbackViewModel: AuthCallbackViewModel by viewModels()
 
@@ -142,6 +146,9 @@ class MainActivity : FragmentActivity() {
 
         pendingDeepLink = intent?.data?.let { authDeepLinkHandler.handleDeepLink(it) }
         pendingDebtReminderId = debtReminderId(intent)
+        pendingReceiptUri = if (savedInstanceState != null) {
+            savedInstanceState.getString("pending_receipt_uri")
+        } else sharedReceiptUri(intent)
 
         setContent {
             val scope = rememberCoroutineScope()
@@ -268,6 +275,18 @@ class MainActivity : FragmentActivity() {
                                 currentRoute == MOVEMENTS_HISTORY_PATTERN ||
                                 currentRoute == MOVEMENTS_HISTORY_ROUTE ||
                                 currentRoute?.startsWith("movements/history") == true
+
+                            // Wait for auth/onboarding and the local lock before presenting private data.
+                            LaunchedEffect(pendingReceiptUri, currentRoute, accessState, lockState) {
+                                val uri = pendingReceiptUri
+                                val canOpenReceipt = isRootDestination || currentRoute?.startsWith("receipts") == true
+                                if (uri != null && canOpenReceipt && accessState is LocalAccess.Available &&
+                                    lockState != LocalLockState.LOCKED
+                                ) {
+                                    navController.navigateToReceiptImport(uri)
+                                    pendingReceiptUri = null
+                                }
+                            }
 
                             val isUserAuthenticated = accessState is LocalAccess.Available || accessState is LocalAccess.Protected
                             val shouldShowBottomBar = isRootDestination && isUserAuthenticated
@@ -515,6 +534,7 @@ class MainActivity : FragmentActivity() {
                                     movementDestinations(
                                         navController = navController,
                                     )
+                                    receiptDestinations(navController)
                                     movementsDestinations(
                                         navController = navController,
                                     )
@@ -568,6 +588,22 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         pendingDeepLink = intent.data?.let { authDeepLinkHandler.handleDeepLink(it) }
         pendingDebtReminderId = debtReminderId(intent)
+        sharedReceiptUri(intent)?.let { pendingReceiptUri = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pending_receipt_uri", pendingReceiptUri)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun sharedReceiptUri(intent: Intent?): String? {
+        val uri = ReceiptShareIntent.imageUri(intent)?.toString()
+        if (intent?.action == Intent.ACTION_SEND && uri == null) {
+            android.widget.Toast.makeText(this,
+                "Comparte una sola imagen legible de Yape. También puedes registrar el movimiento manualmente.",
+                android.widget.Toast.LENGTH_LONG).show()
+        }
+        return uri
     }
 
     private suspend fun postAuthDestination(rawUserId: String): String? {

@@ -43,6 +43,7 @@ object CoreModule {
                 com.kipu.app.core.database.MIGRATION_21_22,
                 com.kipu.app.core.database.MIGRATION_22_23,
                 com.kipu.app.core.database.MIGRATION_23_24,
+                com.kipu.app.core.database.MIGRATION_24_25,
             )
             .build()
 

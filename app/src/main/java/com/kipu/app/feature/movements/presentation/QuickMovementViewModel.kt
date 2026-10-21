@@ -125,6 +125,39 @@ class QuickMovementViewModel @Inject constructor(
     private var merchantPreferenceJob: Job? = null
     private var categorySelectionRevision = 0L
     private var categoryWasExplicitlySelected = false
+    private var receiptDraftId: String? = null
+    private var receiptConfirmation: (suspend (RegisterTransactionCommand) -> RegisterTransactionResult)? = null
+
+    /** Reuses the financial editor; importing a draft never writes a movement or a balance. */
+    fun prepareReceiptDraft(
+        candidateId: String,
+        amountMinor: Long?,
+        occurredAt: Long?,
+        recipient: String?,
+        movementType: MovementType = MovementType.EXPENSE,
+        onConfirm: suspend (RegisterTransactionCommand) -> RegisterTransactionResult,
+    ) {
+        receiptConfirmation = onConfirm
+        if (receiptDraftId == candidateId) return
+        resetForm()
+        receiptDraftId = candidateId
+        receiptConfirmation = onConfirm
+        onTypeSelected(movementType)
+        _uiState.update { current ->
+            val penAccounts = current.availableAccounts.filter { it.currency == Currency.PEN }
+            current.copy(
+                amountText = amountMinor?.let { java.math.BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty(),
+                occurredAt = occurredAt ?: current.occurredAt,
+                merchantName = recipient.orEmpty(),
+                merchantProvisionalText = recipient?.takeIf(String::isNotBlank),
+                selectedSourceAccountId = (penAccounts.firstOrNull { it.preset?.name == "YAPE" }
+                    ?: penAccounts.firstOrNull())?.id?.value,
+                selectedSourceCardId = null,
+                currency = "PEN",
+                isMoreDetailsExpanded = true,
+            )
+        }
+    }
 
     private val _events = Channel<QuickMovementUiEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -557,6 +590,11 @@ class QuickMovementViewModel @Inject constructor(
     private fun saveCurrentMovement() {
         val state = _uiState.value
         if (state.isSaving) return
+        if (receiptDraftId != null && (state.selectedSourceCardId != null ||
+                state.type == MovementType.TRANSFER || state.currency != "PEN")) {
+            _uiState.update { it.copy(generalError = "El comprobante Yape registra un ingreso o gasto en soles en una cuenta, no una compra a crédito.") }
+            return
+        }
         val amountMinor = parseAmountMinor(state.amountText)
         if (amountMinor == null || amountMinor <= 0) {
             _uiState.update { it.copy(amountError = "Ingresa un monto válido mayor a 0") }
@@ -605,7 +643,7 @@ class QuickMovementViewModel @Inject constructor(
         val selectedWallet = state.availableAccounts.firstOrNull { it.id.value == state.selectedSourceAccountId }
             ?.takeIf { it.linkedAccountId != null }
         val command = RegisterTransactionCommand(
-            idempotencyKey = UUID.randomUUID().toString(),
+            idempotencyKey = receiptDraftId?.let { "yape-candidate:$it" } ?: UUID.randomUUID().toString(),
             userId = userId,
             type = state.type,
             amountMinor = amountMinor,
@@ -618,7 +656,7 @@ class QuickMovementViewModel @Inject constructor(
             occurredAt = state.occurredAt,
             note = state.note.takeIf { it.isNotBlank() },
             ignoreSimilarityWarning = false,
-            paymentChannel = selectedWallet?.preset?.name,
+            paymentChannel = if (receiptDraftId != null) "YAPE" else selectedWallet?.preset?.name,
         )
 
         executeRegister(command)
@@ -659,7 +697,7 @@ class QuickMovementViewModel @Inject constructor(
         if (_uiState.value.isSaving) return
         // Generate new idempotencyKey to treat as separate legitimate purchase
         val newCommand = pending.copy(
-            idempotencyKey = UUID.randomUUID().toString(),
+            idempotencyKey = if (receiptDraftId != null) pending.idempotencyKey else UUID.randomUUID().toString(),
             ignoreSimilarityWarning = true,
         )
         _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null, isSaving = true) }
@@ -673,7 +711,14 @@ class QuickMovementViewModel @Inject constructor(
     private fun executeRegister(command: RegisterTransactionCommand) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, generalError = null) }
-            when (val result = registerTransactionUseCase(command)) {
+            val result = try {
+                receiptConfirmation?.invoke(command) ?: registerTransactionUseCase(command)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                RegisterTransactionResult.Failure("No se pudo guardar. Puedes reintentar sin duplicar la operación.")
+            }
+            when (result) {
                 is RegisterTransactionResult.Success -> {
                     _uiState.update { it.copy(isSaving = false) }
                     val message = when (result.transaction.syncStatus) {
@@ -717,6 +762,8 @@ class QuickMovementViewModel @Inject constructor(
     }
 
     fun resetForm() {
+        receiptDraftId = null
+        receiptConfirmation = null
         categorySelectionRevision++
         categoryWasExplicitlySelected = false
         merchantPreferenceJob?.cancel()
