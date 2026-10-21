@@ -31,6 +31,7 @@ private const val BACKING_ACCOUNT_POSITION_QUERY = """
     ) r ON r.user_id = a.user_id AND r.account_id = a.id
     WHERE a.user_id = :userId
       AND a.is_archived = 0
+      AND a.linked_account_id IS NULL
       AND a.type NOT IN ('GOALS_VIRTUAL', 'CREDIT_LIABILITY')
 """
 

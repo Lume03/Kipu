@@ -1,5 +1,7 @@
 package com.kipu.app.feature.movements.data.local
 
+import com.kipu.app.feature.accounts.data.local.instrumentQuotaGroups
+
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.kipu.app.core.database.KipuDatabase
@@ -691,6 +693,10 @@ class MovementLocalDataSource @Inject constructor(
                     userId = userId,
                     idempotencyKey = command.idempotencyKey,
                     aggregateId = txEntity.id,
+                    commandType = "REVISE_TRANSACTION",
+                    expectedRevision = command.expectedRevision,
+                    dependsOnCommandId = command.dependsOnCommandId,
+                    revisionId = revisionId,
                     payload = outboxPayload,
                     state = "PENDING",
                     attemptCount = 0,
@@ -903,6 +909,10 @@ class MovementLocalDataSource @Inject constructor(
                     userId = userId,
                     idempotencyKey = command.idempotencyKey,
                     aggregateId = txEntity.id,
+                    commandType = "VOID_TRANSACTION",
+                    expectedRevision = command.expectedRevision,
+                    dependsOnCommandId = command.dependsOnCommandId,
+                    revisionId = revisionId,
                     payload = outboxPayload,
                     state = "PENDING",
                     attemptCount = 0,
@@ -1127,6 +1137,9 @@ class MovementLocalDataSource @Inject constructor(
                 userId = userId,
                 idempotencyKey = command.idempotencyKey,
                 aggregateId = selected.id,
+                commandType = "VOID_TRANSACTION",
+                expectedRevision = command.expectedRevision,
+                dependsOnCommandId = command.dependsOnCommandId,
                 payload = MovementOutboxPayloadFactory.buildVoid(
                     idempotencyKey = command.idempotencyKey,
                     transactionId = selected.id,
@@ -1250,16 +1263,16 @@ class MovementLocalDataSource @Inject constructor(
     private suspend fun isPlanLockedInstrument(userId: String, accountId: String): Boolean {
         val account = database.accountDao().getById(userId, accountId) ?: return false
         if (account.type == "CASH") return false
-        val activeIds = database.accountDao().getActiveComputable(userId).map { it.id } +
-            database.cardDao().getActive(userId).map { it.id }
+        val groups = instrumentQuotaGroups(database.accountDao().getActiveComputable(userId), database.cardDao().getActive(userId))
+        val activeIds = groups.values.toSet()
         val selected = database.planQuotaSelectionDao()
             .getSelectedResourceIds(userId, QuotaGroup.INSTRUMENTS.name)
         val cache = database.featureAccessCacheDao().get(UUID.fromString(userId))
         val premiumVerified = entitlementEvaluator.evaluate(userId, cache) is OfflineEntitlementLeaseDecision.Allowed
-        return accountId in quotaPolicy.evaluate(
+        return (groups[accountId] ?: accountId) in quotaPolicy.evaluate(
             group = QuotaGroup.INSTRUMENTS,
             activeResourceIds = activeIds,
-            selectedResourceIds = selected,
+            selectedResourceIds = selected.map { groups[it] ?: it },
             limits = FreePlanLimits(),
             premiumVerified = premiumVerified,
         ).planLockedResourceIds

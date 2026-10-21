@@ -16,11 +16,7 @@ class RegisterDebitCard @Inject constructor(
         card: DebitCard,
         operationId: OperationId = OperationId.generate(),
     ): Result<DebitCard> {
-        val currentCount = repository.getActiveComputableCount()
-        if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS) {
-            return Result.failure(QuotaExceededException("Límite de instrumentos activos alcanzado para el plan Free (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
-        }
-
+        // A debit card is another way to use its existing account, not a new balance.
         if (!Card.isValidLastFourDigits(card.lastFourDigits)) {
             return Result.failure(IllegalArgumentException("Solo se permiten los últimos 4 dígitos numéricos"))
         }

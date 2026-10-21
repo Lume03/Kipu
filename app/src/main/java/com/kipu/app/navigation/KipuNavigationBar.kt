@@ -23,7 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -92,7 +92,6 @@ fun KipuNavigationBar(
                 modifier = Modifier.weight(1f).testTag("kipu_bottom_navigation_pill"),
                 shape = RoundedCornerShape(32.dp),
                 color = colors.navCapsuleBg,
-                border = BorderStroke(1.dp, colors.borderSubtle),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(4.dp),
@@ -128,7 +127,7 @@ fun KipuNavigationBar(
                     KipuRootNavigationItem(
                         selected = isPlanificacionSelected,
                         onClick = onNavigateToPlanificacion,
-                        icon = Icons.Default.PowerSettingsNew,
+                        icon = Icons.Default.TrackChanges,
                         label = "Planificación",
                         tag = "nav_item_planificacion",
                         largeText = largeText,
@@ -153,6 +152,8 @@ fun KipuNavigationBar(
                         .semantics {
                             contentDescription = if (isDebtTabSelected) {
                                 "Agregar deuda o préstamo"
+                            } else if (isPlanificacionSelected) {
+                                "Crear meta"
                             } else {
                                 "Registrar movimiento"
                             }
@@ -185,7 +186,7 @@ private fun KipuRootNavigationItem(
     val transitionMillis = if (reducedMotion) 0 else KipuMotionTokens.SegmentMillis
     val indicatorColor by animateColorAsState(
         targetValue = when {
-            selected -> colors.navSelectedPill
+            selected -> colors.incomeBg
             else -> Color.Transparent
         },
         animationSpec = tween(durationMillis = transitionMillis),
@@ -193,7 +194,7 @@ private fun KipuRootNavigationItem(
     )
     val contentColor by animateColorAsState(
         targetValue = when {
-            selected -> colors.navSelectedContent
+            selected -> colors.primaryDeep
             else -> colors.navUnselectedContent
         },
         animationSpec = tween(durationMillis = transitionMillis),
@@ -202,9 +203,8 @@ private fun KipuRootNavigationItem(
 
     Column(
         modifier = modifier
-            .heightIn(min = if (largeText) 60.dp else 56.dp)
-            .clip(CircleShape)
-            .background(indicatorColor)
+            .heightIn(min = if (largeText) 76.dp else 56.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -224,8 +224,9 @@ private fun KipuRootNavigationItem(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp),
+                .size(width = 48.dp, height = 28.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(indicatorColor),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -235,15 +236,15 @@ private fun KipuRootNavigationItem(
                 modifier = Modifier.size(22.dp),
             )
         }
-        if (selected) {
+        run {
             Text(
                 text = label,
                 color = contentColor,
                 textAlign = TextAlign.Center,
-                maxLines = 1,
-                softWrap = false,
+                maxLines = if (largeText) 2 else 1,
+                softWrap = largeText,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = if (largeText) 10.sp else 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                 ),
                 modifier = Modifier.testTag("nav_label_${tag.removePrefix("nav_item_")}"),

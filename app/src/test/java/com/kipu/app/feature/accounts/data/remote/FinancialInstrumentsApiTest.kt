@@ -21,6 +21,29 @@ import org.junit.Test
 class FinancialInstrumentsApiTest {
 
     @Test
+    fun `expired session refreshes before requesting catalog`() = runTest {
+        var refreshed = false
+        val sessions = object : AuthenticatedSessionProvider {
+            override suspend fun currentSession(): AuthenticatedSession? = null
+            override suspend fun refreshSession(): AuthenticatedSession {
+                refreshed = true
+                return AuthenticatedSession(UUID.randomUUID(), "renewed-token")
+            }
+        }
+        val client = HttpClient(MockEngine { request ->
+            assertEquals("Bearer renewed-token", request.headers[HttpHeaders.Authorization])
+            respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            defaultRequest { url("https://kipu.test/") }
+        }
+        try {
+            assertTrue(FinancialInstrumentsApi(client, sessions).fetchCreditProducts() is FinancialApiResponse.Success)
+            assertTrue(refreshed)
+        } finally { client.close() }
+    }
+
+    @Test
     fun `credit catalog does not select optional institution name column`() = runTest {
         var requestedSelect: String? = null
         val client = HttpClient(MockEngine { request ->

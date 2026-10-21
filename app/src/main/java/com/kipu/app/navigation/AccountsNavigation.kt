@@ -193,8 +193,14 @@ fun NavGraphBuilder.accountsDestinations(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
             onSaveSuccess = { message -> navController.returnToAccountsDashboard(message) },
-            onNavigateToCardDetail = { card -> navController.navigateToCardDetail(card.id.value) },
-            onNavigateToRecordConsumption = { card -> navController.navigateToCardDetail(card.id.value, startPurchase = true) },
+            onNavigateToCardDetail = { card ->
+                navController.returnToAccountsDashboard("Tarjeta creada.")
+                navController.navigateToCardDetail(card.id.value)
+            },
+            onNavigateToRecordConsumption = { card ->
+                navController.returnToAccountsDashboard("Tarjeta creada.")
+                navController.navigateToCardDetail(card.id.value, startPurchase = true)
+            },
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
         )
     }
@@ -205,8 +211,14 @@ fun NavGraphBuilder.accountsDestinations(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
             onSaveSuccess = { message -> navController.returnToAccountsDashboard(message) },
-            onNavigateToCardDetail = { card -> navController.navigateToCardDetail(card.id.value) },
-            onNavigateToRecordConsumption = { card -> navController.navigateToCardDetail(card.id.value, startPurchase = true) },
+            onNavigateToCardDetail = { card ->
+                navController.returnToAccountsDashboard("Tarjeta creada.")
+                navController.navigateToCardDetail(card.id.value)
+            },
+            onNavigateToRecordConsumption = { card ->
+                navController.returnToAccountsDashboard("Tarjeta creada.")
+                navController.navigateToCardDetail(card.id.value, startPurchase = true)
+            },
             initialCreditCard = true,
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
         )

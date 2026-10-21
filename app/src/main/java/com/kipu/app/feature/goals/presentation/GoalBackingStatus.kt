@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -22,18 +24,20 @@ fun GoalBackingStatus(
     accounts: List<GoalBackingAccount>,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Respaldo real", style = MaterialTheme.typography.titleSmall)
+    val colors = rememberCalmEmeraldColors()
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Respaldo real", style = MaterialTheme.typography.titleMedium)
         if (accounts.isEmpty()) {
             Text("No hay cuentas activas compatibles para respaldar esta meta.", style = MaterialTheme.typography.bodySmall)
         }
         accounts.forEach { account ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = colors.surfaceCard),
+                border = BorderStroke(1.dp, colors.borderSubtle),
             ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(account.name, style = MaterialTheme.typography.titleSmall)
                     AmountRow("Saldo confirmado", account.confirmedBalance)
                     AmountRow("Reservado para metas", account.reserved)
@@ -55,7 +59,7 @@ fun GoalBackingStatus(
 @Composable
 private fun AmountRow(label: String, money: Money, color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         MoneyText(money, style = MaterialTheme.typography.bodySmall, color = color)
     }
 }

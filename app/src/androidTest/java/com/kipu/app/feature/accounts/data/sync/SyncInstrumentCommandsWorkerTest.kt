@@ -64,12 +64,71 @@ class SyncInstrumentCommandsWorkerTest {
     }
 
     @Test
+    fun editQueuedBeforeCreationUsesFirstOfficialRevisionWithoutChangingIdentity() = runTest {
+        val parent = command("CREATE_ACCOUNT", "STANDARD").copy(state = "SYNCED")
+        val dto = com.kipu.app.feature.accounts.data.remote.UpdateAppearanceRequestDto(
+            operationId = UUID.randomUUID().toString(), instrumentId = parent.aggregateId,
+            instrumentType = "ACCOUNT", alias = "BBVA", expectedRevision = 0,
+        )
+        val edit = parent.copy(operationId = dto.operationId, commandType = "UPDATE_APPEARANCE",
+            expectedRevision = 0, predecessorOperationId = parent.operationId,
+            payloadJson = Json.encodeToString(dto), state = "FAILED_PERMANENT")
+        coEvery { syncDao.getPrematureCreationEdits(userId) } returns listOf(edit)
+        coEvery { syncDao.getByOperationId(userId, parent.operationId) } returns parent
+        coEvery { syncDao.getPendingCommands(userId, any()) } returns emptyList()
+
+        assertEquals(ListenableWorker.Result.success(), worker().doWork())
+
+        coVerify(exactly = 1) { syncDao.update(match {
+            it.operationId == edit.operationId && it.state == "PENDING" && it.expectedRevision == 1L &&
+                Json.decodeFromString<com.kipu.app.feature.accounts.data.remote.UpdateAppearanceRequestDto>(it.payloadJson).let { dto ->
+                    dto.expectedRevision == 1L && dto.alias == "BBVA" && dto.operationId == edit.operationId
+                }
+        }) }
+    }
+
+    @Test
+    fun prematureEditIsRecoveredAfterCreationFinishesOnALaterRun() = runTest {
+        val parent = command("CREATE_ACCOUNT", "STANDARD").copy(state = "PENDING")
+        val dto = com.kipu.app.feature.accounts.data.remote.UpdateAppearanceRequestDto(
+            operationId = UUID.randomUUID().toString(), instrumentId = parent.aggregateId,
+            instrumentType = "ACCOUNT", alias = "BBVA", expectedRevision = 0,
+        )
+        val edit = parent.copy(operationId = dto.operationId, commandType = "UPDATE_APPEARANCE",
+            expectedRevision = 0, predecessorOperationId = parent.operationId,
+            payloadJson = Json.encodeToString(dto), state = "FAILED_PERMANENT")
+        coEvery { syncDao.getPrematureCreationEdits(userId) } returns listOf(edit)
+        coEvery { syncDao.getByOperationId(userId, parent.operationId) } returnsMany
+            listOf(parent, parent.copy(state = "SYNCED"))
+        coEvery { syncDao.getPendingCommands(userId, any()) } returns emptyList()
+
+        assertEquals(ListenableWorker.Result.success(), worker().doWork())
+        coVerify(exactly = 0) { syncDao.update(any()) }
+        assertEquals(ListenableWorker.Result.success(), worker().doWork())
+        coVerify(exactly = 1) { syncDao.update(match {
+            it.operationId == edit.operationId && it.expectedRevision == 1L && it.state == "PENDING"
+        }) }
+    }
+
+    @Test
     fun confirmedPurchaseUsesCanonicalRpcAndAcknowledgesDuplicateIdempotently() = runTest {
         val command = command("CONFIRM_CREDIT_PURCHASE", "CARD_PURCHASE")
+        val purchase = request(command).transaction
+        database.movementDao().insertTransaction(TransactionEntity(id = purchase.id, userId = userId,
+            type = "EXPENSE", amountMinor = purchase.amountMinor, currencyCode = "PEN", occurredAt = 1000,
+            status = "ACTIVE", syncStatus = "PENDING", createdAt = 1000, updatedAt = 1000,
+            cardId = purchase.cardId, operationKind = "CARD_PURCHASE", installmentCount = 3))
+        val installments = (1..3).map { number -> CreditInstallmentEntity(
+            id = UUID.randomUUID().toString(), userId = userId, transactionId = purchase.id,
+            installmentNumber = number, dueDate = number.toLong(), principalMinor = if (number == 3) 3334 else 3333,
+            interestMinor = 0, status = "PENDING", revision = 1, createdAt = 1000, updatedAt = 1000) }
+        database.creditDao().insertInstallments(installments)
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(command), emptyList())
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
         coEvery { api.registerCreditPurchase(any()) } returns FinancialApiResponse.Success(
-            CreditCommandResponseDto(status = "DUPLICATE", transactionId = request(command).transaction.id),
+            CreditCommandResponseDto(status = "DUPLICATE", transactionId = request(command).transaction.id,
+                installments = installments.map { com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto(
+                    it.id, it.installmentNumber, "2026-11-05", it.principalMinor, it.interestMinor) }),
         )
 
         val result = worker().doWork()

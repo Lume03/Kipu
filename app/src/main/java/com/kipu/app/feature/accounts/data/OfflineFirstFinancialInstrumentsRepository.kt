@@ -19,6 +19,7 @@ import com.kipu.app.core.finance.domain.InstallmentCalculator
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.accounts.data.local.AccountDao
+import com.kipu.app.feature.accounts.data.local.instrumentQuotaGroups
 import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.accounts.data.local.CardDao
 import com.kipu.app.feature.accounts.data.local.CardEntity
@@ -142,15 +143,12 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             }
             val parent = accountDao.getById(userId, account.linkedAccountId.value)
                 ?: return Result.failure(IllegalArgumentException("Linked bank account not found"))
-            val hasDebitCard = cardDao.getActive(userId).any {
-                it.accountId == parent.id && it.type == "DEBIT"
-            }
             val requiredPreset = when (account.preset) {
                 AccountPreset.YAPE -> AccountPreset.BCP
                 AccountPreset.PLIN -> AccountPreset.BBVA
                 else -> return Result.failure(IllegalArgumentException("Only Yape or Plin can be affiliated"))
             }
-            if (!hasDebitCard || parent.isArchived || parent.type !in setOf(AccountType.SAVINGS.name, AccountType.BANK.name) ||
+            if (parent.isArchived || parent.type !in setOf(AccountType.SAVINGS.name, AccountType.BANK.name) ||
                 AccountPreset.fromId(parent.presetId) != requiredPreset || parent.currency != account.currency.name) {
                 return Result.failure(IllegalArgumentException("Wallet can only link to an active compatible debit account in the same currency"))
             }
@@ -370,7 +368,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "ACCOUNT",
                         aggregateId = accountId.value,
                         predecessorOperationId = predecessorOpId,
-                        expectedRevision = account.remoteRevision,
+                        expectedRevision = account.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = payloadJson,
                         payloadHash = payloadHash,
@@ -423,7 +421,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     presetId = preset?.name,
                     color = colorToken,
                     icon = iconToken,
-                    expectedRevision = account.remoteRevision,
+                    expectedRevision = account.remoteRevision.coerceAtLeast(1),
                 )
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
@@ -437,7 +435,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "ACCOUNT",
                         aggregateId = accountId.value,
                         predecessorOperationId = updatePredecessorOpId,
-                        expectedRevision = account.remoteRevision,
+                        expectedRevision = account.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = payloadJson,
                         payloadHash = payloadHash,
@@ -680,7 +678,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "CARD",
                         aggregateId = cardId.value,
                         predecessorOperationId = predecessor,
-                        expectedRevision = card.remoteRevision,
+                        expectedRevision = card.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = payloadJson,
                         payloadHash = sha256(payloadJson),
@@ -736,7 +734,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         creditLimitMinorUnits = creditLimitMinorUnits,
                         billingDay = billingDay,
                         dueDay = dueDay,
-                        expectedRevision = card.remoteRevision,
+                        expectedRevision = card.remoteRevision.coerceAtLeast(1),
+                        alias = aliasToSave,
+                        lastFourDigits = digitsToSave,
                     ),
                 )
                 val canonicalPayload = json.encodeToString(payload)
@@ -751,7 +751,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "CARD",
                         aggregateId = cardId.value,
                         predecessorOperationId = predecessor,
-                        expectedRevision = card.remoteRevision,
+                        expectedRevision = card.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = payloadJson,
                         payloadHash = sha256(payloadJson),
@@ -866,7 +866,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     presetId = preset?.name,
                     color = colorToken,
                     icon = iconToken,
-                    expectedRevision = card.remoteRevision,
+                    expectedRevision = card.remoteRevision.coerceAtLeast(1),
                 )
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
@@ -880,7 +880,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "CARD",
                         aggregateId = cardId.value,
                         predecessorOperationId = predecessorOpId,
-                        expectedRevision = card.remoteRevision,
+                        expectedRevision = card.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = payloadJson,
                         payloadHash = payloadHash,
@@ -1369,7 +1369,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         aggregateType = "CARD",
                         aggregateId = cardId.value,
                         predecessorOperationId = predecessorOpId,
-                        expectedRevision = card.remoteRevision,
+                        expectedRevision = card.remoteRevision.coerceAtLeast(1),
                         contractVersion = 1,
                         payloadJson = creditCommandJson.encodeToString(command),
                         payloadHash = payloadHash,
@@ -1650,19 +1650,21 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         database.featureAccessCacheDao().observe(UUID.fromString(userId)),
         offlineEntitlementRefreshTicker(),
     ) { accounts, cards, selected, cache, _ ->
-        val activeIds = accounts.filter { it.type !in NON_COMPUTABLE_ACCOUNT_TYPES }.map { it.id } + cards.map { it.id }
+        val groups = instrumentQuotaGroups(accounts, cards)
+        val activeIds = groups.values.toSet()
         val premiumVerified = entitlementEvaluator.evaluate(userId, cache) is OfflineEntitlementLeaseDecision.Allowed
         quotaPolicy.evaluate(
             group = QuotaGroup.INSTRUMENTS,
             activeResourceIds = activeIds,
-            selectedResourceIds = selected,
+            selectedResourceIds = selected.map { groups[it] ?: it },
             limits = FreePlanLimits(),
             premiumVerified = premiumVerified,
-        ).planLockedResourceIds
+        ).planLockedResourceIds.let { locked -> groups.filterValues { it in locked }.keys }
     }.distinctUntilChanged()
 
     private suspend fun lockedInstrumentIds(userId: String): Set<String> {
-        val activeIds = accountDao.getActiveComputable(userId).map { it.id } + cardDao.getActive(userId).map { it.id }
+        val groups = instrumentQuotaGroups(accountDao.getActiveComputable(userId), cardDao.getActive(userId))
+        val activeIds = groups.values.toSet()
         val selected = database.planQuotaSelectionDao()
             .getSelectedResourceIds(userId, QuotaGroup.INSTRUMENTS.name)
         val cache = database.featureAccessCacheDao().get(UUID.fromString(userId))
@@ -1670,10 +1672,10 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         return quotaPolicy.evaluate(
             group = QuotaGroup.INSTRUMENTS,
             activeResourceIds = activeIds,
-            selectedResourceIds = selected,
+            selectedResourceIds = selected.map { groups[it] ?: it },
             limits = FreePlanLimits(),
             premiumVerified = premiumVerified,
-        ).planLockedResourceIds
+        ).planLockedResourceIds.let { locked -> groups.filterValues { it in locked }.keys }
     }
 
     private suspend fun isPlanLockedCategory(
@@ -1844,8 +1846,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         accountDao.observeActive(access.userId),
                         cardDao.observeActive(access.userId),
                     ) { accounts, cards ->
-                        val computableAccounts = accounts.count { it.type !in NON_COMPUTABLE_ACCOUNT_TYPES }
-                        computableAccounts + cards.size
+                        instrumentQuotaGroups(accounts, cards).values.toSet().size
                     }
                 }
                 else -> flowOf(0)
@@ -1855,9 +1856,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
 
     override suspend fun getActiveComputableCount(): Int {
         val userId = currentUserId() ?: return 0
-        val computableAccounts = accountDao.countActiveComputableAccounts(userId)
-        val activeCards = cardDao.countActiveCards(userId)
-        return computableAccounts + activeCards
+        return instrumentQuotaGroups(accountDao.getActiveComputable(userId), cardDao.getActive(userId)).values.toSet().size
     }
 
     override suspend fun hasCardWithIdentity(

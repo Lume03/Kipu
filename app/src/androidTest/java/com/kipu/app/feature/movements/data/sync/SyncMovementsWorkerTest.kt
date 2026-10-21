@@ -436,8 +436,10 @@ class SyncMovementsWorkerTest {
         val regRes = local.commitTransactionAtomic(regCmd, "reg-hash") as RegisterTransactionResult.Success
         val txId = regRes.transaction.id
 
-        val regOutbox = movementDao.findClaimableOutbox(userId, System.currentTimeMillis(), 10).single()
+        val regOutbox = movementDao.claimPendingOutbox(userId, System.currentTimeMillis(), 10).single()
         movementDao.completeClaimedOutbox(regOutbox, "SYNCED", null, null, "SYNCED")
+
+        movementDao.insertOrUpdateReceipt(requireNotNull(movementDao.getReceipt(userId, regCmd.idempotencyKey)).copy(status = "APPLIED"))
 
         val reviseCmd = com.kipu.app.feature.movements.domain.model.MovementRevisionCommand.Revise(
             idempotencyKey = UUID.randomUUID().toString(),
@@ -448,7 +450,8 @@ class SyncMovementsWorkerTest {
                 currency = "PEN", sourceAccountId = accountId, categoryId = "cat-1", occurredAt = 1000L,
             ),
         )
-        local.commitRevisionAtomic(userId, reviseCmd, "revise-hash")
+        val revisionResult = local.commitRevisionAtomic(userId, reviseCmd, "revise-hash")
+        assertTrue(revisionResult.toString(), revisionResult is com.kipu.app.feature.movements.domain.model.MovementMutationResult.Success)
 
         coEvery { movementApi.reviseOrVoidTransaction(any()) } returns MovementApiResponse.Success(
             com.kipu.app.feature.movements.data.remote.ReviseOrVoidTransactionResponseDto(
@@ -457,8 +460,10 @@ class SyncMovementsWorkerTest {
             )
         )
 
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0, false))
         val result = worker().doWork()
-        assertTrue(result.javaClass.simpleName.contains("Success"))
+        assertEquals(androidx.work.ListenableWorker.Result.retry(), result)
+        assertEquals(androidx.work.ListenableWorker.Result.success(), worker().doWork())
 
         val proposals = local.getConflictProposals(userId, txId)
         assertEquals(1, proposals.size)
@@ -491,8 +496,11 @@ class SyncMovementsWorkerTest {
             occurredAt = 1_000L,
             categoryId = "cat-1",
         )
-        local.commitTransactionAtomic(regCmd, "orig-hash")
-        val tx = checkNotNull(movementDao.getTransactionById(userId, regCmd.idempotencyKey))
+        database.categoryDao().insertCategory(
+            com.kipu.app.feature.categories.data.local.CategoryEntity(id = "cat-1", userId = null, parentId = null,
+                origin = "SYSTEM", categoryType = "EXPENSE", createdAt = 1, updatedAt = 1))
+        val registered = local.commitTransactionAtomic(regCmd, "orig-hash") as RegisterTransactionResult.Success
+        val tx = registered.transaction
 
         val voidCmd = com.kipu.app.feature.movements.domain.model.MovementRevisionCommand.Void(
             idempotencyKey = UUID.randomUUID().toString(),

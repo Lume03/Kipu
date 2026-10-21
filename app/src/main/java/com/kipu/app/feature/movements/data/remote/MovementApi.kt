@@ -11,6 +11,10 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,8 +29,9 @@ class MovementApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
+    private val commandJson = Json { encodeDefaults = true; explicitNulls = true }
     private suspend fun getAuthHeader(): String? {
-        val session = sessionProvider.currentSession() ?: return null
+        val session = sessionProvider.currentSession() ?: sessionProvider.refreshSession() ?: return null
         return "Bearer ${session.accessToken}"
     }
 
@@ -69,7 +74,7 @@ class MovementApi @Inject constructor(
             val response = httpClient.post("rest/v1/rpc/$rpc") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, auth)
-                setBody(mapOf("p_command" to request))
+                setBody(buildJsonObject { put("p_command", commandJson.encodeToJsonElement(request)) })
             }
             when (response.status) {
                 HttpStatusCode.OK -> MovementApiResponse.Success(response.body<ReviseOrVoidTransactionResponseDto>())

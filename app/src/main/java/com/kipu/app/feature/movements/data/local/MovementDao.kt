@@ -12,6 +12,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MovementDao {
+    @Query("""
+        UPDATE movement_outbox SET state = 'PENDING', next_attempt_at = NULL,
+            lease_until = NULL, last_error_code = NULL, updated_at = :now
+        WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND (
+            (command_type = 'REGISTER' AND (last_error_code IN ('HTTP_404', 'WALLET_NOT_AFFILIATED')
+                OR (last_error_code = 'HTTP_400' AND json_extract(payload, '$.transaction.payment_channel') IN ('YAPE', 'PLIN'))))
+            OR (command_type IN ('REVISE_TRANSACTION', 'VOID_TRANSACTION') AND last_error_code = 'INVALID_COMMAND')
+        )
+    """)
+    suspend fun recoverMissingRegistrationEndpoint(userId: String, now: Long): Int
+
 
     @Query(
         """

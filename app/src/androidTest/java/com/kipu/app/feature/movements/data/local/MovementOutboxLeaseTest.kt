@@ -33,6 +33,21 @@ class MovementOutboxLeaseTest {
     fun tearDown() = database.close()
 
     @Test
+    fun missingEndpointRecoveryPreservesIdentityAndExcludesOtherErrorsAndOwners() = runTest {
+        val missing = command("missing").copy(commandType = "REGISTER", state = "FAILED_PERMANENT", lastErrorCode = "HTTP_404")
+        val forbidden = command("forbidden").copy(commandType = "REGISTER", state = "FAILED_PERMANENT", lastErrorCode = "HTTP_403")
+        val foreign = missing.copy(id = "foreign", userId = "other-owner")
+        listOf(missing, forbidden, foreign).forEach { dao.insertOutbox(it) }
+        assertEquals(1, dao.recoverMissingRegistrationEndpoint(owner, 1000))
+        assertEquals(0, dao.recoverMissingRegistrationEndpoint(owner, 1001))
+        val recovered = dao.claimPendingOutbox(owner, 1002).single()
+        assertEquals(missing.idempotencyKey, recovered.idempotencyKey)
+        assertEquals(missing.payload, recovered.payload)
+        assertEquals("FAILED_PERMANENT", dao.getOutboxById(owner, forbidden.id)?.state)
+        assertEquals("FAILED_PERMANENT", dao.getOutboxById("other-owner", foreign.id)?.state)
+    }
+
+    @Test
     fun expiredInFlightLeaseIsReclaimedWithOriginalPayloadAndIdentity() = runTest {
         val command = command().copy(state = "IN_FLIGHT", leaseUntil = 1_000L)
         dao.insertOutbox(command)

@@ -303,6 +303,7 @@ private fun SavingsCapacityCard(
                     repeat(GoalManagementUiState.FREE_GOAL_LIMIT) { index ->
                         LinearProgressIndicator(
                             progress = { if (index < slots) 1f else 0f },
+                            drawStopIndicator = {},
                             modifier = Modifier.weight(1f).height(5.dp).clip(CircleShape),
                         )
                     }
@@ -442,6 +443,7 @@ private fun GoalSummaryCard(
             }
             LinearProgressIndicator(
                 progress = { progressFraction },
+                drawStopIndicator = {},
                 modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

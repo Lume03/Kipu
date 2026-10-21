@@ -60,7 +60,7 @@ class RegisterCardTest {
     }
 
     @Test
-    fun `registering debit card when quota is reached fails with QuotaExceededException`() = runTest {
+    fun `registering debit card at quota shares the existing bank slot`() = runTest {
         fakeRepository.activeComputableCount = 4
 
         val debitCard = DebitCard(
@@ -75,8 +75,8 @@ class RegisterCardTest {
         )
 
         val result = registerDebitCard(debitCard)
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is QuotaExceededException)
+        assertTrue(result.isSuccess)
+        assertEquals(4, fakeRepository.activeComputableCount)
     }
 
     @Test

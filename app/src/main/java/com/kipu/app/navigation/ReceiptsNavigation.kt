@@ -1,5 +1,8 @@
 package com.kipu.app.navigation
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -558,13 +561,14 @@ private fun ReceiptShareStep(
 }
 
 @Composable
-private fun ReceiptMetadataEditor(
+internal fun ReceiptMetadataEditor(
     candidate: ReceiptCandidate,
     busy: Boolean,
     onContinue: (ReceiptCandidateEdit, MovementType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val lima = remember { ZoneId.of("America/Lima") }
+    val context = LocalContext.current
     val timestamp = candidate.occurredAt?.let { java.time.Instant.ofEpochMilli(it).atZone(lima) }
     var amount by rememberSaveable(candidate.id) { mutableStateOf(candidate.amountMinor?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty()) }
     var date by rememberSaveable(candidate.id) { mutableStateOf(timestamp?.toLocalDate()?.toString().orEmpty()) }
@@ -656,18 +660,29 @@ private fun ReceiptMetadataEditor(
                         ReceiptEditorField(
                             value = date,
                             onValueChange = { date = it },
-                            label = "Fecha (AAAA-MM-DD)",
+                            label = "Fecha",
                             icon = Icons.Filled.CalendarToday,
-                            keyboardType = KeyboardType.Ascii,
-                            modifier = Modifier.weight(1.15f).testTag("receipt_date"),
+                            onPick = {
+                                val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
+                                android.app.DatePickerDialog(context, { _, year, month, day ->
+                                    date = LocalDate.of(year, month + 1, day).toString()
+                                }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
+                            },
+                            displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
+                            modifier = Modifier.weight(1f).testTag("receipt_date"),
                         )
                         ReceiptEditorField(
                             value = time,
                             onValueChange = { time = it },
                             label = "Hora",
                             icon = Icons.Filled.AccessTime,
-                            keyboardType = KeyboardType.Ascii,
-                            modifier = Modifier.weight(0.85f).testTag("receipt_time"),
+                            onPick = {
+                                val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
+                                android.app.TimePickerDialog(context, { _, hour, minute ->
+                                    time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
+                                }, initial.hour, initial.minute, true).show()
+                            },
+                            modifier = Modifier.weight(1f).testTag("receipt_time"),
                         )
                     }
 
@@ -770,6 +785,7 @@ private fun ReceiptDirectionSelector(
             label = "Envié · Gasto",
             icon = Icons.Filled.NorthEast,
             selected = selectedType == MovementType.EXPENSE,
+            income = false,
             onClick = { onSelect(MovementType.EXPENSE) },
             modifier = Modifier.weight(1f),
         )
@@ -777,6 +793,7 @@ private fun ReceiptDirectionSelector(
             label = "Recibí · Ingreso",
             icon = Icons.Filled.ArrowDownward,
             selected = selectedType == MovementType.INCOME,
+            income = true,
             onClick = { onSelect(MovementType.INCOME) },
             modifier = Modifier.weight(1f),
         )
@@ -788,17 +805,14 @@ private fun ReceiptDirectionOption(
     label: String,
     icon: ImageVector,
     selected: Boolean,
+    income: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = rememberCalmEmeraldColors()
     val scheme = MaterialTheme.colorScheme
-    val color = if (selected) palette.primaryDeep else palette.secondaryMuted
-    val background = if (selected) {
-        if (palette.isDark) scheme.primaryContainer else palette.primaryDeep
-    } else {
-        androidx.compose.ui.graphics.Color.Transparent
-    }
+    val color = if (!selected) palette.secondaryMuted else if (income) palette.incomeText else palette.expenseText
+    val background = if (!selected) Color.Transparent else if (income) palette.incomeBg else palette.expenseBg
     Row(
         modifier = modifier
             .heightIn(min = 52.dp)
@@ -813,13 +827,13 @@ private fun ReceiptDirectionOption(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = if (selected) palette.onPrimaryDeep else color, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (selected) palette.onPrimaryDeep else color,
+            color = color,
         )
     }
 }
@@ -833,19 +847,28 @@ private fun ReceiptEditorField(
     modifier: Modifier = Modifier,
     prefix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
+    onPick: (() -> Unit)? = null,
+    displayValue: String = value,
 ) {
     val palette = rememberCalmEmeraldColors()
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        label = { Text(label) },
-        leadingIcon = icon?.let { vector ->
-            { Icon(vector, contentDescription = null, tint = palette.secondaryMuted) }
-        },
-        prefix = prefix?.let { currency -> { Text(currency, fontWeight = FontWeight.SemiBold, color = palette.secondaryMuted) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        singleLine = true,
-        shape = RoundedCornerShape(14.dp),
-    )
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+        Box {
+            OutlinedTextField(
+                value = displayValue,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = onPick != null,
+                placeholder = { Text(when (label) { "Fecha" -> "DD/MM/AAAA"; "Hora" -> "HH:mm"; "Monto" -> "0.00"; "N.º de operación" -> "Ej. 05862147"; else -> "Nombre de la contraparte" }, maxLines = 1) },
+                leadingIcon = icon?.let { vector ->
+                    { Icon(vector, contentDescription = null, tint = palette.secondaryMuted) }
+                },
+                prefix = prefix?.let { currency -> { Text("$currency ", fontWeight = FontWeight.SemiBold, color = palette.secondaryMuted) } },
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+            )
+            if (onPick != null) Box(Modifier.matchParentSize().clickable(role = Role.Button, onClickLabel = "Elegir $label", onClick = onPick))
+        }
+    }
 }

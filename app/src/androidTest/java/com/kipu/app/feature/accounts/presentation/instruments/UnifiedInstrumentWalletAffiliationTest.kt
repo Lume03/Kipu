@@ -33,7 +33,7 @@ class UnifiedInstrumentWalletAffiliationTest {
     val compose = createComposeRule()
 
     @Test
-    fun affiliatedYapeAndPlinSubmitTheirCompatibleBankAccounts() {
+    fun affiliatedYapeAndPlinSubmitBankAccountsWithoutDebitCardDigits() {
         val owner = UserId("11111111-1111-1111-1111-111111111111")
         val bcpAccount = bankAccount(
             owner = owner,
@@ -55,7 +55,7 @@ class UnifiedInstrumentWalletAffiliationTest {
         val viewModel = mockk<AccountsViewModel>(relaxed = true) {
             every { creditProductCatalog } returns MutableStateFlow(emptyList())
             every { instrumentsUiState } returns MutableStateFlow(
-                InstrumentsUiState(isLoading = false, activeAccounts = accounts, activeCards = debitCards),
+                InstrumentsUiState(isLoading = false, activeAccounts = accounts, activeCards = emptyList()),
             )
             every { events } returns emptyFlow<AccountUiEvent>()
         }

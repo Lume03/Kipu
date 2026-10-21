@@ -93,5 +93,5 @@ data class Account(
     }
 
     val isComputableForQuota: Boolean
-        get() = type != AccountType.CASH && type != AccountType.CREDIT_LIABILITY
+        get() = type != AccountType.CASH && type != AccountType.CREDIT_LIABILITY && linkedAccountId == null
 }

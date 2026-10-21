@@ -64,7 +64,10 @@ class MovementSyncScheduler @Inject constructor(
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             "${SyncMovementsWorker.WORK_PREFIX}_$userId",
-            ExistingWorkPolicy.KEEP,
+            // A newly committed operation must not wait behind the backoff of
+            // an obsolete server failure. Commands remain in Room and leases
+            // plus idempotency protect a cancelled in-flight attempt.
+            ExistingWorkPolicy.REPLACE,
             workRequest,
         )
     }
@@ -109,6 +112,13 @@ class SyncMovementsWorker @AssistedInject constructor(
         if (currentVerifiedOwner != null && targetUserId != currentVerifiedOwner) {
             SecureLog.w("SyncMovementsWorker", "Target owner differs from verified active owner")
             return Result.retry()
+        }
+
+        val recovery = applicationContext.getSharedPreferences("movement_contract_recovery", android.content.Context.MODE_PRIVATE)
+        val recoveryKey = "wallet-channel-20261021-v4:$targetUserId"
+        if (!recovery.getBoolean(recoveryKey, false)) {
+            movementDao.recoverMissingRegistrationEndpoint(targetUserId, System.currentTimeMillis())
+            recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
         var anyFailed = false
@@ -634,6 +644,18 @@ class SyncMovementsWorker @AssistedInject constructor(
 
     private suspend fun processRegisterCommand(cmd: MovementOutboxEntity, now: Long): Boolean {
         val requestDto = json.decodeFromString<RegisterTransactionRequestDto>(cmd.payload)
+        val transaction = requestDto.transaction
+        if (transaction.paymentChannel != null && transaction.sourceAccountId != null) {
+            val wallet = accountDao.getActiveAffiliatedWallet(cmd.userId, transaction.sourceAccountId, transaction.paymentChannel)
+            val accountCommands = listOfNotNull(transaction.sourceAccountId, wallet?.id).mapNotNull { id ->
+                database.instrumentSyncDao().getLatestForAggregate(cmd.userId, "ACCOUNT", id)
+            }
+            if (accountCommands.any { it.state != "SYNCED" }) {
+                com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler(applicationContext).scheduleSync(cmd.userId)
+                retryCommand(cmd, now, "ACCOUNT_SYNC_PENDING")
+                return false
+            }
+        }
         return when (val response = api.registerTransaction(requestDto)) {
             is MovementApiResponse.Success -> when (response.data.status) {
                 "APPLIED", "DUPLICATE" -> {

@@ -446,8 +446,7 @@ fun UnifiedInstrumentFormScreen(
     val expectedWalletBank = if (walletProvider == AccountPreset.YAPE) AccountPreset.BCP else AccountPreset.BBVA
     val activeDebitCards = instrumentsUiState.activeCards.filterIsInstance<DebitCard>()
     val eligibleWalletAccounts = instrumentsUiState.activeAccounts.filter { account ->
-        account.type in setOf(AccountType.SAVINGS, AccountType.BANK) && account.preset == expectedWalletBank && account.currency == currency &&
-            activeDebitCards.any { it.linkedAccountId == account.id }
+        account.type in setOf(AccountType.SAVINGS, AccountType.BANK) && account.preset == expectedWalletBank && account.currency == currency
     }
     val amountForValidation = if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput
         else if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput

@@ -225,6 +225,8 @@ data class CreditCardTermsCommandDto(
     @SerialName("billing_day") val billingDay: Int,
     @SerialName("due_day") val dueDay: Int,
     @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("alias") val alias: String? = null,
+    @SerialName("last_four_digits") val lastFourDigits: String? = null,
 )
 
 @Serializable

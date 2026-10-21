@@ -71,6 +71,7 @@ import com.kipu.app.navigation.DEBT_LIST_ROUTE
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
 import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.navigateToDebtOpening
+import com.kipu.app.navigation.navigateRootTab
 import com.kipu.app.navigation.KipuNavigationBar
 import com.kipu.app.navigation.RootTabMotion
 import com.kipu.app.navigation.MOVEMENTS_HISTORY_PATTERN
@@ -331,7 +332,9 @@ class MainActivity : FragmentActivity() {
                                             },
                                             onRegisterClick = {
                                                 if (accessState is LocalAccess.Available) {
-                                                    if (isDebtTabSelected) {
+                                                    if (currentRoute == GOALS_LIST_ROUTE) {
+                                                        navController.navigate(GOAL_CREATE_ROUTE)
+                                                    } else if (isDebtTabSelected) {
                                                         showDebtCreationSheet = true
                                                     } else {
                                                         navController.currentBackStackEntry?.savedStateHandle
@@ -627,13 +630,6 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-private fun NavController.navigateRootTab(route: String) {
-    navigate(route) {
-        popUpTo(ACCOUNTS_DASHBOARD_ROUTE) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
-    }
-}
 
 private fun debtReminderId(intent: Intent?): String? {
     val uri = intent?.data ?: return null

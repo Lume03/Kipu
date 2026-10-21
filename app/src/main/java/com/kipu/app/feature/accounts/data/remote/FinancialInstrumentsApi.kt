@@ -26,7 +26,7 @@ class FinancialInstrumentsApi @Inject constructor(
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
     private suspend fun getAuthHeader(): String? {
-        val session = sessionProvider.currentSession() ?: return null
+        val session = sessionProvider.currentSession() ?: sessionProvider.refreshSession() ?: return null
         return "Bearer ${session.accessToken}"
     }
 

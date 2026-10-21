@@ -46,6 +46,8 @@ class GoalManagementFlowTest {
             )
         }
 
+        compose.onNodeWithText("Ingresa un nombre para tu meta de ahorro").assertDoesNotExist()
+        compose.onNodeWithText("El monto objetivo debe ser mayor a 0.00").assertDoesNotExist()
         compose.onNodeWithText("Sin cuenta vinculada").assertIsDisplayed()
         compose.onNodeWithText("Meta virtual independiente").assertIsDisplayed()
         compose.onNodeWithTag("goal_form_name").performTextInput("Fondo de viaje")

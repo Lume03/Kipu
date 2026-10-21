@@ -55,6 +55,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import com.kipu.app.feature.accounts.domain.model.CreditCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -339,7 +340,7 @@ fun DashboardScreen(
 
     if (showQuotaSelection) {
         val accounts = instruments.activeAccounts.filter { it.isComputableForQuota }
-        val cards = instruments.activeCards.filter { it.isComputableForQuota }
+        val cards = instruments.activeCards.filterIsInstance<CreditCard>()
         InstrumentQuotaSelectionDialog(
             accounts = accounts,
             cards = cards,
@@ -526,7 +527,7 @@ private fun ActiveDashboardContent(
 
     val bankAccountsByCurrency = remember(liquidAccounts) {
         val map = mutableMapOf<Currency, BigInteger>()
-        liquidAccounts.filter { it.account.type != AccountType.CASH }.forEach { item ->
+        liquidAccounts.filter { it.account.type != AccountType.CASH && it.account.linkedAccountId == null }.forEach { item ->
             val curr = item.balance.currency
             map[curr] = map.getOrDefault(curr, BigInteger.ZERO).add(BigInteger.valueOf(item.balance.minorUnits))
         }
@@ -1249,7 +1250,8 @@ private fun CalmEmeraldAccountCard(
                     ?: account.type.toDashboardLabel()
                 val typeLabel = account.type.toDashboardLabel()
                 Text(
-                    text = "$issuerLabel · $typeLabel · ${account.currency.name}",
+                    text = if (account.linkedAccountId != null) "$issuerLabel · Saldo compartido · ${account.currency.name}"
+                        else "$issuerLabel · $typeLabel · ${account.currency.name}",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     color = emeraldColors.secondaryMuted,
                     maxLines = 1,

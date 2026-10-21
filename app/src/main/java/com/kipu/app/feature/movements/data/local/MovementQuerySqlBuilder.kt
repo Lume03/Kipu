@@ -51,6 +51,16 @@ object MovementQuerySqlBuilder {
         sql.append(" WHERE user_id = ?")
         args.add(userId)
 
+        query.contextAccountId?.let { accountId ->
+            sql.append(" AND (source_account_id = ? OR destination_account_id = ?)")
+            args.add(accountId)
+            args.add(accountId)
+        }
+        query.contextPaymentChannel?.let { channel ->
+            sql.append(" AND source = ?")
+            args.add(channel.name)
+        }
+
         // Date range
         if (query.fromInclusive != null) {
             sql.append(" AND occurred_at >= ?")

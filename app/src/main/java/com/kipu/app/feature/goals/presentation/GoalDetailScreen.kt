@@ -15,6 +15,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.Alignment
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -60,6 +67,7 @@ fun GoalDetailScreen(
     onReassign: (destinationGoalId: String, backingAccountId: String, amount: Money) -> Unit,
     onArchive: () -> Unit,
 ) {
+    val colors = rememberCalmEmeraldColors()
     val goal = state.goal
     val progress = state.progress
     var openDialog by remember { mutableStateOf<GoalDetailDialog?>(null) }
@@ -93,79 +101,90 @@ fun GoalDetailScreen(
             state.isLoading -> CircularProgressIndicator(Modifier.padding(padding).padding(24.dp))
             goal == null || progress == null -> Text("No encontramos esta meta.", Modifier.padding(padding).padding(24.dp))
             else -> Column(
-                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                Text(goal.status.detailLabel(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                if (goal.status == GoalStatus.ARCHIVED) {
-                    Text(
-                        "Esta meta está archivada. Se conserva su historial, pero solo las metas activas aceptan aportes. Para seguir ahorrando, vuelve a la lista y elige otra meta activa.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.testTag("goal_archived_explanation"),
-                    )
-                    OutlinedButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.fillMaxWidth().testTag("goal_archived_back_to_list"),
-                    ) { Text("Volver a mis metas") }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text("Reservado", style = MaterialTheme.typography.labelMedium)
-                        MoneyText(progress.reserved, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Card(shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.surfaceCard),
+                    border = BorderStroke(1.dp, colors.borderSubtle)) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Surface(shape = RoundedCornerShape(50), color = colors.incomeBg, contentColor = colors.incomeText) {
+                            Text(goal.status.detailLabel(), Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
+                        }
+                        if (goal.status == GoalStatus.ARCHIVED) {
+                            Text(
+                                "Esta meta está archivada. Se conserva su historial, pero solo las metas activas aceptan aportes. Para seguir ahorrando, vuelve a la lista y elige otra meta activa.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.testTag("goal_archived_explanation"),
+                            )
+                            OutlinedButton(
+                                onClick = onNavigateBack,
+                                modifier = Modifier.fillMaxWidth().testTag("goal_archived_back_to_list"),
+                            ) { Text("Volver a mis metas") }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Reservado", style = MaterialTheme.typography.labelMedium)
+                                MoneyText(progress.reserved, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            }
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                                Text("Objetivo", style = MaterialTheme.typography.labelMedium)
+                                MoneyText(goal.target, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        LinearProgressIndicator(
+                            progress = { progress.progressPercent.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colors.primaryDeep,
+                            trackColor = colors.incomeBg,
+                            drawStopIndicator = {},
+                        )
+                        Text("Avance ${progress.progressPercent.stripTrailingZeros().toPlainString()}%", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            goal.targetDate?.let { "Fecha objetivo: ${it.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))}" } ?: "Sin fecha objetivo",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Text(
+                            if (goal.linkedAccountId == null) "Meta virtual, sin cuenta real vinculada"
+                            else "Cuenta real vinculada como referencia",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (goal.status == GoalStatus.COMPLETED) {
+                            Text(
+                                "Completaste el objetivo. La reserva permanece intacta hasta que decidas liberarla o reasignarla.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        if (goal.status == GoalStatus.ACTIVE) {
+                            Button(onClick = onContribute, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Text("  Aportar o reservar")
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { openDialog = GoalDetailDialog.RELEASE },
+                                enabled = !state.isSaving && releasableAccounts.isNotEmpty(),
+                                modifier = Modifier.weight(1f).testTag("goal_release"),
+                            ) { Text("Liberar") }
+                            OutlinedButton(
+                                onClick = { openDialog = GoalDetailDialog.REASSIGN },
+                                enabled = !state.isSaving && releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty(),
+                                modifier = Modifier.weight(1f).testTag("goal_reassign"),
+                            ) { Text("Reasignar") }
+                        }
+                        if (progress.reserved.minorUnits != 0L) {
+                            Text("Para archivar, libera o reasigna toda la reserva. Archivar no ejecuta movimientos.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(
+                            onClick = { openDialog = GoalDetailDialog.ARCHIVE },
+                            enabled = !state.isSaving && goal.status != GoalStatus.ARCHIVED && progress.reserved.minorUnits == 0L,
+                            modifier = Modifier.fillMaxWidth().testTag("goal_archive"),
+                        ) { Text(if (goal.status == GoalStatus.ARCHIVED) "Meta archivada" else "Archivar meta") }
                     }
-                    Column {
-                        Text("Objetivo", style = MaterialTheme.typography.labelMedium)
-                        MoneyText(goal.target, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
                 }
-                LinearProgressIndicator(
-                    progress = { progress.progressPercent.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Avance ${progress.progressPercent.stripTrailingZeros().toPlainString()}%", style = MaterialTheme.typography.bodySmall)
-                Text(
-                    goal.targetDate?.let { "Fecha objetivo: $it" } ?: "Sin fecha objetivo",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    if (goal.linkedAccountId == null) "Meta virtual, sin cuenta real vinculada"
-                    else "Cuenta real vinculada como referencia",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (goal.status == GoalStatus.COMPLETED) {
-                    Text(
-                        "Completaste el objetivo. La reserva permanece intacta hasta que decidas liberarla o reasignarla.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                if (goal.status == GoalStatus.ACTIVE) {
-                    Button(onClick = onContribute, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Text("  Aportar o reservar")
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { openDialog = GoalDetailDialog.RELEASE },
-                        enabled = !state.isSaving && releasableAccounts.isNotEmpty(),
-                        modifier = Modifier.weight(1f).testTag("goal_release"),
-                    ) { Text("Liberar") }
-                    OutlinedButton(
-                        onClick = { openDialog = GoalDetailDialog.REASSIGN },
-                        enabled = !state.isSaving && releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty(),
-                        modifier = Modifier.weight(1f).testTag("goal_reassign"),
-                    ) { Text("Reasignar") }
-                }
-                if (progress.reserved.minorUnits != 0L) {
-                    Text("Para archivar, libera o reasigna toda la reserva. Archivar no ejecuta movimientos.", style = MaterialTheme.typography.bodySmall)
-                }
-                OutlinedButton(
-                    onClick = { openDialog = GoalDetailDialog.ARCHIVE },
-                    enabled = !state.isSaving && goal.status != GoalStatus.ARCHIVED && progress.reserved.minorUnits == 0L,
-                    modifier = Modifier.fillMaxWidth().testTag("goal_archive"),
-                ) { Text(if (goal.status == GoalStatus.ARCHIVED) "Meta archivada" else "Archivar meta") }
                 GoalBackingStatus(state.backingAccounts)
                 GoalEventHistory(state.events)
                 Spacer(Modifier.height(20.dp))

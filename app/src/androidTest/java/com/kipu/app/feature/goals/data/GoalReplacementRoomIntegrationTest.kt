@@ -24,6 +24,7 @@ import com.kipu.app.feature.goals.domain.model.GoalCommandIdentity
 import com.kipu.app.feature.goals.domain.model.GoalCommandResult
 import com.kipu.app.feature.goals.domain.model.GoalCommandType
 import io.mockk.mockk
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,17 @@ class GoalReplacementRoomIntegrationTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun affiliatedWalletDoesNotDuplicateGoalBacking() = runBlocking {
+        seedAccountWithLedgerBalance("BBVA", 10000)
+        val bank = requireNotNull(database.accountDao().getById(userId, "BBVA"))
+        database.accountDao().insert(bank.copy(id = "PLIN", creationOperationId = "create-PLIN", alias = "PLIN", type = "DIGITAL_WALLET", linkedAccountId = "BBVA"))
+        val accounts = database.goalDao().observeBackingAccounts(userId).first()
+        assertEquals(listOf("BBVA"), accounts.map { it.accountId })
+        assertEquals(10000L, accounts.single().confirmedBalanceMinor)
+        assertNull(database.goalDao().getBackingAccountPosition(userId, "PLIN"))
     }
 
     @Test

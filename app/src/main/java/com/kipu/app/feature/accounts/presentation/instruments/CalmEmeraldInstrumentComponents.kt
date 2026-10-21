@@ -1383,7 +1383,7 @@ fun CalmEmeraldIntroView(
             CalmEmeraldIntroCard(
                 icon = Icons.Default.Wallet,
                 title = "Billetera digital",
-                description = "Yape o Plin registradas como saldos independientes",
+                description = "Yape o Plin con saldo propio o afiliadas a una cuenta bancaria",
                 onClick = onSelectWallet,
             )
             CalmEmeraldIntroCard(

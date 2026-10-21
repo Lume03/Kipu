@@ -159,6 +159,9 @@ class MovementHistoryViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, MovementVoidBalanceState())
     private val _advancedFilters = MutableStateFlow(AdvancedFiltersState())
+    private val navigationAccountId = savedStateHandle?.get<String>("accountId")
+    private val navigationChannel = savedStateHandle?.get<String>("paymentChannel")
+        ?.uppercase(Locale.ROOT)?.let { value -> WalletPaymentChannel.entries.firstOrNull { it.name == value } }
     private val _detail = MutableStateFlow(HistoryDetailState())
     private val _recovery = MutableStateFlow(HistoryAccessRecovery.IDLE)
     private val _readRetry = MutableStateFlow(0)
@@ -245,7 +248,9 @@ class MovementHistoryViewModel @Inject constructor(
                 fromInclusive = advanced.fromDate,
                 toExclusive = advanced.toDate,
                 types = filterType?.let(::setOf) ?: emptySet(),
-                advancedCriteria = advanced.toHistoryCriteria(),
+                contextAccountId = navigationAccountId?.takeIf { it in advanced.accountIds },
+                contextPaymentChannel = navigationChannel?.takeIf { it in advanced.paymentChannels },
+                advancedCriteria = advanced.withoutNavigationScope().toHistoryCriteria(),
             ),
             accessRefresh = accessRefresh,
             retry = retry,
@@ -631,13 +636,20 @@ class MovementHistoryViewModel @Inject constructor(
                 fromInclusive = advanced.fromDate,
                 toExclusive = advanced.toDate,
                 types = _selectedFilterType.value?.let(::setOf) ?: emptySet(),
-                advancedCriteria = advanced.toHistoryCriteria(),
+                contextAccountId = navigationAccountId?.takeIf { it in advanced.accountIds },
+                contextPaymentChannel = navigationChannel?.takeIf { it in advanced.paymentChannels },
+                advancedCriteria = advanced.withoutNavigationScope().toHistoryCriteria(),
             ),
             accessRefresh = _accessRefresh.value,
             retry = _readRetry.value,
             invalidation = _datasetInvalidation.value,
         )
     }
+
+    private fun AdvancedFiltersState.withoutNavigationScope() = copy(
+        accountIds = accountIds - setOfNotNull(navigationAccountId),
+        paymentChannels = paymentChannels - setOfNotNull(navigationChannel),
+    )
 
     private fun loadFirstPage(request: HistoryRequest) {
         val owner = request.ownerId

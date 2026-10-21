@@ -113,8 +113,10 @@ fun GoalFormScreen(
     val compatibleAccounts = accounts.filter { it.currency == selectedCurrency }
     val parsedTarget = parseGoalTarget(amount, selectedCurrency)
     val parsedDate = dateText.takeIf(String::isNotBlank)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    val nameError = name.isBlank()
-    val amountError = parsedTarget == null
+    var nameEdited by rememberSaveable(existingGoal?.id) { mutableStateOf(false) }
+    var amountEdited by rememberSaveable(existingGoal?.id) { mutableStateOf(false) }
+    val nameError = nameEdited && name.isBlank()
+    val amountError = amountEdited && parsedTarget == null
     val dateError = dateText.isNotBlank() && parsedDate == null
     val targetExceedsReserved = currentReserved?.let { reserved ->
         reserved.currency == selectedCurrency && parsedTarget?.minorUnits?.let { it > reserved.minorUnits } == true
@@ -176,7 +178,7 @@ fun GoalFormScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
-                color = kipuColors.positiveContainer,
+                color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = RoundedCornerShape(20.dp),
                 border = BorderStroke(1.dp, kipuColors.border),
             ) {
@@ -198,7 +200,7 @@ fun GoalFormScreen(
                 FieldLabel("NOMBRE DE LA META", required = true)
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { name = it; nameEdited = true },
                     placeholder = { Text("Ej. Comprar laptop, Fondo de viaje") },
                     singleLine = true,
                     isError = nameError,
@@ -240,7 +242,7 @@ fun GoalFormScreen(
                     )
                     BasicTextField(
                         value = amount,
-                        onValueChange = { amount = it.filter { char -> char.isDigit() || char == '.' || char == ',' } },
+                        onValueChange = { amount = it.filter { char -> char.isDigit() || char == '.' || char == ',' }; amountEdited = true },
                         modifier = Modifier.weight(1f).testTag("goal_form_target"),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

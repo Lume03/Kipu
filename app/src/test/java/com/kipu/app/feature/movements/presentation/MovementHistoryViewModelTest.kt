@@ -312,11 +312,9 @@ class MovementHistoryViewModelTest {
 
         assertEquals(setOf(WalletPaymentChannel.PLIN), viewModel.uiState.value.appliedFilters.paymentChannels)
         assertEquals(emptySet<String>(), viewModel.uiState.value.appliedFilters.accountIds)
-        assertEquals(
-            setOf(WalletPaymentChannel.PLIN),
-            repository.queries.last().advancedCriteria?.paymentChannels,
-        )
-        assertEquals(emptySet<String>(), repository.queries.last().advancedCriteria?.accountIds)
+        assertEquals(WalletPaymentChannel.PLIN, repository.queries.last().contextPaymentChannel)
+        assertEquals(null, repository.queries.last().contextAccountId)
+        assertFalse(repository.queries.last().requiresAdvancedAccess)
     }
 
     @Test

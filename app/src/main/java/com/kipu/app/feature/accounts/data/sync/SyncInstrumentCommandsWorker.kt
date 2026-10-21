@@ -110,10 +110,35 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             return Result.retry()
         }
 
+        val recovery = applicationContext.getSharedPreferences("instrument_contract_recovery", android.content.Context.MODE_PRIVATE)
+        val recoveryKey = "affiliation-20261021-v4:$targetUserId"
+        if (!recovery.getBoolean(recoveryKey, false)) {
+            syncDao.recoverLegacyAffiliationCommands(targetUserId, System.currentTimeMillis() * 1_000L)
+            recovery.edit().putBoolean(recoveryKey, true).apply()
+        }
+
         // Re-query after each batch so a just-acknowledged predecessor can unlock its
         // successor in this run. Claim is a conditional Room update, so overlapping
         // workers cannot dispatch the same live lease.
         repeat(MAX_COMMAND_BATCHES) {
+            // Revision zero is local-only. An edit queued before creation was
+            // acknowledged must target its first official revision, never zero.
+            // Revisit skipped edits after creation; the one-time contract marker
+            // must not strand them while their predecessor is still pending.
+            for (edit in syncDao.getPrematureCreationEdits(targetUserId)) {
+                val parent = syncDao.getByOperationId(targetUserId, requireNotNull(edit.predecessorOperationId))
+                if (parent?.state != "SYNCED" || parent.commandType !in setOf("CREATE_ACCOUNT", "REGISTER_CARD")) continue
+                val payload = when (edit.commandType) {
+                    "UPDATE_APPEARANCE" -> json.encodeToString(json.decodeFromString<UpdateAppearanceRequestDto>(edit.payloadJson).copy(expectedRevision = 1))
+                    else -> {
+                        val old = json.decodeFromString<UpdateCreditCardTermsRequestDto>(edit.payloadJson)
+                        json.encodeToString(old.copy(card = old.card.copy(expectedRevision = 1)))
+                    }
+                }
+                syncDao.update(edit.copy(payloadJson = payload, expectedRevision = 1,
+                    payloadHash = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) },
+                    state = "PENDING", errorCode = null, nextAttemptAt = null, leaseExpiresAt = null))
+            }
             val nowMicros = System.currentTimeMillis() * 1_000L
             val pendingCommands = syncDao.getPendingCommands(targetUserId, nowMicros)
             if (pendingCommands.isEmpty()) return Result.success()

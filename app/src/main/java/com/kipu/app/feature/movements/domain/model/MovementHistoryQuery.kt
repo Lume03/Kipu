@@ -62,6 +62,9 @@ data class MovementHistoryQuery(
     val advancedCriteria: AdvancedHistoryCriteria? = null,
     val limit: Int = 50,
     val cursor: MovementHistoryCursor? = null,
+    /** The account/channel whose history was opened; retained in Free fallback queries. */
+    val contextAccountId: String? = null,
+    val contextPaymentChannel: WalletPaymentChannel? = null,
 ) {
     init {
         require(limit in 1..200) { "limit must be between 1 and 200, got $limit" }

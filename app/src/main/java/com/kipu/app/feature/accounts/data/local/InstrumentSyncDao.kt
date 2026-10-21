@@ -9,6 +9,28 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InstrumentSyncDao {
+    @Query("""
+        SELECT * FROM instrument_sync_outbox WHERE user_id = :userId AND expected_revision = 0
+        AND predecessor_operation_id IS NOT NULL AND command_type IN ('UPDATE_APPEARANCE', 'UPDATE_CREDIT_CARD_TERMS')
+        AND state IN ('CONFLICT', 'FAILED_PERMANENT')
+    """)
+    suspend fun getPrematureCreationEdits(userId: String): List<InstrumentSyncOutboxEntity>
+
+    /** Retry only known errors from the pre-affiliation server contract, preserving operation IDs. */
+    @Query("""
+        UPDATE instrument_sync_outbox SET state = 'PENDING', next_attempt_at = NULL,
+            lease_expires_at = NULL, error_code = NULL, updated_at = :nowMicros
+        WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND (
+            (command_type = 'CREATE_ACCOUNT' AND error_code LIKE '%42804%' AND error_code LIKE '%account_type%')
+            OR (command_type = 'CREATE_ACCOUNT' AND error_code LIKE '%INVALID_WALLET_AFFILIATION%')
+            OR (command_type = 'CREATE_ACCOUNT' AND error_code LIKE '%FREE_LIMIT_REACHED%')
+            OR (command_type = 'REGISTER_CARD' AND (error_code LIKE '%FREE_LIMIT_REACHED%' OR error_code LIKE '%ACCOUNT_NOT_FOUND%'))
+            OR (command_type = 'UPDATE_CREDIT_CARD_TERMS' AND error_code = 'HTTP_404')
+            OR (command_type = 'UPDATE_APPEARANCE' AND error_code LIKE '%23502%' AND error_code LIKE '%name%')
+        )
+    """)
+    suspend fun recoverLegacyAffiliationCommands(userId: String, nowMicros: Long): Int
+
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entity: InstrumentSyncOutboxEntity)

@@ -31,6 +31,20 @@ class InstrumentSyncDaoTest {
     fun tearDown() = database.close()
 
     @Test
+    fun recoveryRetriesOnlyTheOwnersKnownLegacyContractFailures() = runTest {
+        val bank = command(state = "FAILED_PERMANENT").copy(commandType = "CREATE_ACCOUNT", errorCode = "42804 account_type")
+        val debit = command(state = "FAILED_PERMANENT").copy(commandType = "REGISTER_CARD", payloadJson = "{\"type\":\"DEBIT\"}", errorCode = "FREE_LIMIT_REACHED")
+        val credit = command(state = "FAILED_PERMANENT").copy(commandType = "REGISTER_CARD", payloadJson = "{\"type\":\"CREDIT\"}", errorCode = "FORBIDDEN")
+        val foreign = bank.copy(operationId = UUID.randomUUID().toString(), userId = "other-owner")
+        listOf(bank, debit, credit, foreign).forEach { dao.insert(it) }
+        assertEquals(2, dao.recoverLegacyAffiliationCommands(userId, 1000))
+        assertEquals(0, dao.recoverLegacyAffiliationCommands(userId, 1001))
+        assertEquals(bank.payloadJson, dao.getByOperationId(userId, bank.operationId)?.payloadJson)
+        assertEquals("FAILED_PERMANENT", dao.getByOperationId(userId, credit.operationId)?.state)
+        assertEquals("FAILED_PERMANENT", dao.getByOperationId("other-owner", foreign.operationId)?.state)
+    }
+
+    @Test
     fun expiredLeaseCanBeClaimedOnceAfterWorkerRestart() = runTest {
         val command = command(state = "IN_FLIGHT", leaseExpiresAt = 999L)
         dao.insert(command)

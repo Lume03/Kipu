@@ -8,6 +8,22 @@ import org.junit.Test
 
 class MovementQuerySqlBuilderTest {
     @Test
+    fun walletContextSurvivesFreeFallbackForItemsAndSummaries() {
+        val query = MovementHistoryQuery(contextPaymentChannel = WalletPaymentChannel.YAPE,
+            advancedCriteria = AdvancedHistoryCriteria(merchantIds = setOf("shop"))).toBasicFallback()
+        org.junit.Assert.assertFalse(query.requiresAdvancedAccess)
+        val queries = listOf(MovementQuerySqlBuilder.build("owner", query), MovementQuerySqlBuilder.buildCount("owner", query), MovementQuerySqlBuilder.buildNetFlow("owner", query))
+        assertTrue(queries.all { it.sql.contains("AND source = ?") })
+    }
+
+    @Test
+    fun accountContextRemainsScopedWithoutPremiumFilters() {
+        val query = MovementHistoryQuery(contextAccountId = "bank").toBasicFallback()
+        org.junit.Assert.assertFalse(query.requiresAdvancedAccess)
+        assertTrue(MovementQuerySqlBuilder.build("owner", query).sql.contains("source_account_id = ? OR destination_account_id = ?"))
+    }
+
+    @Test
     fun revisedTransactionsRemainInTheNetFlowSummary() {
         val sql = MovementQuerySqlBuilder
             .buildNetFlow(userId = "owner", query = MovementHistoryQuery())

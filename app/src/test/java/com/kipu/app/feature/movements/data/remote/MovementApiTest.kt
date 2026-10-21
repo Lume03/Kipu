@@ -24,6 +24,22 @@ import org.junit.Test
 
 class MovementApiTest {
     @Test
+    fun `expired session refresh preserves pending movement identity`() = runTest {
+        val sessions = object : AuthenticatedSessionProvider {
+            override suspend fun currentSession(): AuthenticatedSession? = null
+            override suspend fun refreshSession() = AuthenticatedSession(UUID.randomUUID(), "renewed-token")
+        }
+        val client = client(MockEngine { request ->
+            assertEquals("Bearer renewed-token", request.headers[HttpHeaders.Authorization])
+            val payload = Json.parseToJsonElement((request.body as TextContent).text).jsonObject.getValue("p_command").jsonObject
+            assertEquals("original-key", payload.getValue("idempotency_key").jsonPrimitive.content)
+            respond("""{"status":"APPLIED"}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        })
+        try {
+            assertTrue(MovementApi(client, sessions).registerTransaction(command(2)) is MovementApiResponse.Success)
+        } finally { client.close() }
+    }
+    @Test
     fun `persisted v1 and new v2 use their own RPC without altering identity or hash`() = runTest {
         for (version in listOf(1, 2)) {
             val client = client(MockEngine { request ->
@@ -110,6 +126,9 @@ class MovementApiTest {
             val command = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
                 .getValue("p_command").jsonObject
             assertEquals("cmd-void", command.getValue("idempotency_key").jsonPrimitive.content)
+            assertEquals("1", command.getValue("contract_version").jsonPrimitive.content)
+            assertEquals(kotlinx.serialization.json.JsonNull, command.getValue("revised_payload"))
+            assertEquals(kotlinx.serialization.json.JsonNull, command.getValue("depends_on_command_id"))
             respond("""{"status":"APPLIED","result":"VOIDED","resulting_revision":3}""", HttpStatusCode.OK,
                 headersOf(HttpHeaders.ContentType, "application/json"))
         })
@@ -139,7 +158,7 @@ class MovementApiTest {
     )
 
     private fun client(engine: MockEngine) = HttpClient(engine) {
-        install(ContentNegotiation) { json(Json { encodeDefaults = true }) }
+        install(ContentNegotiation) { json(Json { encodeDefaults = false }) }
         defaultRequest { url("https://kipu.test/") }
     }
 
