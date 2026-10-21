@@ -1,6 +1,7 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.espresso.Espresso.pressBack
 import androidx.compose.runtime.mutableStateOf
 import com.kipu.app.feature.debts.data.sync.DebtReminderDestination
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
@@ -116,6 +118,49 @@ class DebtScheduleAndClosureFlowTest {
         compose.onNodeWithText("Saldo pendiente no pagado").assertIsDisplayed()
         compose.onNodeWithTag("debt-schedule-total").assertTextContains("80.00", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Liquidada").assertDoesNotExist()
+    }
+
+    @Test
+    fun contextualHelpExplainsBothTabsAndCanBeDismissedWithoutChangingDebt() {
+        val originalDebt = debt()
+        var scheduleCalls = 0
+        var closureCalls = 0
+        compose.setContent {
+            DebtScheduleScreen(
+                state = DebtScheduleUiState(debt = originalDebt, isLoading = false),
+                onInstallmentCountChange = {},
+                onFirstDueDateChange = {},
+                onReminderLeadDaysChange = {},
+                onSchedule = { scheduleCalls++ },
+                onCancelSchedule = {},
+                onCloseDebt = { _, _ -> closureCalls++ },
+                onNavigateBack = {},
+            )
+        }
+
+        compose.onAllNodesWithContentDescription("Ayuda sobre cuotas y cronograma")[0].performClick()
+        compose.onNodeWithText("Cuotas y cronograma").assertIsDisplayed()
+        compose.onNodeWithText("no registra un pago ni reduce el saldo", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Entendido").performClick()
+        compose.onNodeWithText("Entendido").assertDoesNotExist()
+
+        compose.onNodeWithText("Ajustes y cierre").performClick()
+        compose.onNodeWithText("Ajustes y cierre").assertIsSelected()
+        compose.onAllNodesWithContentDescription("Ayuda sobre ajustes y cierre contable")[0].performClick()
+        compose.onNodeWithText("Ajustes y cierre contable").assertIsDisplayed()
+        compose.onNodeWithText("queda registrado en el historial", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("saldo pendiente es cero", substring = true).assertIsDisplayed()
+
+        pressBack()
+
+        compose.onNodeWithText("Ajustes y cierre").assertIsSelected()
+        compose.onNodeWithText("Entendido").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(0, scheduleCalls)
+            assertEquals(0, closureCalls)
+            assertEquals(10_000L, originalDebt.remainingPrincipalMinor)
+            assertEquals(DebtLifecycleStatus.ACTIVE, originalDebt.status)
+        }
     }
 
     private fun debt() = DebtSummary(
