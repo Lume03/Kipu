@@ -219,9 +219,13 @@ class QuickMovementScreenTest {
 
     @Test
     fun merchantAndDateAreProgressivelyDisclosedAsOptionalDetails() {
+        var merchantPickerOpened = false
         compose.setContent {
             KipuTheme {
-                QuickMovementContentForTest(state = QuickMovementUiState())
+                QuickMovementContentForTest(
+                    state = QuickMovementUiState(),
+                    onOpenMerchantPicker = { merchantPickerOpened = true },
+                )
             }
         }
 
@@ -233,7 +237,9 @@ class QuickMovementScreenTest {
 
         compose.onNodeWithText("Más detalles (opcional)").performClick()
         compose.onNodeWithText("Agregar comercio (opcional)").assertIsDisplayed()
+        compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction().performClick()
         compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
+        assertTrue("Merchant row should open the catalog/provisional picker", merchantPickerOpened)
     }
 
     private fun account(alias: String, currency: Currency): Account = Account(
@@ -250,6 +256,7 @@ class QuickMovementScreenTest {
     private fun QuickMovementContentForTest(
         state: QuickMovementUiState,
         onNavigateToNewAccount: () -> Unit = {},
+        onOpenMerchantPicker: () -> Unit = {},
     ) {
         QuickMovementContent(
             uiState = state,
@@ -259,7 +266,7 @@ class QuickMovementScreenTest {
             onSourceCardSelected = {},
             onDestinationAccountSelected = {},
             onCategorySelected = {},
-            onOpenMerchantPicker = {},
+            onOpenMerchantPicker = onOpenMerchantPicker,
             onClearMerchant = {},
             onNoteChanged = {},
             onOpenDatePicker = {},

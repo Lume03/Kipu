@@ -906,11 +906,19 @@ fun QuickMovementContent(
                         icon = Icons.Default.Storefront,
                         iconContainer = merchantBg,
                         iconTint = merchantTint,
-                        label = "Comercio o Pagador",
+                        label = "Comercio o Pagador (opcional)",
                         value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
                         supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
                         onClick = onOpenMerchantPicker,
-                        modifier = Modifier.testTag("input_merchant"),
+                        modifier = Modifier
+                            .testTag("input_merchant")
+                            .semantics {
+                                contentDescription = if (hasMerchant) {
+                                    "Comercio o pagador, opcional: ${uiState.merchantName}"
+                                } else {
+                                    "Agregar comercio o pagador, opcional"
+                                }
+                            },
                         trailingContent = if (hasMerchant) {
                             {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
