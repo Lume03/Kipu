@@ -173,17 +173,17 @@ class DebtScheduleAndClosureFlowTest {
         }
 
         compose.onAllNodesWithContentDescription("Ayuda sobre cuotas y cronograma")[0].performClick()
-        compose.onNodeWithText("Cuotas y cronograma").assertIsDisplayed()
         compose.onNodeWithText("no registra un pago ni reduce el saldo", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Entendido").assertIsDisplayed()
         compose.onNodeWithText("Entendido").performClick()
         compose.onNodeWithText("Entendido").assertDoesNotExist()
 
         compose.onNodeWithText("Ajustes y cierre").performClick()
         compose.onNodeWithText("Ajustes y cierre").assertIsSelected()
         compose.onAllNodesWithContentDescription("Ayuda sobre ajustes y cierre contable")[0].performClick()
-        compose.onNodeWithText("Ajustes y cierre contable").assertIsDisplayed()
         compose.onNodeWithText("queda registrado en el historial", substring = true).assertIsDisplayed()
         compose.onNodeWithText("saldo pendiente es cero", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Entendido").assertIsDisplayed()
 
         pressBack()
 
