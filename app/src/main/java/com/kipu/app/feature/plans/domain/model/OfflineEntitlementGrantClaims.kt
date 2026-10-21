@@ -18,4 +18,5 @@ data class OfflineEntitlementGrantClaims(
     val serverVerifiedAtMillis: Long,
     val entitlementEndsAtMillis: Long?,
     val notAfterMillis: Long,
+    val source: String? = null,
 )

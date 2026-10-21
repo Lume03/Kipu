@@ -57,6 +57,7 @@ class BillingRecoveryTest {
         }
         val accessCache = mockk<FeatureAccessCacheDao> {
             coEvery { putVerified(any()) } just Runs
+            coEvery { putCommercialVerified(any(), any()) } returns true
         }
         val installationKeys = mockk<InstallationSigningKeyProvider> {
             every { getOrCreatePublicIdentity() } returns InstallationPublicIdentity("public-key", "thumbprint")

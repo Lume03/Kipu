@@ -125,7 +125,7 @@ class BillingRepository @Inject constructor(
 
                 if (!result.effectivePremium) {
                     return runCatching {
-                        accessCache.putVerified(FeatureAccessCacheEntity.verifiedFree(session.userId))
+                        accessCache.putCommercialVerified(FeatureAccessCacheEntity.verifiedFree(session.userId))
                     }.fold(
                         onSuccess = { result },
                         onFailure = { BillingVerificationResult.Retryable("ACCESS_CACHE_UNAVAILABLE") },
@@ -157,7 +157,7 @@ class BillingRepository @Inject constructor(
                     return BillingVerificationResult.Retryable("OFFLINE_GRANT_INVALID")
                 }
                 runCatching {
-                    accessCache.putVerified(cacheEntry)
+                    accessCache.putCommercialVerified(cacheEntry)
                 }.fold(
                     onSuccess = { result },
                     onFailure = { BillingVerificationResult.Retryable("ACCESS_CACHE_UNAVAILABLE") },

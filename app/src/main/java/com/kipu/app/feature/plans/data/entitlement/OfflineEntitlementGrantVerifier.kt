@@ -57,6 +57,7 @@ data class OfflineEntitlementGrantPayload(
     val serverVerifiedAt: String,
     val entitlementEndsAt: String? = null,
     val notAfter: String,
+    val source: String? = null,
 )
 
 /** Verifies the server signature before decoding or trusting any grant claim. */
@@ -91,6 +92,8 @@ class OfflineEntitlementGrantVerifier @Inject constructor(
         )
         if (payload.keyId != grant.keyId || payload.userId != expectedUserId) return null
         if (payload.version != GRANT_VERSION || payload.policyVersion != POLICY_VERSION || payload.tier != PREMIUM_TIER) return null
+        if (payload.source != null && payload.source != TEST_OVERRIDE_SOURCE) return null
+        if (payload.source == TEST_OVERRIDE_SOURCE && !BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return null
         UUID.fromString(payload.userId)
         UUID.fromString(payload.grantId)
 
@@ -111,6 +114,7 @@ class OfflineEntitlementGrantVerifier @Inject constructor(
             serverVerifiedAtMillis = serverVerifiedAt,
             entitlementEndsAtMillis = entitlementEndsAt,
             notAfterMillis = notAfter,
+            source = payload.source,
         )
     }.getOrNull()
 
@@ -139,6 +143,7 @@ class OfflineEntitlementGrantVerifier @Inject constructor(
         const val GRANT_VERSION = 1
         const val POLICY_VERSION = 1
         const val PREMIUM_TIER = "PREMIUM"
+        const val TEST_OVERRIDE_SOURCE = "TEST_OVERRIDE"
         const val ES256_SIGNATURE_BYTES = 64
         const val MAX_PAYLOAD_BYTES = 4_096
         const val MAX_ENCODED_PAYLOAD_LENGTH = 5_500

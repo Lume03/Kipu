@@ -82,6 +82,31 @@ Deno.test("Lifetime grant is still capped at 72 hours", async () => {
   assert(claims.notAfter === "2026-10-05T12:00:00.000Z", "Lifetime must expire at 72 hours");
 });
 
+Deno.test("QA override source is signed into payload while commercial payload stays unchanged", async () => {
+  const fixture = await createSignerFixture();
+  const commercialGrant = await fixture.issuer({ ...input, installationPublicKey: fixture.publicKey });
+  const qaGrant = await fixture.issuer({
+    ...input,
+    installationPublicKey: fixture.publicKey,
+    source: "TEST_OVERRIDE",
+  });
+  assert(commercialGrant !== null && qaGrant !== null, "both authorized grants should sign");
+  const decode = (value: string) => JSON.parse(new TextDecoder().decode(Uint8Array.from(
+    atob(value.replace(/-/g, "+").replace(/_/g, "/")),
+    (character) => character.charCodeAt(0),
+  )));
+  const commercialClaims = decode(commercialGrant.payload);
+  const qaClaims = decode(qaGrant.payload);
+  assert(!("source" in commercialClaims), "commercial claims must preserve their existing wire shape");
+  assert(qaClaims.source === "TEST_OVERRIDE", "QA source must be within the signed payload");
+  assert(await crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    fixture.verificationKey,
+    Uint8Array.from(atob(qaGrant.signature.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)),
+    Uint8Array.from(atob(qaGrant.payload.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)),
+  ), "QA claim must be signed over exact payload bytes");
+});
+
 Deno.test("does not issue a grant without effective Premium, install key, or signing secrets", async () => {
   const fixture = await createSignerFixture();
   assert(

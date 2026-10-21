@@ -33,6 +33,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+[functions.refresh-entitlement]
+enabled = true
+verify_jwt = true
+
 [functions.play-rtdn]
 enabled = true
 verify_jwt = false

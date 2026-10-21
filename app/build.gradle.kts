@@ -26,6 +26,11 @@ val goalRemoteCommandsEnabled = providers.gradleProperty("goalRemoteCommandsEnab
     .orNull
     ?.toBooleanStrictOrNull()
     ?: false
+// QA plan overrides are opt-in for local debug/lab APKs and permanently disabled in release.
+val testPlanOverridesEnabled = providers.gradleProperty("testPlanOverridesEnabled")
+    .orNull
+    ?.toBooleanStrictOrNull()
+    ?: false
 
 android {
     namespace = "com.kipu.app"
@@ -70,6 +75,7 @@ android {
             "OFFLINE_GRANT_PUBLIC_KEY_X509_BASE64",
             configurationValue("OFFLINE_GRANT_PUBLIC_KEY_X509_BASE64").asBuildConfigString(),
         )
+        buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", testPlanOverridesEnabled.toString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -81,8 +87,10 @@ android {
             matchingFallbacks += listOf("debug")
             buildConfigField("String", "SUPABASE_URL", "\"\"")
             buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"\"")
+            buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", testPlanOverridesEnabled.toString())
         }
         release {
+            buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", "false")
             optimization {
                 enable = false
             }
