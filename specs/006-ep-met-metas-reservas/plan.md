@@ -8,11 +8,15 @@
 
 **Propagated**: 2026-10-18 — Extended the atomic active-goal replacement flow to release-triggered reactivation when a completed goal falls below target.
 
+**Propagated**: 2026-10-21 — Added the reference-aligned Planning root destination and goals presentation; budgets remain an inert selector and no financial model or backend behavior changes.
+
 **Entrada**: Sprint 6, HU-30, HU-31 y HU-32 del Product Backlog V4.2; cronograma Scrum; proceso P18; proceso P31; decisiones aprobadas y aclaración de esta épica.
 
 ## Resumen
 
 Entregar creación y edición de metas, reservas, liberación, finalización y archivo, conservando una sola fuente de verdad financiera. Una meta puede tener una cuenta real vinculada (como referencia organizativa y respaldo predeterminado) o funcionar sin ella (seleccionando la cuenta de respaldo por cada aporte); cada reserva debe identificar el respaldo real que ocupa. Una meta puede además acumular aportes respaldados por diferentes cuentas propias en la misma moneda. Reservar y liberar solo cambian la asignación disponible: no crean activos, ingresos ni gastos. Solo un traslado interno elegido explícitamente por el usuario crea el movimiento contable existente, atómicamente con la asignación en una única transacción indivisible.
+
+La presentación añade `Planificación` como destino raíz del navbar y una vista de metas basada en las referencias visuales del propietario: cupo Free, estado vacío o tarjetas de metas, creación y acciones existentes. `Presupuestos` se presenta deshabilitado y sin navegación hasta que se especifique esa épica.
 
 Se propone ampliar las tablas canónicas `goals`/`goal_events` y el ledger existente, no crear un segundo modelo de patrimonio. En Android se añadirá un módulo `feature/goals`, Room para metas/eventos/operaciones pendientes y una migración local de esquema 21 a 22. La sincronización seguirá el patrón local-first de deudas (insignias de conflicto y opciones de descartar/ajustar/reintentar). La política Freemium HU-57 / P31 cuenta únicamente metas `ACTIVE`; `COMPLETED`, `ARCHIVED` y `LOCKED_BY_PLAN` son exentas. En downgrade se seleccionan solo metas activas excedentes; si una edición de objetivo o una liberación reactiva una meta completada al llegar a dos activas, el usuario elige una activa para bloquear y la operación iniciadora y ambas transiciones deben ser atómicas. La instancia Supabase local aislada y sus fixtures sintéticos permiten completar la validación técnica del preflight para la implementación local; la migración alojada y la activación de RPC remotos siguen condicionadas a una auditoría aprobada de historial representativo y outboxes de clientes antiguos.
 
@@ -25,6 +29,8 @@ Se propone ampliar las tablas canónicas `goals`/`goal_events` y el ledger exist
 **Persistencia**: Room (versión actual 21; nueva versión propuesta 22), Supabase `public.goals` y `public.goal_events`, movimientos/cuentas y ledger existentes, recibos y feed de sincronización.
 
 **Verificación prevista**: pruebas unitarias del dominio y repositorio; pruebas Room de la migración 21→22; pruebas Android de flujos Compose/WorkManager donde aplique; pruebas de base de datos/RLS con pgTAP. Son actividades para implementación, no se ejecutaron como parte de este plan.
+
+La refinación visual se valida con pruebas Compose focalizadas de navegación y pantallas; no cambia persistencia, migraciones, RPC ni la habilitación remota, que continúa sujeta a T040.
 
 **Plataforma**: aplicación Android nativa, minSdk 24, targetSdk 36, con Supabase Postgres.
 
@@ -48,6 +54,8 @@ Se propone ampliar las tablas canónicas `goals`/`goal_events` y el ledger exist
 - Cualquier faltante por gasto confirmado posterior se expone en UI y se resuelve por acción explícita del usuario (depósito, liberación o reasignación).
 
 **Alcance**: tres historias de EP-MET, HU-30/31/32, del Sprint 6. El alcance excluye HU-24 (EP-MOV), que conserva su propia planificación. La secuencia del sprint pone HU-30 antes de HU-31 y HU-32 después de HU-31. La entrada del Sprint 6 depende de que el gate de integración del Sprint 5 esté satisfecho.
+
+**Alcance de presentación adicional**: integrar la vista existente de metas al navbar inferior, alinear overview, formulario, selección de cuenta y menú de acciones con las referencias del propietario, y mantener acciones dentro de los contratos HU-30/31/32. No agregar pausa manual, presupuestos funcionales ni efectos financieros nuevos.
 
 ## Revisión de Constitución
 
@@ -134,7 +142,7 @@ app/src/main/java/com/kipu/app/
 │   ├── presentation/        # Compose/ViewModels
 │   └── di/
 ├── feature/movements/       # Reutilizar transferencia existente solo si se confirma
-└── navigation/
+└── navigation/              # Destino raíz Planificación y estado del navbar inferior
 
 app/src/test/java/com/kipu/app/feature/goals/
 app/src/androidTest/java/com/kipu/app/feature/goals/
@@ -143,7 +151,7 @@ supabase/migrations/
 supabase/tests/
 ```
 
-**Decisión de estructura**: módulo de dominio/datos/presentación `feature/goals`, siguiendo límites actuales de Android y patrones de `feature/debts`; migración Room explícita y migraciones PostgreSQL aditivas. No crear tablas paralelas de activos, cuentas o transacciones ni introducir paquetes nuevos sin justificación.
+**Decisión de estructura**: módulo de dominio/datos/presentación `feature/goals`, siguiendo límites actuales de Android y patrones de `feature/debts`; migración Room explícita y migraciones PostgreSQL aditivas. La refinación de navbar y Compose reutiliza repositorios, estados y rutas existentes, sin migración de datos ni RPC. No crear tablas paralelas de activos, cuentas o transacciones ni introducir paquetes nuevos sin justificación.
 
 ## Complejidad
 

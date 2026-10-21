@@ -13,6 +13,8 @@ description: "Tareas de implementación de EP-MET"
 
 **Propagated**: 2026-10-18 — Applied the same user-selected atomic replacement for `RELEASE_GOAL`-triggered reactivation at the Free active-goal limit.
 
+**Propagated**: 2026-10-21 — Added focused UI integration tasks for the Planning root destination and owner-reference presentation; no database or RPC work is included.
+
 **Pruebas (2026-10-18)**: T013/T015 están implementadas localmente y QA independiente las aprobó con observaciones: CRUD, reserve, lifecycle y opening-ledger PASS con ROLLBACK/limpieza; la carrera CREATE/UPDATE mantuvo como máximo dos `ACTIVE`. T042–T048 están cerradas en Kanban con los límites/evidencias detallados en la sección de cierre; T040 sigue pendiente y bloquea cualquier activación hosted.
 
 **Organización**: las tareas están agrupadas por HU. El formato es `- [ ] Tnnn [P?] [USn?] descripción con ruta`. `[P]` indica que la tarea puede paralelizarse con otra de archivos distintos y sin dependencia incompleta.
@@ -182,6 +184,7 @@ description: "Tareas de implementación de EP-MET"
 - **HU-31**: depende de HU-30 y de HU-18/HU-19 para movimientos/cuentas.
 - **HU-32**: depende de HU-30/HU-31; no empezar liberación/archivo hasta que exista reserva auditable. T044 depende del backend de cuota T015 y la revisión de `RELEASE_GOAL`; T045 sigue a las pruebas SQL, T046 prepara la prueba UI y T047 integra después de T043/T045/T046.
 - **Pulido**: depende de todas las HUs incluidas y de la decisión de historia heredada.
+- **Presentación de Planificación**: T049 integra el root destination; T050 añade la vista Metas y el selector Presupuestos inerte; T051/T052 actualizan formularios y acciones existentes. Estas tareas no dependen de T040 ni activan servicios remotos. Las pruebas deben conservar los límites financieros ya especificados.
 
 ### Dependencias de historias
 
@@ -233,3 +236,14 @@ T048 (harness Room v11→v22) se ejecuta después del triage T039 y es independi
 - Los escenarios independientes describen criterios de aceptación; sus tareas de prueba aparecen antes de la implementación por HU.
 - El preflight sintético T004 no autoriza una migración remota. T040 exige datos no productivos representativos, revisión de outboxes antiguos y aprobación explícita antes de activar el backend.
 - No se incluye HU-24; pertenece a EP-MOV y mantiene su alcance independiente.
+
+## Fase 7: Planificación y alineación visual de EP-MET
+
+**Propósito**: hacer accesible la gestión de metas desde el navbar inferior y alinear las pantallas existentes con las referencias del propietario, manteniendo intactos los contratos financieros.
+
+- [x] T049 [P] Añadir `Planificación` como destino raíz en `app/src/main/java/com/kipu/app/navigation/KipuNavigationBar.kt` y `app/src/main/java/com/kipu/app/MainActivity.kt`, conservando selección inmediata, back stack y accesibilidad; añadir cobertura Compose de selección/navegación en `app/src/androidTest/java/com/kipu/app/navigation/`.
+- [x] T050 [US1] Alinear `app/src/main/java/com/kipu/app/feature/goals/presentation/GoalListScreen.kt` con las referencias de Planificación: selector Metas/Presupuestos con Presupuestos inerte, cupo Free, estados vacío/con metas, tarjetas de avance y acciones compatibles; añadir pruebas Compose de los estados principales.
+- [x] T051 [US1] Alinear `app/src/main/java/com/kipu/app/feature/goals/presentation/GoalFormScreen.kt` con las referencias de creación/corrección: moneda, monto, fecha opcional, validación visible, cuenta vinculada opcional y CTA inferior; implementar selector accesible de cuenta y pruebas Compose sin cambiar reglas de dominio.
+- [x] T052 [US1] Alinear el menú de opciones de meta y la navegación de sus acciones con `Opciones-meta.png`, reutilizando aporte, historial, edición y eliminación/archivo seguros en `app/src/main/java/com/kipu/app/feature/goals/presentation/GoalListScreen.kt` y `app/src/main/java/com/kipu/app/navigation/GoalsNavigation.kt`; no introducir pausa manual ni permitir borrar metas con historia/reserva. Añadir pruebas Compose de selección/cancelación y preservación.
+
+**Validación focalizada (2026-10-21)**: compilación Kotlin/Android tests, `GoalManagementFlowTest` (15 casos), `RetainedRootTabsTest` y `RootTabMotionTest` PASS. No se ejecutó la suite Android global.

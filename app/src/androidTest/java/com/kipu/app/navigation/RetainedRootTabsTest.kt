@@ -99,22 +99,31 @@ class RetainedRootTabsTest {
                     onNavigateToDinero = { route.value = ACCOUNTS_DASHBOARD_ROUTE },
                     onNavigateToMovimientos = { route.value = MOVEMENTS_HISTORY_ROUTE },
                     onNavigateToDeudas = { route.value = DEBT_LIST_ROUTE },
+                    onNavigateToPlanificacion = { route.value = GOALS_LIST_ROUTE },
                     onRegisterClick = { registerClicks++ },
                 )
             }
         }
 
         compose.onNodeWithTag("nav_item_dinero").assertIsSelected()
+        compose.onAllNodesWithTag("nav_label_movimientos", useUnmergedTree = true).assertCountEquals(0)
         compose.onNodeWithTag("nav_item_movimientos").performClick()
         compose.waitForIdle()
         compose.onNodeWithTag("nav_item_movimientos").assertIsSelected()
-        compose.onNodeWithTag("nav_selected_indicator").assertIsDisplayed()
+        compose.onNodeWithTag("kipu_bottom_navigation_pill").assertIsDisplayed()
 
         compose.onNodeWithTag("nav_item_deudas").performClick()
         compose.waitForIdle()
         compose.onNodeWithTag("nav_item_deudas").assertIsSelected()
         compose.onNodeWithTag("btn_root_register").performClick()
         compose.runOnIdle { assertEquals(1, registerClicks) }
+
+        compose.onNodeWithTag("nav_item_planificacion").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("nav_item_planificacion").assertIsSelected()
+        compose.onNodeWithTag("nav_label_planificacion", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("kipu_bottom_navigation_pill").assertIsDisplayed()
+        compose.onAllNodesWithTag("nav_label_movimientos", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test fun movementsLabelFitsInTheSelectedTabAtCompactWidthAndLargerText() {

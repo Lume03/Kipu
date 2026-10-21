@@ -14,6 +14,8 @@
 
 **Refined**: 2026-10-18 — Applied the same active-goal replacement rule when `RELEASE_GOAL` would reactivate a completed goal at the Free limit; the release and both status changes must be atomic.
 
+**Refined**: 2026-10-21 — Added owner-requested Planning access in the bottom navigation, reference-aligned goal overview and management presentation, and a visible but inert Budgets selector until that feature is specified.
+
 **Input**: Sprint 6 Product Backlog V4.2, EP-MET stories HU-30, HU-31 and HU-32; Sprint 6 roadmap; confirmed product decisions.
 
 ## Clarifications
@@ -144,6 +146,8 @@ Como usuario de Kipu, quiero liberar reservas y completar o archivar metas conse
   - Stale revisions MUST be rejected as conflicts (`CONFLICT/REVISION_MISMATCH`).
   - Local-first operations saved offline and subsequently rejected by the server MUST be surfaced in the UI with a conflict badge and explanation, enabling the user to discard the local mutation, adjust and retry, or resolve the underlying cause.
 - **FR-022**: Migrations and legacy compatibility MUST be non-destructive. The `backing_account_id` column in `goal_events` MUST be nullable for legacy rows. Existing legacy events, transactions, and ledger entries MUST be preserved read-only without deletion or unverified automated modification. Legacy events without a determinable backing account MUST be flagged as `LEGACY_UNLINKED` pending audit. All new operations MUST strictly enforce non-null backing accounts and zero expense/income ledger generation. Before any hosted migration or remote command activation, an approved read-only preflight against representative non-production history and a review of pending commands on older clients MUST be recorded; synthetic local fixtures validate the diagnostic only and MUST NOT substitute for this release gate.
+- **FR-023**: The authenticated app MUST expose a root-level `Planificación` destination from the bottom navigation and open the existing goals overview when selected. The selected destination MUST use the owner-provided reference's compact green indicator and selected label treatment; every destination MUST retain an accessible touch target of at least 48dp.
+- **FR-024**: The Planning overview MUST show `Metas` and `Presupuestos` as peer selectors, with `Metas` selected by default. `Presupuestos` MUST remain visibly present but disabled/inert: activating it MUST NOT navigate, change state, or show fabricated budget content until a budget feature is specified. The `Metas` view MUST present the applicable Free active-goal allowance, create affordance or limit state, empty state or existing goal summaries, and MUST route supported goal actions through the existing HU-30/31/32 contracts.
 
 ### Key Entities
 
@@ -167,6 +171,7 @@ Como usuario de Kipu, quiero liberar reservas y completar o archivar metas conse
 - **SC-006**: Replaying a confirmed contribution, transfer or release with identical operation ID and hash produces zero duplicate financial effects (`DUPLICATE`). Reusing an operation ID with a modified payload deterministically produces a conflict error (`CONFLICT/OPERATION_ID_REUSED`).
 - **SC-007**: Under the Free allowance, no more than two goals are `ACTIVE`; `COMPLETED`, `ARCHIVED` and `LOCKED_BY_PLAN` goals do not consume active slots. All transitions that would create an additional active goal at capacity require explicit selection and atomic replacement. Plan restrictions preserve 100% of existing goals, reserves, and history under `LOCKED_BY_PLAN`.
 - **SC-008**: Database migrations preserve 100% of historical goal events and ledger entries without unverified destructive updates or fabricated account linkages.
+- **SC-009**: From each authenticated root tab, `Planificación` opens the goals overview; the bottom-navigation selected treatment matches the supplied reference while preserving a minimum 48dp touch target. The `Presupuestos` selector is discoverable but performs no action and does not expose placeholder financial data.
 
 ## Assumptions and Scope Boundaries
 
@@ -178,4 +183,6 @@ Como usuario de Kipu, quiero liberar reservas y completar o archivar metas conse
 - Insufficient backing rejects the complete contribution, as specified by process P18; it is not partially accepted.
 - Multi-account backing allows a goal to hold reserves backed by different accounts in the same currency; progress aggregates across all valid events.
 - Target reduction to an amount at or below current reserve marks the goal `COMPLETED` immediately. Overfunding preserves the full reserve amount without capping.
+- The owner-provided visual references guide the Planning, goal-form, account-selection and goal-action presentation; they do not authorize financial behavior that conflicts with the lifecycle and preservation requirements above. In particular, manual pausing is not added: `LOCKED_BY_PLAN` remains reserved for the approved Free-plan quota behavior.
+- `Presupuestos` is a future feature and is intentionally inert in this delivery; this EP-MET refinement does not add a budget model, calculations, persistence or navigation destination.
 - Source references: Kipu Product Backlog V4.2 (HU-24, HU-30–HU-32, HU-57); Sprint 6 roadmap; process P18, “Gestionar metas y reservas”; process P31, “Aplicar cupos, accesos y vigencia offline”; Architecture and Data V4.2, goals and goal events; Kipu Constitution 2.0.0; Obsidian Mind notes “Spec Kit in Kipu” and “Spec Kit — Referencia Global”.

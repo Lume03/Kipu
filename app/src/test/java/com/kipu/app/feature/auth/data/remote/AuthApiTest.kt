@@ -67,7 +67,7 @@ class AuthApiTest {
         val mockEngine = MockEngine { request ->
             assertEquals("functions/v1/auth-access/login", request.url.encodedPath.trimStart('/'))
             respond(
-                content = """{"accessToken":"token123","refreshToken":"refresh123","expiresIn":3600,"tokenType":"bearer","userId":"user-uuid-1"}""",
+                content = """{"accessToken":"token123","refreshToken":"refresh123","expiresIn":3600,"tokenType":"bearer","userId":"user-uuid-1","sessionMetadata":{"provider":"email"}}""",
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )

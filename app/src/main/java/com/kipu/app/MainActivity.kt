@@ -68,6 +68,8 @@ import com.kipu.app.navigation.BIOMETRIC_ROUTE
 import com.kipu.app.navigation.CARD_FORM_ROUTE
 import com.kipu.app.navigation.DeepLinkResult
 import com.kipu.app.navigation.DEBT_LIST_ROUTE
+import com.kipu.app.navigation.GOALS_LIST_ROUTE
+import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.navigateToDebtOpening
 import com.kipu.app.navigation.KipuNavigationBar
 import com.kipu.app.navigation.RootTabMotion
@@ -262,6 +264,7 @@ class MainActivity : FragmentActivity() {
 
                             val isRootDestination = currentRoute == ACCOUNTS_DASHBOARD_ROUTE ||
                                 currentRoute == DEBT_LIST_ROUTE ||
+                                currentRoute == GOALS_LIST_ROUTE ||
                                 currentRoute == MOVEMENTS_HISTORY_PATTERN ||
                                 currentRoute == MOVEMENTS_HISTORY_ROUTE ||
                                 currentRoute?.startsWith("movements/history") == true
@@ -295,6 +298,13 @@ class MainActivity : FragmentActivity() {
                                                 movementsSelected.value = false
                                                 if (currentRoute != ACCOUNTS_DASHBOARD_ROUTE) {
                                                     navController.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
+                                                }
+                                            },
+                                            onNavigateToPlanificacion = {
+                                                debtsSelected.value = false
+                                                movementsSelected.value = false
+                                                if (currentRoute != GOALS_LIST_ROUTE) {
+                                                    navController.navigateRootTab(GOALS_LIST_ROUTE)
                                                 }
                                             },
                                             onRegisterClick = {
@@ -516,6 +526,7 @@ class MainActivity : FragmentActivity() {
                                         navController = navController,
                                     )
                                     debtDestinations(navController = navController)
+                                    goalDestinations(navController = navController)
                                     notificationDestinations(
                                         navController = navController,
                                     )
@@ -604,6 +615,7 @@ private fun isTopLevelRoute(route: String?): Boolean {
     if (route == null) return false
     return route == ACCOUNTS_DASHBOARD_ROUTE ||
         route == DEBT_LIST_ROUTE ||
+        route == GOALS_LIST_ROUTE ||
         route == MOVEMENTS_HISTORY_PATTERN ||
         route == MOVEMENTS_HISTORY_ROUTE ||
         route.startsWith("movements/history")

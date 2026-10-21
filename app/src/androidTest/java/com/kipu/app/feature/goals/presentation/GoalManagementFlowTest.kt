@@ -2,8 +2,12 @@ package com.kipu.app.feature.goals.presentation
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,6 +17,7 @@ import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.GoalProgressCalculator
 import com.kipu.app.feature.goals.domain.model.Goal
+import com.kipu.app.feature.goals.domain.model.GoalBackingAccount
 import com.kipu.app.feature.goals.domain.model.GoalStatus
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -43,7 +48,8 @@ class GoalManagementFlowTest {
             )
         }
 
-        compose.onNodeWithText("Sin cuenta vinculada · meta virtual").assertIsDisplayed()
+        compose.onNodeWithText("Sin cuenta vinculada").assertIsDisplayed()
+        compose.onNodeWithText("Meta virtual independiente").assertIsDisplayed()
         compose.onNodeWithTag("goal_form_name").performTextInput("Fondo de viaje")
         compose.onNodeWithTag("goal_form_target").performTextInput("120.50")
         compose.onNodeWithTag("goal_save_button").performClick()
@@ -62,9 +68,89 @@ class GoalManagementFlowTest {
             GoalListScreen(uiState, {}, {}, {}, {}, {}, {})
         }
 
-        compose.onNodeWithText("Plan Free: 2 de 2 metas activas.").assertIsDisplayed()
-        compose.onNodeWithText("Ver planes para crear más metas").assertIsDisplayed()
-        compose.onNodeWithTag("goal_create_button").assertDoesNotExist()
+        compose.onNodeWithText("Plan Free  ·  2 de 2 metas activas").assertIsDisplayed()
+        compose.onNodeWithText("Ver planes Kipu Pro →").assertIsDisplayed()
+        compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
+    }
+
+    @Test
+    fun budgetsSelectorIsVisibleButUnavailableWhileGoalsIsSelected() {
+        compose.setContent {
+            GoalListScreen(state(goals = emptyList()), {}, {}, {}, {}, {}, {})
+        }
+
+        compose.onNodeWithTag("planning_goals_selector").assertIsDisplayed().assertIsSelected()
+        compose.onNodeWithTag("planning_budgets_selector").assertIsDisplayed().assertIsNotEnabled()
+    }
+
+    @Test
+    fun emptyPlanningOverviewOffersCreateAction() {
+        compose.setContent {
+            GoalListScreen(state(goals = emptyList()), {}, {}, {}, {}, {}, {})
+        }
+
+        compose.onNodeWithText("Todavía no tienes metas de ahorro").assertIsDisplayed()
+        compose.onNodeWithTag("goal_create_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun existingGoalShowsProgressCard() {
+        compose.setContent {
+            GoalListScreen(state(goals = listOf(goal("Fondo de viaje", GoalStatus.ACTIVE))), {}, {}, {}, {}, {}, {})
+        }
+
+        compose.onNodeWithText("Fondo de viaje").assertIsDisplayed()
+        compose.onNodeWithText("0%").assertIsDisplayed()
+    }
+
+    @Test
+    fun goalOptionsCanBeCancelledWithoutDispatchingActions() {
+        var actionCount = 0
+        val uiState = state(goals = listOf(goal("goal-with-history", GoalStatus.ACTIVE)))
+        compose.setContent {
+            GoalListScreen(
+                state = uiState,
+                onNavigateBack = {},
+                onCreateGoal = {},
+                onOpenGoal = { actionCount++ },
+                onEditGoal = { actionCount++ },
+                onDeleteGoal = { actionCount++ },
+                onNavigateToPlans = { actionCount++ },
+                onContributeGoal = { actionCount++ },
+            )
+        }
+
+        compose.onNodeWithContentDescription("Opciones de goal-with-history").performClick()
+        compose.onNodeWithText("Registrar aporte a la meta").assertIsDisplayed()
+        compose.onNodeWithText("Ver historial de aportes").assertIsDisplayed()
+        compose.onNodeWithText("Editar parámetros").assertIsDisplayed()
+        compose.onNodeWithText("Eliminar meta vacía").assertIsDisplayed()
+        compose.onNodeWithText("Cancelar").performClick()
+
+        compose.onNodeWithText("goal-with-history").assertIsDisplayed()
+        compose.onAllNodesWithText("Eliminar meta vacía").assertCountEquals(0)
+        compose.runOnIdle { assertEquals(0, actionCount) }
+    }
+
+    @Test
+    fun goalOptionsEditUsesExistingEditCallback() {
+        var editedGoalId: String? = null
+        compose.setContent {
+            GoalListScreen(
+                state = state(goals = listOf(goal("goal-edit", GoalStatus.ACTIVE))),
+                onNavigateBack = {},
+                onCreateGoal = {},
+                onOpenGoal = {},
+                onEditGoal = { editedGoalId = it },
+                onDeleteGoal = {},
+                onNavigateToPlans = {},
+            )
+        }
+
+        compose.onNodeWithContentDescription("Opciones de goal-edit").performClick()
+        compose.onNodeWithText("Editar parámetros").performClick()
+
+        compose.runOnIdle { assertEquals("goal-edit", editedGoalId) }
     }
 
     @Test
@@ -72,7 +158,7 @@ class GoalManagementFlowTest {
         val uiState = state(goals = listOf(goal("goal-active", GoalStatus.ACTIVE), goal("goal-completed", GoalStatus.COMPLETED)))
         compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
 
-        compose.onNodeWithText("Plan Free: 1 de 2 metas activas.").assertIsDisplayed()
+        compose.onNodeWithText("Plan Free  ·  1 de 2 metas activas").assertIsDisplayed()
         compose.onNodeWithTag("goal_create_button").assertIsDisplayed()
     }
 
@@ -87,8 +173,8 @@ class GoalManagementFlowTest {
         )
         compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
 
-        compose.onNodeWithText("Plan Free: 2 de 2 metas activas.").assertIsDisplayed()
-        compose.onNodeWithTag("goal_create_button").assertDoesNotExist()
+        compose.onNodeWithText("Plan Free  ·  2 de 2 metas activas").assertIsDisplayed()
+        compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
     }
 
 
@@ -116,6 +202,40 @@ class GoalManagementFlowTest {
     }
 
     @Test
+    fun accountSelectorCanLinkAnOwnedAccountWhenSavingGoal() {
+        var linkedAccountId: String? = null
+        val account = GoalBackingAccount(
+            id = "account-1",
+            name = "Cuenta principal",
+            currency = Currency.PEN,
+            confirmedBalance = Money(100_000L, Currency.PEN),
+            reserved = Money.zero(Currency.PEN),
+            available = Money(100_000L, Currency.PEN),
+            shortfall = Money.zero(Currency.PEN),
+        )
+        compose.setContent {
+            GoalFormScreen(
+                existingGoal = null,
+                accounts = listOf(account),
+                isSaving = false,
+                errorMessage = null,
+                onNavigateBack = {},
+                onSave = { _, _, _, _, accountId, _ -> linkedAccountId = accountId },
+            )
+        }
+
+        compose.onNodeWithTag("goal_form_account").performClick()
+        compose.onNodeWithText("Vincular cuenta de respaldo").assertIsDisplayed()
+        compose.onNodeWithText("Cuenta principal", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Confirmar selección").performClick()
+        compose.onNodeWithTag("goal_form_name").performTextInput("Fondo de viaje")
+        compose.onNodeWithTag("goal_form_target").performTextInput("120.50")
+        compose.onNodeWithTag("goal_save_button").performClick()
+
+        compose.runOnIdle { assertEquals("account-1", linkedAccountId) }
+    }
+
+    @Test
     fun completedGoalThatRemainsCompletedDoesNotAskForReplacement() {
         var replacement: String? = "not-saved"
         val completed = goal("goal-completed", GoalStatus.COMPLETED)
@@ -135,7 +255,7 @@ class GoalManagementFlowTest {
 
         compose.onNodeWithTag("goal_form_name").performTextReplacement("Renombrada")
         compose.onNodeWithTag("goal_save_button").performClick()
-        compose.onAllNodesWithText("Elige una meta para pausar").assertCountEquals(0)
+        compose.onAllNodesWithText("Elige una meta para bloquear por plan").assertCountEquals(0)
         compose.runOnIdle { assertNull(replacement) }
     }
 
@@ -159,10 +279,10 @@ class GoalManagementFlowTest {
 
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
         compose.onNodeWithTag("goal_save_button").performClick()
-        compose.onNodeWithText("Elige una meta para pausar").assertIsDisplayed()
+        compose.onNodeWithText("Elige una meta para bloquear por plan").assertIsDisplayed()
         compose.onNodeWithText("active-1").assertIsDisplayed()
         compose.onNodeWithText("Cancelar").performClick()
-        compose.onAllNodesWithText("Elige una meta para pausar").assertCountEquals(0)
+        compose.onAllNodesWithText("Elige una meta para bloquear por plan").assertCountEquals(0)
         compose.runOnIdle { assertEquals(0, saveCount) }
     }
 
@@ -214,7 +334,7 @@ class GoalManagementFlowTest {
 
         compose.onNodeWithTag("goal_form_target").performTextReplacement("150.00")
         compose.onNodeWithTag("goal_save_button").performClick()
-        compose.onAllNodesWithText("Elige una meta para pausar").assertCountEquals(0)
+        compose.onAllNodesWithText("Elige una meta para bloquear por plan").assertCountEquals(0)
         compose.runOnIdle { assertEquals(1, saveCount) }
     }
 
