@@ -2,6 +2,8 @@
 
 Fecha: 21/10/2026. Rama: `main`. Seguimiento: [tasks.md](tasks.md). Antecedentes y evidencia de la sesión anterior: [HANDOFF.md](HANDOFF.md).
 
+> Ampliación posterior del mismo día: las correcciones solicitadas mediante diez capturas también están **APPROVED** para su alcance local/UI. Véase «Ampliación visual posterior» al final. Los importes y datos del recorrido original documentados abajo son históricos; no describen las operaciones posteriores del propietario.
+
 **Veredicto: APPROVED para las correcciones y recorridos expresamente verificados.** Las pruebas focalizadas y la compilación están verdes. Este veredicto no aprueba sincronización completa entre dispositivos: la descarga financiera está bloqueada y las metas tienen sincronización remota desactivada.
 
 ## Cambios entregados
@@ -85,3 +87,31 @@ Permanecen las dos cuentas BCP originales (S/0 y S/1,000), YAPE afiliada, BBVA c
 Los movimientos temporales Transporte S/10 e ingreso PLIN S/1 permanecen anulados y auditables, con efecto neto cero. La meta existente conserva reserva final **S/0** tras reservar/liberar S/10. El comprobante original pendiente permanece; el borrador temporal fue descartado. Las cinco tarjetas remotas antiguas permanecen archivadas, sin borrar su historia.
 
 La reserva/liberación se validó localmente; no se valida persistencia remota de metas. Tampoco se validaron segundo dispositivo, instalación nueva, reconciliación integral de épicas, sincronización de preferencias/cupos ni identidad visual píxel por píxel de toda la app. Los originales de referencias, worktrees, bases, sesiones y capturas privadas quedan fuera de los commits. No se solicitó ni se ejecutó push.
+
+## Ampliación visual posterior — 21/10/2026
+
+**Veredicto: APPROVED.** Implementación directa en `main`, sin subagentes. Las diez capturas del propietario son la referencia de este ajuste acotado sobre los flujos existentes.
+
+- Comprobante ya confirmado: aviso amarillo «Posible movimiento duplicado», con referencia, importe y fecha cuando existen y cierre accesible. Pendientes repetidos y descartados tienen explicaciones distintas. No se confirma ni se duplica ningún movimiento al importar.
+- Revisión: una sola instrucción breve; se suprime el aviso redundante de OCR terminado y, si hay advertencia, no se añade otra caja de instrucciones.
+- Dashboard: se retira el acceso redundante «Metas y reservas» y «Mejorar a PRO» usa los tokens amarillos de advertencia con texto contrastado.
+- Aportes: teclado decimal, rechazo de letras y formulario desplazable con espacio para el teclado. Se conservan validación de saldo y cantidades en unidades menores.
+- Planificación: capacidad/contador simplificados, sin mensajes rutinarios de sincronización. Se conservan mensajes de conflictos/errores que necesitan acción. Archivadas al final, contraídas por defecto y con flecha para abrir/cerrar.
+- Metas: selector de ocho iconos vectoriales (ahorro, tecnología, emergencias, viajes, hogar, vehículo, estudios y celular), disponible al crear/editar. La selección llega al dominio, Room mediante el flujo existente y el payload del comando; tarjetas y opciones usan esa selección. Metas antiguas sin icono usan ahorro como alternativa.
+
+Validación focalizada:
+
+| Evidencia local ignorada | Resultado |
+| --- | --- |
+| `.gradle/celular-polish-red.log` | Dos regresiones reproducidas: información insuficiente de duplicado y confusión entre descartado/registrado |
+| `.gradle/celular-polish-unit.log` y XML de `testDebugUnitTest` | 12 pruebas: ReceiptFlowViewModelTest 6, OfflineFirstGoalRepositoryTest 5, GoalListViewModelTest 1; cero fallos/errores |
+| `.gradle/celular-polish-ui-results.log` | 23 instrumentadas: CellularCorrectionsTest 11 y GoalManagementFlowTest 12; `OK (23 tests)` |
+| `.gradle/celular-polish-final-ui-results.log` | 3 casos afectados por los últimos ajustes de tema/texto/accesibilidad; `OK (3 tests)`; son repeticiones de casos del bloque anterior |
+| `.gradle/celular-polish-final-build.log` | debug/lab/androidTest: `BUILD SUCCESSFUL`, salida 0; instalación final del paquete principal con `-r`, `Success` |
+| `.gradle/celular-polish-evidencia/` | Capturas privadas de aviso, formulario, aportes y metas; revisión visual, fuera de Git |
+
+No se repitió la suite legacy. Se validó UTF-8/enlaces de documentación y whitespace del diff. Esta ampliación no cambia esquema ni despliega migraciones, por lo que no requiere repetir pgTAP. Las pruebas instrumentadas usan el paquete lab y fixtures; no restauran saldos, anulan operaciones ni reservan dinero en la cuenta del propietario.
+
+Después de instalar, se abrió la aplicación principal: dashboard sin el acceso repetido y Planificación sin mensajes técnicos, con Grafica visible y archivadas contraídas. Al enfocar Importe en el aporte real se confirmó el teclado numérico con separador decimal. Se volvió atrás sin introducir ni guardar una reserva. La captura de esa comprobación contiene información privada y permanece ignorada.
+
+La sincronización remota de metas continúa desactivada; retirar el texto técnico no implica habilitarla ni certificarla. Siguen abiertos el bloqueo de pull, preferencias y selección de cupos documentados arriba. La APK principal se actualiza conservando datos. No se hace push ni se incluyen worktrees, bases, imágenes de referencia o capturas privadas.

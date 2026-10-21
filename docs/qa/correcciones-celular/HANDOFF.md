@@ -4,6 +4,8 @@ Estado comprobado: 21/10/2026, después del recorrido final. El agente anterior 
 
 > Cierre posterior del 21/10/2026: consultar [verification-report.md](verification-report.md) y [tasks.md](tasks.md). Se inspeccionaron las colas (11 instrumentos y 4 movimientos SYNCED), se identificó el bloqueo del pull por tipos/secuencias incompatibles, se corrigió una recuperación de edición diferida con 2 pruebas focalizadas verdes y se reinstaló la APK actualizada. Los apartados siguientes conservan el estado histórico recibido; la entrega final registra los commits. La sincronización completa y las metas remotas siguen sin aprobación.
 
+> Ampliación visual posterior: el propietario pidió ajustes mediante diez capturas. Se implementaron avisos de duplicado amarillos/cerrables, revisión sin mensajes redundantes, dashboard sin acceso repetido a metas, CTA Pro amarillo, teclado decimal para aportes, iconos elegibles y archivadas desplegables. Véase sección 8 de tareas e informe ampliado. Pruebas: 12 unitarias, 23 instrumentadas y 3 casos afectados tras últimos ajustes, sin sumar repeticiones como casos nuevos. No se usaron subagentes; los datos/importes siguientes pertenecen al recorrido original y no deben restaurarse sobre las operaciones posteriores del propietario.
+
 ## Reglas del propietario
 
 - Repositorio: `C:\Users\Alume\orca\Kipu`; rama actual `main`.

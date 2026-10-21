@@ -91,6 +91,22 @@ Este es el seguimiento principal. El [checklist inicial](../correcciones-celular
 - [x] Crear commits convencionales por capas en `main`, sin incorporar otros worktrees ni archivos ajenos; hashes en la entrega final.
 - [x] Entregar informe breve, archivos de seguimiento y detalle de los datos de prueba que permanecen, recogidos en el informe y la respuesta final.
 
+## 8. Ajustes visuales solicitados después del cierre — COMPLETADO
+
+Solicitud del propietario mediante diez capturas el 21/10/2026; trabajo directo en `main`, sin nuevos worktrees, Spec Kit ni subagentes.
+
+- [x] Mostrar duplicados confirmados en amarillo, con título, operación, importe/fecha disponibles y botón de cierre; distinguir un comprobante descartado de uno registrado.
+- [x] Unificar el aviso al revisar comprobantes y resumirlo; evitar mostrar simultáneamente el resultado de OCR y la misma instrucción repetida.
+- [x] Quitar «Metas y reservas» del dashboard y usar amarillo en «Mejorar a PRO».
+- [x] Pedir teclado decimal en aportes, mantener rechazo de letras y permitir desplazar el formulario con el teclado abierto.
+- [x] Simplificar capacidad de metas, contador y acceso a Pro; quitar mensajes rutinarios de guardado local/sincronización de la lista, conservando conflictos/errores que requieren revisión.
+- [x] Permitir elegir entre ocho iconos al crear/editar; guardar `iconKey` con la meta y su comando, y usarlo en tarjetas/opciones.
+- [x] Separar las metas archivadas al final, contraídas inicialmente y desplegables mediante flecha, sin cambiar el cupo de activas.
+- [x] Verificar 12 unitarias y 23 instrumentadas focalizadas; revisión visual de capturas claras/oscuras. Tras los últimos ajustes de texto/accesibilidad, pasar 3 casos afectados, sin repetir toda la suite.
+- [x] Compilar debug/lab/androidTest e instalar la APK final con `-r`, conservando datos; actualizar informe y commits del alcance.
+
+Los importes/datos del apartado «Estado actual de los datos de prueba» corresponden al recorrido anterior. Las capturas posteriores del propietario muestran nuevas operaciones y reservas; esta ampliación no restablece aquellos importes ni modifica sus metas para recrear el fixture.
+
 ## Seguimiento abierto fuera de la aprobación acotada
 
 - [ ] Reconciliar el contrato de descarga financiera y el flujo remoto: CATEGORY desde secuencia 1 y salto 16 → 23 impiden aplicar la primera página. No adelantar manualmente el cursor ni omitir eventos desconocidos. Validar bootstrap/otro dispositivo después de resolverlo.
