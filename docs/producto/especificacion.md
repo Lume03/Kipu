@@ -43,9 +43,10 @@ El núcleo es Android nativo, local-first, con Room/SQLite y sincronización med
 | Metas / deudas / presupuestos | 2 activos por grupo | Sin límite comercial |
 | Historial manual, sync e iconos ordinarios | Disponibles | Disponibles |
 | Analítica | Básica del mes actual | Históricos, comparaciones y filtros combinados |
-| Nueva captura y OCR | No; alternativa manual | Sí, con permisos y fuente compatible |
+| Captura y OCR automatizados | No; alternativa manual | Sí, con permisos y fuente compatible |
+| OCR local de comprobantes Yape | Sí, con autorización explícita y revisión antes de registrar | También disponible; no sustituye revisión ni registro confirmado |
 
-La concesión Premium offline se acota al menor valor entre última verificación + 72 horas y el fin de acceso conocido. Tras caducar sin red, se suspende nueva captura/OCR y otras acciones Premium sensibles, pero continúan consulta y registro manual local. Reconectar sincroniza pendientes y revalida el permiso.
+La concesión Premium offline se acota al menor valor entre última verificación + 72 horas y el fin de acceso conocido. Tras caducar sin red, se suspenden la captura/OCR Premium y otras acciones Premium sensibles, pero continúan consulta, registro manual local y OCR local Yape disponible en Free. Reconectar sincroniza pendientes y revalida el permiso.
 
 ### 1.2 CRUD y conservación
 

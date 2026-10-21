@@ -14,6 +14,8 @@
 
 **Refined**: 2026-10-08 — Incorporación de HU-55 (13 pts) para S5 y aclaración aprobada: tokens efímeros solo desde RTDN/restauración; sin token, estado pendiente/reintentable y ninguna concesión o revocación por suposición; se conserva el historial S1–S4.5.
 
+**Refined**: 2026-10-21 — Decisión aprobada: el OCR local de comprobantes Yape está disponible en Kipu Free con autorización explícita, procesamiento en dispositivo y revisión antes de registrar; las demás capacidades Premium conservan su verificación de entitlement.
+
 **Refined**: 2026-09-15 — Adopción del design system Stitch "Kipu Andean Modernist" como única fuente de verdad visual de la Pantalla 1B; actualización de tokens de UI y lista de artefactos derivados; sin cambios funcionales (FR/RN/SC y user stories intactos).
 
 **Refined**: 2026-09-15 — Eliminación de las referencias residuales al sistema de diseño previo a Stitch; todas las referencias de diseño apuntan a `docs/DESIGN.md` (cleanup post-adopción del design system Stitch; sin cambios funcionales).
@@ -653,7 +655,7 @@ Como persona usuaria de Kipu, quiero que cada capacidad respete mi derecho efect
 **Criterios de aceptación**
 
 1. La operación manual, el registro local, la sincronización y las consultas básicas de historial siguen disponibles en Free.
-2. La automatización de captura/OCR/categorización, el análisis histórico y los filtros avanzados solo se autorizan con un entitlement Premium efectivo y verificado.
+2. La automatización de captura/categorización, el análisis histórico y los filtros avanzados solo se autorizan con un entitlement Premium efectivo y verificado. Excepción: el OCR local de comprobantes Yape está disponible en Free con autorización explícita, sin subir ni conservar la imagen, y exige revisar los datos antes de registrar.
 3. Para historial, búsqueda por texto, rango de fechas y tipo (Gasto, Ingreso o Transferencia) es básica; los criterios por cuenta, tarjeta, categoría, comercio, monto, fuente o estado son avanzados. Una consulta con cualquier criterio avanzado requiere Premium.
 4. La decisión se aplica en dominio antes de acceder a datos o ejecutar una operación protegida; la UI no es autoridad de acceso.
 5. Una consulta avanzada sin permiso conserva los criterios básicos compatibles, ofrece el resultado básico y comunica que Premium requiere verificación o reconexión según corresponda. No pierde ni oculta movimientos.
@@ -677,7 +679,7 @@ Como persona usuaria con Premium verificado, quiero seguir usando capacidades Pr
 
 ### Requisitos funcionales
 
-- **FR-048**: La política de dominio distingue capacidades Free, Free limitadas y Premium-only. HU-58 mantiene en Free operación manual, registro local, sincronización y filtros básicos, y protege las capacidades avanzadas definidas en sus criterios.
+- **FR-048**: La política de dominio distingue capacidades Free, Free limitadas y Premium-only. HU-58 mantiene en Free operación manual, registro local, sincronización, filtros básicos y OCR local de comprobantes Yape sujeto a autorización y revisión; protege las demás capacidades avanzadas definidas en sus criterios.
 - **FR-049**: El entitlement efectivo se deriva de compras verificadas y vigentes según HU-54/HU-56. Intenciones de plan, respuesta local de Billing, estado `PENDING` y cache sin concesión válida no autorizan Premium.
 - **FR-050**: Tras verificación autenticada satisfactoria, el backend puede emitir una concesión firmada que contiene usuario, huella de clave de instalación, política, `serverVerifiedAt`, `knownEntitlementEnd` nullable, `notAfter`, identificador de concesión y `keyId`; `notAfter` usa el mínimo de 72 horas y el fin comercial conocido.
 - **FR-051**: Android valida la firma y las claims, compara el usuario con la sesión actual y la huella con una clave no exportable de Android Keystore. Un grant ausente, alterado, de otra cuenta/instalación, de política incompatible o con firma desconocida se trata como Free y requiere reconexión para restaurar Premium.
@@ -688,7 +690,7 @@ Como persona usuaria con Premium verificado, quiero seguir usando capacidades Pr
 
 ### Criterios de éxito
 
-- **SC-020**: Pruebas de política demuestran que las capacidades básicas/manuales permanecen permitidas en Free y toda capacidad avanzada requiere entitlement efectivo verificable.
+- **SC-020**: Pruebas de política demuestran que las capacidades básicas/manuales y el OCR local de comprobantes Yape permanecen permitidos en Free, mientras las demás capacidades avanzadas requieren entitlement efectivo verificable.
 - **SC-021**: Vectores de firma válidos verifican; firma o claims alteradas, propietario distinto, clave de instalación distinta, versión/política incompatible y key ID desconocido deniegan Premium.
 - **SC-022**: Con tiempo monotónico controlado, se permite justo antes de `notAfter` y se exige reconexión exactamente en `notAfter`; cambios hacia adelante/atrás del reloj civil no cambian el resultado.
 - **SC-023**: La concesión se limita a 72 horas desde el instante firmado por servidor, y una suscripción con fin anterior se limita a ese fin; Lifetime también vence la concesión a las 72 horas.

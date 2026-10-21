@@ -8,8 +8,9 @@ import com.kipu.app.feature.plans.domain.model.FeatureAccessRequest
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import javax.inject.Inject
 
-/** The verified offline lease is checked by the data implementation before this policy is invoked. */
+/** Local Yape receipt OCR is available in Kipu Free; consent and review remain separate requirements. */
 class ReceiptScanAccessPolicy @Inject constructor(private val policy: FeatureAccessPolicy) {
-    fun allows(entitlement: EffectiveEntitlement?): Boolean =
-        policy.evaluate(FeatureAccessRequest(Capability.PremiumOnly, 0, FreePlanLimits(), entitlement)) is FeatureAccessDecision.Allowed
+    fun allows(): Boolean = policy.evaluate(
+        FeatureAccessRequest(Capability.YapeReceiptOcr, 0, FreePlanLimits(), effectiveEntitlement = null),
+    ) is FeatureAccessDecision.Allowed
 }

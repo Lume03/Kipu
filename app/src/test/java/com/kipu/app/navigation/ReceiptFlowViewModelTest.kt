@@ -56,13 +56,14 @@ class ReceiptFlowViewModelTest {
         coVerify(exactly = 1) { importer(any(), any(), any()) }
     }
 
-    @Test fun `free denial gives manual fallback without confirming`() = runTest {
+    @Test fun `scan access denial gives manual fallback without confirming`() = runTest {
         coEvery { importer("owner", any(), true) } returns ReceiptImportResult.AccessDenied
         val vm = viewModel()
         vm.import("content://receipts/test.png")
         advanceUntilIdle()
         assertNull(vm.state.value.selected)
-        assertTrue(vm.state.value.message.orEmpty().contains("Premium"))
+        assertTrue(vm.state.value.message.orEmpty().contains("manualmente"))
+        assertFalse(vm.state.value.message.orEmpty().contains("Premium"))
         coVerify(exactly = 0) { confirmer(any(), any(), any()) }
     }
 
