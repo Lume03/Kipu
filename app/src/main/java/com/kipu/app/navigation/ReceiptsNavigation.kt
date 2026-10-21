@@ -1,23 +1,53 @@
 package com.kipu.app.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.*
@@ -29,12 +59,14 @@ import com.kipu.app.feature.movements.presentation.QuickMovementViewModel
 import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateEdit
 import com.kipu.app.feature.receipts.presentation.ReceiptReviewScreen
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 const val RECEIPTS_ROUTE = "receipts"
 private const val RECEIPT_IMPORT_ROUTE = "receipts?uri={uri}"
@@ -72,85 +104,196 @@ private fun ReceiptFlowScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var reviewedType by rememberSaveable { mutableStateOf(MovementType.EXPENSE) }
     var showShareHelp by rememberSaveable { mutableStateOf(false) }
-    Scaffold(topBar = {
-        TopAppBar(title = { Text("Comprobantes Yape") }, navigationIcon = {
-            IconButton(onClick = { if (state.selected != null) viewModel.closeEditor() else onBack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-            }
-        })
-    }) { padding ->
+    val palette = rememberCalmEmeraldColors()
+    val shareHelpSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val candidate = state.selected
+    val selected = candidate
+
+    Scaffold(
+        modifier = if (showShareHelp) Modifier.blur(4.dp) else Modifier,
+        containerColor = palette.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (selected == null) "Comprobantes Yape" else "Revisar comprobante",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { if (selected != null) viewModel.closeEditor() else onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    if (selected != null) {
+                        Surface(
+                            modifier = Modifier.padding(end = 16.dp),
+                            shape = RoundedCornerShape(50),
+                            color = if (palette.isDark) MaterialTheme.colorScheme.secondaryContainer else palette.incomeBg,
+                            contentColor = palette.primaryDeep,
+                            border = BorderStroke(1.dp, if (palette.isDark) MaterialTheme.colorScheme.outlineVariant else palette.incomeBorder),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            ) {
+                                Icon(Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(17.dp))
+                                Text("OCR YAPE", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { showShareHelp = true },
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .testTag("receipt_share_help_top_bar")
+                                .semantics { contentDescription = "Ayuda para compartir desde Yape" },
+                        ) {
+                            Icon(Icons.Filled.HelpOutline, contentDescription = null)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = palette.surfaceCard,
+                    titleContentColor = palette.primaryText,
+                    navigationIconContentColor = palette.primaryText,
+                    actionIconContentColor = palette.primaryDeep,
+                ),
+            )
+        },
+    ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            state.message?.let {
-                Text(it, Modifier.padding(16.dp).testTag("receipt_feedback"), style = MaterialTheme.typography.bodyMedium)
+            state.message?.let { message ->
+                ReceiptFeedbackBanner(
+                    message = message,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
+                        .testTag("receipt_feedback"),
+                )
             }
-            val selected = state.selected
             if (selected != null) {
-                ReceiptMetadataEditor(selected, state.busy, onContinue = { edit, type ->
-                    reviewedType = type
-                    viewModel.edit(edit)
-                })
+                ReceiptMetadataEditor(
+                    candidate = selected,
+                    busy = state.busy,
+                    onContinue = { edit, type ->
+                        reviewedType = type
+                        viewModel.edit(edit)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
             } else if (sharedUri != null && !state.importConsumed) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Recibimos una imagen compartida", style = MaterialTheme.typography.titleLarge)
-                    Text("Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.")
-                    Text("La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.")
-                    Button(onClick = { viewModel.import(sharedUri) }, enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth().testTag("receipt_authorize_ocr")) { Text("Autorizar OCR local de Yape") }
-                    OutlinedButton(onClick = viewModel::manual, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        "Recibimos una imagen compartida",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    ReceiptInfoNotice(
+                        text = "Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.",
+                        prominent = true,
+                    )
+                    Text(
+                        "La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = palette.secondaryMuted,
+                    )
+                    Button(
+                        onClick = { viewModel.import(sharedUri) },
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_authorize_ocr"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = palette.primaryDeep,
+                            contentColor = palette.onPrimaryDeep,
+                        ),
+                    ) {
+                        Text("Autorizar OCR local de Yape", fontWeight = FontWeight.SemiBold)
+                    }
+                    OutlinedButton(
+                        onClick = viewModel::manual,
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
                         Text("Continuar sin OCR")
                     }
                 }
             } else {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = viewModel::manual, enabled = !state.busy, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Filled.Edit, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Registro manual")
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = viewModel::manual,
+                            enabled = !state.busy,
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = palette.surfaceCard,
+                                contentColor = palette.primaryDeep,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.AddCircleOutline, contentDescription = null, modifier = Modifier.size(21.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Registro manual", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                        OutlinedButton(
+                            onClick = onHistory,
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = palette.surfaceCard,
+                                contentColor = palette.secondaryMuted,
+                            ),
+                        ) {
+                            Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Ver movimientos", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        }
                     }
-                    OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Filled.History, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("Ver movimientos")
-                    }
+
+                    ReceiptInfoNotice(
+                        text = if (state.candidates.isEmpty()) {
+                            "Comparte un comprobante desde Yape para revisarlo aquí. Tu saldo no cambia hasta que confirmes el movimiento."
+                        } else {
+                            "Comparte un comprobante desde Yape para leerlo aquí. Nada se registra sin tu confirmación previa."
+                        },
+                        prominent = state.candidates.isEmpty(),
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
+                    )
+                    ReceiptReviewScreen(
+                        candidates = state.candidates,
+                        onReview = viewModel::select,
+                        onEdit = viewModel::editCandidate,
+                        onDiscard = viewModel::discard,
+                        onHowToShare = { showShareHelp = true },
+                        isBusy = state.busy,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-                        Text("Comparte un comprobante desde Yape para revisarlo aquí. Tu saldo no cambia hasta que confirmes el movimiento.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
-                    }
-                }
-                ReceiptReviewScreen(
-                    candidates = state.candidates,
-                    onReview = viewModel::select,
-                    onEdit = viewModel::editCandidate,
-                    onDiscard = viewModel::discard,
-                    onHowToShare = { showShareHelp = true },
-                    modifier = Modifier.weight(1f),
-                )
             }
         }
     }
     if (showShareHelp) {
-        ModalBottomSheet(onDismissRequest = { showShareHelp = false }) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Text("¿Cómo compartir desde Yape?", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { showShareHelp = false }) { Icon(Icons.Filled.Close, contentDescription = "Cerrar ayuda") }
-                }
-                Text("Envía tu comprobante a Kipu para revisarlo antes de registrar el movimiento.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                listOf("Abre Yape y entra al movimiento que quieres compartir.", "Toca Compartir y elige Kipu en la lista de aplicaciones.", "Revisa los datos sugeridos en Kipu y confirma solo cuando estén correctos.").forEachIndexed { index, step ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) { Text("${index + 1}", Modifier.padding(horizontal = 12.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium) }
-                            Text(step, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-                Surface(color = androidx.compose.ui.graphics.Color(0xFFFFF3CD), contentColor = androidx.compose.ui.graphics.Color(0xFF664D03), shape = MaterialTheme.shapes.medium) {
-                    Text("También puedes compartir una captura desde Fotos usando el menú Compartir.", Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
-                }
-                Button(onClick = { showShareHelp = false }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) { Text("Entendido, volver a comprobantes") }
-            }
+        ModalBottomSheet(
+            onDismissRequest = { showShareHelp = false },
+            sheetState = shareHelpSheetState,
+            containerColor = palette.surfaceCard,
+            contentColor = palette.primaryText,
+        ) {
+            ReceiptShareHelpContent(onDismiss = { showShareHelp = false })
         }
     }
-    val candidate = state.selected
     if (state.readyForMovement && candidate != null) {
         LaunchedEffect(candidate.id) {
             movementViewModel.prepareReceiptDraft(
@@ -174,10 +317,252 @@ private fun ReceiptFlowScreen(
 }
 
 @Composable
+private fun ReceiptFeedbackBanner(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+    val isSuccess = message.startsWith("Lectura local terminada.")
+    val isError = message.contains("no se pudo", ignoreCase = true) || message.contains("desbloquea", ignoreCase = true)
+    val background = when {
+        isSuccess -> palette.incomeBg
+        isError -> scheme.errorContainer
+        else -> scheme.secondaryContainer
+    }
+    val foreground = when {
+        isSuccess -> palette.incomeText
+        isError -> scheme.onErrorContainer
+        else -> scheme.onSecondaryContainer
+    }
+    val title = if (isSuccess) "Lectura local terminada" else null
+    val body = if (isSuccess) message.substringAfter(". ", message) else message
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = background,
+        contentColor = foreground,
+        border = BorderStroke(1.dp, if (isSuccess) palette.incomeBorder else scheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(shape = RoundedCornerShape(14.dp), color = background) {
+                Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = foreground,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                title?.let { Text(it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold) }
+                Text(body, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceiptInfoNotice(
+    text: String,
+    prominent: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+    val background = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg
+    val foreground = if (palette.isDark) scheme.onSecondaryContainer else palette.primaryText
+    val border = if (palette.isDark) scheme.outlineVariant else palette.incomeBorder
+
+    if (prominent) {
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = background,
+            contentColor = foreground,
+            border = BorderStroke(1.dp, border),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = palette.primaryDeep,
+                    modifier = Modifier.padding(top = 2.dp).size(22.dp),
+                )
+                Text(text, style = MaterialTheme.typography.bodyLarge, color = foreground)
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = null,
+                tint = palette.primaryDeep,
+                modifier = Modifier.padding(top = 2.dp).size(19.dp),
+            )
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted)
+        }
+    }
+}
+
+@Composable
+private fun ReceiptShareHelpContent(onDismiss: () -> Unit) {
+    val palette = rememberCalmEmeraldColors()
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "¿Cómo compartir desde Yape?",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.semantics { contentDescription = "Cerrar ayuda" },
+            ) {
+                Icon(Icons.Filled.Close, contentDescription = null)
+            }
+        }
+        Text(
+            "Sigue estos 3 pasos sencillos para registrar tus operaciones al instante sin digitar nada:",
+            style = MaterialTheme.typography.bodyLarge,
+            color = palette.secondaryMuted,
+        )
+        ReceiptShareStep(
+            step = 1,
+            icon = Icons.Filled.Share,
+            title = "Haz tu operación en Yape",
+            detail = "Al terminar de yapear o recibir un pago, pulsa el botón «Compartir» que aparece en la confirmación.",
+        )
+        ReceiptShareStep(
+            step = 2,
+            icon = Icons.Filled.PhoneAndroid,
+            title = "Elige Kipu en la lista",
+            detail = "En el menú de aplicaciones para compartir de tu teléfono, selecciona el ícono de Kipu.",
+        )
+        ReceiptShareStep(
+            step = 3,
+            icon = Icons.Filled.CheckCircle,
+            title = "Revisa y confirma",
+            detail = "Kipu leerá automáticamente los datos sin registrar nada definitivo hasta que tú lo apruebes.",
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = palette.warningBg,
+            contentColor = palette.warningText,
+            border = BorderStroke(1.dp, palette.warningBorder),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(Icons.Filled.Lightbulb, contentDescription = null, tint = palette.warningAmber, modifier = Modifier.size(23.dp))
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Tip de tranquilidad: ") }
+                        append("También puedes compartir una captura de pantalla guardada en tu galería desde la app Fotos.")
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp).padding(bottom = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
+        ) {
+            Text("Entendido, volver a comprobantes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun ReceiptShareStep(
+    step: Int,
+    icon: ImageVector,
+    title: String,
+    detail: String,
+) {
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = palette.surfaceCard),
+        border = BorderStroke(1.dp, palette.borderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
+                border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(26.dp))
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
+                        contentColor = palette.primaryDeep,
+                        border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
+                    ) {
+                        Text(
+                            "Paso $step",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+                Text(detail, style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReceiptMetadataEditor(
     candidate: ReceiptCandidate,
     busy: Boolean,
     onContinue: (ReceiptCandidateEdit, MovementType) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val lima = remember { ZoneId.of("America/Lima") }
     val timestamp = candidate.occurredAt?.let { java.time.Instant.ofEpochMilli(it).atZone(lima) }
@@ -192,32 +577,275 @@ private fun ReceiptMetadataEditor(
         null -> null
     }) }
     var error by rememberSaveable(candidate.id) { mutableStateOf<String?>(null) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Revisa y corrige el candidato", style = MaterialTheme.typography.titleLarge)
-        Text("Comprueba si enviaste o recibiste el pago. Completa lo que no pudo leerse. Aún no hay movimiento ni cambio de saldo.")
-        Text("Al confirmar, elige tu billetera Yape o su cuenta afiliada en soles.", style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = type == MovementType.EXPENSE, onClick = { type = MovementType.EXPENSE }, label = { Text("Envié · gasto") })
-            FilterChip(selected = type == MovementType.INCOME, onClick = { type = MovementType.INCOME }, label = { Text("Recibí · ingreso") })
-        }
-        OutlinedTextField(amount, { amount = it }, label = { Text("Monto en soles") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth().testTag("receipt_amount"), singleLine = true)
-        OutlinedTextField(date, { date = it }, label = { Text("Fecha (AAAA-MM-DD)") }, modifier = Modifier.fillMaxWidth().testTag("receipt_date"), singleLine = true)
-        OutlinedTextField(time, { time = it }, label = { Text("Hora de Perú (HH:mm, 24 h)") }, modifier = Modifier.fillMaxWidth().testTag("receipt_time"), singleLine = true)
-        OutlinedTextField(recipient, { recipient = it }, label = { Text("Destinatario o remitente") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(reference, { reference = it }, label = { Text("Nro. de operación (no código de seguridad)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Text("La referencia ayuda a evitar duplicados. Pagos diferentes con el mismo monto no son necesariamente el mismo pago.", style = MaterialTheme.typography.bodySmall)
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = {
-            val minor = MoneyInputParser.parseMinorUnits(amount)
-            val occurredAt = runCatching { LocalDateTime.of(LocalDate.parse(date), LocalTime.parse(time)).atZone(lima).toInstant().toEpochMilli() }.getOrNull()
-            if (minor == null || minor <= 0 || occurredAt == null || type == null) {
-                error = "Elige ingreso o gasto e ingresa un monto positivo, fecha y hora válidos."
-            } else {
-                error = null
-                onContinue(ReceiptCandidateEdit(minor, occurredAt, recipient.takeIf(String::isNotBlank), reference.takeIf(String::isNotBlank), type == MovementType.INCOME), requireNotNull(type))
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+
+    Column(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ReceiptInfoNotice(
+                text = "Revisa los datos extraídos. Tu saldo no cambiará hasta que confirmes el movimiento.",
+                prominent = true,
+            )
+
+            ReceiptDirectionSelector(
+                selectedType = type,
+                onSelect = { type = it },
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = palette.surfaceCard),
+                border = BorderStroke(1.dp, palette.borderSubtle),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                "Datos del comprobante",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = palette.primaryText,
+                            )
+                            Text(
+                                "Verifica o edita la información reconocida.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = palette.secondaryMuted,
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
+                            contentColor = palette.primaryDeep,
+                            border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                Icon(Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Text("YAPE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    ReceiptEditorField(
+                        value = amount,
+                        onValueChange = { amount = it },
+                        label = "Monto",
+                        icon = null,
+                        prefix = "S/",
+                        keyboardType = KeyboardType.Decimal,
+                        modifier = Modifier.fillMaxWidth().testTag("receipt_amount"),
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ReceiptEditorField(
+                            value = date,
+                            onValueChange = { date = it },
+                            label = "Fecha (AAAA-MM-DD)",
+                            icon = Icons.Filled.CalendarToday,
+                            keyboardType = KeyboardType.Ascii,
+                            modifier = Modifier.weight(1.15f).testTag("receipt_date"),
+                        )
+                        ReceiptEditorField(
+                            value = time,
+                            onValueChange = { time = it },
+                            label = "Hora",
+                            icon = Icons.Filled.AccessTime,
+                            keyboardType = KeyboardType.Ascii,
+                            modifier = Modifier.weight(0.85f).testTag("receipt_time"),
+                        )
+                    }
+
+                    ReceiptEditorField(
+                        value = recipient,
+                        onValueChange = { recipient = it },
+                        label = if (type == MovementType.INCOME) "Remitente" else "Destinatario",
+                        icon = Icons.Filled.PersonOutline,
+                        modifier = Modifier.fillMaxWidth().testTag("receipt_counterpart"),
+                    )
+
+                    ReceiptEditorField(
+                        value = reference,
+                        onValueChange = { reference = it },
+                        label = "N.º de operación",
+                        icon = Icons.Filled.Tag,
+                        modifier = Modifier.fillMaxWidth().testTag("receipt_reference"),
+                    )
+
+                    Text(
+                        "La referencia ayuda a detectar duplicados. Operaciones distintas con el mismo monto pueden ser válidas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.secondaryMuted,
+                    )
+
+                    error?.let { message ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = scheme.errorContainer,
+                            contentColor = scheme.onErrorContainer,
+                        ) {
+                            Text(message, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
             }
-        }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("receipt_review_continue")) {
-            Text("Elegir cuenta y revisar movimiento")
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().imePadding(),
+            color = palette.surfaceCard,
+            contentColor = palette.primaryText,
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, palette.borderSubtle),
+        ) {
+            Button(
+                onClick = {
+                    val minor = MoneyInputParser.parseMinorUnits(amount)
+                    val occurredAt = runCatching {
+                        LocalDateTime.of(LocalDate.parse(date), LocalTime.parse(time))
+                            .atZone(lima).toInstant().toEpochMilli()
+                    }.getOrNull()
+                    if (minor == null || minor <= 0 || occurredAt == null || type == null) {
+                        error = "Elige si enviaste o recibiste e ingresa un monto positivo, fecha y hora válidos."
+                    } else {
+                        error = null
+                        onContinue(
+                            ReceiptCandidateEdit(
+                                minor,
+                                occurredAt,
+                                recipient.takeIf(String::isNotBlank),
+                                reference.takeIf(String::isNotBlank),
+                                type == MovementType.INCOME,
+                            ),
+                            requireNotNull(type),
+                        )
+                    }
+                },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
+                    .heightIn(min = 56.dp).testTag("receipt_review_continue"),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = palette.primaryDeep,
+                    contentColor = palette.onPrimaryDeep,
+                ),
+            ) {
+                Text("Continuar y elegir cuenta", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
         }
     }
+}
+
+@Composable
+private fun ReceiptDirectionSelector(
+    selectedType: MovementType?,
+    onSelect: (MovementType) -> Unit,
+) {
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(if (palette.isDark) scheme.surfaceContainer else Color(0xFFEFF3F7), RoundedCornerShape(16.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ReceiptDirectionOption(
+            label = "Envié · Gasto",
+            icon = Icons.Filled.NorthEast,
+            selected = selectedType == MovementType.EXPENSE,
+            onClick = { onSelect(MovementType.EXPENSE) },
+            modifier = Modifier.weight(1f),
+        )
+        ReceiptDirectionOption(
+            label = "Recibí · Ingreso",
+            icon = Icons.Filled.ArrowDownward,
+            selected = selectedType == MovementType.INCOME,
+            onClick = { onSelect(MovementType.INCOME) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ReceiptDirectionOption(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val palette = rememberCalmEmeraldColors()
+    val scheme = MaterialTheme.colorScheme
+    val color = if (selected) palette.primaryDeep else palette.secondaryMuted
+    val background = if (selected) {
+        if (palette.isDark) scheme.primaryContainer else palette.primaryDeep
+    } else {
+        androidx.compose.ui.graphics.Color.Transparent
+    }
+    Row(
+        modifier = modifier
+            .heightIn(min = 52.dp)
+            .background(background, RoundedCornerShape(12.dp))
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
+            .semantics { stateDescription = if (selected) "Seleccionado" else "No seleccionado" }
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = if (selected) palette.onPrimaryDeep else color, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) palette.onPrimaryDeep else color,
+        )
+    }
+}
+
+@Composable
+private fun ReceiptEditorField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector?,
+    modifier: Modifier = Modifier,
+    prefix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+) {
+    val palette = rememberCalmEmeraldColors()
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        label = { Text(label) },
+        leadingIcon = icon?.let { vector ->
+            { Icon(vector, contentDescription = null, tint = palette.secondaryMuted) }
+        },
+        prefix = prefix?.let { currency -> { Text(currency, fontWeight = FontWeight.SemiBold, color = palette.secondaryMuted) } },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+    )
 }
