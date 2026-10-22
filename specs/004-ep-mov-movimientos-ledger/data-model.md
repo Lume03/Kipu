@@ -208,3 +208,28 @@ Fixture: A=[2026-09-01T00:00:00-05:00,2026-10-01T00:00:00-05:00), B=[2026-10-01T
 ## HU-24/S6 — transferencia explícita a meta (2026-10-19)
 
 Una reserva sin movimiento de fondos permanece como evento/reserva solamente. Cuando el usuario solicita explícitamente una transferencia entre cuentas propias, Room confirma en una única transacción: la transacción principal `TRANSFER` (`operation_kind=GOAL_FUNDING`), los asientos SOURCE negativos y DESTINATION positivos, proyecciones reconstruidas desde ledger, la actualización/reserva de meta, su evento enlazado y outbox/recibo. El `transaction_id` es igual al `operation_id` estable del comando; la RPC mantiene esa misma clave para que el feed/reintento concilie con la fila local. Dos asientos netean a cero y no se agrega gasto, ingreso ni activo duplicado. No se agrega entidad ni cambio de esquema Room.
+
+## Incremento S7 — HU-25 Reembolsos vinculados (borrador de modelo)
+
+**Estado**: propuesta técnica trazable a HU-25, no esquema aprobado ni implementado. El tipo principal sigue siendo G/I/T.
+
+### Hecho económico y vínculo
+
+- Un reembolso es un movimiento independiente, positivo y auditable con `operation_kind=REFUND`; la opción recomendada es `type=INCOME` únicamente para expresar la entrada de caja, excluyéndolo de todo total de ingreso operativo. No se convierte ni reemplaza el movimiento de compra original.
+- El vínculo recomendado es `transaction_links` con `link_type=REFUND`, compra original como `source_transaction_id` y reembolso como `target_transaction_id`. Esta decisión coincide con la investigación existente de EP-MOV y los enums de la migración local. No duplicar el vínculo en `refund_of_transaction_id`; esa columna existe en el baseline pero usa `ON DELETE SET NULL` y no se incluye en el modelo Kotlin observado.
+- El propietario de compra, reembolso y relación debe ser el usuario autenticado. La relación se conserva por toda la vida auditable de los hechos; nunca se usa `DELETE` para reparar un conflicto o eliminar el origen.
+- El destino de caja/cuenta acreditada queda pendiente de Producto/Finanzas. Importe positivo, moneda compatible y elegibilidad de compras con tarjeta/cuotas/especializadas se terminan de fijar en el contrato.
+
+### Saldo reembolsable y periodos
+
+- Regla lógica candidata: `saldo_reembolsable = importe_original - suma_de_reembolsos_válidos_vinculados`; aceptar sólo si el importe nuevo es positivo y no supera el remanente.
+- `occurred_at` del reembolso gobierna el efecto de caja. Para el consumo de gasto y presupuesto se conserva como referencia la fecha/periodo del movimiento original; EP-PRE es dueño del cálculo y recibe el ajuste por un contrato pendiente.
+- La consulta de gasto debe descontar el reembolso exactamente una vez del gasto de la compra original y no sumar el movimiento `REFUND` como gasto ni ingreso operativo. La partición por categoría/subcategoría y su interacción con jerarquías de presupuesto deben especificarse con el consumidor EP-PRE.
+- En local, los intentos pendientes participan de una proyección provisional de límite; el servidor serializa la aceptación del saldo entre dispositivos. La política de rechazo/conflicto y su recuperación visible aún depende de decisiones de Producto/Finanzas.
+
+### Entidad y migración local candidatas
+
+- La rama inspeccionada usa `KipuDatabase` versión 25 y no tiene `TransactionLinkEntity`/DAO. Si se mantiene la decisión anterior, el modelo local requerirá persistir una relación propietaria/única y migrar desde la versión vigente integrada, con schema exportado. No se presupone versión destino futura.
+- El baseline PostgreSQL ya posee `operation_kind=REFUND`, `transaction_link_type=REFUND` y `transaction_links`. Debe verificarse el estado real remoto por separado; aquí no se autoriza ni se aplica DDL.
+- Revisar los grants CRUD actuales de `transaction_links`: las verificaciones/RPC deben probar propiedad conjunta de ambas transacciones, evitar enlaces cruzados entre usuarios y hacer imposible una alteración/borrado cliente que rompa historia financiera. Si requiere cambiar grants o esquema compartidos, Seguridad/DB revisa el impacto antes de aprobar.
+- La entidad no define aún campos de resultado local ni la forma de emitir el ajuste a EP-PRE; éstos dependen de decisiones aprobadas y del contrato real de HU-36.

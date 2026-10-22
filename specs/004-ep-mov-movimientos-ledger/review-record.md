@@ -288,3 +288,15 @@ En el seguimiento de #55 se encontró que el viewport aproximado de 320 dp con f
 Validación sobre esta revisión local: `:app:testDebugUnitTest` (**526/526**); `:app:compileDebugKotlin`; `:app:compileDebugAndroidTestKotlin`; `:app:lintDebug`; `:app:assembleLab`; `KipuThemeContrastTest` + `ThemeScreenEvidenceTest` (**4/4**) y `MovementFiltersIssue19Test` (**10/10**). Las capturas actuales se guardaron en `docs/audits/tema-oscuro/issue-39/evidencias/integrated-head-2026-10-17/`: Pixel 10 AVD, Android 17/API 37, 1080×2424, 420 dpi; el caso compacto utiliza contexto local con ancho aproximado 320 dp y fuente ×1,6.
 
 La captura compacta se obtuvo del árbol Compose y muestra la entrada de importe y acciones; no contiene el teclado IME del sistema. La suite instrumentada completa de 348 tests/17 fallos no se repitió tras este ajuste. T123 sigue abierta por esa matriz y el IME; T122 sigue abierta por previews parciales y la falta de preview de pantalla completa para `UnifiedInstrumentFormScreen`. T125 permanece abierta hasta revisión independiente y aceptación visual humana. La suite enfocada pasó, pero no se declaran completos #39 ni la aceptación visual. TalkBack hablado y runtime API 24 no se ejecutaron.
+
+## Sprint 7 — HU-25: revisión de diseño pre-implementación (2026-10-21)
+
+**Estado**: PENDIENTE; este registro no es aprobación de diseño, de seguridad ni de implementación.
+
+- La revisión arquitectónica inicial fue read-only: confirmó que los artefactos de EP-MOV llegaban a HU-24/S6 y no contenían diseño/tareas de S7 para HU-25; recomendó no iniciar código hasta cerrar representación contable, límite autoritativo bajo concurrencia, vínculo/persistencia, contrato de sync y frontera con EP-PRE.
+- La inspección local posterior encontró `operation_kind=REFUND`, `transaction_link_type=REFUND`, `transaction_links` y también `transactions.refund_of_transaction_id`; los tipos/relaciones de Room y DTO aún no se modelan en el feature MOV. Los grants/RLS existentes de `transaction_links` requieren revisión conjunta de propietario, mutabilidad y retención.
+- La relación recomendada `transaction_links.link_type=REFUND` y el modelo `INCOME + operation_kind=REFUND` quedan como propuesta técnica, no como decisión aprobada. Producto/Finanzas todavía deben definir la elegibilidad ampliada de compras, destino de caja y recuperación visible de una carrera offline.
+- EP-PRE/HU-36 no tiene contrato/provider en los artefactos inspeccionados; la aceptación real del ajuste al periodo original es un gate de integración y no se sustituye por mocks/stubs.
+- No se ejecutaron unit tests, Android instrumentation, pgTAP, migraciones, RPC, build, despliegue remoto ni pruebas contra datos reales en este refine. Las evidencias anteriores de S2/S4/S6 permanecen históricas y no certifican HU-25.
+
+**Próximo gate**: resolver T132–T135 de `tasks.md`, obtener revisión final de Arquitectura/Finanzas/Seguridad y verificar el provider real de EP-PRE antes de liberar las tareas de implementación correspondientes.
