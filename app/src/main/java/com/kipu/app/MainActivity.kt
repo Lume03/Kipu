@@ -50,6 +50,7 @@ import com.kipu.app.core.security.LockScreenOverlay
 import com.kipu.app.core.security.model.LocalLockState
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
@@ -119,6 +120,9 @@ class MainActivity : FragmentActivity() {
     lateinit var sessionCoordinator: SessionCoordinator
 
     @Inject
+    lateinit var budgetMaintenanceScheduler: BudgetMaintenanceScheduler
+
+    @Inject
     lateinit var localLockCoordinator: LocalLockCoordinator
 
     @Inject
@@ -159,6 +163,12 @@ class MainActivity : FragmentActivity() {
 
             val accessState by sessionCoordinator.localAccess.collectAsStateWithLifecycle()
             val lockState by localLockCoordinator.lockState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(accessState) {
+                (accessState as? LocalAccess.Available)?.let { access ->
+                    budgetMaintenanceScheduler.scheduleNow(access.userId)
+                }
+            }
 
             val currentUserId = when (val access = accessState) {
                 is LocalAccess.Available -> access.userId
