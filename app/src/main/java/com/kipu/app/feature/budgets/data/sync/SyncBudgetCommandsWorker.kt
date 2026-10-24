@@ -202,11 +202,9 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
 
             for (remote in periods) {
                 if (remote.userId != userId || remote.budgetId in blockedBudgetIds || budgetDao.getTombstone(userId, remote.budgetId) != null) continue
-                val parent = budgetDao.getBudget(userId, remote.budgetId) ?: continue
-                val incoming = remote.toLocalEntity(parent)
-                val existing = budgetDao.getPeriod(userId, incoming.id)
-                // Retain the local historical scope snapshot when the remote schema has no such column.
-                budgetDao.upsertPeriod(incoming.copy(scopeCategoryId = existing?.scopeCategoryId ?: incoming.scopeCategoryId))
+                if (budgetDao.getBudget(userId, remote.budgetId) == null) continue
+                // The remote snapshot of the period scope is authoritative.
+                budgetDao.upsertPeriod(remote.toLocalEntity())
             }
         }
         return Result.success()
@@ -249,8 +247,11 @@ private fun BudgetRemoteDto.sameBusinessStateAs(other: BudgetRemoteDto): Boolean
         limitMinor == other.limitMinor && currencyCode.trim() == other.currencyCode.trim() &&
         periodType == other.periodType && rangeStartOn == other.rangeStartOn && rangeEndOn == other.rangeEndOn &&
         alertThresholdsBps == other.alertThresholdsBps && status == other.status && revision == other.revision &&
-        isActive == other.isActive
+        isActive == other.isActive && pendingScopeType == other.pendingScopeType &&
+        pendingScopeCategoryId == other.pendingScopeCategoryId && pendingScheduleType == other.pendingScheduleType &&
+        pendingRangeStartOn == other.pendingRangeStartOn && pendingRangeEndOn == other.pendingRangeEndOn &&
+        pendingEffectiveFrom == other.pendingEffectiveFrom
 
 private fun BudgetPeriodRemoteDto.sameBusinessStateAs(other: BudgetPeriodRemoteDto): Boolean =
     id == other.id && userId == other.userId && budgetId == other.budgetId && startsOn == other.startsOn &&
-        endsOn == other.endsOn && limitMinor == other.limitMinor
+        endsOn == other.endsOn && limitMinor == other.limitMinor && scopeCategoryId == other.scopeCategoryId

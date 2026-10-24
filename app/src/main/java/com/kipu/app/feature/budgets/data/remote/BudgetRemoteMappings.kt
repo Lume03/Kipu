@@ -4,7 +4,6 @@ import com.kipu.app.feature.budgets.data.local.BudgetEntity
 import com.kipu.app.feature.budgets.data.local.BudgetPeriodEntity
 import com.kipu.app.feature.budgets.domain.BudgetInterval
 import com.kipu.app.feature.budgets.domain.BudgetPeriod
-import com.kipu.app.feature.budgets.domain.BudgetScope
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
@@ -25,6 +24,12 @@ internal fun BudgetEntity.toRemoteDto(): BudgetRemoteDto = BudgetRemoteDto(
     revision = revision,
     createdAt = Instant.ofEpochMilli(createdAt).toString(),
     updatedAt = Instant.ofEpochMilli(updatedAt).toString(),
+    pendingScopeType = pendingScopeType,
+    pendingScopeCategoryId = pendingScopeCategoryId,
+    pendingScheduleType = pendingScheduleType,
+    pendingRangeStartOn = pendingRangeStartOn,
+    pendingRangeEndOn = pendingRangeEndOn,
+    pendingEffectiveFrom = pendingEffectiveFrom,
 )
 
 internal fun BudgetPeriodEntity.toRemoteDto(): BudgetPeriodRemoteDto = BudgetPeriodRemoteDto(
@@ -34,6 +39,7 @@ internal fun BudgetPeriodEntity.toRemoteDto(): BudgetPeriodRemoteDto = BudgetPer
     startsOn = startsOn,
     endsOn = endsOn,
     limitMinor = limitMinor,
+    scopeCategoryId = scopeCategoryId,
     createdAt = Instant.ofEpochMilli(createdAt).toString(),
 )
 
@@ -56,14 +62,18 @@ internal fun BudgetRemoteDto.toLocalEntity(zoneId: ZoneId): BudgetEntity {
         createdOn = Instant.ofEpochMilli(createdAtMillis).atZone(zoneId).toLocalDate().toString(),
         createdAt = createdAtMillis,
         updatedAt = Instant.parse(updatedAt).toEpochMilli(),
+        pendingScopeType = pendingScopeType,
+        pendingScopeCategoryId = pendingScopeCategoryId,
+        pendingScheduleType = pendingScheduleType,
+        pendingRangeStartOn = pendingRangeStartOn,
+        pendingRangeEndOn = pendingRangeEndOn,
+        pendingEffectiveFrom = pendingEffectiveFrom,
     )
 }
 
-internal fun BudgetPeriodRemoteDto.toLocalEntity(budget: BudgetEntity): BudgetPeriodEntity {
-    val start = java.time.LocalDate.parse(startsOn)
-    val end = java.time.LocalDate.parse(endsOn)
-    val interval = BudgetInterval(start, end)
-    val scope = budget.categoryId?.let(BudgetScope::Category) ?: BudgetScope.Total
+/** The remote scope snapshot is authoritative: it is never inferred from the parent budget. */
+internal fun BudgetPeriodRemoteDto.toLocalEntity(): BudgetPeriodEntity {
+    val interval = BudgetInterval(java.time.LocalDate.parse(startsOn), java.time.LocalDate.parse(endsOn))
     return BudgetPeriodEntity(
         id = BudgetPeriod.idFor(budgetId, interval),
         userId = userId,
@@ -71,7 +81,7 @@ internal fun BudgetPeriodRemoteDto.toLocalEntity(budget: BudgetEntity): BudgetPe
         startsOn = startsOn,
         endsOn = endsOn,
         limitMinor = limitMinor,
-        scopeCategoryId = (scope as? BudgetScope.Category)?.categoryId,
+        scopeCategoryId = scopeCategoryId,
         createdAt = Instant.parse(createdAt).toEpochMilli(),
     )
 }
