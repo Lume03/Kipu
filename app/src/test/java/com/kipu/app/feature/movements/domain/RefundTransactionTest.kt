@@ -43,6 +43,7 @@ class RefundTransactionTest {
         assertEquals(4_000L, repository.committed.single().amountMinor)
         assertEquals(MovementType.INCOME, repository.committed.single().type)
         assertEquals("REFUND", repository.committed.single().operationKind)
+        assertEquals(null, repository.committed.single().categoryId)
         assertEquals(10_000L, repository.purchase.amountMinor)
     }
 

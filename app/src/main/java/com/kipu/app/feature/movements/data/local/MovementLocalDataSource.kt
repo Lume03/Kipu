@@ -97,7 +97,7 @@ class MovementLocalDataSource @Inject constructor(
             refund.userId != command.userId || !refund.currency.equals(purchase.currencyCode, ignoreCase = true) ||
             refund.type != MovementType.INCOME || refund.operationKind != "REFUND" ||
             refund.cardId != purchase.cardId || refund.sourceAccountId != purchase.sourceAccountId ||
-            refund.categoryId != purchase.categoryId
+            refund.categoryId != null
         ) {
             return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.INVALID_COMMAND)
         }

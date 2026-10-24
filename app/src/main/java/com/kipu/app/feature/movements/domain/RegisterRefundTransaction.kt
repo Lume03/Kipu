@@ -59,7 +59,9 @@ class RegisterRefundTransaction @Inject constructor(
             amountMinor = command.amountMinor,
             currency = purchase.currency.uppercase(Locale.ROOT),
             sourceAccountId = purchase.sourceAccountId,
-            categoryId = purchase.categoryId,
+            // Refunds are income and the category catalog rejects expense categories on income.
+            // Net expense consumption follows the canonical purchase->refund link instead.
+            categoryId = null,
             merchantId = purchase.merchantId,
             merchantProvisionalText = purchase.merchantProvisionalText,
             occurredAt = command.occurredAt,
@@ -89,7 +91,7 @@ internal object RefundTransactionRequestHasher {
     }
 }
 
-private fun Transaction.isRefundEligible(): Boolean {
+fun Transaction.isRefundEligible(): Boolean {
     if (type != MovementType.EXPENSE || status !in setOf(
             TransactionStatus.ACTIVE,
             TransactionStatus.CONFIRMED,

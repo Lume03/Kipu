@@ -33,7 +33,7 @@ La API expone `POST /rest/v1/rpc/refund_transaction_v1` con `p_command`:
 }
 ```
 
-`user_id`, `source_account_id`, `card_id` y `category_id` no son campos del comando: se derivan de la sesión autenticada y de la compra validada. `occurred_at` se limita a milisegundos. El hash cubre exactamente la cadena UTF-8 `refund-v1\n<purchase UUID en minúsculas>\n<refund UUID en minúsculas>\n<amount_minor decimal>\n<currency_code en mayúsculas>\n<epoch_millis decimal>`; el resultado es SHA-256 hexadecimal minúsculo. Las referencias son UUID y el código de moneda ISO de tres letras, por lo que los separadores no son ambiguos.
+`user_id`, `source_account_id` y `card_id` no son campos del comando: se derivan de la sesión autenticada y de la compra validada. El movimiento REFUND deja `category_id=NULL` porque el catálogo rechaza categorías EXPENSE en movimientos INCOME. La consulta de consumo deriva la categoría desde la compra enlazada. `occurred_at` se limita a milisegundos. El hash cubre exactamente la cadena UTF-8 `refund-v1\n<purchase UUID en minúsculas>\n<refund UUID en minúsculas>\n<amount_minor decimal>\n<currency_code en mayúsculas>\n<epoch_millis decimal>`; el resultado es SHA-256 hexadecimal minúsculo. Las referencias son UUID y el código de moneda ISO de tres letras, por lo que los separadores no son ambiguos.
 
 ### Validación y serialización del servidor
 
