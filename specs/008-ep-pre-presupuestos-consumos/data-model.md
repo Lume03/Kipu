@@ -106,3 +106,27 @@ Implementadas en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (domin
 - **Umbrales**: puntos básicos 1..10000 sin duplicados; por defecto 5000/8000/10000; la lista vacía es válida (sin alertas). Una alerta como máximo por (propietario, presupuesto, periodo, umbral): clave `BUDGET_ALERT:<owner>:<budget>:<period>:<bps>`; se registra atómicamente en `BudgetAlertLedger.tryRecord` antes de notificar. Solo se evalúa el periodo vigente de presupuestos ACTIVE.
 - **Estados**: `ACTIVE`/`FINISHED`. Finalizar detiene renovación, edición y alertas y conserva periodos; libera cupo Free. Eliminar borra presupuesto y periodos (tombstone de sync a cargo de la capa de datos, G5) sin tocar movimientos.
 - **Cupo Free**: el alta rechaza con `FreeQuotaExceeded(limit)` si hay `>= FreePlanLimits.budgets` presupuestos ACTIVE y el plan no es Premium verificado (`PlanQuotaPolicy`). Nunca se borra ni oculta nada.
+
+## Esquema físico PostgreSQL (Sprint 7) — `supabase/migrations/20261024120000_ep_pre_budgets.sql`
+
+Solo migración local; no aplicada al remoto (gate G4). Pruebas: `supabase/tests/database/ep_pre_budget_rls.test.sql` (61 aserciones pgTAP).
+
+**`public.budgets`** (tabla de baseline, extendida de forma aditiva)
+
+| Columna | Detalle |
+|---|---|
+| `period_type` | enum `budget_period_type`: `DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY`, `CUSTOM_RANGE` (+ `CUSTOM` legado, tratado como alias de `CUSTOM_RANGE`; sus filas no se reescriben, los clientes nuevos escriben `CUSTOM_RANGE`). |
+| `range_start_on`, `range_end_on` (`date`, nuevas) | Solo para rango custom; `end >= start`, fin inclusivo. `CUSTOM_RANGE` los exige; tipos recurrentes exigen NULL (`budgets_custom_range_check`). |
+| `status` (`text`, nueva) | `ACTIVE` / `FINISHED`. `is_active` se conserva y se sincroniza por trigger (`status='ACTIVE'`); `is_active=false` legado se migró a `FINISHED`. |
+| `alert_thresholds_bps` | `smallint[]`, default `{5000,8000,10000}`; CHECK `budget_thresholds_valid_v1`: 1..10 elementos, cada uno 1..10000, sin duplicados. |
+| `limit_minor` | `> 0` (baseline). `currency_code` por presupuesto (baseline). |
+| `category_id` | NULL = total; si no, categoría propia o de sistema, no borrada (trigger `budgets_guard_v1`, error `INVALID_CATEGORY`). |
+| Índices | `budgets_owner_ref (id,user_id)` único, `(user_id,status)` parcial, `category_id` parcial. |
+
+**`public.budget_periods`**: `id`, `user_id`, `budget_id`, `starts_on` (inclusivo), `ends_on` (exclusivo, `> starts_on`), `limit_minor` (`> 0`, snapshot), `created_at`. `UNIQUE (budget_id, starts_on, ends_on)`; FK compuesta `(budget_id,user_id) → budgets(id,user_id) ON DELETE CASCADE` (mismo propietario); RLS forzada por `user_id`; índices `(budget_id, starts_on)` y `(user_id)`. `authenticated`: SELECT/INSERT/UPDATE (sin DELETE directo).
+
+**Tombstone (G5)**: `public.budget_tombstones (budget_id PK, user_id, last_revision, deleted_at)`, RLS de solo lectura para el propietario. Borrar = `public.delete_budget_v1(jsonb {budget_id})` (SECURITY DEFINER, idempotente): inserta el tombstone, borra físicamente `budgets` (periodos por cascade) y publica un único `internal.sync_changes` (`entity_type='BUDGET'`, `operation='DELETE'`, `revision = last_revision + 1`). Un `INSERT` posterior con el mismo `id` y propietario (incluido `ON CONFLICT DO UPDATE` del comando `UPSERT_BUDGET`) falla con `BUDGET_DELETED`. El soft-delete legado (`deleted_at` en `DELETE_ENTITY/BUDGET`) se convierte por trigger en el mismo borrado físico. `authenticated` ya no tiene DELETE/TRUNCATE sobre `budgets`. Nada cascada hacia `transactions`, ledger, cuentas ni categorías.
+
+**Cupo Free**: el trigger `budgets_guard_v1` impide más de 2 presupuestos `ACTIVE` no borrados para usuarios no PRO (`private.is_user_pro`), con lock asesor por usuario; error `BUDGET_QUOTA_EXCEEDED`. Las funciones de cuota existentes no se modificaron (cuentan `is_active` y `deleted_at IS NULL`, coherente con `status`).
+
+**Calendario y consumo**: `public.budget_period_bounds_v1(type, on, range_start, range_end)` devuelve `[starts_on, ends_on)` (semana lunes–domingo, quincenas 1–15 / 16–fin, mes calendario). `public.get_budget_status(budget_id, on date, time_zone text)` (SECURITY INVOKER, RLS) calcula gasto neto: `EXPENSE` con `operation_kind IN (STANDARD, CARD_PURCHASE)`, estado `CONFIRMED/REVISED`, sin `deleted_at`, sin `transfer_group_id`, misma moneda, fecha local dentro del periodo; categoría incluye sus subcategorías sin duplicar filas; menos reembolsos (`transaction_links.link_type='REFUND'`, el lado con `operation_kind='REFUND'`, acotados al importe de la compra) imputados a la fecha de la compra. Usa el límite del `budget_periods` coincidente si existe, si no el del presupuesto. `get_budget_status` no existía en las migraciones previas.

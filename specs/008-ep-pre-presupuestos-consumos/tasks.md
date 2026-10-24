@@ -14,7 +14,7 @@
 
 - [ ] T004 Aprobar modelo Room/PostgreSQL, estados, rango/calendario y representación de periodo; documentar decisión en `specs/008-ep-pre-presupuestos-consumos/data-model.md` y plan de migración/rollback en `specs/008-ep-pre-presupuestos-consumos/plan.md` (depends on T001,T002).
 - [ ] T005 [P] Implementar migración Room aditiva y sus tests en `app/src/main/java/com/kipu/app/core/database/` y `app/src/test/java/com/kipu/app/core/database/`; preservar datos financieros y verificar versión vigente (depends on T004).
-- [ ] T006 [P] Implementar migración PostgreSQL/RLS/índices aprobada en nuevo archivo `supabase/migrations/<timestamp>_ep_pre_budgets.sql` y pruebas SQL asociadas existentes; no aplicar a remoto (depends on T004).
+- [X] T006 [P] Implementar migración PostgreSQL/RLS/índices aprobada en nuevo archivo `supabase/migrations/<timestamp>_ep_pre_budgets.sql` y pruebas SQL asociadas existentes; no aplicar a remoto (depends on T004).
 - [ ] T007 Definir interfaces internas reales de consulta a gastos y alertas en coordinación con EP-MOV/EP-NOT, usando sus contratos aprobados existentes; integrar adaptadores de dominio en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T001,T002,T004).
 - [ ] T008 Implementar entidades/DAO/repository para `Budget` y `BudgetPeriod`, propiedad, transacción local y outbox vigente en `app/src/main/java/com/kipu/app/feature/budgets/data/` y `app/src/main/java/com/kipu/app/core/database/` (depends on T005,T007).
 
@@ -59,7 +59,7 @@
 
 ## Fase 6: Polish transversal y aceptación
 
-- [ ] T030 [P] Auditar RLS/owner-bound references y acceso cross-user de presupuestos/periodos mediante tests en `supabase/tests/ep_pre_budget_rls.sql` (depends on T006,T008).
+- [X] T030 [P] Auditar RLS/owner-bound references y acceso cross-user de presupuestos/periodos mediante tests en `supabase/tests/ep_pre_budget_rls.sql` (depends on T006,T008).
 - [ ] T031 [P] Auditar TalkBack, foco, errores/empty/offline/cupo/confirmación destructiva y textos accesibles en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T017,T024,T029).
 - [ ] T032 Ejecutar la estrategia de `specs/008-ep-pre-presupuestos-consumos/quickstart.md`, build/tests aplicables, migración representativa y regresiones EP-MOV; registrar salida y revisión cruzada sin afirmar resultado antes de ejecución (depends on T017,T024,T029,T030,T031).
 - [ ] T033 Actualizar `specs/008-ep-pre-presupuestos-consumos/{spec.md,plan.md,data-model.md,tasks.md}` solo con decisiones/evidencia aprobadas, y enlazar resultados; nunca sustituir gates por asunciones (depends on T032).
