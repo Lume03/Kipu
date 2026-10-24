@@ -42,3 +42,33 @@ Cualquiera que afecte un requisito de aceptación bloquea implementación hasta 
 | GATE-PRODUCT-02 | Inicio conserva la estructura actual del dashboard y añade el resumen patrimonial; sin widgets de presupuesto ni predicciones. «Sin datos» se distingue de cero confirmado. Un evento cuyo objeto fuente ya no existe se muestra como no disponible, sin navegar. Eventos del mismo día se listan por separado. | Técnica, dentro de las reglas del backlog |
 | GATE-ARCH-03 | Las consultas reutilizan repositorios y casos de uso existentes de cuentas, deudas, recurrencias, metas y movimientos. El calendario es una proyección de lectura; no se persisten eventos ni se crean APIs. | Técnica |
 | GATE-ANALYTICS-04 / GATE-ACCESS-05 | Fuera del Sprint 7 (HU-41, S9). | — |
+
+## Verificación de código real para S7 — 2026-10-24 (T001–T006)
+
+Fuentes y rutas reales inspeccionadas; ningún esquema, API ni migración nuevos.
+
+| Dato | Fuente real (reutilizada) | Notas |
+|---|---|---|
+| Saldos de cuentas y deuda de tarjeta | `feature/accounts/domain/usecase/ObserveInstrumentsUseCases.kt` (`ObserveFinancialDashboard`) | `totalPen/totalUsd` cuentan una vez cada cuenta (billeteras afiliadas no duplican) e incluyen archivadas; las cuentas `CREDIT_LIABILITY` no son visibles como cuentas. `creditCards[].debt` es la deuda vigente. |
+| Cuentas por cobrar / por pagar | `feature/debts/domain/DebtRepository.observeDebts` (`DebtSummary.remainingPrincipalMinor`, `obligationType`, `status`) | Solo deudas `ACTIVE`. Cronograma: `observeInstallments` (`DebtScheduleItem`). |
+| Línea de crédito y reservas | `CreditCardWithSummary.availableCredit`; `GoalBackingCalculator` (reservas) | No son entrada del patrimonio: línea disponible no es activo y la reserva es asignación del activo de respaldo. |
+| Movimientos realizados | `feature/movements/domain/QueryMovementHistory` (consulta básica, sin criterios avanzados) | `DefaultMovementHistoryAccessPolicy` permite la consulta básica a todos (Free incluye historia completa y meses pasados). `occurredAt` en milisegundos. |
+| Cierre/vencimiento de tarjeta | `CreditCard.billingDay/dueDay` + `core/finance/domain/CreditCalculations.calculateEffectiveDate` | Día efectivo en meses cortos. |
+| Recurrencias | `feature/recurrences/domain/RecurrenceRepository.observeAll`, `RecurrenceScheduleCalculator.isOccurrence`, plantilla `templateTransaction` (`concept`, `amount_minor`, `currency_code`) | Solo `ACTIVE`, desde `nextDueDate` y hasta `endDate`. |
+
+Rutas de navegación existentes usadas por el calendario (`app/src/main/java/com/kipu/app/navigation/`):
+
+| Origen del evento | Ruta |
+|---|---|
+| Movimiento realizado | `navigateToMovementEditor(transactionId)` (`MovementsNavigation.kt`) |
+| Cierre/vencimiento de tarjeta | `navigateToCardDetail(cardId)` (`AccountsNavigation.kt`) |
+| Cuota o vencimiento de deuda | `navigateToDebtDetail(debtId)` (`DebtsNavigation.kt`) |
+| Recurrencia | No existe ruta propia: la gestión vive en un diálogo del historial. Se navega a `navigateToMovementHistory()`. **Limitación a revisar por producto.** |
+| Objeto fuente ausente | Sin navegación; se muestra «No disponible». |
+
+Decisiones de interpretación a validar:
+- Los pasivos pendientes incluyen deudas por pagar activas y la deuda vigente de tarjetas de crédito (se resta una sola vez; las cuentas `CREDIT_LIABILITY` no entran como activos).
+- Moneda: sin conversión; se muestra un patrimonio por moneda con datos (PEN/USD). Una moneda sin cuentas ni deudas no genera fila (sin datos distinto de cero confirmado).
+- T005 (entitlement): para S7 solo se confirma que la consulta básica de historial no depende de Premium; capacidades Premium/HU-41 quedan para S9.
+- T006 (upstream): se confirmó la existencia en el código de cuentas/tarjetas (HU-07/18/19/22), movimientos, deudas y recurrencias (HU-09/29/33) y metas; HU-36/26/30/58 no se verificaron individualmente porque Inicio y calendario no los consumen; HU-25 (reembolsos) lo implementa otro agente y Inicio solo consume los saldos del dominio (T013: no se redefine ninguna regla de reembolso en Inicio ni en el calendario; los movimientos anulados o fallidos se excluyen del calendario).
+- T003: estados `Loading/Content/Empty/Error` (patrimonio) y `Loading/Loaded/Empty/Error` (calendario); `NoData` ≠ cero confirmado.
