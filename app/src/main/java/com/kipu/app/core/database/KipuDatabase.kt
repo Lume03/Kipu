@@ -56,6 +56,8 @@ import com.kipu.app.feature.movements.data.local.MovementOutboxEntity
 import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
 import com.kipu.app.feature.movements.data.local.TransactionRevisionEntity
 import com.kipu.app.feature.movements.data.local.TransactionEntity
+import com.kipu.app.feature.movements.data.local.TransactionLinkDao
+import com.kipu.app.feature.movements.data.local.TransactionLinkEntity
 import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao
@@ -111,6 +113,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CategoryConflictEntity::class,
         CategorySyncOutboxEntity::class,
         TransactionEntity::class,
+        TransactionLinkEntity::class,
         DebtEntity::class,
         DebtInstallmentEntity::class,
         DebtEventEntity::class,
@@ -147,7 +150,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         BudgetTombstoneEntity::class,
         BudgetSyncOutboxEntity::class,
     ],
-    version = 26,
+    version = 27,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -166,6 +169,7 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun merchantCatalogDao(): MerchantCatalogDao
     abstract fun merchantRulesDao(): MerchantRulesDao
     abstract fun movementDao(): MovementDao
+    abstract fun transactionLinkDao(): TransactionLinkDao
     abstract fun debtDao(): DebtDao
     abstract fun debtOutboxDao(): DebtOutboxDao
     abstract fun goalDao(): GoalDao
