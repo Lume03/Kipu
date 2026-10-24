@@ -1,6 +1,7 @@
 package com.kipu.app.feature.notifications.data
 
 import com.kipu.app.feature.accounts.data.local.CardDao
+import com.kipu.app.feature.budgets.data.local.BudgetDao
 import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationDestination
 import com.kipu.app.feature.notifications.domain.NotificationDestinationResolver
@@ -9,6 +10,7 @@ import javax.inject.Inject
 
 class RegisteredNotificationDestinationResolver @Inject constructor(
     private val cardDao: CardDao,
+    private val budgetDao: BudgetDao,
 ) : NotificationDestinationResolver {
     override suspend fun resolve(userId: String, notification: AppNotification): NotificationDestination {
         if (notification.userId != userId) return NotificationDestination.Unavailable()
@@ -22,7 +24,13 @@ class RegisteredNotificationDestinationResolver @Inject constructor(
                     NotificationDestination.CardDetail(referenceId)
                 }
             }
-            NotificationReferenceType.BUDGET,
+            NotificationReferenceType.BUDGET -> {
+                if (budgetDao.getBudget(userId, referenceId) == null) {
+                    NotificationDestination.Unavailable()
+                } else {
+                    NotificationDestination.BudgetDetail(referenceId)
+                }
+            }
             NotificationReferenceType.DEBT,
             NotificationReferenceType.GOAL,
             null -> NotificationDestination.Unavailable()
