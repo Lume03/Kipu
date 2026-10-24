@@ -1,18 +1,18 @@
 # Tasks: EP-PRE — Presupuestos y Consumos
 
-**Input**: Artefactos de `specs/014-ep-pre-presupuestos-consumos/`<br>
+**Input**: Artefactos de `specs/008-ep-pre-presupuestos-consumos/`<br>
 **Prerequisites**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`
 **Scope**: Futuro trabajo de implementación; NO realizado en esta tarea. `[P]` indica archivos/trabajo separables sin dependencias incompletas. Dependencias se indican como `depends on Txxx`.
 
 ## Fase 1: Setup / descubrimiento obligatorio
 
-- [ ] T001 Verificar HU-14/HU-18/HU-19/HU-25/HU-42/HU-57, inspeccionar código actual de categorías/movimientos/planes/notificaciones, identificar estado real y registrar evidencia en `specs/014-ep-pre-presupuestos-consumos/research.md` (gate previo; no asumir completitud).
-- [ ] T002 Resolver G1-G6 con responsables de EP-MOV, EP-NOT, bases/sync y producto; actualizar decisiones aprobadas y `specs/014-ep-pre-presupuestos-consumos/{research.md,plan.md,data-model.md}` antes de abrir implementación, incluida elegibilidad de moneda y explicación al usuario.
-- [ ] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/014-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
+- [ ] T001 Verificar HU-14/HU-18/HU-19/HU-25/HU-42/HU-57, inspeccionar código actual de categorías/movimientos/planes/notificaciones, identificar estado real y registrar evidencia en `specs/008-ep-pre-presupuestos-consumos/research.md` (gate previo; no asumir completitud).
+- [ ] T002 Resolver G1-G6 con responsables de EP-MOV, EP-NOT, bases/sync y producto; actualizar decisiones aprobadas y `specs/008-ep-pre-presupuestos-consumos/{research.md,plan.md,data-model.md}` antes de abrir implementación, incluida elegibilidad de moneda y explicación al usuario.
+- [ ] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/008-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
 
 ## Fase 2: Fundacional (bloqueante)
 
-- [ ] T004 Aprobar modelo Room/PostgreSQL, estados, rango/calendario y representación de periodo; documentar decisión en `specs/014-ep-pre-presupuestos-consumos/data-model.md` y plan de migración/rollback en `specs/014-ep-pre-presupuestos-consumos/plan.md` (depends on T001,T002).
+- [ ] T004 Aprobar modelo Room/PostgreSQL, estados, rango/calendario y representación de periodo; documentar decisión en `specs/008-ep-pre-presupuestos-consumos/data-model.md` y plan de migración/rollback en `specs/008-ep-pre-presupuestos-consumos/plan.md` (depends on T001,T002).
 - [ ] T005 [P] Implementar migración Room aditiva y sus tests en `app/src/main/java/com/kipu/app/core/database/` y `app/src/test/java/com/kipu/app/core/database/`; preservar datos financieros y verificar versión vigente (depends on T004).
 - [ ] T006 [P] Implementar migración PostgreSQL/RLS/índices aprobada en nuevo archivo `supabase/migrations/<timestamp>_ep_pre_budgets.sql` y pruebas SQL asociadas existentes; no aplicar a remoto (depends on T004).
 - [ ] T007 Definir interfaces internas reales de consulta a gastos y alertas en coordinación con EP-MOV/EP-NOT, usando sus contratos aprobados existentes; integrar adaptadores de dominio en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T001,T002,T004).
@@ -61,8 +61,8 @@
 
 - [ ] T030 [P] Auditar RLS/owner-bound references y acceso cross-user de presupuestos/periodos mediante tests en `supabase/tests/ep_pre_budget_rls.sql` (depends on T006,T008).
 - [ ] T031 [P] Auditar TalkBack, foco, errores/empty/offline/cupo/confirmación destructiva y textos accesibles en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T017,T024,T029).
-- [ ] T032 Ejecutar la estrategia de `specs/014-ep-pre-presupuestos-consumos/quickstart.md`, build/tests aplicables, migración representativa y regresiones EP-MOV; registrar salida y revisión cruzada sin afirmar resultado antes de ejecución (depends on T017,T024,T029,T030,T031).
-- [ ] T033 Actualizar `specs/014-ep-pre-presupuestos-consumos/{spec.md,plan.md,data-model.md,tasks.md}` solo con decisiones/evidencia aprobadas, y enlazar resultados; nunca sustituir gates por asunciones (depends on T032).
+- [ ] T032 Ejecutar la estrategia de `specs/008-ep-pre-presupuestos-consumos/quickstart.md`, build/tests aplicables, migración representativa y regresiones EP-MOV; registrar salida y revisión cruzada sin afirmar resultado antes de ejecución (depends on T017,T024,T029,T030,T031).
+- [ ] T033 Actualizar `specs/008-ep-pre-presupuestos-consumos/{spec.md,plan.md,data-model.md,tasks.md}` solo con decisiones/evidencia aprobadas, y enlazar resultados; nunca sustituir gates por asunciones (depends on T032).
 
 ## Cobertura trazable
 

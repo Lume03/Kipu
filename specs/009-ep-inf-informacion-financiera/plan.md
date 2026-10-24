@@ -1,6 +1,6 @@
 # Plan técnico: EP-INF — Inicio e Información Financiera
 
-**Rama**: `015-ep-inf-inicio-financiero` | **Fecha**: 2026-10-24 | **Spec**: [spec.md](spec.md)
+**Rama**: `009-ep-inf-informacion-financiera` | **Fecha**: 2026-10-24 | **Spec**: [spec.md](spec.md)
 **Fase documental**: planificación previa; no autoriza implementación.
 
 ## Resumen

@@ -5,7 +5,7 @@
 
 ## Fase 1 — Clarificación y fundamento (bloquea historias)
 
-- [ ] T001 [P] Resolver GATE-DESIGN-01 con autoridad visual y registrar decisión referenciada desde `specs/015-ep-inf-inicio-financiero/spec.md`.
+- [ ] T001 [P] Resolver GATE-DESIGN-01 con autoridad visual y registrar decisión referenciada desde `specs/009-ep-inf-informacion-financiera/spec.md`.
 - [ ] T002 Confirmar con android-core contratos reales de datos/UiState/eventos, fuentes locales y propietario de cada consulta de patrimonio, movimiento, deuda, tarjeta, recurrencia y meta; documentar paths existentes y no crear duplicados.
 - [ ] T003 Confirmar estados Empty/Zero/Unknown/Error y semántica de datos faltantes; ajustar spec/modelo únicamente con aprobación.
 - [ ] T004 [P] Definir y revisar en contrato de navegación las rutas existentes desde calendario a los objetos (incluido origen no disponible) con propietarios correspondientes.
@@ -63,7 +63,7 @@
 
 ## Paths
 
-Los paths de código son deliberadamente no fijados cuando falta inspección de símbolos/contratos de repositorios y rutas. Los paths documentales de decisiones son los archivos bajo `specs/015-ep-inf-inicio-financiero/`. En fase de implementación, cada tarea debe concretar la ruta real existente antes de editar y no crear un módulo por conjetura.
+Los paths de código son deliberadamente no fijados cuando falta inspección de símbolos/contratos de repositorios y rutas. Los paths documentales de decisiones son los archivos bajo `specs/009-ep-inf-informacion-financiera/`. En fase de implementación, cada tarea debe concretar la ruta real existente antes de editar y no crear un módulo por conjetura.
 
 ## Matriz explícita de cobertura
 

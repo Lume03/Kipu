@@ -1,6 +1,6 @@
 # Implementation Plan: EP-DEU — Deudas y Préstamos (Sprint 5)
 
-**Branch**: `[013-ep-deu-deudas-prestamos]` | **Date**: 2026-10-08 | **Spec**: [spec.md](spec.md)
+**Branch**: `[005-ep-deu-deudas-prestamos]` | **Date**: 2026-10-08 | **Spec**: [spec.md](spec.md)
 
 **Input**: Sprint 5 stories HU-26, HU-27, HU-28, HU-29 from Product Backlog V4.2.
 
@@ -90,7 +90,7 @@ Gate: reconcile migration history and structure first; validate data-preserving 
 ### Documentation
 
 ```text
-specs/013-ep-deu-deudas-prestamos/
+specs/005-ep-deu-deudas-prestamos/
 ├── spec.md
 ├── plan.md
 ├── research.md

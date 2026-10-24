@@ -23,7 +23,7 @@ Los tres documentos detallados conservan la versión de modelado 2.1 del 20/09/2
 | Recurrencias | [EP-REC](../../specs/007-ep-rec-recurrencias-obligaciones/data-model.md) | [Spec](../../specs/007-ep-rec-recurrencias-obligaciones/spec.md) |
 | Notificaciones | [EP-NOT](../../specs/010-ep-not-notificaciones-avisos/data-model.md) | [Spec](../../specs/010-ep-not-notificaciones-avisos/spec.md) |
 | Planes y monetización | [EP-PLA](../../specs/012-ep-pla-planes-monetizacion/data-model.md) | [Spec](../../specs/012-ep-pla-planes-monetizacion/spec.md) |
-| Deudas y préstamos | [EP-DEU](../../specs/013-ep-deu-deudas-prestamos/data-model.md) | [Spec](../../specs/013-ep-deu-deudas-prestamos/spec.md) |
+| Deudas y préstamos | [EP-DEU](../../specs/005-ep-deu-deudas-prestamos/data-model.md) | [Spec](../../specs/005-ep-deu-deudas-prestamos/spec.md) |
 
 En este checkout no hay artefactos propios de EP-PRE, EP-INF o EP-AUT en `specs/`. Su alcance de base sigue en el [backlog](../producto/backlog.md). No inventar carpetas, columnas ni contratos para completar visualmente este índice.
 

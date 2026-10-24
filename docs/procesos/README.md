@@ -10,7 +10,7 @@ Los flujos de uso se mantienen en las historias y sus escenarios de aceptación,
 | Administrar cuentas, tarjetas, crédito y cuotas | HU-07–HU-13 | [EP-CTA](../../specs/002-ep-cta-cuentas-tarjetas/spec.md) |
 | Categorías, comercios, alias y preferencias | HU-14–HU-17 | [EP-CCO](../../specs/003-ep-cco-categorias-comercios/spec.md) |
 | Registrar, corregir, anular y consultar movimientos | HU-18–HU-25 | [EP-MOV](../../specs/004-ep-mov-movimientos-ledger/spec.md) |
-| Administrar deudas, préstamos y liquidaciones | HU-26–HU-29 | [EP-DEU](../../specs/013-ep-deu-deudas-prestamos/spec.md) |
+| Administrar deudas, préstamos y liquidaciones | HU-26–HU-29 | [EP-DEU](../../specs/005-ep-deu-deudas-prestamos/spec.md) |
 | Crear metas, reservar y liberar fondos | HU-30–HU-32 | [EP-MET](../../specs/006-ep-met-metas-reservas/spec.md) |
 | Recurrencias, esperados y estados | HU-33–HU-35 | [EP-REC](../../specs/007-ep-rec-recurrencias-obligaciones/spec.md); revisar su alcance: no todas las HU están incluidas |
 | Presupuestos y consumo | HU-36–HU-38 | Base de producto; sin spec propia en este checkout |
