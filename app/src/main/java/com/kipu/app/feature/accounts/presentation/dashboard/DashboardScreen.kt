@@ -117,6 +117,8 @@ import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
+import com.kipu.app.feature.home.presentation.NetWorthCard
+import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
 import com.kipu.app.feature.notifications.presentation.UnreadNotificationBadge
 import com.kipu.app.ui.component.LocalBalanceMasked
@@ -148,6 +150,8 @@ fun DashboardScreen(
     openRegisterMovement: Boolean = false,
     onConsumeRegisterMovement: () -> Unit = {},
     onNavigateToGoals: () -> Unit = {},
+    netWorthState: NetWorthUiState? = null,
+    onRetryNetWorth: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val state by viewModel.dashboardUiState.collectAsStateWithLifecycle()
@@ -332,6 +336,8 @@ fun DashboardScreen(
                         onNavigateToNewAccount = onNavigateToNewAccount,
                         onNavigateToNewCard = onNavigateToNewCard,
                         onNavigateToGoals = onNavigateToGoals,
+                        netWorthState = netWorthState,
+                        onRetryNetWorth = onRetryNetWorth,
                     )
                 }
             }
@@ -516,6 +522,8 @@ private fun ActiveDashboardContent(
     onNavigateToNewCard: () -> Unit,
     onNavigateToGoals: () -> Unit,
     modifier: Modifier = Modifier,
+    netWorthState: NetWorthUiState? = null,
+    onRetryNetWorth: () -> Unit = {},
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val computableCount = data?.activeComputableCount ?: instruments.activeComputableCount
@@ -862,6 +870,13 @@ private fun ActiveDashboardContent(
                         }
                     }
                 }
+            }
+        }
+
+        // HU-39: resumen patrimonial bajo el hero; la estructura del dashboard no cambia.
+        if (netWorthState != null) {
+            item(key = "net_worth_summary") {
+                NetWorthCard(state = netWorthState, onRetry = onRetryNetWorth)
             }
         }
 
