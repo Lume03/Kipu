@@ -9,6 +9,7 @@ import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.core.session.SessionCoordinatorImpl
 import com.kipu.app.feature.budgets.data.sync.BudgetSyncScheduler
 import com.kipu.app.feature.budgets.domain.Budget
+import com.kipu.app.feature.budgets.domain.BudgetAlert
 import com.kipu.app.feature.budgets.domain.BudgetAlertKey
 import com.kipu.app.feature.budgets.domain.BudgetInterval
 import com.kipu.app.feature.budgets.domain.BudgetPeriod
@@ -38,6 +39,7 @@ class OfflineFirstBudgetRepositoryRoomTest {
     private lateinit var database: KipuDatabase
     private lateinit var repository: OfflineFirstBudgetRepository
     private lateinit var alertLedger: RoomBudgetAlertLedger
+    private lateinit var sessionCoordinator: SessionCoordinatorImpl
 
     @Before
     fun setUp() = runBlocking {
@@ -45,7 +47,7 @@ class OfflineFirstBudgetRepositoryRoomTest {
         database = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        val session = SessionCoordinatorImpl().also { it.setActiveOwner(ownerId) }
+        sessionCoordinator = SessionCoordinatorImpl().also { it.setActiveOwner(ownerId) }
         val transactionRunner = object : DatabaseTransactionRunner {
             override suspend fun <R> invoke(block: suspend () -> R): R = database.withTransaction { block() }
         }
@@ -53,12 +55,12 @@ class OfflineFirstBudgetRepositoryRoomTest {
             budgetDao = database.budgetDao(),
             alertLedgerDao = database.budgetAlertLedgerDao(),
             transactionRunner = transactionRunner,
-            sessionCoordinator = session,
+            sessionCoordinator = sessionCoordinator,
             syncScheduler = object : BudgetSyncScheduler { override fun scheduleSync(userId: String) = Unit },
             clock = clock,
             zoneId = zone,
         )
-        alertLedger = RoomBudgetAlertLedger(database.budgetAlertLedgerDao(), session, clock)
+        alertLedger = RoomBudgetAlertLedger(database.budgetAlertLedgerDao(), sessionCoordinator, clock)
     }
 
     @After
@@ -88,6 +90,14 @@ class OfflineFirstBudgetRepositoryRoomTest {
         val key = BudgetAlertKey(ownerId, budgetId, period.id, 8000)
         assertTrue(alertLedger.tryRecord(key))
         assertFalse(alertLedger.tryRecord(key))
+        val notifier = BudgetCenterAlertNotifier(database.appNotificationDao(), sessionCoordinator, clock)
+        val alert = BudgetAlert(key, budget.name, 8000, 8000, period.limitMinor, budget.currency)
+        notifier.notify(alert)
+        notifier.notify(alert)
+        database.openHelper.writableDatabase.query(
+            "SELECT COUNT(*) FROM app_notifications WHERE user_id=? AND id=? AND notification_type='BUDGET_ALERT'",
+            arrayOf(ownerId, key.dedupeKey),
+        ).use { it.moveToFirst(); assertEquals(1L, it.getLong(0)) }
 
         val db = database.openHelper.writableDatabase
         db.execSQL("""INSERT INTO accounts (
