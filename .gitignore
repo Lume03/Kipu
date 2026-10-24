@@ -88,3 +88,4 @@ docs/qa/**/capturas/_local-only/
 
 # Owner-supplied financial receipts: local OCR validation only, never publish originals.
 /docs/referencias/OCR-YAPE/
+.worktrees/
