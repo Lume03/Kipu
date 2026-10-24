@@ -263,6 +263,14 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 3. **Given** una compra de S/100 con S/40 ya reembolsados, **When** se intentan devolver S/70, **Then** se rechaza porque solo quedan S/60 reembolsables.
 4. **Given** una compra de septiembre y un reembolso de octubre, **When** se registra la devolución, **Then** la caja cambia en octubre y el gasto y presupuesto originales se ajustan explicando ambas fechas.
 
+#### Decisiones aprobadas para implementación S7 (2026-10-24)
+
+- Son elegibles los gastos propios vigentes y confirmados (`CONFIRMED`/`REVISED`; se admite `ACTIVE` para compras de tarjeta ya confirmadas por el flujo actual), sin anulación ni rechazo permanente, pagados con efectivo, débito o tarjeta de crédito en una sola cuota. Se excluyen cuotas, transferencias, pagos de principal y movimientos especializados de deuda o metas.
+- La devolución se acredita automáticamente al instrumento de la compra: a su cuenta de origen o a la misma tarjeta de crédito. No se permite escoger otro destino.
+- El reembolso es `INCOME` con `operation_kind=REFUND`, relacionado una sola vez por `transaction_links.link_type=REFUND`, desde la compra hacia el reembolso. No se escribe `refund_of_transaction_id` y no se incluye en ingreso operativo.
+- Si la aceptación remota rechaza un intento offline por remanente agotado, se conserva visible con estado y motivo de rechazo; se puede anular mediante la ruta especializada. Nunca se borra ni se cambia la compra original.
+- La caja se reconoce en la fecha del reembolso. Gasto neto y consumo se recalculan en la fecha/categoría de la compra. EP-PRE usará su consulta existente de consumo, que devuelve gasto neto; no hay adaptador ni mantenimiento de presupuestos en EP-MOV. La prueba integrada de HU-36 queda pendiente.
+
 ### Edge Cases
 
 - El importe es cero, negativo, excede el rango monetario admitido o contiene más decimales que la moneda.

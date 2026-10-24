@@ -126,3 +126,13 @@ Inspección estática del branch EP-MOV y migraciones locales; no se consultó e
 | No existe contrato EP-PRE/HU-36 en el directorio de specs inspeccionado | Inventario actual de `specs/` no contiene EP-PRE | La aceptación integrada entre periodos depende de un contrato real posterior; no aceptar stubs como provider. |
 
 **Dirección recomendada**: `operation_kind=REFUND` + `transaction_links.link_type=REFUND`, con la compra como origen del vínculo y el reembolso como destino; comando especializado e idempotente, ownership conjunto validado por servidor y serialización del remanente por compra. Arquitectura, Seguridad y Finanzas deben aprobar las propiedades finales. La dirección de efectivo, elegibilidad ampliada de compras y tratamiento visible de una carrera offline son decisiones de Producto/Finanzas no inferidas.
+
+## Resolución S7 — HU-25 (2026-10-24)
+
+El encargo de implementación cierra las preguntas S7-01–S7-04. Los gastos elegibles son compras propias `EXPENSE` confirmadas/vigentes no anuladas, pagadas en efectivo, débito o tarjeta de crédito sin cuotas; quedan fuera cuotas, transferencias, principal de deuda y operaciones especializadas de deuda/metas. La caja vuelve al instrumento de la compra original. Una denegación offline por remanente agotado conserva el reembolso rechazado con motivo y permite su anulación explícita.
+
+Se aprueba para implementación la representación `INCOME + operation_kind=REFUND` y el único vínculo `transaction_links` con compra→reembolso; `refund_of_transaction_id` queda sin uso. El comando `refund_transaction_v1` es propio y no altera contratos ni bytes de `register_transaction_v1/v2`. Dominio y servidor validan el remanente; la RPC serializa por compra y el replay exacto es idempotente.
+
+La consulta existente `ExpenseConsumptionRepository.queryConsumption`/`MovementLocalDataSource.queryExpenseConsumption` representa gasto neto: resta del importe del gasto los reembolsos válidos vinculados, usando fecha y categoría de la compra original. EP-PRE/HU-36 consume esa consulta; EP-MOV no implementa un adaptador ni reglas de presupuesto. Se cubre con pruebas JVM/Room, mientras la aceptación integrada con el provider real sigue pendiente.
+
+Estas decisiones autorizan el desarrollo S7 pero no afirman revisión independiente ni despliegue. La revisión cruzada de Arquitectura, Finanzas y Seguridad queda pendiente de T149. Las migraciones PostgreSQL se versionan y prueban localmente; no se conectan ni aplican a Supabase hosted.

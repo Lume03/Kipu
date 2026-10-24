@@ -300,3 +300,11 @@ La captura compacta se obtuvo del árbol Compose y muestra la entrada de importe
 - No se ejecutaron unit tests, Android instrumentation, pgTAP, migraciones, RPC, build, despliegue remoto ni pruebas contra datos reales en este refine. Las evidencias anteriores de S2/S4/S6 permanecen históricas y no certifican HU-25.
 
 **Próximo gate**: resolver T132–T135 de `tasks.md`, obtener revisión final de Arquitectura/Finanzas/Seguridad y verificar el provider real de EP-PRE antes de liberar las tareas de implementación correspondientes.
+
+## Sprint 7 — resolución documental T132–T135 (2026-10-24)
+
+Producto/Finanzas cerró S7-01–S7-03 y se adoptó S7-04 como resolución técnica de implementación. Los términos finales están en `team-questions.md`, `spec.md`, `data-model.md` y `contracts/refund-transaction-v1.md`; el contrato propio `refund_transaction_v1` queda **Aprobado para implementación S7**. Se registra la decisión entregada para este trabajo, no una firma nominal de Arquitectura, Finanzas o Seguridad. La revisión independiente de esos roles sigue pendiente en T149.
+
+El contrato preserva G/I/T: `INCOME + operation_kind=REFUND`, vínculo canónico compra→reembolso en `transaction_links`, remanente serializado en servidor, rechazo offline visible/anulable e idempotencia versionada sin alterar registros históricos. Para EP-PRE se usa la consulta compartida de gasto neto; no se crea `RefundBudgetAdjustmentAdapter` ni código de presupuesto. Las pruebas JVM/Room de dicha consulta pertenecen al slice de persistencia; provider real de HU-36 y T144 continúan pendientes.
+
+Este registro es documental. No atribuye resultados de tests, migraciones, RPC, despliegue ni integración. Supabase hosted no se consulta ni modifica.

@@ -294,6 +294,14 @@ La presentación de filtros conserva SC-014–017: privacidad y owner, aplicar/c
 - **Gate de integración**: especificación/contrato real y proveedor de EP-PRE/HU-36 disponibles antes de ejecutar la prueba entre periodos y aceptar HU-25.
 - **Gate de implementación**: revisión de Arquitectura, Integridad Financiera y Seguridad sobre `data-model.md` y `contracts/refund-transaction-v1.md`; decisiones no resueltas permanecen bloqueantes. Ningún gate afirma pruebas ejecutadas.
 
+### Resolución aprobada que reemplaza el borrador (2026-10-24)
+
+Las respuestas S7-01–S7-04 cierran el gate para implementación y reemplazan las recomendaciones pendientes de las secciones anteriores. Son elegibles gastos propios `EXPENSE` vigentes/no anulados pagados en efectivo, débito o crédito sin cuotas. La devolución vuelve al mismo instrumento; un rechazo offline por exceso permanece visible con motivo y se anula sólo por ruta especializada.
+
+El hecho contable es `INCOME + operation_kind=REFUND`, enlazado compra→reembolso por `transaction_links.link_type=REFUND`; no se escribe `refund_of_transaction_id`. `refund_transaction_v1` es independiente de `register_transaction_v1/v2`, idempotente y serializado por compra en el servidor. La confirmación local incluye movimiento, enlace, ledger, proyección, recibo y outbox en una transacción.
+
+Para EP-PRE se modifica la consulta ya existente de consumo para devolver gasto neto a fecha/categoría de compra. No se crea `RefundBudgetAdjustmentAdapter` ni lógica presupuestaria. T144 y la aceptación integrada siguen esperando el provider real de HU-36; T149 conserva la revisión independiente. Room migra 25→26; Supabase sólo recibe archivos versionados locales, sin uso de hosted.
+
 ### Archivos y superficies futuras
 
 Áreas existentes afectadas previstas: `MovementModels.kt`, `MovementRepository.kt`, `MovementEntities.kt`, `MovementDao.kt`, `MovementLocalDataSource.kt`, `TransactionMappers.kt`, `OfflineFirstMovementRepository.kt`, `MovementOutboxPayloadFactory.kt`, `MovementDtos.kt`, `MovementApi.kt`, `SyncMovementsWorker.kt`, `MovementHistoryViewModel.kt`, `MovementHistoryScreen.kt`, `KipuDatabase.kt`, `RoomMigrations.kt`, y migraciones/tests bajo `supabase/`. Posibles entregables nuevos (no creados en esta etapa): `MovementLinkEntity.kt`, `MovementLinkDao.kt`, `MovementRefundSheet.kt`, `RefundBudgetAdjustmentAdapter.kt` y pruebas `RefundTransactionTest.kt`, `MovementRefundRoomTest.kt`, `MovementRefundSyncTest.kt`, `MovementRefundBudgetIntegrationTest.kt`, `MovementRefundScreenTest.kt`, `supabase/tests/database/movements_refund_test.sql`.
