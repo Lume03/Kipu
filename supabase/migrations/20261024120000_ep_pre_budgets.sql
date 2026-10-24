@@ -122,17 +122,23 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+    v_new_tombstone integer;
 BEGIN
     INSERT INTO public.budget_tombstones (budget_id, user_id, last_revision)
     VALUES (p_budget_id, p_user_id, COALESCE(p_last_revision, 0))
     ON CONFLICT (budget_id) DO NOTHING;
+    GET DIAGNOSTICS v_new_tombstone = ROW_COUNT;
 
     -- budget_periods cae por ON DELETE CASCADE; transactions/ledger/cuentas/categorias no se tocan.
     DELETE FROM public.budgets WHERE id = p_budget_id AND user_id = p_user_id;
 
-    INSERT INTO internal.sync_changes (user_id, entity_type, entity_id, revision, operation, payload)
-    VALUES (p_user_id, 'BUDGET', p_budget_id, COALESCE(p_last_revision, 0) + 1, 'DELETE',
-            pg_catalog.jsonb_build_object('id', p_budget_id));
+    -- Se publica una sola vez: los reintentos del borrado no repiten el cambio de sync.
+    IF v_new_tombstone = 1 THEN
+        INSERT INTO internal.sync_changes (user_id, entity_type, entity_id, revision, operation, payload)
+        VALUES (p_user_id, 'BUDGET', p_budget_id, COALESCE(p_last_revision, 0) + 1, 'DELETE',
+                pg_catalog.jsonb_build_object('id', p_budget_id));
+    END IF;
 END;
 $$;
 REVOKE ALL ON FUNCTION internal.budget_physical_delete_v1(uuid, uuid, bigint) FROM PUBLIC, anon, authenticated, service_role;
@@ -329,7 +335,7 @@ AS $$
     ), tree AS (
         SELECT c.id FROM public.categories c, b WHERE c.id = b.category_id
         UNION
-        SELECT c.id FROM public.categories c JOIN tree t ON c.parent_category_id = t.id
+        SELECT c.id FROM public.categories c JOIN tree t ON c.parent_id = t.id
     ), eligible AS (
         SELECT t.id, t.amount_minor
         FROM public.transactions t, b, bounds

@@ -1,6 +1,6 @@
 -- EP-PRE: presupuestos, vigencias, tombstone de borrado, cupo Free y consumo neto.
 BEGIN;
-SELECT plan(54);
+SELECT plan(61);
 
 -- ---------------------------------------------------------------------------
 -- Fixture
@@ -9,11 +9,11 @@ INSERT INTO auth.users (id, email) VALUES
     ('9a000000-0000-4000-8000-000000000001', 'pre-owner@example.test'),
     ('9a000000-0000-4000-8000-000000000002', 'pre-other@example.test');
 
-INSERT INTO public.categories (id, user_id, name) VALUES
-    ('9a000000-0000-4000-8000-0000000000c1', '9a000000-0000-4000-8000-000000000001', 'Comida'),
-    ('9a000000-0000-4000-8000-0000000000c2', '9a000000-0000-4000-8000-000000000001', 'Restaurantes'),
-    ('9a000000-0000-4000-8000-0000000000c3', '9a000000-0000-4000-8000-000000000002', 'Ajena');
-UPDATE public.categories SET parent_category_id = '9a000000-0000-4000-8000-0000000000c1'
+INSERT INTO public.categories (id, user_id, name, origin) VALUES
+    ('9a000000-0000-4000-8000-0000000000c1', '9a000000-0000-4000-8000-000000000001', 'Comida', 'CUSTOM'),
+    ('9a000000-0000-4000-8000-0000000000c2', '9a000000-0000-4000-8000-000000000001', 'Restaurantes', 'CUSTOM'),
+    ('9a000000-0000-4000-8000-0000000000c3', '9a000000-0000-4000-8000-000000000002', 'Ajena', 'CUSTOM');
+UPDATE public.categories SET parent_id = '9a000000-0000-4000-8000-0000000000c1'
  WHERE id = '9a000000-0000-4000-8000-0000000000c2';
 
 INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, initial_balance_minor_units, creation_operation_id, preset_id)
@@ -35,8 +35,8 @@ INSERT INTO public.transactions (id, user_id, account_id, category_id, transacti
     ('9a000000-0000-4000-8000-000000000e02', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c2', 'EXPENSE', 'STANDARD', 2000, 'PEN', '2026-06-20 12:00+00', 'REVISED', NULL),
     ('9a000000-0000-4000-8000-000000000e03', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'EXPENSE', 'STANDARD', 5000, 'PEN', '2026-06-11 12:00+00', 'VOIDED', NULL),
     ('9a000000-0000-4000-8000-000000000e04', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'EXPENSE', 'STANDARD', 7000, 'USD', '2026-06-12 12:00+00', 'CONFIRMED', NULL),
-    ('9a000000-0000-4000-8000-000000000e05', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', NULL, 'EXPENSE', 'GOAL_FUNDING', 4000, 'PEN', '2026-06-13 12:00+00', 'CONFIRMED', NULL),
-    ('9a000000-0000-4000-8000-000000000e06', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', NULL, 'EXPENSE', 'STANDARD', 3000, 'PEN', '2026-06-14 12:00+00', 'CONFIRMED', '9a000000-0000-4000-8000-000000000f01'),
+    ('9a000000-0000-4000-8000-000000000e05', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'EXPENSE', 'GOAL_FUNDING', 4000, 'PEN', '2026-06-13 12:00+00', 'CONFIRMED', NULL),
+    ('9a000000-0000-4000-8000-000000000e06', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'EXPENSE', 'STANDARD', 3000, 'PEN', '2026-06-14 12:00+00', 'CONFIRMED', '9a000000-0000-4000-8000-000000000f01'),
     ('9a000000-0000-4000-8000-000000000e07', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'EXPENSE', 'STANDARD', 900, 'PEN', '2026-07-01 12:00+00', 'CONFIRMED', NULL),
     -- reembolso (julio) de la compra e01 (junio): se imputa a junio
     ('9a000000-0000-4000-8000-000000000e08', '9a000000-0000-4000-8000-000000000001', '9a000000-0000-4000-8000-0000000000a1', '9a000000-0000-4000-8000-0000000000c1', 'INCOME', 'REFUND', 3000, 'PEN', '2026-07-02 12:00+00', 'CONFIRMED', NULL);
@@ -94,8 +94,8 @@ SELECT is((SELECT count(*)::int FROM public.budgets WHERE id = '9a000000-0000-40
 SELECT is((SELECT count(*)::int FROM public.budget_periods WHERE id = '9a000000-0000-4000-8000-0000000000d9'), 0, 'no lee periodos ajenos');
 SELECT is((SELECT count(*)::int FROM public.budget_periods WHERE id = '9a000000-0000-4000-8000-0000000000d1'), 1, 'lee sus propios periodos');
 SELECT throws_ok($$INSERT INTO public.budgets (user_id, name, limit_minor, currency_code, status) VALUES ('9a000000-0000-4000-8000-000000000002','suplanto',100,'PEN','FINISHED')$$, '42501', NULL, 'no inserta presupuestos a nombre de otro usuario');
-SELECT is((WITH u AS (UPDATE public.budgets SET name = 'hack' WHERE id = '9a000000-0000-4000-8000-0000000000b9' RETURNING 1) SELECT count(*)::int FROM u), 0, 'no actualiza presupuestos ajenos');
-SELECT is((WITH u AS (UPDATE public.budget_periods SET limit_minor = 1 WHERE id = '9a000000-0000-4000-8000-0000000000d9' RETURNING 1) SELECT count(*)::int FROM u), 0, 'no actualiza periodos ajenos');
+UPDATE public.budgets SET name = 'hack' WHERE id = '9a000000-0000-4000-8000-0000000000b9';
+UPDATE public.budget_periods SET limit_minor = 1 WHERE id = '9a000000-0000-4000-8000-0000000000d9';
 SELECT throws_ok($$INSERT INTO public.budget_periods (user_id, budget_id, starts_on, ends_on, limit_minor) VALUES ('9a000000-0000-4000-8000-000000000002','9a000000-0000-4000-8000-0000000000b9','2026-10-26','2026-11-02',100)$$, '42501', NULL, 'no inserta periodos a nombre de otro usuario');
 SELECT throws_ok($$INSERT INTO public.budget_periods (user_id, budget_id, starts_on, ends_on, limit_minor) VALUES ('9a000000-0000-4000-8000-000000000001','9a000000-0000-4000-8000-0000000000b9','2026-10-26','2026-11-02',100)$$, '23503', NULL, 'no cuelga periodos propios de un presupuesto ajeno');
 SELECT throws_ok($$INSERT INTO public.budgets (user_id, name, limit_minor, currency_code, status, category_id) VALUES ('9a000000-0000-4000-8000-000000000001','catajena',100,'PEN','FINISHED','9a000000-0000-4000-8000-0000000000c3')$$, 'P0001', 'INVALID_CATEGORY: Category is not available for this user', 'categoria de otro usuario rechazada');
@@ -123,10 +123,13 @@ SELECT throws_ok($$INSERT INTO public.budgets (id, user_id, name, limit_minor, c
 SELECT throws_ok($$INSERT INTO public.budgets (id, user_id, name, limit_minor, currency_code, status) VALUES ('9a000000-0000-4000-8000-0000000000b1','9a000000-0000-4000-8000-000000000001','resucitado',100,'PEN','FINISHED') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name$$, 'P0001', 'BUDGET_DELETED: Budget 9a000000-0000-4000-8000-0000000000b1 was deleted and cannot be recreated', 'tampoco con ON CONFLICT DO UPDATE (comando de sync)');
 
 -- Soft-delete legado => borrado fisico + tombstone
-SELECT is((WITH u AS (UPDATE public.budgets SET deleted_at = now() WHERE id = '9a000000-0000-4000-8000-0000000000b2' RETURNING 1) SELECT count(*)::int FROM u), 1, 'soft-delete legado actualiza una fila');
+UPDATE public.budgets SET deleted_at = now() WHERE id = '9a000000-0000-4000-8000-0000000000b2';
 SELECT is((SELECT count(*)::int FROM public.budgets WHERE id = '9a000000-0000-4000-8000-0000000000b2') * 10 + (SELECT count(*)::int FROM public.budget_tombstones WHERE budget_id = '9a000000-0000-4000-8000-0000000000b2'), 1, 'soft-delete legado se convierte en borrado fisico con tombstone');
 
 RESET ROLE;
+SELECT is((SELECT name FROM public.budgets WHERE id = '9a000000-0000-4000-8000-0000000000b9'), 'Ajeno', 'no actualiza presupuestos ajenos');
+SELECT is((SELECT limit_minor FROM public.budget_periods WHERE id = '9a000000-0000-4000-8000-0000000000d9'), 10000::bigint, 'no actualiza periodos ajenos');
+SELECT is((SELECT count(*)::int FROM public.budgets WHERE id = '9a000000-0000-4000-8000-0000000000b2'), 0, 'soft-delete legado elimina la fila');
 SELECT is((SELECT count(*)::int FROM internal.sync_changes WHERE entity_type = 'BUDGET' AND operation = 'DELETE' AND entity_id = '9a000000-0000-4000-8000-0000000000b1'), 1, 'borrado publicado en sync_changes una sola vez');
 
 -- Calendario (G1)
