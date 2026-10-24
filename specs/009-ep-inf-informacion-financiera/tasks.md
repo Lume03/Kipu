@@ -1,29 +1,31 @@
 # Tareas previstas: EP-INF — Inicio e Información Financiera
 
 **Entrada**: `spec.md`, `plan.md`, `research.md`, `data-model.md`.
-**Estado**: descomposición documental para implementación futura; todas las casillas quedan sin marcar. No ejecutar en esta tarea.
+**Estado**: S7 (HU-39/HU-40) implementada en `s7/inf`; T014, T027, T028 siguen abiertas (ver nota). HU-41 (T021–T026) y T029–T030 fuera de este incremento.
+
+> Nota 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
 
 ## Fase 1 — Clarificación y fundamento (bloquea historias)
 
-- [ ] T001 [P] Resolver GATE-DESIGN-01 con autoridad visual y registrar decisión referenciada desde `specs/009-ep-inf-informacion-financiera/spec.md`.
-- [ ] T002 Confirmar con android-core contratos reales de datos/UiState/eventos, fuentes locales y propietario de cada consulta de patrimonio, movimiento, deuda, tarjeta, recurrencia y meta; documentar paths existentes y no crear duplicados.
-- [ ] T003 Confirmar estados Empty/Zero/Unknown/Error y semántica de datos faltantes; ajustar spec/modelo únicamente con aprobación.
-- [ ] T004 [P] Definir y revisar en contrato de navegación las rutas existentes desde calendario a los objetos (incluido origen no disponible) con propietarios correspondientes.
-- [ ] T005 Confirmar modelo de entitlement efectivo y capacidades Free/Premium con EP-PLA/android-core antes de HU-41.
-- [ ] T006 Validar dependencias upstream: HU-07/18/19/22 y HU-09/29/33; HU-36/26/30/58 y HU-25 para puntos de integración indicados.
+- [X] T001 [P] Resolver GATE-DESIGN-01 con autoridad visual y registrar decisión referenciada desde `specs/009-ep-inf-informacion-financiera/spec.md`.
+- [X] T002 Confirmar con android-core contratos reales de datos/UiState/eventos, fuentes locales y propietario de cada consulta de patrimonio, movimiento, deuda, tarjeta, recurrencia y meta; documentar paths existentes y no crear duplicados.
+- [X] T003 Confirmar estados Empty/Zero/Unknown/Error y semántica de datos faltantes; ajustar spec/modelo únicamente con aprobación.
+- [X] T004 [P] Definir y revisar en contrato de navegación las rutas existentes desde calendario a los objetos (incluido origen no disponible) con propietarios correspondientes.
+- [X] T005 Confirmar modelo de entitlement efectivo y capacidades Free/Premium con EP-PLA/android-core antes de HU-41.
+- [X] T006 Validar dependencias upstream: HU-07/18/19/22 y HU-09/29/33; HU-36/26/30/58 y HU-25 para puntos de integración indicados.
 
 ## Fase 2 — HU-39 Inicio e historial (S7, P1)
 
 **Goal**: Presentar patrimonio e historial existentes con acceso Free, privacidad y estados explícitos, preservando invariantes del dominio.
 **Independent Test**: Validar los escenarios HU-39 1–5 y FR-001–FR-005/FR-012–FR-014 con fixtures y contratos aprobados, sin requerir calendario ni analítica.
 
-- [ ] T007 [P] [US1] Añadir pruebas de dominio/consulta para patrimonio con assets, receivable, liabilities, reserve y credit capacity del escenario FR-001/SC-001, en paths de test existentes tras inspección.
-- [ ] T008 [US1] Implementar/reutilizar consulta de resumen patrimonial en caso de uso de dominio existente; mantener fórmula y moneda aprobadas, sin cálculo autoritativo en presentación.
-- [ ] T009 [US1] Extender UiState/ViewModel de Inicio solo si contrato existente no cubre total/estados; cubrir loading, content, empty, unknown, error y retry.
-- [ ] T010 [US1] Implementar presentación Inicio según sistema visual aprobado, con máscara de importes y semántica accesible.
-- [ ] T011 [P] [US1] Integrar historial paginado/filtrado por periodo vía caso de uso existente; Free conserva consulta de toda la historia accesible.
-- [ ] T012 [US1] Implementar estado vacío y navegación hacia registro; mantener lectura/corrección de movimiento desde historial.
-- [ ] T013 [US1] Verificar comportamiento de reembolsos/anulaciones con dominio de HU-25/HU-21 sin redefinir reglas en UI.
+- [X] T007 [P] [US1] Añadir pruebas de dominio/consulta para patrimonio con assets, receivable, liabilities, reserve y credit capacity del escenario FR-001/SC-001, en paths de test existentes tras inspección.
+- [X] T008 [US1] Implementar/reutilizar consulta de resumen patrimonial en caso de uso de dominio existente; mantener fórmula y moneda aprobadas, sin cálculo autoritativo en presentación.
+- [X] T009 [US1] Extender UiState/ViewModel de Inicio solo si contrato existente no cubre total/estados; cubrir loading, content, empty, unknown, error y retry.
+- [X] T010 [US1] Implementar presentación Inicio según sistema visual aprobado, con máscara de importes y semántica accesible.
+- [X] T011 [P] [US1] Integrar historial paginado/filtrado por periodo vía caso de uso existente; Free conserva consulta de toda la historia accesible.
+- [X] T012 [US1] Implementar estado vacío y navegación hacia registro; mantener lectura/corrección de movimiento desde historial.
+- [X] T013 [US1] Verificar comportamiento de reembolsos/anulaciones con dominio de HU-25/HU-21 sin redefinir reglas en UI.
 - [ ] T014 [US1] Validar HU-39 offline, aislamiento por propietario, máscara y fixtures según quickstart.
 
 ## Fase 3 — HU-40 Calendario (S7, P1)
@@ -31,12 +33,12 @@
 **Goal**: Exponer eventos financieros realizados y previstos como elementos independientes con rutas a objetos existentes, sin mutaciones financieras.
 **Independent Test**: Validar HU-40 1–5 y FR-006–FR-008 con eventos coincidentes y navegación, independiente de HU-39 y HU-41.
 
-- [ ] T015 [P] [US2] Definir/adaptar modelo de evento de lectura sobre fuentes existentes sin persistir eventos duplicados ni API inventada.
-- [ ] T016 [US2] Agregar pruebas de combinación de evento real/previsto y dos eventos concurrentes el mismo día.
-- [ ] T017 [US2] Implementar consulta mensual local combinando fuentes confirmadas de HU-09/29/33 con tipos/fechas explícitos.
-- [ ] T018 [US2] Presentar navegación mensual/pasada Free, distinción accesible de realizado/previsto y estados de carga/vacío/error.
-- [ ] T019 [US2] Conectar cada evento a ruta existente de su objeto fuente; comprobar cuota/deuda/tarjeta/recurrencia y estado de origen no disponible.
-- [ ] T020 [US2] Asegurar que abrir/consultar eventos no ejecuta pagos ni crea movimientos; comprobar accesibilidad y duplicados visuales.
+- [X] T015 [P] [US2] Definir/adaptar modelo de evento de lectura sobre fuentes existentes sin persistir eventos duplicados ni API inventada.
+- [X] T016 [US2] Agregar pruebas de combinación de evento real/previsto y dos eventos concurrentes el mismo día.
+- [X] T017 [US2] Implementar consulta mensual local combinando fuentes confirmadas de HU-09/29/33 con tipos/fechas explícitos.
+- [X] T018 [US2] Presentar navegación mensual/pasada Free, distinción accesible de realizado/previsto y estados de carga/vacío/error.
+- [X] T019 [US2] Conectar cada evento a ruta existente de su objeto fuente; comprobar cuota/deuda/tarjeta/recurrencia y estado de origen no disponible.
+- [X] T020 [US2] Asegurar que abrir/consultar eventos no ejecuta pagos ni crea movimientos; comprobar accesibilidad y duplicados visuales.
 
 ## Fase 4 — HU-41 Analítica (S9 futura; no parte de entrega S7)
 
