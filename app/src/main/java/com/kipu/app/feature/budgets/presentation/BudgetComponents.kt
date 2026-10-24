@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -151,7 +152,7 @@ internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: Stri
 
 @Composable
 private fun AmountLine(label: String, minor: Long, currencyCode: String, tag: String, color: Color = Color.Unspecified) {
-    Row(Modifier.fillMaxWidth().testTag(tag), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag(tag), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         BudgetMoney(minor, currencyCode, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = color)
     }
