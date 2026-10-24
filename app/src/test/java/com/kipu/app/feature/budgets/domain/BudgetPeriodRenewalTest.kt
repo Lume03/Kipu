@@ -59,13 +59,17 @@ class BudgetPeriodRenewalTest {
         assertEquals(listOf(day("2026-10-01"), day("2026-10-16")), periods(env, "q").map { it.interval.start })
     }
 
-    @Test fun customRangeNeverRenews() = runBlocking {
+    @Test fun customRangeNeverRenewsAndFinishesAfterItsInclusiveEnd() = runBlocking {
         val env = Env()
         env.createBudget(schedule = BudgetSchedule.CustomRange(day("2026-10-01"), day("2026-10-15")), today = "2026-10-05")
-        assertTrue(success(env.renew(OWNER, "b1", day("2026-12-01"))).isEmpty())
+        assertTrue(success(env.renew(OWNER, "b1", day("2026-10-15"))).isEmpty())
+        assertEquals(BudgetStatus.ACTIVE, env.repo.getBudget(OWNER, "b1")?.status)
+        assertTrue(success(env.renew(OWNER, "b1", day("2026-10-16"))).isEmpty())
         val ps = periods(env)
         assertEquals(1, ps.size)
         assertEquals(day("2026-10-16"), ps[0].interval.endExclusive)
+        assertEquals(BudgetStatus.FINISHED, env.repo.getBudget(OWNER, "b1")?.status)
+        assertEquals(2L, env.repo.getBudget(OWNER, "b1")?.revision)
     }
 
     @Test fun finishedBudgetDoesNotRenew() = runBlocking {

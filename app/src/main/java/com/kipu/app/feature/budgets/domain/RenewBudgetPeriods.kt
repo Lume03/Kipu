@@ -20,6 +20,22 @@ class RenewBudgetPeriods(private val repository: BudgetRepository) {
         val budget = repository.getBudget(ownerId, budgetId) ?: return BudgetOutcome.Rejected(BudgetError.BudgetNotFound)
         if (!budget.isActive) return BudgetOutcome.Success(emptyList())
 
+        // A custom range includes its end date. Once the next civil day begins, its natural
+        // lifecycle is finished and it must stop consuming a Free active-budget slot.
+        val customRange = budget.schedule as? BudgetSchedule.CustomRange
+        if (customRange != null && !today.isBefore(customRange.end.plusDays(1))) {
+            val finished = budget.copy(
+                status = BudgetStatus.FINISHED,
+                pendingChange = null,
+                revision = budget.revision + 1,
+            )
+            return when (repository.applyRenewal(ownerId, finished, budget.revision, emptyList())) {
+                BudgetWriteResult.OK -> BudgetOutcome.Success(emptyList())
+                BudgetWriteResult.NOT_FOUND -> BudgetOutcome.Rejected(BudgetError.BudgetNotFound)
+                else -> BudgetOutcome.Rejected(BudgetError.ConcurrentModification)
+            }
+        }
+
         val last = repository.listPeriods(ownerId, budgetId).lastOrNull()
         val created = mutableListOf<BudgetPeriod>()
         var current = budget
