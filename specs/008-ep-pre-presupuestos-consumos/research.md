@@ -72,3 +72,18 @@ La investigación es local/documental y no consulta un entorno remoto. Los docum
 6. **G6** Aprobar regla de moneda elegible y explicación al usuario; la coincidencia sin conversión del modelo es solo una propuesta.
 
 No se solicitó ni ejecutó acceso remoto, SQL, build, pruebas ni cambios de código en esta fase.
+
+## Resolución de gates — 2026-10-24
+
+Al abrir la implementación del Sprint 7, el Product Owner respondió G1 y G6 y la política de despliegue. G2–G5 se resuelven como decisiones técnicas de implementación coherentes con R1–R7.
+
+| Gate | Resolución | Origen |
+|---|---|---|
+| G1 | Periodos `DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY` y `CUSTOM_RANGE`. Semana de lunes a domingo; quincena 1–15 y 16–fin de mes; mes calendario; zona horaria del dispositivo. Intervalos inclusivo-inicio / exclusivo-fin sobre fechas civiles. | Producto |
+| G2 | El consumo se deriva del gasto neto: compra elegible menos reembolsos HU-25 válidos vinculados, imputados a la fecha de la compra original. No existe un comando de ajuste EP-MOV → EP-PRE; ver S7-04 en `specs/004-ep-mov-movimientos-ledger/team-questions.md`. | Técnica |
+| G3 | Las alertas usan el centro de avisos existente (`feature/notifications`, tipo `BUDGET_ALERT`) con clave de deduplicación propietario + presupuesto + periodo + umbral. | Técnica |
+| G4 | Room parte de la versión vigente de `KipuDatabase` y añade una migración aditiva. Las migraciones SQL se versionan en `supabase/migrations/` y **no se aplican al remoto** en el Sprint 7. | Producto (despliegue) / Técnica |
+| G5 | Eliminar borra físicamente presupuesto y periodos en Room y registra un tombstone de sincronización para que un dispositivo atrasado no lo resucite. Nunca se propaga a movimientos, ledger, cuentas ni categorías. | Técnica |
+| G6 | Cada presupuesto tiene una moneda; solo cuentan gastos en esa moneda, sin conversión. La pantalla avisa que los gastos en otra moneda no se incluyen. | Producto |
+
+Sistema visual: el Product Owner eligió el tema y los componentes ya implementados en la app (`KipuTheme`).
