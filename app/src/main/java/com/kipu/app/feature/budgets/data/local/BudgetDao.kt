@@ -42,6 +42,9 @@ interface BudgetDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPeriodIfAbsent(period: BudgetPeriodEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPeriod(period: BudgetPeriodEntity)
+
     @Update
     suspend fun updatePeriod(period: BudgetPeriodEntity): Int
 
