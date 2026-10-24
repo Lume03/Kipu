@@ -74,7 +74,8 @@ DECLARE
     v_card public.cards%ROWTYPE;
     v_refunded numeric;
     v_remaining bigint;
-    v_ledger_role internal.entry_role;
+    -- %TYPE: el enum vive en internal (baseline del repo) o en public (proyecto remoto).
+    v_ledger_role internal.ledger_entries.entry_role%TYPE;
     v_receipt_id uuid;
     v_response jsonb;
     v_now timestamptz := clock_timestamp();
