@@ -33,3 +33,12 @@
 - GATE-ACCESS-05: contrato de capacidades y estados del entitlement efectivo para Free/Premium, incluido offline.
 
 Cualquiera que afecte un requisito de aceptación bloquea implementación hasta quedar resuelto y registrado por autoridad responsable. No se infiere respuesta desde mocks ni rutas actuales.
+
+## Resolución de gates S7 — 2026-10-24
+
+| Gate | Resolución | Origen |
+|---|---|---|
+| GATE-DESIGN-01 | Inicio y calendario usan el tema y los componentes ya implementados en la app (`KipuTheme`). La unificación DESIGN.md / Calm Emerald (DOC-03) sigue abierta y no se resuelve aquí. | Producto |
+| GATE-PRODUCT-02 | Inicio conserva la estructura actual del dashboard y añade el resumen patrimonial; sin widgets de presupuesto ni predicciones. «Sin datos» se distingue de cero confirmado. Un evento cuyo objeto fuente ya no existe se muestra como no disponible, sin navegar. Eventos del mismo día se listan por separado. | Técnica, dentro de las reglas del backlog |
+| GATE-ARCH-03 | Las consultas reutilizan repositorios y casos de uso existentes de cuentas, deudas, recurrencias, metas y movimientos. El calendario es una proyección de lectura; no se persisten eventos ni se crean APIs. | Técnica |
+| GATE-ANALYTICS-04 / GATE-ACCESS-05 | Fuera del Sprint 7 (HU-41, S9). | — |
