@@ -130,6 +130,7 @@ class OfflineFirstMovementRepository @Inject constructor(
         val result = localDataSource.commitRefundAtomic(command, requestHash, refund)
         if (result is RefundTransactionResult.Success && !result.isDuplicate) {
             syncScheduler.scheduleSync(command.userId)
+            expenseChangeListener.onExpenseConsumptionChanged(command.userId)
         }
         return result
     }
@@ -137,8 +138,13 @@ class OfflineFirstMovementRepository @Inject constructor(
     override suspend fun getRefundRejection(userId: String, refundTransactionId: String): String? =
         localDataSource.getRefundRejection(userId, refundTransactionId)
 
-    override suspend fun voidRejectedRefund(userId: String, refundTransactionId: String): RefundTransactionResult =
-        localDataSource.voidRejectedRefund(userId, refundTransactionId)
+    override suspend fun voidRejectedRefund(userId: String, refundTransactionId: String): RefundTransactionResult {
+        val result = localDataSource.voidRejectedRefund(userId, refundTransactionId)
+        if (result is RefundTransactionResult.Success && !result.isDuplicate) {
+            expenseChangeListener.onExpenseConsumptionChanged(userId)
+        }
+        return result
+    }
 
     override suspend fun findSimilarTransactions(
         userId: String,
