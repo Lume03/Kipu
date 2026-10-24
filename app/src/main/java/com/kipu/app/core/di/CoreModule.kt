@@ -44,6 +44,7 @@ object CoreModule {
                 com.kipu.app.core.database.MIGRATION_22_23,
                 com.kipu.app.core.database.MIGRATION_23_24,
                 com.kipu.app.core.database.MIGRATION_24_25,
+                com.kipu.app.core.database.MIGRATION_BUDGETS_25_26,
             )
             .build()
 
@@ -54,6 +55,8 @@ object CoreModule {
         }
 
     @Provides fun dao(database: KipuDatabase): PlanPreferencesDao = database.planPreferencesDao()
+    @Provides fun budgetDao(database: KipuDatabase): com.kipu.app.feature.budgets.data.local.BudgetDao = database.budgetDao()
+    @Provides fun budgetAlertLedgerDao(database: KipuDatabase): com.kipu.app.feature.budgets.data.local.BudgetAlertLedgerDao = database.budgetAlertLedgerDao()
     @Provides fun planQuotaSelectionDao(database: KipuDatabase): com.kipu.app.feature.plans.data.local.PlanQuotaSelectionDao = database.planQuotaSelectionDao()
     @Provides fun featureAccessCacheDao(database: KipuDatabase): com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao = database.featureAccessCacheDao()
     @Provides fun profileDao(database: KipuDatabase): com.kipu.app.feature.settings.data.local.ProfilePreferencesDao = database.profilePreferencesDao()
