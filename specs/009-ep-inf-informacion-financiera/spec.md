@@ -1,6 +1,6 @@
 # Especificación: EP-INF — Inicio e Información Financiera
 
-**Rama**: `015-ep-inf-inicio-financiero`
+**Rama**: `009-ep-inf-informacion-financiera`
 **Estado**: Borrador para revisión; no aprobado para implementación
 **Fecha**: 2026-10-24
 **Fuente de alcance**: `docs/producto/backlog.md` HU-39–HU-41, `docs/producto/trazabilidad-y-dependencias.md`, planificación base del cronograma.

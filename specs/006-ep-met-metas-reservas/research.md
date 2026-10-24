@@ -106,7 +106,7 @@
 - `app/src/main/java/com/kipu/app/core/database/KipuDatabase.kt`, `RoomMigrations.kt`, `core/di/CoreModule.kt` y `app/schemas/.../21.json`.
 - `app/src/main/java/com/kipu/app/feature/debts/` como patrón offline-first.
 - `supabase/migrations/20260920000000_financial_core_baseline.sql` y `20260920162500_align_domain_schema_names.sql` como base de metas heredada; `20260930025207_sprint_3_db_hardening.sql` para endurecimiento RLS/funciones.
-- `supabase/migrations/20261008120000_s5_debt_lifecycle.sql` y `specs/013-ep-deu-deudas-prestamos/contracts/debt-command-contract.md` como patrón de comando con hash, revisión e idempotencia.
+- `supabase/migrations/20261008120000_s5_debt_lifecycle.sql` y `specs/005-ep-deu-deudas-prestamos/contracts/debt-command-contract.md` como patrón de comando con hash, revisión e idempotencia.
 
 ## Pendiente de decisión antes de despliegue
 

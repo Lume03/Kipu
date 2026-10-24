@@ -4,7 +4,7 @@ description: "Dependency-ordered implementation tasks for EP-DEU Sprint 5"
 
 # Tasks: EP-DEU — Deudas y Préstamos (Sprint 5)
 
-**Input**: Design documents from `specs/013-ep-deu-deudas-prestamos/`
+**Input**: Design documents from `specs/005-ep-deu-deudas-prestamos/`
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, and `contracts/debt-command-contract.md`
 
@@ -22,7 +22,7 @@ description: "Dependency-ordered implementation tasks for EP-DEU Sprint 5"
 
 **Purpose**: Establish the safe starting point for the debt feature and its migration work.
 
-- [X] T001 Reconcile local and remote migration histories, debt constraints, and legacy event semantics; record the local-development GO, remote rollout NO-GO, and unresolved blockers in `specs/013-ep-deu-deudas-prestamos/research.md` without applying remote DDL.
+- [X] T001 Reconcile local and remote migration histories, debt constraints, and legacy event semantics; record the local-development GO, remote rollout NO-GO, and unresolved blockers in `specs/005-ep-deu-deudas-prestamos/research.md` without applying remote DDL.
 - [X] T002 Create the `app/src/main/java/com/kipu/app/feature/debts/` package layout for domain, data, presentation, and DI boundaries described in `plan.md`.
 
 ---
@@ -151,9 +151,9 @@ description: "Dependency-ordered implementation tasks for EP-DEU Sprint 5"
 
 **Purpose**: Close cross-epic documentation and release-readiness gaps after the four stories pass their independent verification.
 
-- [X] T050 Update `C:/Users/Alume/orca/KipuApp/Kipu md/03_Kipu_V4.2_Arquitectura_y_Datos.md` with the approved debt entities, event semantics, movement links, RLS, quota locking, sync, and migration decisions; record the cross-repository review outcome in `specs/013-ep-deu-deudas-prestamos/research.md` because the canonical document is outside this isolated code worktree.
-- [X] T051 [P] Verify every HU-26–HU-29 acceptance scenario, financial/regression check, migration compatibility result, retry/offline path, RLS boundary, notification-permission state, and accessibility path against `specs/013-ep-deu-deudas-prestamos/quickstart.md` and update the evidence references there.
-- [X] T052 [P] Run a cross-review of the debt feature implementation and record findings and resolutions in `specs/013-ep-deu-deudas-prestamos/research.md`.
+- [X] T050 Update `C:/Users/Alume/orca/KipuApp/Kipu md/03_Kipu_V4.2_Arquitectura_y_Datos.md` with the approved debt entities, event semantics, movement links, RLS, quota locking, sync, and migration decisions; record the cross-repository review outcome in `specs/005-ep-deu-deudas-prestamos/research.md` because the canonical document is outside this isolated code worktree.
+- [X] T051 [P] Verify every HU-26–HU-29 acceptance scenario, financial/regression check, migration compatibility result, retry/offline path, RLS boundary, notification-permission state, and accessibility path against `specs/005-ep-deu-deudas-prestamos/quickstart.md` and update the evidence references there.
+- [X] T052 [P] Run a cross-review of the debt feature implementation and record findings and resolutions in `specs/005-ep-deu-deudas-prestamos/research.md`.
 
 ---
 

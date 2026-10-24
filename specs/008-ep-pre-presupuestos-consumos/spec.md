@@ -1,6 +1,6 @@
 # Feature Specification: EP-PRE — Presupuestos y Consumos
 
-**Feature Branch**: `014-ep-pre-presupuestos-consumos`<br>
+**Feature Branch**: `008-ep-pre-presupuestos-consumos`<br>
 **Created**: 2026-10-24<br>
 **Status**: Draft — requisitos base aprobados; gates de integración abiertos antes de implementar
 **Input**: HU-36 Crear y consultar presupuestos, HU-37 Renovación, consumo jerárquico y alertas, HU-38 Edición, finalización y eliminación de presupuestos (Sprint 7, 21 puntos).
@@ -118,7 +118,7 @@ Como usuario de Kipu, quiero editar, finalizar o eliminar mis presupuestos, para
 - HU-42 es dependencia real de avisos de HU-37; confirmar interface disponible con EP-NOT. HU-43 es relacionada, Sprint 8 y no se incorpora como bloqueante ni alcance.
 - `docs/arquitectura/modelo-de-datos.md` describe un diseño base V4.2, no el esquema remoto actual. La migración local `20260920000000_financial_core_baseline.sql` contiene `public.budgets`, pero en lo inspeccionado no se halló una migración de `budget_periods`; su presencia local no prueba despliegue remoto. La diferencia requiere verificar esquema/versiones antes de diseñar cambios SQL.
 - En el backlog HU-36 se permiten periodos diario, semanal, quincenal, mensual y rango propio, mientras el modelo global enumera MONTHLY/WEEKLY/CUSTOM. La cobertura de diario/quincenal requiere reconciliar diseño físico y regla de fecha; no descartar los requisitos por divergencia del modelo ni introducir enums sin autorización. Gate de diseño antes de migrar.
-- El cronograma Sprint 7 referencia el directorio `008-ep-pre-presupuestos-consumos`, pero rama y ubicación explícitas de esta tarea son `014-ep-pre-presupuestos-consumos`; este refinamiento respeta la rama/carpetas autorizadas y no renumera fuentes globales.
+- La carpeta de la épica se alineó con el cronograma Sprint 7 (`008-ep-pre-presupuestos-consumos`), que es la referencia de nombres del proyecto. La rama Git de trabajo aún se llama `014-ep-pre-presupuestos-consumos`; su renombrado no forma parte de este cambio.
 - Los objetivos cuantitativos de rendimiento, volumen, retención y disponibilidad no están aprobados; no se inventan. Se deberá medir perfil local con datos representativos, sin afirmar un umbral contractual.
 - No se requieren contratos de API pública para este feature documental. Los seams internos se describen como gates/propuestas hasta revisión de especialistas.
 - **G6 — Moneda elegible y explicación al usuario (abierto)**: aprobar si una operación solo es elegible cuando su moneda coincide con la del presupuesto y qué explicación recibe el usuario ante una moneda distinta, o definir otra regla. La coincidencia sin conversión es recomendación propuesta del modelo, no decisión de producto. Resolver y propagar la decisión antes de implementar FR-003/FR-004; no asumir conversión automática.

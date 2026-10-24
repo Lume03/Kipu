@@ -1,6 +1,6 @@
 # Implementation Plan: EP-PRE — Presupuestos y Consumos
 
-**Branch**: `014-ep-pre-presupuestos-consumos` | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md)
+**Branch**: `008-ep-pre-presupuestos-consumos` | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md)
 
 **Input**: HU-36, HU-37, HU-38, Sprint 7, 21 puntos. Este plan es propuesta técnica previa a aprobación; no autoriza implementación.
 
@@ -128,7 +128,7 @@ La secuencia expresa dependencias; no significa que se haya realizado código ni
 ### Documentation (this feature)
 
 ```text
-specs/014-ep-pre-presupuestos-consumos/
+specs/008-ep-pre-presupuestos-consumos/
 ├── spec.md
 ├── plan.md
 ├── research.md

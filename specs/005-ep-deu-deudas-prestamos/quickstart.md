@@ -4,7 +4,7 @@ Esta guía reúne la validación ejecutada para HU-26–HU-29 y conserva los esc
 
 ## Prerrequisitos
 
-1. Usar el worktree de la rama `013-ep-deu-deudas-prestamos`.
+1. Usar el worktree de la rama `005-ep-deu-deudas-prestamos`.
 2. Ejecutar las migraciones solo sobre Supabase local/de desarrollo; no probar DDL contra producción.
 3. Usar un usuario de prueba aislado con cuenta propia activa, moneda PEN, cupo Free, notificaciones disponibles y otro usuario para verificar aislamiento.
 4. Preparar una cuenta con saldo inicial conocido y sin datos financieros reales.

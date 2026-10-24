@@ -1,6 +1,6 @@
 # Feature Specification: EP-DEU — Deudas y Préstamos (Sprint 5)
 
-**Feature Branch**: `[013-ep-deu-deudas-prestamos]`
+**Feature Branch**: `[005-ep-deu-deudas-prestamos]`
 
 **Created**: 2026-10-08
 
