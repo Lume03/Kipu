@@ -45,6 +45,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onContributeGoal = { goalId -> navController.navigate("goals/$goalId/contribute") },
             onNotifications = navController::navigateToNotifications,
             onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
+            onOpenBudgets = navController::navigateToBudgets,
         )
     }
 

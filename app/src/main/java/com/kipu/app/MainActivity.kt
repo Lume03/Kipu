@@ -69,7 +69,10 @@ import com.kipu.app.navigation.BIOMETRIC_ROUTE
 import com.kipu.app.navigation.CARD_FORM_ROUTE
 import com.kipu.app.navigation.DeepLinkResult
 import com.kipu.app.navigation.DEBT_LIST_ROUTE
+import com.kipu.app.navigation.BUDGETS_LIST_ROUTE
+import com.kipu.app.navigation.BUDGET_CREATE_ROUTE
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
+import com.kipu.app.navigation.budgetDestinations
 import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.navigateToDebtOpening
 import com.kipu.app.navigation.navigateRootTab
@@ -570,6 +573,7 @@ class MainActivity : FragmentActivity() {
                                     )
                                     debtDestinations(navController = navController)
                                     goalDestinations(navController = navController)
+                                    budgetDestinations(navController = navController)
                                     notificationDestinations(
                                         navController = navController,
                                     )
@@ -665,7 +669,9 @@ private fun isDetailRoute(route: String?): Boolean {
         route.startsWith("settings/") ||
         route == PLAN_PURCHASE_ROUTE ||
         route == GOALS_LIST_ROUTE ||
-        route == GOAL_CREATE_ROUTE
+        route == GOAL_CREATE_ROUTE ||
+        route == BUDGETS_LIST_ROUTE ||
+        route == BUDGET_CREATE_ROUTE
 }
 
 private fun isTopLevelRoute(route: String?): Boolean {

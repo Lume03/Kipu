@@ -33,4 +33,5 @@ fun NavGraphBuilder.appDestinations(
     notificationDestinations(navController = navController)
     goalDestinations(navController = navController)
     calendarDestinations(navController = navController)
+    budgetDestinations(navController = navController)
 }
