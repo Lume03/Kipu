@@ -281,6 +281,12 @@ interface MovementDao {
           AND currency_code = :currencyCode 
           AND occurred_at >= :fromInclusive 
           AND occurred_at < :toExclusive
+          AND (operation_kind IS NULL OR UPPER(operation_kind) IN (
+              'STANDARD', 'CARD_PURCHASE', 'DEBT_AMORTIZATION'
+          ))
+          AND COALESCE(UPPER(legacy_kind), '') NOT IN (
+              'DEBT_DISBURSEMENT', 'DEBT_PAYMENT', 'GOAL_FUNDING', 'REFUND'
+          )
         """
     )
     suspend fun getExpensesInPeriod(
