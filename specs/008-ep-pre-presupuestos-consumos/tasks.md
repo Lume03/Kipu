@@ -8,7 +8,7 @@
 
 - [ ] T001 Verificar HU-14/HU-18/HU-19/HU-25/HU-42/HU-57, inspeccionar código actual de categorías/movimientos/planes/notificaciones, identificar estado real y registrar evidencia en `specs/008-ep-pre-presupuestos-consumos/research.md` (gate previo; no asumir completitud).
 - [ ] T002 Resolver G1-G6 con responsables de EP-MOV, EP-NOT, bases/sync y producto; actualizar decisiones aprobadas y `specs/008-ep-pre-presupuestos-consumos/{research.md,plan.md,data-model.md}` antes de abrir implementación, incluida elegibilidad de moneda y explicación al usuario.
-- [ ] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/008-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
+- [X] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/008-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
 
 ## Fase 2: Fundacional (bloqueante)
 
@@ -23,8 +23,8 @@
 **Goal**: Crear presupuesto total/categoría/subcategoría, respetar dos presupuestos activos Free y mostrar límite/consumo/restante/porcentaje.<br>
 **Independent Test**: Alta local con referencia propia y consulta sintética de gastos elegibles; HU-25 no se considera demostrada por fixture.
 
-- [ ] T009 [P] [US1] Probar validaciones de importes/moneda, periodos aprobados y rangos invertidos en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetValidationTest.kt` (depends on T004).
-- [ ] T010 [P] [US1] Probar elegibilidad y exclusión de pendientes/VOIDED/transferencias/principal/metas en `app/src/test/java/com/kipu/app/feature/budgets/domain/ExpenseEligibilityTest.kt` (depends on T007).
+- [X] T009 [P] [US1] Probar validaciones de importes/moneda, periodos aprobados y rangos invertidos en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetValidationTest.kt` (depends on T004).
+- [ ] T010 [P] [US1] (parcial: jerarquía/moneda/neto cubiertas en `BudgetHierarchyConsumptionTest` y `BudgetConsumptionTest`; falta `ExpenseEligibilityTest` contra el query real, que pertenece a EP-MOV) Probar elegibilidad y exclusión de pendientes/VOIDED/transferencias/principal/metas en `app/src/test/java/com/kipu/app/feature/budgets/domain/ExpenseEligibilityTest.kt` (depends on T007).
 - [ ] T011 [US1] Implementar reglas de alta, consulta, money exacto y estado/vigencia en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T008,T009,T010).
 - [ ] T012 [US1] Integrar quota policy de HU-57 para límite Free de dos activos sin eliminar/ocultar objetos en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de planes existente (depends on T011).
 - [ ] T013 [US1] Implementar consumo derivado por movimiento único, categoría/jerarquía, owner/currency/period en `app/src/main/java/com/kipu/app/feature/budgets/data/` mediante interfaz validada de T007 (depends on T011).
@@ -38,8 +38,8 @@
 **Goal**: Una vigencia por intervalo, jerarquía sin doble conteo, alertas deduplicadas y reembolso HU-25 real al periodo original.<br>
 **Independent Test**: Ciclo/alerta en integración local; aceptación completa requiere capacidades reales HU-25 y HU-42 (T002/T007), no mocks.
 
-- [ ] T018 [P] [US2] Probar periodos recurrentes/custom, límites snapshot y retries/concurrencia en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetPeriodRenewalTest.kt` (depends on T008).
-- [ ] T019 [P] [US2] Probar ids de gastos únicos en alcance padre/hijo/total sin doble conteo en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetHierarchyConsumptionTest.kt` (depends on T013).
+- [X] T018 [P] [US2] Probar periodos recurrentes/custom, límites snapshot y retries/concurrencia en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetPeriodRenewalTest.kt` (depends on T008).
+- [X] T019 [P] [US2] Probar ids de gastos únicos en alcance padre/hijo/total sin doble conteo en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetHierarchyConsumptionTest.kt` (depends on T013).
 - [ ] T020 [US2] Implementar creación idempotente de vigencia y cierre de custom con límite snapshot en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y `data/` (depends on T018).
 - [ ] T021 [US2] Implementar cruces editables de umbral y deduplicación por propietario/presupuesto/periodo/threshold integrando HU-42 en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de notificaciones aprobado (depends on T007,T020).
 - [ ] T022 [US2] Implementar recalculo/reconsulta por reembolso real al periodo de origen con contrato aprobado de HU-25, sin mutar la compra/ledger desde EP-PRE, en `app/src/main/java/com/kipu/app/feature/budgets/data/` (depends on T002,T007,T020).
@@ -51,7 +51,7 @@
 **Goal**: Editar límite/alcance según regla temporal, finalizar sin borrar historia, eliminación confirmada de planificación solamente.<br>
 **Independent Test**: Comparar datos financieros antes/después de edición, finalización, confirmación y cancelación; debe pasar solo después de HU-36/37.
 
-- [ ] T025 [P] [US3] Probar edición de límite, inmutabilidad de periodo cerrado, finalización y cancelación del borrado en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetLifecycleTest.kt` (depends on T020).
+- [X] T025 [P] [US3] Probar edición de límite, inmutabilidad de periodo cerrado, finalización y cancelación del borrado en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetLifecycleTest.kt` (depends on T020).
 - [ ] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
 - [ ] T027 [US3] Implementar finalización que detiene periodos/alertas nuevos, conserva consulta histórica en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y `data/` (depends on T021,T026).
 - [ ] T028 [US3] Implementar eliminación confirmada/cancelada de presupuesto y periodos con sync/tombstone conforme G5, sin cascada hacia movimientos, en `app/src/main/java/com/kipu/app/feature/budgets/data/` y migraciones aprobadas (depends on T004,T008,T027).
