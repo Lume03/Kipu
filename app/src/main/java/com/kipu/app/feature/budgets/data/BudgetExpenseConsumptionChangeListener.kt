@@ -8,6 +8,6 @@ class BudgetExpenseConsumptionChangeListener @Inject constructor(
     private val scheduler: BudgetMaintenanceScheduler,
 ) : ExpenseConsumptionChangeListener {
     override fun onExpenseConsumptionChanged(userId: String) {
-        scheduler.scheduleNow(userId)
+        scheduler.scheduleAfterConsumptionChange(userId)
     }
 }

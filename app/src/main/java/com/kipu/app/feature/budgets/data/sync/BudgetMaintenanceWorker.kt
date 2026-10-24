@@ -26,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 
 interface BudgetMaintenanceScheduler {
     fun scheduleNow(ownerId: String? = null)
+    fun scheduleAfterConsumptionChange(ownerId: String)
     fun ensurePeriodic()
 }
 
@@ -34,13 +35,21 @@ class WorkManagerBudgetMaintenanceScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : BudgetMaintenanceScheduler {
     override fun scheduleNow(ownerId: String?) {
+        enqueue(ownerId, ExistingWorkPolicy.KEEP)
+    }
+
+    override fun scheduleAfterConsumptionChange(ownerId: String) {
+        enqueue(ownerId, ExistingWorkPolicy.REPLACE)
+    }
+
+    private fun enqueue(ownerId: String?, policy: ExistingWorkPolicy) {
         val builder = OneTimeWorkRequestBuilder<BudgetMaintenanceWorker>()
         if (!ownerId.isNullOrBlank()) {
             builder.setInputData(workDataOf(BudgetMaintenanceWorker.KEY_USER_ID to ownerId))
         }
         WorkManager.getInstance(context).enqueueUniqueWork(
             ownerId?.let { "${WORK_NOW}_$it" } ?: WORK_NOW,
-            ExistingWorkPolicy.KEEP,
+            policy,
             builder.build(),
         )
     }

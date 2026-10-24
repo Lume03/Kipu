@@ -146,6 +146,13 @@ class MainActivity : FragmentActivity() {
     private var restorationJob: Job? = null
     private val authCallbackViewModel: AuthCallbackViewModel by viewModels()
 
+    override fun onResume() {
+        super.onResume()
+        (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.let { access ->
+            budgetMaintenanceScheduler.scheduleNow(access.userId)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(localLockCoordinator)
