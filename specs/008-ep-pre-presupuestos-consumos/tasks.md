@@ -52,10 +52,10 @@
 **Independent Test**: Comparar datos financieros antes/después de edición, finalización, confirmación y cancelación; debe pasar solo después de HU-36/37.
 
 - [X] T025 [P] [US3] Probar edición de límite, inmutabilidad de periodo cerrado, finalización y cancelación del borrado en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetLifecycleTest.kt` (depends on T020).
-- [ ] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
+- [X] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
 - [X] T027 [US3] Finalizar detiene renovaciones/alertas y conserva consulta histórica; incluye fin natural automático de `CUSTOM_RANGE` vencido (depends on T021,T026).
 - [X] T028 [US3] Implementar borrado local transaccional, tombstone y sync RPC conforme G5, sin tocar movimientos (depends on T004,T008,T027).
-- [ ] T029 [US3] (parcial — datos: test Room compara existencia de cuenta, movimiento y asiento antes/después del borrado; falta E2E de CRUD completo y replay remoto atrasado/no resurrección) (depends on T028).
+- [ ] T029 [US3] (parcial — datos: tests Room comparan cuenta, movimiento y asiento antes/después del borrado y rechazan recrear un presupuesto tombstoned; falta E2E de CRUD completo y replay remoto atrasado) (depends on T028).
 
 ## Fase 6: Polish transversal y aceptación
 
