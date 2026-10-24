@@ -30,6 +30,9 @@ interface AppNotificationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(notification: AppNotificationEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(notification: AppNotificationEntity): Long
+
     @Query("UPDATE app_notifications SET is_read = 1 WHERE user_id = :userId AND id = :id AND deleted_at IS NULL")
     suspend fun markRead(userId: String, id: String): Int
 

@@ -26,6 +26,6 @@
 
 ## Notes
 
-- Los siete elementos quedan sin evaluar por el revisor; no son pruebas de implementación.
-- Las decisiones de producto no se infieren del esquema local ni de una fixture.
-- La aceptación integrada requiere contrato real de HU-36, no un stub.
+- S7-01–S7-03 y la resolución técnica S7-04 están registrados en `team-questions.md` y propagados al modelo/contrato el 2026-10-24. Esto no reemplaza el marcado del revisor: CHK001–CHK005/CHK007 quedan sin marcar hasta cross-review.
+- CHK006 y la aceptación integrada siguen pendientes del contrato/provider real de HU-36; la consulta local de gasto neto no sustituye esa integración.
+- Los marcadores `[ ]` son intencionales: implementación y pruebas se registran en `tasks.md` y `review-record.md`, no se infieren de este checklist.

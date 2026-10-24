@@ -78,6 +78,7 @@ class MovementRevisionTest {
     }
     @Test fun `specialized and debt linked movements reject generic edit`() {
         rejected(revise(head(payload().copy(operationKind="CARD_PURCHASE"))),"OPERATION_SPECIALIZED")
+        rejected(revise(head(payload().copy(type=MovementType.INCOME,operationKind="REFUND"))),"OPERATION_SPECIALIZED")
         rejected(revise(head(),context=MovementMaintenanceContext(hasSpecializedRelations=true)),"OPERATION_SPECIALIZED")
     }
     @Test fun `legacy missing kind requires explicit standard evidence`() {

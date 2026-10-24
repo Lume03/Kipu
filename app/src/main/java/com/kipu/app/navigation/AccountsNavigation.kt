@@ -27,6 +27,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
+import com.kipu.app.feature.home.presentation.HomeNetWorthViewModel
 import com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreen
 import com.kipu.app.feature.notifications.presentation.NotificationBadgeViewModel
 import com.kipu.app.navigation.navigateToNotifications
@@ -273,6 +274,8 @@ private fun Modifier.rootTabInputShield(active: Boolean): Modifier = pointerInpu
 @Composable
 private fun AccountsRootContent(navController: NavController, backStackEntry: NavBackStackEntry, movementsSelected: State<Boolean>) {
         val viewModel: AccountsViewModel = hiltViewModel()
+        val netWorthViewModel: HomeNetWorthViewModel = hiltViewModel()
+        val netWorthState by netWorthViewModel.state.collectAsStateWithLifecycle()
         val settingsViewModel: SettingsViewModel = hiltViewModel()
         val notificationBadgeViewModel: NotificationBadgeViewModel = hiltViewModel()
         val unreadNotificationCount by notificationBadgeViewModel.unreadCount.collectAsStateWithLifecycle()
@@ -298,6 +301,9 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
             openRegisterMovement = openRegisterMovement && !movementsSelected.value,
             onConsumeRegisterMovement = { backStackEntry.savedStateHandle["open_register_movement"] = false },
             onNavigateToGoals = { navController.navigateToGoals() },
+            netWorthState = netWorthState,
+            onNavigateToCalendar = { navController.navigateToCalendar() },
+            onRetryNetWorth = netWorthViewModel::retry,
         )
 }
 

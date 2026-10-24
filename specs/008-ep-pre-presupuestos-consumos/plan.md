@@ -13,7 +13,7 @@ Especificar un módulo presupuestario incremental integrado con la arquitectura 
 **Language/Version**: Kotlin/Android del proyecto (versiones exactas en configuración existente; no se agregan dependencias en este plan).<br>
 **Primary Dependencies**: Android nativo, Compose/StateFlow, Room; Supabase/PostgreSQL solo mediante integración actualmente aprobada.<br>
 **Storage**: Room local-first y PostgreSQL/Supabase descritos por el proyecto; la ejecución remota no está verificada.<br>
-**Testing**: JUnit/Room tests del proyecto; pruebas de dominio, persistencia/migración, integración sync/seguridad y UI según las capacidades existentes. No se ejecutaron tests en esta tarea.<br>
+**Testing**: JUnit/Room tests del proyecto; pruebas de dominio, persistencia/migración, integración sync/seguridad y UI según las capacidades existentes. La planificación inicial no ejecutó tests; la verificación de implementación Sprint 7 se registra en `tasks.md` y en la entrega.<br>
 **Target Platform**: Android nativo, local-first; Kipu preserva operación manual sin conectividad continua.<br>
 **Project Type**: Aplicación móvil Android con almacenamiento local y backend/sync.<br>
 **Performance Goals**: No hay objetivos cuantitativos aprobados. Definir medición con dataset representativo antes de afirmar targets.<br>
@@ -159,3 +159,14 @@ Ver [research.md](research.md), G1–G6. En particular: representación de perio
 ## Complexity Tracking
 
 No se propone una nueva capa distribuida ni una nueva fuente de verdad de consumo. Una eventual proyección materializada/servicio separado requiere evidencia de rendimiento y ADR aprobado.
+
+## Resolución de persistencia Sprint 7 — 2026-10-24
+
+- **Room**: versión 25→26, migración aditiva y separada en `MIGRATION_BUDGETS_25_26` para que el supervisor pueda renumerarla junto con la migración paralela de reembolsos. Se agregan presupuestos, periodos con snapshot local de alcance, ledger de alertas, tombstones y outbox. No se usa `fallbackToDestructiveMigration` ni se modifica ledger/cuentas/movimientos.
+- **Rollback**: no existe migración destructiva inversa. Si una versión de app necesita retirarse después de abrir Room v26, se publica una corrección forward-compatible; restaurar backup de Room solo es último recurso con backup validado. No bajar `user_version` ni borrar las tablas presupuestarias como rollback, pues se perderían presupuestos y tombstones offline.
+- **Sync remoto**: los DTOs siguen el esquema SQL de referencia de la rama `s7-pre-sql`; las escrituras de alta/edición/periodo usan REST autenticado y el borrado usa `delete_budget_v1`. No se aplica ninguna migración ni se contacta el Supabase hosted. Tombstones remotos se leen antes de outbox/hidratación y bloquean upserts atrasados.
+- **Diferencia de esquema (cerrada localmente)**: la migración `20261024190000_ep_pre_budget_scope_snapshot.sql` añade `budget_periods.scope_category_id` y los `pending_*` de `budgets`; el DTO los envía/lee y la hidratación usa el snapshot remoto. Los periodos remotos preexistentes se rellenan con el alcance actual del presupuesto (mejor información disponible). Pendiente: aplicarla al remoto (gate G4) antes de publicar la app.
+- **Legacy**: `CUSTOM` sin fechas se omite al hidratar porque no se puede reconstruir un rango válido de forma segura. Los casos con fechas se interpretan como `CUSTOM_RANGE`.
+- **Ciclo local**: `RunBudgetMaintenance` se ejecuta al abrir/volver a primer plano con owner disponible y en WorkManager periódico; mutaciones confirmadas de gasto programan reevaluación de alertas. La pantalla puede inyectar este mismo caso de uso o `BudgetMaintenanceScheduler`.
+
+Los comandos y resultados de verificación ejecutados están en `tasks.md` y en la entrega Sprint 7. El plan original no desplegó ni probó el esquema remoto; esta implementación tampoco lo hace.

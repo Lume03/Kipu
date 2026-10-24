@@ -26,6 +26,13 @@ import com.kipu.app.feature.debts.data.local.DebtInstallmentEntity
 import com.kipu.app.feature.debts.data.local.DebtOutboxDao
 import com.kipu.app.feature.debts.data.local.DebtOutboxEntity
 import com.kipu.app.feature.debts.data.local.DebtSyncCheckpointEntity
+import com.kipu.app.feature.budgets.data.local.BudgetAlertLedgerDao
+import com.kipu.app.feature.budgets.data.local.BudgetAlertLedgerEntity
+import com.kipu.app.feature.budgets.data.local.BudgetDao
+import com.kipu.app.feature.budgets.data.local.BudgetEntity
+import com.kipu.app.feature.budgets.data.local.BudgetPeriodEntity
+import com.kipu.app.feature.budgets.data.local.BudgetSyncOutboxEntity
+import com.kipu.app.feature.budgets.data.local.BudgetTombstoneEntity
 import com.kipu.app.feature.goals.data.local.GoalDao
 import com.kipu.app.feature.goals.data.local.GoalEntity
 import com.kipu.app.feature.goals.data.local.GoalEventEntity
@@ -49,6 +56,8 @@ import com.kipu.app.feature.movements.data.local.MovementOutboxEntity
 import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
 import com.kipu.app.feature.movements.data.local.TransactionRevisionEntity
 import com.kipu.app.feature.movements.data.local.TransactionEntity
+import com.kipu.app.feature.movements.data.local.TransactionLinkDao
+import com.kipu.app.feature.movements.data.local.TransactionLinkEntity
 import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
 import com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao
@@ -104,6 +113,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CategoryConflictEntity::class,
         CategorySyncOutboxEntity::class,
         TransactionEntity::class,
+        TransactionLinkEntity::class,
         DebtEntity::class,
         DebtInstallmentEntity::class,
         DebtEventEntity::class,
@@ -134,8 +144,13 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         ReminderScheduleEntity::class,
         LocalReminderEventEntity::class,
         ReceiptCandidateEntity::class,
+        BudgetEntity::class,
+        BudgetPeriodEntity::class,
+        BudgetAlertLedgerEntity::class,
+        BudgetTombstoneEntity::class,
+        BudgetSyncOutboxEntity::class,
     ],
-    version = 25,
+    version = 27,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -154,6 +169,7 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun merchantCatalogDao(): MerchantCatalogDao
     abstract fun merchantRulesDao(): MerchantRulesDao
     abstract fun movementDao(): MovementDao
+    abstract fun transactionLinkDao(): TransactionLinkDao
     abstract fun debtDao(): DebtDao
     abstract fun debtOutboxDao(): DebtOutboxDao
     abstract fun goalDao(): GoalDao
@@ -166,4 +182,6 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun reminderScheduleDao(): ReminderScheduleDao
     abstract fun localReminderEventDao(): LocalReminderEventDao
     abstract fun receiptCandidateDao(): ReceiptCandidateDao
+    abstract fun budgetDao(): BudgetDao
+    abstract fun budgetAlertLedgerDao(): BudgetAlertLedgerDao
 }

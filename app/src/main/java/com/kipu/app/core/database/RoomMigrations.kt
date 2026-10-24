@@ -1265,6 +1265,23 @@ val MIGRATION_24_25 = object : Migration(24, 25) {
     }
 }
 
+val MIGRATION_26_27 = object : Migration(26, 27) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `transaction_links` (
+            `user_id` TEXT NOT NULL,
+            `source_transaction_id` TEXT NOT NULL,
+            `target_transaction_id` TEXT NOT NULL,
+            `link_type` TEXT NOT NULL,
+            `created_at` INTEGER NOT NULL,
+            PRIMARY KEY(`user_id`, `source_transaction_id`, `target_transaction_id`, `link_type`),
+            FOREIGN KEY(`user_id`, `source_transaction_id`) REFERENCES `transactions`(`user_id`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION,
+            FOREIGN KEY(`user_id`, `target_transaction_id`) REFERENCES `transactions`(`user_id`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_links_user_id_source_transaction_id` ON `transaction_links` (`user_id`, `source_transaction_id`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_transaction_links_user_id_target_transaction_id` ON `transaction_links` (`user_id`, `target_transaction_id`)")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

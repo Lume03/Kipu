@@ -29,6 +29,7 @@ fun NavGraphBuilder.notificationDestinations(navController: NavController) {
             viewModel.events.collect { event ->
                 when (event) {
                     is NotificationsUiEvent.OpenCard -> navController.navigateToCardDetail(event.cardId)
+                    is NotificationsUiEvent.OpenBudget -> navController.navigate("budgets/detail/${event.budgetId}")
                     is NotificationsUiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 }
             }

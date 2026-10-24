@@ -17,7 +17,8 @@ enum class MovementType {
 
 enum class LedgerRole {
     SOURCE,
-    DESTINATION
+    DESTINATION,
+    LIABILITY,
 }
 
 enum class MovementSyncStatus {
@@ -104,8 +105,16 @@ data class Transaction(
                 }
             }
             MovementType.INCOME -> {
-                require(!sourceAccountId.isNullOrBlank()) { "Income requires a destination/source account" }
-                require(cardId.isNullOrBlank()) { "Income cannot use a credit card" }
+                if (operationKind.equals("REFUND", ignoreCase = true)) {
+                    require(
+                        (!sourceAccountId.isNullOrBlank() && cardId.isNullOrBlank()) ||
+                            (sourceAccountId.isNullOrBlank() && !cardId.isNullOrBlank()),
+                    ) { "Refund income requires exactly one original account or credit card" }
+                    require(destinationAccountId.isNullOrBlank()) { "Refund income cannot have a second destination" }
+                } else {
+                    require(!sourceAccountId.isNullOrBlank()) { "Income requires a destination/source account" }
+                    require(cardId.isNullOrBlank()) { "Income cannot use a credit card" }
+                }
             }
             MovementType.TRANSFER -> {
                 require(!sourceAccountId.isNullOrBlank()) { "Transfer requires a source account" }
@@ -120,6 +129,43 @@ data class Transaction(
             }
         }
     }
+}
+
+data class RefundTransactionCommand(
+    val idempotencyKey: String,
+    val userId: String,
+    val purchaseTransactionId: String,
+    val refundTransactionId: String,
+    val amountMinor: Long,
+    val currency: String,
+    val occurredAt: Long,
+)
+
+enum class RefundTransactionError {
+    INVALID_COMMAND,
+    INVALID_AMOUNT,
+    PURCHASE_NOT_FOUND,
+    PURCHASE_NOT_ELIGIBLE,
+    OWNER_MISMATCH,
+    CURRENCY_MISMATCH,
+    REFUND_EXCEEDS_REMAINDER,
+    IDEMPOTENCY_CONFLICT,
+    RECEIPT_INCONSISTENT,
+    REFUND_NOT_REJECTED,
+}
+
+sealed interface RefundTransactionResult {
+    data class Success(
+        val transaction: Transaction,
+        val isDuplicate: Boolean = false,
+    ) : RefundTransactionResult
+
+    data class Rejected(
+        val error: RefundTransactionError,
+        val remainingMinor: Long? = null,
+    ) : RefundTransactionResult
+
+    data class Conflict(val error: RefundTransactionError) : RefundTransactionResult
 }
 
 data class LedgerEntry(

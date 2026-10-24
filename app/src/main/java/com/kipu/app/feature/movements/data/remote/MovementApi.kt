@@ -61,6 +61,27 @@ class MovementApi @Inject constructor(
         }
     }
 
+    suspend fun registerRefund(
+        request: RefundTransactionRequestDto,
+    ): MovementApiResponse<RefundTransactionResponseDto> {
+        return try {
+            val auth = getAuthHeader() ?: return MovementApiResponse.Error(401, "No active session")
+            val response = httpClient.post("rest/v1/rpc/refund_transaction_v1") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, auth)
+                setBody(buildJsonObject { put("p_command", commandJson.encodeToJsonElement(request)) })
+            }
+            when (response.status) {
+                HttpStatusCode.OK -> MovementApiResponse.Success(response.body<RefundTransactionResponseDto>())
+                else -> MovementApiResponse.Error(response.status.value, response.body<String>())
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            MovementApiResponse.NetworkFailure(e)
+        }
+    }
+
     suspend fun reviseOrVoidTransaction(
         request: ReviseOrVoidTransactionRequestDto,
     ): MovementApiResponse<ReviseOrVoidTransactionResponseDto> {

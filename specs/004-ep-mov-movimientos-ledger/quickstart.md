@@ -192,29 +192,32 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Omitir `--init-script` para un debug normal. `local.properties` permanece local y excluido de Git.
 
-## Sprint 7 — HU-25, protocolo futuro de validación
+## Sprint 7 — HU-25, evidencia parcial de implementación (2026-10-24)
 
-**Estado**: matriz planificada, no ejecutada. No es evidencia de que exista la implementación o que el esquema esté desplegado.
+**Estado**: T132–T143 y T145–T147 implementadas según `tasks.md`. HU-25 no está aceptada: faltan la integración con el provider real de EP-PRE/HU-36 (T144), la ejecución runtime de AndroidTest y la revisión independiente (T149). No se probó ni aplicó nada en Supabase hosted o producción.
 
-### Prerrequisitos antes de ejecutar
+### Comandos ejecutados y resultados
 
-- Cerrar las decisiones de HU-25 en `team-questions.md` y aprobar modelo/contrato en `data-model.md` y `contracts/refund-transaction-v1.md`.
-- Confirmar estado de HU-18/HU-19 y disponer del contrato y provider real de EP-PRE/HU-36 para la aceptación integrada entre periodos.
-- Verificar baseline vigente de la rama, la versión efectiva de Room y el estado del esquema de PostgreSQL en el entorno local de pruebas. El refine observó Room v25, pero no fija la versión de migración futura ni consulta el remoto.
-- Usar fixtures sintéticos en Supabase local y usuarios A/B separados; nunca apuntar pruebas de migración/pgTAP a hosted o producción.
+Desde la raíz del worktree, en PowerShell:
 
-### Matriz focalizada esperada
+```powershell
+.\gradlew :app:compileDebugKotlin :app:compileDebugAndroidTestKotlin
+.\gradlew :app:testDebugUnitTest
+npx supabase migration up --local
+npx supabase test db supabase/tests/database/movements_refund_test.sql --local
+```
 
-| Caso | Preparación / acción | Resultado esperado | Tareas |
-|---|---|---|---|
-| Parcial | Compra propia confirmada S/100; reembolso S/40 | Compra queda con S/60 netos; caja recibe S/40 en fecha efectiva; no aparece ingreso operativo | T136–T139, T141–T145 |
-| Total | Compra S/100 sin reembolsos; devolver S/100 | Gasto neto original en cero; una entrada de caja; origen conservado | T136–T139, T142–T145 |
-| Sobre el saldo | Reembolso previo válido S/40; intentar S/70 | Rechazo por remanente S/60, sin mutar la compra ni duplicar efectos | T136–T139, T142–T145 |
-| Entre periodos | Compra en septiembre; reembolso efectivo en octubre | Caja cambia en octubre; EP-PRE reduce gasto/presupuesto de septiembre mediante contrato real; ambas fechas se explican | T140, T146, T148 |
-| Replay/competencia | Repetir comando idéntico; repetir clave con hash distinto; competir desde dos dispositivos | Replay sin nuevo efecto; hash distinto en conflicto; servidor no acepta más del saldo pendiente | T137, T139, T144–T145 |
-| Aislamiento/historia | Enlazar operación de otro usuario o cambiar/eliminar vínculo desde cliente | Rechazo; no hay vínculo cruzado ni borrado; el propietario mantiene lectura de su compra e historial | T137–T139, T144 |
-| Offline/reinicio | Confirmar localmente, cerrar app, reiniciar y sincronizar/reintentar | Outbox conserva identidad/hash/payload; resultado se reconcilia una vez y ofrece resolución explícita ante rechazo remoto | T138–T139, T145 |
+- Kotlin principal y fuentes AndroidTest: `BUILD SUCCESSFUL`.
+- Suite JVM completa: `BUILD SUCCESSFUL`, **675 tests**, 0 failures, 0 errors, 2 skipped. Los XML están en `app/build/test-results/testDebugUnitTest/`.
+- Supabase local: la CLI aplicó `20261024182114_ep_mov_refund_v1.sql`; pgTAP reportó **31/31 PASS**. La instancia local contiene datos sintéticos. No se conectó a un proyecto hosted.
+- Para preparar esa instancia local, se reparó sólo el historial local de migraciones: el reset detectó DDL duplicado preexistente en `20261021200100...`; no se editó ni aplicó nada remotamente.
+- La verificación JVM dirigida de dominio/Room/refund y saldo pendiente de tarjeta pasó **16/16**; `MovementRevisionTest` pasó **20/20** con el caso explícito de rechazo de mantenimiento genérico de `REFUND`.
+- `MovementRefundRoomTest`, `MovementRefundSyncTest`, `MovementRefundScreenTest` y `MovementRoomMigrationTest` compilaron como AndroidTest. No se ejecutaron en runtime: no había dispositivo/emulador conectado (`adb devices` vacío).
 
-### Criterio de cierre
+La consulta compartida `MovementLocalDataSource.queryExpenseConsumption` resta reembolsos válidos y los atribuye a fecha/categoría de la compra. Los tests cubren S/100→S/60, reembolso total y compra/reembolso en periodos distintos. No se creó adaptador ni código de EP-PRE. La categoría del registro `INCOME/REFUND` queda nula porque el catálogo del servidor no admite categorías `EXPENSE` en un ingreso; el cálculo la deriva de la compra vinculada.
 
-Registrar por separado pruebas de dominio, Room/migración, pgTAP, sincronización, UI y la integración EP-PRE real. Un test con fixture demuestra el límite local del consumidor, no el comportamiento del provider. No declarar HU-25 aprobada hasta que los cuatro escenarios oficiales pasen, no existan defectos bloqueantes, Seguridad/Finanzas/QA revisen y el contrato de HU-36 real esté integrado.
+### Casos cubiertos y gates que faltan
+
+Dominio/JVM y pgTAP cubren reembolso parcial y total, exceso del remanente, propietario/moneda, elegibilidad, idempotencia/replay, conflicto de payload, lock por compra, rollback y restricciones de DML directo. AndroidTest incluye fixtures para atomicidad/reapertura, sincronización con rechazo visible y hoja/recuperación UI; su compilación no prueba ejecución real en pantalla.
+
+La corrección de consumo del periodo original está probada en el límite local de la consulta. La aceptación integrada entre periodos requiere contrato/provider real de HU-36 y permanece en T144. No declarar HU-25 aceptada hasta ejecutar esa integración y el runtime instrumentado disponible, obtener revisión independiente de QA/Finanzas/Seguridad y cerrar T148–T149.

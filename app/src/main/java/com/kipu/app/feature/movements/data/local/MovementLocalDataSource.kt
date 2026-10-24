@@ -8,6 +8,7 @@ import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.movements.data.MovementOutboxPayloadFactory
 import com.kipu.app.feature.movements.domain.MovementRevisionPlanner
+import com.kipu.app.feature.movements.domain.MovementRefundRepository
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.feature.plans.domain.PlanQuotaPolicy
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
@@ -29,7 +30,7 @@ class MovementLocalDataSource @Inject constructor(
     private val quotaPolicy: PlanQuotaPolicy = PlanQuotaPolicy(),
     private val revisionPlanner: MovementRevisionPlanner = MovementRevisionPlanner(),
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
-) {
+) : MovementRefundRepository {
     fun observeTransactions(userId: String): Flow<List<TransactionEntity>> {
         return movementDao.observeTransactions(userId)
     }
@@ -41,6 +42,226 @@ class MovementLocalDataSource @Inject constructor(
     suspend fun getTransactionById(userId: String, transactionId: String): TransactionEntity? {
         return movementDao.getTransactionById(userId, transactionId)
     }
+
+    override suspend fun getPurchaseTransaction(userId: String, transactionId: String): Transaction? =
+        movementDao.getTransactionById(userId, transactionId)?.toDomain()
+
+    override suspend fun getRefundedAmount(userId: String, purchaseTransactionId: String): Long {
+        val amount = database.transactionLinkDao()
+            .getValidRefundAmounts(userId, listOf(purchaseTransactionId))
+            .firstOrNull()?.amountMinor ?: 0L
+        return amount.coerceAtLeast(0L)
+    }
+
+    override suspend fun findRefundReplay(
+        userId: String,
+        idempotencyKey: String,
+        requestHash: String,
+    ): RefundTransactionResult? {
+        val receipt = movementDao.getReceipt(userId, idempotencyKey) ?: return null
+        if (receipt.commandType != "REFUND" || receipt.requestHash != requestHash) {
+            return RefundTransactionResult.Conflict(RefundTransactionError.IDEMPOTENCY_CONFLICT)
+        }
+        val transactionId = receipt.transactionId
+            ?: return RefundTransactionResult.Rejected(RefundTransactionError.RECEIPT_INCONSISTENT)
+        val transaction = movementDao.getTransactionById(userId, transactionId)
+            ?: return RefundTransactionResult.Rejected(RefundTransactionError.RECEIPT_INCONSISTENT)
+        return RefundTransactionResult.Success(transaction.toDomain(), isDuplicate = true)
+    }
+
+    override suspend fun commitRefundAtomic(
+        command: RefundTransactionCommand,
+        requestHash: String,
+        refund: Transaction,
+    ): RefundTransactionResult = database.withTransaction {
+        val priorReceipt = movementDao.getReceipt(command.userId, command.idempotencyKey)
+        if (priorReceipt != null) {
+            if (priorReceipt.commandType == "REFUND" && priorReceipt.requestHash == requestHash) {
+                val stored = priorReceipt.transactionId?.let { movementDao.getTransactionById(command.userId, it) }
+                    ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.RECEIPT_INCONSISTENT)
+                return@withTransaction RefundTransactionResult.Success(stored.toDomain(), isDuplicate = true)
+            }
+            return@withTransaction RefundTransactionResult.Conflict(RefundTransactionError.IDEMPOTENCY_CONFLICT)
+        }
+
+        val purchase = movementDao.getTransactionById(command.userId, command.purchaseTransactionId)
+            ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_FOUND)
+        if (purchase.userId != command.userId) {
+            return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.OWNER_MISMATCH)
+        }
+        if (!purchase.isLocallyRefundEligible()) {
+            return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
+        }
+        if (!purchase.currencyCode.equals(command.currency, ignoreCase = true) ||
+            refund.amountMinor != command.amountMinor || refund.id != command.refundTransactionId ||
+            refund.userId != command.userId || !refund.currency.equals(purchase.currencyCode, ignoreCase = true) ||
+            refund.type != MovementType.INCOME || refund.operationKind != "REFUND" ||
+            refund.cardId != purchase.cardId || refund.sourceAccountId != purchase.sourceAccountId ||
+            refund.categoryId != null
+        ) {
+            return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.INVALID_COMMAND)
+        }
+
+        val refunded = getRefundedAmount(command.userId, purchase.id)
+        val remaining = try {
+            Math.subtractExact(purchase.amountMinor, refunded)
+        } catch (_: ArithmeticException) {
+            0L
+        }
+        if (remaining <= 0L || command.amountMinor > remaining) {
+            return@withTransaction RefundTransactionResult.Rejected(
+                RefundTransactionError.REFUND_EXCEEDS_REMAINDER,
+                remaining.coerceAtLeast(0L),
+            )
+        }
+
+        val (receivingAccountId, ledgerRole) = if (purchase.cardId != null) {
+            val card = database.cardDao().getById(command.userId, purchase.cardId)
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
+            val liabilityId = card.accountId
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
+            val liability = database.accountDao().getById(command.userId, liabilityId)
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.OWNER_MISMATCH)
+            if (card.type != "CREDIT" || !card.currency.equals(command.currency, true) ||
+                liability.type != "CREDIT_LIABILITY" || !liability.currency.equals(command.currency, true)
+            ) return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
+            liabilityId to LedgerRole.LIABILITY
+        } else {
+            val accountId = purchase.sourceAccountId
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
+            val account = database.accountDao().getById(command.userId, accountId)
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.OWNER_MISMATCH)
+            if (!account.currency.equals(command.currency, true)) {
+                return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.CURRENCY_MISMATCH)
+            }
+            accountId to LedgerRole.DESTINATION
+        }
+
+        val now = System.currentTimeMillis()
+        val refundEntity = TransactionEntity(
+            id = refund.id,
+            userId = command.userId,
+            type = MovementType.INCOME.name,
+            amountMinor = command.amountMinor,
+            currencyCode = purchase.currencyCode,
+            sourceAccountId = purchase.sourceAccountId,
+            categoryId = purchase.categoryId,
+            merchantId = purchase.merchantId,
+            merchantProvisionalText = purchase.merchantProvisionalText,
+            occurredAt = command.occurredAt,
+            status = TransactionStatus.CONFIRMED.name,
+            syncStatus = MovementSyncStatus.PENDING.name,
+            createdAt = now,
+            updatedAt = now,
+            cardId = purchase.cardId,
+            operationKind = "REFUND",
+            revision = 1L,
+        )
+        if (refundEntity.sourceAccountId != null && receivingAccountId != refundEntity.sourceAccountId) {
+            return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.OWNER_MISMATCH)
+        }
+        movementDao.insertTransaction(refundEntity)
+        database.transactionLinkDao().insert(
+            TransactionLinkEntity(
+                userId = command.userId,
+                sourceTransactionId = purchase.id,
+                targetTransactionId = refundEntity.id,
+                linkType = "REFUND",
+                createdAt = now,
+            ),
+        )
+        movementDao.insertLedgerEntries(
+            listOf(
+                LedgerEntryEntity(
+                    id = UUID.randomUUID().toString(),
+                    userId = command.userId,
+                    transactionId = refundEntity.id,
+                    accountId = receivingAccountId,
+                    role = ledgerRole.name,
+                    signedAmountMinor = command.amountMinor,
+                    currencyCode = purchase.currencyCode,
+                    createdAt = now,
+                ),
+            ),
+        )
+        balanceProjectionStore.rebuildBalanceFromLedger(command.userId, receivingAccountId, purchase.currencyCode)
+        movementDao.insertOrUpdateReceipt(
+            LocalCommandReceiptEntity(
+                userId = command.userId,
+                idempotencyKey = command.idempotencyKey,
+                requestHash = requestHash,
+                transactionId = refundEntity.id,
+                status = "APPLIED",
+                contractVersion = 1,
+                commandType = "REFUND",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        movementDao.insertOutbox(
+            MovementOutboxEntity(
+                id = UUID.randomUUID().toString(),
+                userId = command.userId,
+                idempotencyKey = command.idempotencyKey,
+                aggregateId = refundEntity.id,
+                payload = MovementOutboxPayloadFactory.buildRefund(
+                    purchaseTransactionId = purchase.id,
+                    refund = refundEntity,
+                    idempotencyKey = command.idempotencyKey,
+                    requestHash = requestHash,
+                ),
+                contractVersion = 1,
+                commandType = "CREATE_REFUND",
+                state = "PENDING",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        RefundTransactionResult.Success(refundEntity.toDomain())
+    }
+
+    override suspend fun getRefundRejection(userId: String, refundTransactionId: String): String? =
+        movementDao.getRefundOutboxForTransaction(userId, refundTransactionId)
+            ?.takeIf { it.state == "FAILED_PERMANENT" }
+            ?.lastErrorCode
+
+    override suspend fun voidRejectedRefund(userId: String, refundTransactionId: String): RefundTransactionResult =
+        database.withTransaction {
+            val refund = movementDao.getTransactionById(userId, refundTransactionId)
+                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_FOUND)
+            if (refund.operationKind != "REFUND" || refund.type != MovementType.INCOME.name ||
+                refund.syncStatus != MovementSyncStatus.FAILED_PERMANENT.name ||
+                movementDao.getRefundOutboxForTransaction(userId, refundTransactionId)?.state != "FAILED_PERMANENT"
+            ) return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.REFUND_NOT_REJECTED)
+            if (refund.status == TransactionStatus.VOIDED.name) {
+                return@withTransaction RefundTransactionResult.Success(refund.toDomain(), isDuplicate = true)
+            }
+            val entries = movementDao.getLedgerEntriesForTransaction(userId, refundTransactionId)
+            if (entries.isEmpty()) {
+                return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.RECEIPT_INCONSISTENT)
+            }
+            val now = System.currentTimeMillis()
+            val reversalEntries = entries.map { entry ->
+                LedgerEntryEntity(
+                    id = UUID.randomUUID().toString(),
+                    userId = userId,
+                    transactionId = refundTransactionId,
+                    accountId = entry.accountId,
+                    role = "REVERSAL",
+                    signedAmountMinor = Math.negateExact(entry.signedAmountMinor),
+                    currencyCode = entry.currencyCode,
+                    createdAt = now,
+                )
+            }
+            movementDao.insertLedgerEntries(reversalEntries)
+            val voided = refund.copy(status = TransactionStatus.VOIDED.name, updatedAt = now)
+            movementDao.updateTransaction(voided)
+            reversalEntries.distinctBy { it.accountId }.forEach { entry ->
+                balanceProjectionStore.rebuildBalanceFromLedger(userId, entry.accountId, entry.currencyCode)
+            }
+            movementDao.updateRefundReceiptStatus(userId, refundTransactionId, "VOIDED", now)
+            RefundTransactionResult.Success(voided.toDomain())
+        }
 
     suspend fun findSimilarTransactions(
         userId: String,
@@ -940,7 +1161,17 @@ class MovementLocalDataSource @Inject constructor(
             toExclusive = query.toExclusive,
         )
         val filtered = if (query.categoryIds.isEmpty()) expenses else expenses.filter { it.categoryId in query.categoryIds }
-        val totalMinor = filtered.sumOf { it.amountMinor }
+        val refundsByPurchase = if (filtered.isEmpty()) {
+            emptyMap()
+        } else {
+            database.transactionLinkDao()
+                .getValidRefundAmounts(userId, filtered.map(TransactionEntity::id))
+                .associate { it.purchaseId to it.amountMinor }
+        }
+        val totalMinor = filtered.sumOf { expense ->
+            val refunded = refundsByPurchase[expense.id] ?: 0L
+            if (refunded >= expense.amountMinor) 0L else expense.amountMinor - refunded
+        }
         return ExpenseConsumptionResult(totalMinor, datasetVersion = 1L)
     }
 
@@ -1276,5 +1507,20 @@ class MovementLocalDataSource @Inject constructor(
             limits = FreePlanLimits(),
             premiumVerified = premiumVerified,
         ).planLockedResourceIds
+    }
+}
+
+private fun TransactionEntity.isLocallyRefundEligible(): Boolean {
+    if (type != MovementType.EXPENSE.name ||
+        syncStatus in setOf(MovementSyncStatus.CONFLICT.name, MovementSyncStatus.FAILED_PERMANENT.name) ||
+        status !in setOf(TransactionStatus.ACTIVE.name, TransactionStatus.CONFIRMED.name, TransactionStatus.REVISED.name)
+    ) return false
+    return when (operationKind?.uppercase()) {
+        "CARD_PURCHASE" -> cardId != null && sourceAccountId == null && destinationAccountId == null &&
+            installmentCount == 1 && legacyKind == null
+        null, "STANDARD" -> status in setOf(TransactionStatus.CONFIRMED.name, TransactionStatus.REVISED.name) &&
+            !sourceAccountId.isNullOrBlank() && destinationAccountId == null && cardId == null &&
+            installmentCount == null && legacyKind == null
+        else -> false
     }
 }

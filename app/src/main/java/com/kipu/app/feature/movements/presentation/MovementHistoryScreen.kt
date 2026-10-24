@@ -103,6 +103,7 @@ import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.movements.domain.model.TransactionStatus
 import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
+import com.kipu.app.feature.movements.domain.isRefundEligible
 import com.kipu.app.feature.recurrences.presentation.RecurrenceLifecycleScreen
 import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel
 import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationState
@@ -777,6 +778,30 @@ fun MovementHistoryRoute(
                 showRecurrenceList = false
                 viewModel.onCloseDetail()
             },
+            canRegisterRefund = item.transaction.isRefundEligible(),
+            refundRemainingMinor = uiState.detailRefundRemainingMinor ?: 0L,
+            refundRejectionReason = uiState.detailRefundRejection,
+            onRegisterRefund = {
+                viewModel.onCloseDetail()
+                viewModel.onOpenRefund(item)
+            },
+            onVoidRejectedRefund = {
+                viewModel.onVoidRejectedRefund(item) { _, message ->
+                    if (message != null) scope.launch { snackbarHostState.showSnackbar(message) }
+                }
+            },
+        )
+    }
+
+    uiState.refundFlow.purchaseItem?.takeIf { !uiState.refundFlow.isLoading }?.let { purchase ->
+        MovementRefundSheet(
+            currency = purchase.transaction.currency,
+            remainingMinor = uiState.refundFlow.remainingMinor,
+            purchaseOccurredAt = purchase.transaction.occurredAt,
+            isSubmitting = uiState.refundFlow.isSubmitting,
+            errorMessage = uiState.refundFlow.errorMessage,
+            onDismiss = viewModel::onCloseRefund,
+            onSubmit = viewModel::onSubmitRefund,
         )
     }
 

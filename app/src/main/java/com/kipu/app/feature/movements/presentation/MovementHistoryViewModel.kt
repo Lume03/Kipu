@@ -7,8 +7,10 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.plans.data.entitlement.offlineEntitlementRefreshTicker
 import com.kipu.app.feature.movements.domain.MovementMaintenanceRepository
+import com.kipu.app.feature.movements.domain.MovementRefundRepository
 import com.kipu.app.feature.movements.domain.MovementRepository
 import com.kipu.app.feature.movements.domain.QueryMovementHistory
+import com.kipu.app.feature.movements.domain.RegisterRefundTransaction
 import com.kipu.app.feature.movements.domain.VoidTransaction
 import com.kipu.app.feature.movements.domain.model.MovementFinancialState
 import com.kipu.app.feature.movements.domain.model.MovementHistoryAccessDecision
@@ -16,9 +18,13 @@ import com.kipu.app.feature.movements.domain.model.MovementHistoryCursor
 import com.kipu.app.feature.movements.domain.model.MovementHistoryQuery
 import com.kipu.app.feature.movements.domain.model.MovementMutationResult
 import com.kipu.app.feature.movements.domain.model.MovementRevisionCommand
+import com.kipu.app.feature.movements.domain.model.RefundTransactionCommand
+import com.kipu.app.feature.movements.domain.model.RefundTransactionError
+import com.kipu.app.feature.movements.domain.model.RefundTransactionResult
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
+import com.kipu.app.feature.movements.domain.isRefundEligible
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,6 +81,9 @@ data class MovementHistoryUiState(
     val detailRevisions: List<com.kipu.app.feature.movements.domain.model.MovementRevisionAudit> = emptyList(),
     val detailLoading: Boolean = false,
     val detailError: Boolean = false,
+    val detailRefundRejection: String? = null,
+    val detailRefundRemainingMinor: Long? = null,
+    val refundFlow: MovementRefundFlowState = MovementRefundFlowState(),
     val totalFilteredCount: Long = 0,
     val netByCurrency: Map<String, BigInteger> = emptyMap(),
     val mostUsedAccountId: String? = null,
@@ -100,6 +109,14 @@ private data class VoidDialogState(
 data class MovementVoidBalanceState(
     val sourceMinorUnits: Long? = null,
     val destinationMinorUnits: Long? = null,
+)
+
+data class MovementRefundFlowState(
+    val purchaseItem: TransactionItem? = null,
+    val remainingMinor: Long = 0L,
+    val isLoading: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 data class AdvancedFiltersState(
@@ -134,6 +151,8 @@ class MovementHistoryViewModel @Inject constructor(
     private val queryMovementHistoryUseCase: QueryMovementHistory? = null,
     savedStateHandle: SavedStateHandle? = null,
     private val billingRepository: com.kipu.app.feature.plans.purchase.BillingPurchaseRepository? = null,
+    private val refundTransactionUseCase: RegisterRefundTransaction? = null,
+    private val refundRepository: MovementRefundRepository? = null,
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -163,6 +182,7 @@ class MovementHistoryViewModel @Inject constructor(
     private val navigationChannel = savedStateHandle?.get<String>("paymentChannel")
         ?.uppercase(Locale.ROOT)?.let { value -> WalletPaymentChannel.entries.firstOrNull { it.name == value } }
     private val _detail = MutableStateFlow(HistoryDetailState())
+    private val _refundFlow = MutableStateFlow(MovementRefundFlowState())
     private val _recovery = MutableStateFlow(HistoryAccessRecovery.IDLE)
     private val _readRetry = MutableStateFlow(0)
     private val _accessRefresh = MutableStateFlow(0)
@@ -181,6 +201,7 @@ class MovementHistoryViewModel @Inject constructor(
                 if (owner != previousOwner) {
                     detailJob?.cancel(); recoveryJob?.cancel()
                     _detail.value = HistoryDetailState()
+                    _refundFlow.value = MovementRefundFlowState()
                     _recovery.value = HistoryAccessRecovery.IDLE
                     _voidState.value = VoidDialogState()
                     _advancedFilters.value = AdvancedFiltersState()
@@ -346,7 +367,7 @@ class MovementHistoryViewModel @Inject constructor(
                 else -> null
             },
         )
-    }.combine(combine(_detail, _recovery) { detail, recovery -> detail to recovery }) { state, (detail, recovery) ->
+    }.combine(combine(_detail, _recovery, _refundFlow) { detail, recovery, refund -> Triple(detail, recovery, refund) }) { state, (detail, recovery, refund) ->
         val currentOwner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
         val ownsDetail = detail.ownerId == currentOwner
         state.copy(
@@ -355,6 +376,9 @@ class MovementHistoryViewModel @Inject constructor(
             detailRevisions = detail.revisions.takeIf { ownsDetail } ?: emptyList(),
             detailLoading = ownsDetail && detail.loading,
             detailError = ownsDetail && detail.error,
+            detailRefundRejection = detail.refundRejectionMessage.takeIf { ownsDetail },
+            detailRefundRemainingMinor = detail.refundRemainingMinor.takeIf { ownsDetail },
+            refundFlow = refund.takeIf { it.purchaseItem?.transaction?.userId == currentOwner } ?: MovementRefundFlowState(),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -489,8 +513,27 @@ class MovementHistoryViewModel @Inject constructor(
             try {
                 val refreshedItem = queryMovementHistoryUseCase?.getHistoryItemById(owner, item.transaction.id) ?: item
                 val revisions = maintenanceRepository?.getRevisionAudit(owner, item.transaction.id).orEmpty()
+                val rejection = if (refreshedItem.transaction.operationKind.equals("REFUND", ignoreCase = true)) {
+                    refundRepository?.getRefundRejection(owner, refreshedItem.transaction.id)
+                        ?.let(::refundRejectionMessage)
+                } else null
+                val remaining = if (refreshedItem.transaction.isRefundEligible()) {
+                    refundRepository?.let { repository ->
+                        val purchase = repository.getPurchaseTransaction(owner, refreshedItem.transaction.id)
+                        if (purchase?.userId == owner && purchase.isRefundEligible()) {
+                            (purchase.amountMinor - repository.getRefundedAmount(owner, purchase.id)).coerceAtLeast(0L)
+                        } else null
+                    }
+                } else null
                 if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == owner) {
-                    _detail.value = HistoryDetailState(owner, item.transaction.id, item = refreshedItem, revisions = revisions)
+                    _detail.value = HistoryDetailState(
+                        owner,
+                        item.transaction.id,
+                        item = refreshedItem,
+                        revisions = revisions,
+                        refundRejectionMessage = rejection,
+                        refundRemainingMinor = remaining,
+                    )
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
             catch (_: Exception) { _detail.update { it.copy(loading = false, error = true) } }
@@ -498,6 +541,123 @@ class MovementHistoryViewModel @Inject constructor(
     }
 
     fun onCloseDetail() { detailJob?.cancel(); _detail.value = HistoryDetailState() }
+
+    fun onOpenRefund(item: TransactionItem) {
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        val purchase = item.transaction
+        if (purchase.userId != owner || !purchase.isRefundEligible()) return
+        _refundFlow.value = MovementRefundFlowState(purchaseItem = item, isLoading = true)
+        viewModelScope.launch {
+            try {
+                val current = refundRepository?.getPurchaseTransaction(owner, purchase.id)
+                if (current == null) {
+                    _refundFlow.value = MovementRefundFlowState(
+                        purchaseItem = item,
+                        errorMessage = "No se encontró la compra original.",
+                    )
+                    return@launch
+                }
+                if (current.userId != owner || !current.isRefundEligible()) {
+                    _refundFlow.value = MovementRefundFlowState(
+                        purchaseItem = item,
+                        errorMessage = "Esta compra ya no es elegible para reembolso.",
+                    )
+                    return@launch
+                }
+                val refunded = refundRepository.getRefundedAmount(owner, purchase.id)
+                val remaining = (current.amountMinor - refunded).coerceAtLeast(0L)
+                if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == owner) {
+                    _refundFlow.value = MovementRefundFlowState(
+                        purchaseItem = item,
+                        remainingMinor = remaining,
+                        errorMessage = if (remaining == 0L) "Esta compra ya no tiene saldo reembolsable." else null,
+                    )
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _refundFlow.value = MovementRefundFlowState(
+                    purchaseItem = item,
+                    errorMessage = "No se pudo consultar el remanente de esta compra.",
+                )
+            }
+        }
+    }
+
+    fun onCloseRefund() {
+        if (!_refundFlow.value.isSubmitting) _refundFlow.value = MovementRefundFlowState()
+    }
+
+    fun onSubmitRefund(amountMinor: Long, occurredAt: Long) {
+        val flow = _refundFlow.value
+        val item = flow.purchaseItem ?: return
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        if (flow.isSubmitting || flow.isLoading || amountMinor <= 0L || amountMinor > flow.remainingMinor) return
+        val purchase = item.transaction
+        _refundFlow.update { it.copy(isSubmitting = true, errorMessage = null) }
+        viewModelScope.launch {
+            val result = try {
+                refundTransactionUseCase?.invoke(
+                    RefundTransactionCommand(
+                        idempotencyKey = UUID.randomUUID().toString(),
+                        userId = owner,
+                        purchaseTransactionId = purchase.id,
+                        refundTransactionId = UUID.randomUUID().toString(),
+                        amountMinor = amountMinor,
+                        currency = purchase.currency,
+                        occurredAt = occurredAt,
+                    ),
+                ) ?: RefundTransactionResult.Rejected(RefundTransactionError.INVALID_COMMAND)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                RefundTransactionResult.Rejected(RefundTransactionError.INVALID_COMMAND)
+            }
+            if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != owner) return@launch
+            when (result) {
+                is RefundTransactionResult.Success -> {
+                    _refundFlow.value = MovementRefundFlowState()
+                    _datasetInvalidation.update { it + 1 }
+                    refreshSelectedDetail()
+                }
+                is RefundTransactionResult.Conflict -> _refundFlow.update {
+                    it.copy(isSubmitting = false, errorMessage = "La solicitud cambió durante el reintento. Inténtalo de nuevo.")
+                }
+                is RefundTransactionResult.Rejected -> _refundFlow.update {
+                    it.copy(isSubmitting = false, errorMessage = refundErrorMessage(result.error))
+                }
+            }
+        }
+    }
+
+    fun onVoidRejectedRefund(item: TransactionItem, onCompleted: (Boolean, String?) -> Unit = { _, _ -> }) {
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        if (item.transaction.userId != owner || !item.transaction.operationKind.equals("REFUND", ignoreCase = true)) return
+        viewModelScope.launch {
+            val result = try {
+                refundRepository?.voidRejectedRefund(owner, item.transaction.id)
+                    ?: RefundTransactionResult.Rejected(RefundTransactionError.REFUND_NOT_REJECTED)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                RefundTransactionResult.Rejected(RefundTransactionError.REFUND_NOT_REJECTED)
+            }
+            when (result) {
+                is RefundTransactionResult.Success -> {
+                    _detail.update { current ->
+                        if (current.transactionId == item.transaction.id) current.copy(
+                            item = current.item?.copy(transaction = result.transaction),
+                            refundRejectionMessage = null,
+                        ) else current
+                    }
+                    _datasetInvalidation.update { it + 1 }
+                    onCompleted(true, "Reembolso rechazado anulado; la compra original permanece intacta.")
+                }
+                is RefundTransactionResult.Conflict -> onCompleted(false, "El reembolso cambió en otro dispositivo.")
+                is RefundTransactionResult.Rejected -> onCompleted(false, "No se pudo anular este reembolso rechazado.")
+            }
+        }
+    }
 
     fun onDismissRecovery() { if (recoveryJob?.isActive != true) _recovery.value = HistoryAccessRecovery.IDLE }
 
@@ -717,7 +877,23 @@ class MovementHistoryViewModel @Inject constructor(
                 } catch (_: Exception) {
                     _detail.value.revisions
                 }
-                _detail.value = _detail.value.copy(item = refreshed, revisions = revisions)
+                val rejection = if (refreshed.transaction.operationKind.equals("REFUND", ignoreCase = true)) {
+                    refundRepository?.getRefundRejection(owner, transactionId)?.let(::refundRejectionMessage)
+                } else null
+                val remaining = if (refreshed.transaction.isRefundEligible()) {
+                    refundRepository?.let { repository ->
+                        val purchase = repository.getPurchaseTransaction(owner, transactionId)
+                        if (purchase?.userId == owner && purchase.isRefundEligible()) {
+                            (purchase.amountMinor - repository.getRefundedAmount(owner, transactionId)).coerceAtLeast(0L)
+                        } else null
+                    }
+                } else null
+                _detail.value = _detail.value.copy(
+                    item = refreshed,
+                    revisions = revisions,
+                    refundRejectionMessage = rejection,
+                    refundRemainingMinor = remaining,
+                )
             }
         }
     }
@@ -789,4 +965,26 @@ private data class HistoryDetailState(
     val item: TransactionItem? = null,
     val revisions: List<com.kipu.app.feature.movements.domain.model.MovementRevisionAudit> = emptyList(),
     val loading: Boolean = false, val error: Boolean = false,
+    val refundRejectionMessage: String? = null,
+    val refundRemainingMinor: Long? = null,
 )
+
+private fun refundErrorMessage(error: RefundTransactionError): String = when (error) {
+    RefundTransactionError.REFUND_EXCEEDS_REMAINDER -> "El remanente cambió. Ajusta el importe o vuelve a abrir la compra."
+    RefundTransactionError.PURCHASE_NOT_FOUND -> "No se encontró la compra original. No se guardó ningún cambio."
+    RefundTransactionError.PURCHASE_NOT_ELIGIBLE -> "La compra ya no es elegible para reembolso."
+    RefundTransactionError.CURRENCY_MISMATCH -> "La moneda no coincide con la compra original."
+    RefundTransactionError.IDEMPOTENCY_CONFLICT -> "La solicitud cambió durante el reintento. Inténtalo de nuevo."
+    RefundTransactionError.OWNER_MISMATCH -> "No se pudo verificar la propiedad de la compra."
+    RefundTransactionError.INVALID_AMOUNT -> "Ingresa un importe mayor que cero y no mayor al remanente."
+    RefundTransactionError.REFUND_NOT_REJECTED -> "Este reembolso no está rechazado y no se puede anular desde aquí."
+    RefundTransactionError.RECEIPT_INCONSISTENT -> "No se pudo verificar el registro del reembolso."
+    RefundTransactionError.INVALID_COMMAND -> "No se pudo registrar el reembolso. Inténtalo de nuevo."
+}
+
+private fun refundRejectionMessage(code: String): String = when (code.uppercase(Locale.ROOT)) {
+    "REFUND_EXCEEDS_REMAINDER" -> "Otro dispositivo ya utilizó parte del remanente. Este reembolso fue rechazado; puedes anularlo. La compra original no cambió."
+    "PURCHASE_NOT_FOUND" -> "No se encontró la compra original. Puedes anular el reembolso rechazado."
+    "PURCHASE_NOT_ELIGIBLE" -> "La compra no cumple las condiciones para reembolso. Puedes anular el reembolso rechazado."
+    else -> "El servidor rechazó este reembolso. Puedes anularlo sin cambiar la compra original."
+}

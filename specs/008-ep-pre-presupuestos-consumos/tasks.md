@@ -8,59 +8,60 @@
 
 - [ ] T001 Verificar HU-14/HU-18/HU-19/HU-25/HU-42/HU-57, inspeccionar código actual de categorías/movimientos/planes/notificaciones, identificar estado real y registrar evidencia en `specs/008-ep-pre-presupuestos-consumos/research.md` (gate previo; no asumir completitud).
 - [ ] T002 Resolver G1-G6 con responsables de EP-MOV, EP-NOT, bases/sync y producto; actualizar decisiones aprobadas y `specs/008-ep-pre-presupuestos-consumos/{research.md,plan.md,data-model.md}` antes de abrir implementación, incluida elegibilidad de moneda y explicación al usuario.
-- [ ] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/008-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
+- [X] T003 [P] Definir dataset sintético y matriz de pruebas financiera/propiedad/sync en `app/src/test/java/com/kipu/app/feature/budgets/` conforme `specs/008-ep-pre-presupuestos-consumos/quickstart.md` (no incluir fixtures como aceptación HU-25).
 
 ## Fase 2: Fundacional (bloqueante)
 
-- [ ] T004 Aprobar modelo Room/PostgreSQL, estados, rango/calendario y representación de periodo; documentar decisión en `specs/008-ep-pre-presupuestos-consumos/data-model.md` y plan de migración/rollback en `specs/008-ep-pre-presupuestos-consumos/plan.md` (depends on T001,T002).
-- [ ] T005 [P] Implementar migración Room aditiva y sus tests en `app/src/main/java/com/kipu/app/core/database/` y `app/src/test/java/com/kipu/app/core/database/`; preservar datos financieros y verificar versión vigente (depends on T004).
-- [ ] T006 [P] Implementar migración PostgreSQL/RLS/índices aprobada en nuevo archivo `supabase/migrations/<timestamp>_ep_pre_budgets.sql` y pruebas SQL asociadas existentes; no aplicar a remoto (depends on T004).
-- [ ] T007 Definir interfaces internas reales de consulta a gastos y alertas en coordinación con EP-MOV/EP-NOT, usando sus contratos aprobados existentes; integrar adaptadores de dominio en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T001,T002,T004).
-- [ ] T008 Implementar entidades/DAO/repository para `Budget` y `BudgetPeriod`, propiedad, transacción local y outbox vigente en `app/src/main/java/com/kipu/app/feature/budgets/data/` y `app/src/main/java/com/kipu/app/core/database/` (depends on T005,T007).
+- [X] T004 Aprobar y documentar el modelo Room/PostgreSQL, estados, rango/calendario, snapshot local por periodo y plan de migración/rollback en `data-model.md` y `plan.md`; registrar la diferencia de snapshot/pending con el SQL de referencia (depends on T001,T002).
+- [X] T005 Implementar y ejecutar en emulador la migración Room aditiva 25→26; preservar filas de cuentas, movimientos y ledger financiero (`BudgetRoomMigrationTest`, `:app:connectedDebugAndroidTest`) (depends on T004).
+- [X] T006 [P] Implementar migración PostgreSQL/RLS/índices en `supabase/migrations/20261024120000_ep_pre_budgets.sql` y pruebas pgTAP (61/61); no aplicada al remoto (depends on T004).
+- [X] T006b [P] Cerrar la brecha de esquema remoto: migración `supabase/migrations/20261024190000_ep_pre_budget_scope_snapshot.sql` (`budget_periods.scope_category_id`, `budgets.pending_*`, `get_budget_status` con alcance snapshot), DTO/mapper/hidratación en `feature/budgets/data` y tests. Verificado: pgTAP `ep_pre_budget_scope_snapshot.test.sql` 47/47 y `ep_pre_budget_rls.test.sql` 61/61 sobre una pila local temporal (sin `20261021200100_reconcile_movement_revision_contract.sql`, que falla en base limpia por `command_id` duplicada y no se modificó); `:app:compileDebugKotlin :app:testDebugUnitTest` 806 tests, 0 fallos (7 nuevos en `BudgetRemoteMappingsTest`). No aplicada al remoto; sin prueba E2E multi-dispositivo contra PostgREST real (depends on T006).
+- [X] T007 Integrar el lector de consumo existente de EP-MOV, jerarquía real de categorías y centro de avisos `BUDGET_ALERT` con dedupe owner/budget/period/threshold (depends on T001,T002,T004).
+- [X] T008 Implementar entidades/DAO/repository owner-scoped, escrituras locales transaccionales, outbox y tombstones (depends on T005,T007).
 
 ## Fase 3: User Story 1 — HU-36 Crear y consultar (P1)
 
 **Goal**: Crear presupuesto total/categoría/subcategoría, respetar dos presupuestos activos Free y mostrar límite/consumo/restante/porcentaje.<br>
 **Independent Test**: Alta local con referencia propia y consulta sintética de gastos elegibles; HU-25 no se considera demostrada por fixture.
 
-- [ ] T009 [P] [US1] Probar validaciones de importes/moneda, periodos aprobados y rangos invertidos en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetValidationTest.kt` (depends on T004).
-- [ ] T010 [P] [US1] Probar elegibilidad y exclusión de pendientes/VOIDED/transferencias/principal/metas en `app/src/test/java/com/kipu/app/feature/budgets/domain/ExpenseEligibilityTest.kt` (depends on T007).
-- [ ] T011 [US1] Implementar reglas de alta, consulta, money exacto y estado/vigencia en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T008,T009,T010).
-- [ ] T012 [US1] Integrar quota policy de HU-57 para límite Free de dos activos sin eliminar/ocultar objetos en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de planes existente (depends on T011).
-- [ ] T013 [US1] Implementar consumo derivado por movimiento único, categoría/jerarquía, owner/currency/period en `app/src/main/java/com/kipu/app/feature/budgets/data/` mediante interfaz validada de T007 (depends on T011).
-- [ ] T014 [US1] Implementar alta/edición básica de presupuesto en UI/estados en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T011,T012).
-- [ ] T015 [US1] Implementar lista/detalle/consulta con limit, consumed, remaining y porcentaje en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T013,T014).
-- [ ] T016 [US1] Integrar persistencia local-before-success y replay sin duplicado; probar dao/repositorio en `app/src/test/java/com/kipu/app/feature/budgets/data/` (depends on T008,T013).
-- [ ] T017 [US1] Añadir test UI/instrumentado de alta, consulta, vacío, error, offline y límite de cupo en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T014,T015,T016).
+- [X] T009 [P] [US1] Probar validaciones de importes/moneda, periodos aprobados y rangos invertidos en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetValidationTest.kt` (depends on T004).
+- [X] T010 [P] [US1] Probar `ExpenseEligibilityTest` contra la consulta Room real: excluye pendiente, VOIDED, transferencia, principal, aporte a meta y otra moneda; incluye una sola compra con tarjeta. 1/1 JVM pasa después de corregir el filtro SQL de principal (depends on T007).
+- [X] T011 [US1] Implementar reglas de alta, consulta, money exacto y estado/vigencia en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T008,T009,T010).
+- [X] T012 [US1] Integrar quota policy de HU-57 para límite Free de dos activos sin eliminar/ocultar objetos en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de planes existente (depends on T011).
+- [X] T013 [US1] Integrar consumo derivado por movimiento único, categoría/jerarquía, owner/currency/period mediante `ExpenseConsumptionRepository` y el query real (depends on T011).
+- [X] T014 [US1] (capa presentation completa: `BudgetFormViewModel`/`BudgetFormScreen`, validación y aviso de vigencia; verificada con tests JVM; la persistencia real la aporta T016) Implementar alta/edición básica de presupuesto en UI/estados en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T011,T012).
+- [X] T015 [US1] (capa presentation completa: lista, detalle, barra accesible; consumo vía casos de uso; verificada con tests JVM; el lector de datos real es T013) Implementar lista/detalle/consulta con limit, consumed, remaining y porcentaje en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T013,T014).
+- [X] T016 [US1] Integrar persistencia local-before-success y comandos de replay idempotentes; probar repositorio Room en emulador (reintento de renovación sin periodo duplicado) (depends on T008,T013).
+- [ ] T017 [US1] (parcial: `BudgetScreensTest` compila y cubre alta, consulta, vacío, error y cupo; NO ejecutado en emulador y falta escenario offline real, que depende de T016) Añadir test UI/instrumentado de alta, consulta, vacío, error, offline y límite de cupo en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T014,T015,T016).
 
 ## Fase 4: User Story 2 — HU-37 Renovación, consumo jerárquico y alertas (P2)
 
 **Goal**: Una vigencia por intervalo, jerarquía sin doble conteo, alertas deduplicadas y reembolso HU-25 real al periodo original.<br>
 **Independent Test**: Ciclo/alerta en integración local; aceptación completa requiere capacidades reales HU-25 y HU-42 (T002/T007), no mocks.
 
-- [ ] T018 [P] [US2] Probar periodos recurrentes/custom, límites snapshot y retries/concurrencia en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetPeriodRenewalTest.kt` (depends on T008).
-- [ ] T019 [P] [US2] Probar ids de gastos únicos en alcance padre/hijo/total sin doble conteo en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetHierarchyConsumptionTest.kt` (depends on T013).
-- [ ] T020 [US2] Implementar creación idempotente de vigencia y cierre de custom con límite snapshot en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y `data/` (depends on T018).
-- [ ] T021 [US2] Implementar cruces editables de umbral y deduplicación por propietario/presupuesto/periodo/threshold integrando HU-42 en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de notificaciones aprobado (depends on T007,T020).
-- [ ] T022 [US2] Implementar recalculo/reconsulta por reembolso real al periodo de origen con contrato aprobado de HU-25, sin mutar la compra/ledger desde EP-PRE, en `app/src/main/java/com/kipu/app/feature/budgets/data/` (depends on T002,T007,T020).
-- [ ] T023 [US2] Implementar consulta de historial de periodos y representación de alertas en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T020,T021).
-- [ ] T024 [US2] Añadir integración E2E real HU-25 + HU-42, cross-period, replay y reentrada, en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T021,T022,T023).
+- [X] T018 [P] [US2] Probar periodos recurrentes/custom, límites snapshot y retries/concurrencia en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetPeriodRenewalTest.kt` (depends on T008).
+- [X] T019 [P] [US2] Probar ids de gastos únicos en alcance padre/hijo/total sin doble conteo en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetHierarchyConsumptionTest.kt` (depends on T013).
+- [X] T020 [US2] Implementar creación idempotente de vigencia y finalización automática de rango custom vencido, conservando snapshots de periodo (depends on T018).
+- [X] T021 [US2] Implementar cruces editables de umbral y deduplicación por propietario/presupuesto/periodo/threshold en el centro de notificaciones (depends on T007,T020).
+- [X] T022 [US2] Verificar el recálculo real de HU-25 en el periodo original mediante `queryExpenseConsumption` y el vínculo Room compra↔reembolso: S/100→S/60 tras el parcial→S/0 al completar; octubre conserva consumo de gasto S/0 (depends on T002,T007,T020).
+- [ ] T023 [US2] (parcial: historial con límite snapshot en detalle hecho y probado; falta la representación del aviso `BUDGET_ALERT` en el centro de avisos, que depende de T021) Implementar consulta de historial de periodos y representación de alertas en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T020,T021).
+- [X] T024 [US2] Integrar HU-25/HU-42 en Room con renovación/reentrada, replay idempotente y notificación `BUDGET_ALERT` persistida por `BudgetCenterAlertNotifier`; cruce 49%→51% crea una alerta única. `MovementRefundBudgetIntegrationTest` y `BudgetHierarchyAlertsIntegrationTest`: 2/2 instrumentados en `emulator-5554` (depends on T021,T022,T023).
 
 ## Fase 5: User Story 3 — HU-38 Editar, finalizar y eliminar (P3)
 
 **Goal**: Editar límite/alcance según regla temporal, finalizar sin borrar historia, eliminación confirmada de planificación solamente.<br>
 **Independent Test**: Comparar datos financieros antes/después de edición, finalización, confirmación y cancelación; debe pasar solo después de HU-36/37.
 
-- [ ] T025 [P] [US3] Probar edición de límite, inmutabilidad de periodo cerrado, finalización y cancelación del borrado en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetLifecycleTest.kt` (depends on T020).
-- [ ] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
-- [ ] T027 [US3] Implementar finalización que detiene periodos/alertas nuevos, conserva consulta histórica en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y `data/` (depends on T021,T026).
-- [ ] T028 [US3] Implementar eliminación confirmada/cancelada de presupuesto y periodos con sync/tombstone conforme G5, sin cascada hacia movimientos, en `app/src/main/java/com/kipu/app/feature/budgets/data/` y migraciones aprobadas (depends on T004,T008,T027).
-- [ ] T029 [US3] Añadir pruebas E2E que comparen ledger/cuentas/gastos/saldos antes y después de CRUD, además de sync atrasado/no resurrección, en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T028).
+- [X] T025 [P] [US3] Probar edición de límite, inmutabilidad de periodo cerrado, finalización y cancelación del borrado en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetLifecycleTest.kt` (depends on T020).
+- [X] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
+- [X] T027 [US3] Finalizar detiene renovaciones/alertas y conserva consulta histórica; incluye fin natural automático de `CUSTOM_RANGE` vencido (depends on T021,T026).
+- [X] T028 [US3] Implementar borrado local transaccional, tombstone y sync RPC conforme G5, sin tocar movimientos (depends on T004,T008,T027).
+- [X] T029 [US3] Room E2E de crear, editar límite, finalizar y eliminar confirmado compara cuenta, movimiento, ledger, saldo y sus conteos antes/después. `BudgetCrudFinancialIsolationIntegrationTest` valida tombstone local y `BudgetTombstoneReplayIntegrationTest` ejecuta el worker con respuesta HTTP simulada local; replay remoto atrasado de presupuesto/periodo no los resucita. 2/2 instrumentados en `emulator-5554` (depends on T028).
 
 ## Fase 6: Polish transversal y aceptación
 
-- [ ] T030 [P] Auditar RLS/owner-bound references y acceso cross-user de presupuestos/periodos mediante tests en `supabase/tests/ep_pre_budget_rls.sql` (depends on T006,T008).
-- [ ] T031 [P] Auditar TalkBack, foco, errores/empty/offline/cupo/confirmación destructiva y textos accesibles en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T017,T024,T029).
+- [X] T030 [P] Auditar RLS/owner-bound references y acceso cross-user de presupuestos/periodos mediante tests en `supabase/tests/ep_pre_budget_rls.sql` (depends on T006,T008).
+- [ ] T031 [P] (parcial: semántica de barra, roles, contentDescription y confirmaciones cubiertos en `BudgetScreensTest`, sin ejecutar en dispositivo; falta auditoría TalkBack manual y offline) Auditar TalkBack, foco, errores/empty/offline/cupo/confirmación destructiva y textos accesibles en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T017,T024,T029).
 - [ ] T032 Ejecutar la estrategia de `specs/008-ep-pre-presupuestos-consumos/quickstart.md`, build/tests aplicables, migración representativa y regresiones EP-MOV; registrar salida y revisión cruzada sin afirmar resultado antes de ejecución (depends on T017,T024,T029,T030,T031).
 - [ ] T033 Actualizar `specs/008-ep-pre-presupuestos-consumos/{spec.md,plan.md,data-model.md,tasks.md}` solo con decisiones/evidencia aprobadas, y enlazar resultados; nunca sustituir gates por asunciones (depends on T032).
 

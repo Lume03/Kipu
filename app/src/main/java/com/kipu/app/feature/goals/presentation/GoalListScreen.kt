@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -87,6 +88,7 @@ fun GoalListScreen(
     onNotifications: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
     showBackButton: Boolean = false,
+    onOpenBudgets: (() -> Unit)? = null,
 ) {
     val colors = rememberCalmEmeraldColors()
     val visibleGoals = state.goals.filter { it.goal.status != GoalStatus.ARCHIVED }
@@ -127,7 +129,7 @@ fun GoalListScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { PlanningSelector() }
+                item { PlanningSelector(onOpenBudgets) }
                 item {
                     SavingsCapacityCard(
                         activeGoalCount = state.activeGoalCount,
@@ -240,7 +242,7 @@ fun GoalListScreen(
 }
 
 @Composable
-private fun PlanningSelector() {
+private fun PlanningSelector(onOpenBudgets: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp)
@@ -260,7 +262,14 @@ private fun PlanningSelector() {
         }
         Row(
             modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
-                .clickable(enabled = false) {}.semantics { disabled() }.padding(vertical = 12.dp)
+                .then(
+                    if (onOpenBudgets != null) {
+                        Modifier.clickable(role = Role.Tab, onClickLabel = "Abrir presupuestos", onClick = onOpenBudgets)
+                    } else {
+                        Modifier.clickable(enabled = false) {}.semantics { disabled() }
+                    },
+                )
+                .padding(vertical = 12.dp)
                 .testTag("planning_budgets_selector"),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,

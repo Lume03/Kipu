@@ -88,7 +88,7 @@ interface CreditDao {
     fun observeInstallmentsForCard(userId: String, cardId: String): kotlinx.coroutines.flow.Flow<List<CreditInstallmentEntity>>
 
     @androidx.room.Query(
-        """SELECT COALESCE(SUM(MAX(i.principal_minor - COALESCE(a.allocated_minor, 0), 0)), 0)
+        """SELECT COALESCE(SUM(MAX(i.principal_minor - COALESCE(a.allocated_minor, 0) - COALESCE(r.refunded_minor, 0), 0)), 0)
            FROM credit_installments i
            JOIN transactions t ON t.user_id = i.user_id AND t.id = i.transaction_id
            LEFT JOIN (
@@ -98,6 +98,15 @@ interface CreditDao {
              WHERE payment.status NOT IN ('VOIDED','FAILED')
              GROUP BY a.user_id, a.installment_id
            ) a ON a.user_id = i.user_id AND a.installment_id = i.id
+           LEFT JOIN (
+             SELECT links.user_id, links.source_transaction_id AS transaction_id, SUM(refund.amount_minor) AS refunded_minor
+             FROM transaction_links links
+             JOIN transactions refund ON refund.user_id = links.user_id AND refund.id = links.target_transaction_id
+             WHERE links.link_type = 'REFUND' AND refund.type = 'INCOME' AND refund.operation_kind = 'REFUND'
+               AND refund.status IN ('ACTIVE', 'CONFIRMED', 'REVISED')
+               AND refund.sync_status NOT IN ('CONFLICT', 'FAILED_PERMANENT')
+             GROUP BY links.user_id, links.source_transaction_id
+           ) r ON r.user_id = t.user_id AND r.transaction_id = t.id
            WHERE i.user_id = :userId AND t.card_id = :cardId
              AND i.deleted_at IS NULL AND i.status != 'VOIDED'
              AND t.status = 'ACTIVE' AND t.sync_status != 'FAILED_PERMANENT'""",
@@ -105,7 +114,7 @@ interface CreditDao {
     fun observeOutstandingPrincipalForCard(userId: String, cardId: String): kotlinx.coroutines.flow.Flow<Long>
 
     @androidx.room.Query(
-        """SELECT COALESCE(SUM(MAX(i.principal_minor - COALESCE(a.allocated_minor, 0), 0)), 0)
+        """SELECT COALESCE(SUM(MAX(i.principal_minor - COALESCE(a.allocated_minor, 0) - COALESCE(r.refunded_minor, 0), 0)), 0)
            FROM credit_installments i
            JOIN transactions t ON t.user_id = i.user_id AND t.id = i.transaction_id
            LEFT JOIN (
@@ -115,6 +124,15 @@ interface CreditDao {
              WHERE payment.status NOT IN ('VOIDED','FAILED')
              GROUP BY a.user_id, a.installment_id
            ) a ON a.user_id = i.user_id AND a.installment_id = i.id
+           LEFT JOIN (
+             SELECT links.user_id, links.source_transaction_id AS transaction_id, SUM(refund.amount_minor) AS refunded_minor
+             FROM transaction_links links
+             JOIN transactions refund ON refund.user_id = links.user_id AND refund.id = links.target_transaction_id
+             WHERE links.link_type = 'REFUND' AND refund.type = 'INCOME' AND refund.operation_kind = 'REFUND'
+               AND refund.status IN ('ACTIVE', 'CONFIRMED', 'REVISED')
+               AND refund.sync_status NOT IN ('CONFLICT', 'FAILED_PERMANENT')
+             GROUP BY links.user_id, links.source_transaction_id
+           ) r ON r.user_id = t.user_id AND r.transaction_id = t.id
            WHERE i.user_id = :userId AND t.card_id = :cardId
              AND i.deleted_at IS NULL AND i.status != 'VOIDED'
              AND t.status = 'ACTIVE' AND t.sync_status != 'FAILED_PERMANENT'""",
@@ -154,7 +172,7 @@ interface CreditDao {
     suspend fun getLedgerOutstandingPrincipalForCard(userId: String, cardId: String): Long
 
     @androidx.room.Query(
-        """SELECT i.*, (i.principal_minor - COALESCE(a.allocated_minor, 0)) AS outstanding_minor,
+        """SELECT i.*, MAX(i.principal_minor - COALESCE(a.allocated_minor, 0) - COALESCE(r.refunded_minor, 0), 0) AS outstanding_minor,
                   t.occurred_at AS purchase_occurred_at
            FROM credit_installments i
            JOIN transactions t ON t.user_id = i.user_id AND t.id = i.transaction_id
@@ -165,10 +183,19 @@ interface CreditDao {
              WHERE payment.status NOT IN ('VOIDED','FAILED')
              GROUP BY a.user_id, a.installment_id
            ) a ON a.user_id = i.user_id AND a.installment_id = i.id
+           LEFT JOIN (
+             SELECT links.user_id, links.source_transaction_id AS transaction_id, SUM(refund.amount_minor) AS refunded_minor
+             FROM transaction_links links
+             JOIN transactions refund ON refund.user_id = links.user_id AND refund.id = links.target_transaction_id
+             WHERE links.link_type = 'REFUND' AND refund.type = 'INCOME' AND refund.operation_kind = 'REFUND'
+               AND refund.status IN ('ACTIVE', 'CONFIRMED', 'REVISED')
+               AND refund.sync_status NOT IN ('CONFLICT', 'FAILED_PERMANENT')
+             GROUP BY links.user_id, links.source_transaction_id
+           ) r ON r.user_id = t.user_id AND r.transaction_id = t.id
            WHERE i.user_id = :userId AND t.card_id = :cardId
              AND i.deleted_at IS NULL AND i.status != 'VOIDED'
              AND t.status = 'ACTIVE' AND t.sync_status != 'FAILED_PERMANENT'
-             AND i.principal_minor > COALESCE(a.allocated_minor, 0)
+             AND i.principal_minor > COALESCE(a.allocated_minor, 0) + COALESCE(r.refunded_minor, 0)
            ORDER BY i.due_date, t.occurred_at, i.installment_number, i.id""",
     )
     suspend fun getOutstandingInstallmentsForCard(userId: String, cardId: String): List<CreditInstallmentOutstanding>

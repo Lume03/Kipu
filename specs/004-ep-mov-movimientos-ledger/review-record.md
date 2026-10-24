@@ -300,3 +300,21 @@ La captura compacta se obtuvo del árbol Compose y muestra la entrada de importe
 - No se ejecutaron unit tests, Android instrumentation, pgTAP, migraciones, RPC, build, despliegue remoto ni pruebas contra datos reales en este refine. Las evidencias anteriores de S2/S4/S6 permanecen históricas y no certifican HU-25.
 
 **Próximo gate**: resolver T132–T135 de `tasks.md`, obtener revisión final de Arquitectura/Finanzas/Seguridad y verificar el provider real de EP-PRE antes de liberar las tareas de implementación correspondientes.
+
+## Sprint 7 — resolución documental T132–T135 (2026-10-24)
+
+Producto/Finanzas cerró S7-01–S7-03 y se adoptó S7-04 como resolución técnica de implementación. Los términos finales están en `team-questions.md`, `spec.md`, `data-model.md` y `contracts/refund-transaction-v1.md`; el contrato propio `refund_transaction_v1` queda **Aprobado para implementación S7**. Se registra la decisión entregada para este trabajo, no una firma nominal de Arquitectura, Finanzas o Seguridad. La revisión independiente de esos roles sigue pendiente en T149.
+
+El contrato preserva G/I/T: `INCOME + operation_kind=REFUND`, vínculo canónico compra→reembolso en `transaction_links`, remanente serializado en servidor, rechazo offline visible/anulable e idempotencia versionada sin alterar registros históricos. Para EP-PRE se usa la consulta compartida de gasto neto; no se crea `RefundBudgetAdjustmentAdapter` ni código de presupuesto. Las pruebas JVM/Room de dicha consulta pertenecen al slice de persistencia; provider real de HU-36 y T144 continúan pendientes.
+
+Este registro es documental. No atribuye resultados de tests, migraciones, RPC, despliegue ni integración. Supabase hosted no se consulta ni modifica.
+
+## Sprint 7 — HU-25: implementación y revisión local (2026-10-24)
+
+Se implementaron T132–T143 y T145–T147. El contrato aprobado es el comando versionado `refund_transaction_v1`; preserva `register_transaction_v1/v2`. Room queda en versión 26 con migración aditiva desde 25. El registro `INCOME/REFUND` apunta a la compra mediante `transaction_links` (source compra, target reembolso); remanente se serializa en servidor y el rechazo offline queda visible y anulable sin tocar la compra.
+
+La consulta de gasto neto deriva fecha y categoría desde la compra vinculada. El registro de reembolso usa `category_id=NULL`: la validación del servidor impide asociar una categoría de gasto a un ingreso. No se agregó código de presupuestos; HU-36 real sigue pendiente. También se ajustó el saldo pendiente de tarjeta para restar los reembolsos válidos enlazados.
+
+Evidencia local: `:app:compileDebugKotlin` y `:app:compileDebugAndroidTestKotlin` pasaron; `:app:testDebugUnitTest` pasó 675 tests (0 fallos, 0 errores, 2 omitidos); la suite pgTAP de reembolsos pasó 31/31 contra Supabase local después de aplicar `20261024182114_ep_mov_refund_v1.sql`. Para preparar la base, se reparó sólo el historial local: el reset encontró DDL duplicado preexistente en `20261021200100...`. Las pruebas AndroidTest se escribieron y compilaron, pero no se ejecutaron porque no había dispositivo conectado. No se usó Supabase hosted.
+
+Este registro no es una revisión independiente ni una aceptación de HU-25. Siguen abiertos T144 (provider real EP-PRE/HU-36), T148 (integración y runtime pendiente) y T149 (QA, Finanzas y Seguridad independientes).

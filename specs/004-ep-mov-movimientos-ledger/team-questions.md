@@ -101,4 +101,15 @@ Estas preguntas no cambian los cuatro criterios aprobados de HU-25; sus respuest
 | S7-03 | Si la devolución fue registrada offline y otro dispositivo consume el remanente antes de la aceptación remota, ¿qué resolución y mensaje debe ver el usuario, especialmente si el dinero ya se devolvió fuera de Kipu? | Una denegación remota no puede borrar el hecho de caja ni dejar saldos duplicados; falta la política de recuperación de producto. |
 | S7-04 | ¿Cuándo estará disponible el contrato/provider real de EP-PRE/HU-36 que acepta el ajuste del consumo original y cuál es la prueba de aceptación compartida? | Es dependencia bloqueante de aceptación; las fixtures no demuestran el ajuste real del periodo original. |
 
-**Decisión técnica recomendada** (pendiente de revisión de Arquitectura/Seguridad, no de producto): usar `transaction_links.link_type=REFUND` como vínculo canónico conforme a investigación existente; mantener como legado no utilizado para S7 la columna separada `refund_of_transaction_id`; no hacer doble escritura. El diseño debe validar propietario de ambas transacciones y proteger la relación contra DML directo/borrado.
+### Respuestas de Producto — 2026-10-24
+
+S7-01 a S7-03 fueron respondidas por el Product Owner al abrir la implementación del Sprint 7. S7-04 es una decisión técnica de integración tomada en la implementación, coherente con R1 de EP-PRE (consumo derivado, sin contador mutable).
+
+| ID | Decisión |
+|---|---|
+| S7-01 | Son reembolsables los gastos (`EXPENSE`) propios, confirmados y no anulados pagados con efectivo, débito o tarjeta de crédito **sin cuotas**. Las compras en cuotas, transferencias, pagos de principal y movimientos especializados (deuda, metas) quedan fuera. |
+| S7-02 | El dinero vuelve a la cuenta o tarjeta de la compra original (backlog: «la cuenta recupera S/40»). El usuario no elige otro destino. |
+| S7-03 | Si el servidor rechaza un reembolso registrado offline por exceso de remanente, el reembolso queda visible como **rechazado** con su motivo y el usuario puede anularlo. Nunca se borra en silencio ni se modifica la compra original. |
+| S7-04 | EP-PRE deriva el consumo del gasto neto: compra menos reembolsos válidos vinculados, imputados a la fecha de la compra original. No hay un comando de ajuste separado; el contrato es la consulta compartida de gasto neto. |
+
+**Decisión técnica S7 aprobada para implementación**: usar `transaction_links.link_type=REFUND` como vínculo canónico, compra en `source_transaction_id` y reembolso en `target_transaction_id`; mantener `refund_of_transaction_id` sin escritura en S7. No hacer doble escritura. El RPC valida propiedad conjunta, serializa por compra, y el cliente no puede insertar, modificar ni borrar vínculos directamente. La revisión independiente de Arquitectura/Seguridad/Finanzas queda registrada como gate T149; no se atribuye aquí una firma externa.

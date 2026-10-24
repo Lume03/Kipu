@@ -50,6 +50,8 @@ import com.kipu.app.core.security.LockScreenOverlay
 import com.kipu.app.core.security.model.LocalLockState
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
+import com.kipu.app.feature.movements.data.sync.MovementSyncScheduler
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
@@ -68,7 +70,10 @@ import com.kipu.app.navigation.BIOMETRIC_ROUTE
 import com.kipu.app.navigation.CARD_FORM_ROUTE
 import com.kipu.app.navigation.DeepLinkResult
 import com.kipu.app.navigation.DEBT_LIST_ROUTE
+import com.kipu.app.navigation.BUDGETS_LIST_ROUTE
+import com.kipu.app.navigation.BUDGET_CREATE_ROUTE
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
+import com.kipu.app.navigation.budgetDestinations
 import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.navigateToDebtOpening
 import com.kipu.app.navigation.navigateRootTab
@@ -119,6 +124,12 @@ class MainActivity : FragmentActivity() {
     lateinit var sessionCoordinator: SessionCoordinator
 
     @Inject
+    lateinit var budgetMaintenanceScheduler: BudgetMaintenanceScheduler
+
+    @Inject
+    lateinit var movementSyncScheduler: MovementSyncScheduler
+
+    @Inject
     lateinit var localLockCoordinator: LocalLockCoordinator
 
     @Inject
@@ -142,6 +153,13 @@ class MainActivity : FragmentActivity() {
     private var restorationJob: Job? = null
     private val authCallbackViewModel: AuthCallbackViewModel by viewModels()
 
+    override fun onResume() {
+        super.onResume()
+        (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.let { access ->
+            budgetMaintenanceScheduler.scheduleNow(access.userId)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(localLockCoordinator)
@@ -159,6 +177,15 @@ class MainActivity : FragmentActivity() {
 
             val accessState by sessionCoordinator.localAccess.collectAsStateWithLifecycle()
             val lockState by localLockCoordinator.lockState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(accessState) {
+                (accessState as? LocalAccess.Available)?.let { access ->
+                    // Pull remote changes when the session opens; otherwise a fresh
+                    // install only hydrates after the first local write.
+                    movementSyncScheduler.scheduleSync(access.userId)
+                    budgetMaintenanceScheduler.scheduleNow(access.userId)
+                }
+            }
 
             val currentUserId = when (val access = accessState) {
                 is LocalAccess.Available -> access.userId
@@ -553,6 +580,7 @@ class MainActivity : FragmentActivity() {
                                     )
                                     debtDestinations(navController = navController)
                                     goalDestinations(navController = navController)
+                                    budgetDestinations(navController = navController)
                                     notificationDestinations(
                                         navController = navController,
                                     )
@@ -648,7 +676,9 @@ private fun isDetailRoute(route: String?): Boolean {
         route.startsWith("settings/") ||
         route == PLAN_PURCHASE_ROUTE ||
         route == GOALS_LIST_ROUTE ||
-        route == GOAL_CREATE_ROUTE
+        route == GOAL_CREATE_ROUTE ||
+        route == BUDGETS_LIST_ROUTE ||
+        route == BUDGET_CREATE_ROUTE
 }
 
 private fun isTopLevelRoute(route: String?): Boolean {

@@ -1,53 +1,73 @@
-# Contrato candidato: reembolso vinculado v1
+# Contrato: reembolso vinculado v1
 
-**Estado**: BORRADOR de diseño — no aprobado para implementación
-**Alcance**: EP-MOV, Sprint 7, HU-25 / FR-023–FR-025
-**Fuente funcional**: `spec.md`, `docs/producto/backlog.md` (HU-25)
-**Última revisión estática**: 2026-10-21
+**Estado**: Aprobado para implementación S7 (2026-10-24). La revisión independiente de Arquitectura, Finanzas y Seguridad permanece pendiente en T149.
+**Alcance**: EP-MOV, HU-25, FR-023–FR-028.
+**Autoridad de usuario/decisiones**: respuestas S7-01–S7-04 de `team-questions.md` y encargo de implementación S7.
 
-> Este documento conserva los invariantes funcionales aprobados y registra la propuesta de frontera técnica. No define todavía un payload/API ejecutable: primero deben resolverse las decisiones abiertas y obtenerse el contrato real de EP-PRE/HU-36.
+## Invariantes
 
-## Invariantes funcionales
+1. El reembolso es una transacción positiva `INCOME` con `operation_kind=REFUND`; G/I/T no cambia y REFUND no es ingreso operativo.
+2. Sólo se reembolsan gastos propios confirmados y vigentes, no anulados ni rechazados permanentemente, pagados en efectivo, débito o tarjeta de crédito sin cuotas. Se excluyen cuotas, transferencias, principal de deuda y movimientos especializados de deuda/metas.
+3. El saldo es `importe_compra - suma(reembolsos válidos vinculados)`. El importe solicitado debe ser positivo, de la misma moneda y no superar el saldo. Dominio y servidor validan; el servidor es autoridad entre dispositivos.
+4. El destino se deriva del origen: la cuenta de la compra para efectivo/débito o la misma tarjeta para compra a crédito. El cliente no aporta ni elige otro destino.
+5. La relación única es `transaction_links.link_type=REFUND`, compra como `source_transaction_id`, reembolso como `target_transaction_id`. No se escribe `transactions.refund_of_transaction_id`.
+6. La fecha del reembolso afecta caja; gasto neto y consumo se atribuyen a fecha y categoría originales. No se modifica la compra.
+7. Rechazo remoto por remanente agotado conserva el reembolso local visible con motivo seguro. La persona puede anularlo por ruta especializada; jamás se borra silenciosamente.
 
-1. Sólo se devuelve dinero contra una compra propia confirmada y con saldo reembolsable.
-2. Cada reembolso es parcial o total, queda vinculado al origen y la suma válida no puede superar el importe reembolsable pendiente.
-3. La caja se afecta en la fecha efectiva del reembolso; el gasto neto y el presupuesto se corrigen en el periodo de la compra original.
-4. El reembolso no crea ingreso operativo, no modifica ni elimina el hecho de compra original y no duplica saldo, gasto ni presupuesto.
-5. La sesión autenticada determina al propietario. El cliente no puede elegir `user_id` ni vincular transacciones de distintos propietarios.
+## Comando `refund_transaction_v1`
 
-## Hallazgos del esquema y cliente (inspección local, no despliegue)
+La API expone `POST /rest/v1/rpc/refund_transaction_v1` con `p_command`:
 
-- La migración base `supabase/migrations/20260920000000_financial_core_baseline.sql` incluye `operation_kind=REFUND` y la columna nullable `transactions.refund_of_transaction_id` con `ON DELETE SET NULL`.
-- `supabase/migrations/20260920162500_align_domain_schema_names.sql` incluye `transaction_link_type=REFUND` y `public.transaction_links`. La misma migración declara RLS por `user_id` y concede `SELECT/INSERT/UPDATE/DELETE` a `authenticated`; el enlace no tiene en esa definición una FK compuesta que demuestre que ambas transacciones pertenecen al mismo usuario.
-- Existe una segunda representación potencial del vínculo (`refund_of_transaction_id`). La investigación aprobada de EP-MOV describe `transaction_links` para relaciones entre operaciones independientes. Para S7 se recomienda usar un único vínculo canónico `transaction_links` con `link_type=REFUND`, y no escribir ambos mecanismos; Seguridad/Arquitectura debe revisar la autorización, ownership y retención antes de aprobarlo.
-- En el código actual de movimientos, `MovementModels.Transaction`, `MovementEntities.TransactionEntity` y `MovementDtos.TransactionDto` no modelan este vínculo ni existe un `TransactionLinkEntity`. La rama observada usa `KipuDatabase` versión 25; las referencias v16/v17 de S4 son históricas, no el origen de una migración S7.
-- La RPC genérica de revisión trata un `refund_of_transaction_id` no nulo como operación especializada. No se debe reutilizar edición/anulación genérica para registrar un reembolso.
-- Estas son observaciones de archivos versionados; no demuestran el esquema remoto desplegado.
+```json
+{
+  "contract_version": 1,
+  "idempotency_key": "uuid estable del comando",
+  "request_hash": "sha256 hexadecimal minúsculo",
+  "purchase_transaction_id": "uuid de la compra",
+  "refund_transaction": {
+    "id": "uuid estable del reembolso",
+    "amount_minor": 4000,
+    "currency_code": "PEN",
+    "occurred_at": "2026-10-24T15:00:00.000Z"
+  }
+}
+```
 
-## Dirección técnica recomendada, pendiente de aprobación
+`user_id`, `source_account_id` y `card_id` no son campos del comando: se derivan de la sesión autenticada y de la compra validada. El movimiento REFUND deja `category_id=NULL` porque el catálogo rechaza categorías EXPENSE en movimientos INCOME. La consulta de consumo deriva la categoría desde la compra enlazada. `occurred_at` se limita a milisegundos. El hash cubre exactamente la cadena UTF-8 `refund-v1\n<purchase UUID en minúsculas>\n<refund UUID en minúsculas>\n<amount_minor decimal>\n<currency_code en mayúsculas>\n<epoch_millis decimal>`; el resultado es SHA-256 hexadecimal minúsculo. Las referencias son UUID y el código de moneda ISO de tres letras, por lo que los separadores no son ambiguos.
 
-- Mantener los tipos principales existentes `EXPENSE`, `INCOME` y `TRANSFER`; representar el flujo de efectivo entrante como un movimiento `INCOME` con `operation_kind=REFUND`, excluyéndolo expresamente de métricas de ingreso operativo y relacionándolo una sola vez con la compra original mediante `transaction_links`.
-- Como candidata de orientación del vínculo, usar la compra original como `source_transaction_id` y el reembolso como `target_transaction_id`, siguiendo el patrón de operación→operación relacionado; confirmarlo en el diseño final.
-- Crear el reembolso con un comando financiero versionado propio, sin reinterpretar ni cambiar los bytes de `register_transaction_v1/v2` ni los contratos de corrección/anulación existentes.
-- El saldo reembolsable se valida autoritativamente en servidor, serializando por compra original dentro de la misma transacción que comprueba el recibo y registra el reembolso. Replays idénticos devuelven el recibo sin nuevos efectos; una clave reutilizada con otro hash no aplica efectos.
-- En local-first, la confirmación local, su ledger/proyección, recibo y outbox deben persistir atómicamente. Los reintentos conservan identidad/hash/payload. Una respuesta remota de exceso/conflicto no puede borrar la compra original ni generar una segunda compensación; su resultado y resolución visible deben cerrarse con Producto/Finanzas antes del código.
-- El contrato debe impedir DML de cliente que permita inventar, cambiar o borrar enlaces financieros; validar que compra, reembolso, cuenta y usuario autenticado coincidan y preservar historial sin `DELETE` físico. La estrategia concreta (RPC, grants, constraints y migración) requiere revisión de Seguridad/DB.
+### Validación y serialización del servidor
 
-## Frontera con EP-PRE
+- Exige sesión autenticada; deriva `user_id` de `auth.uid()` y rechaza parámetros adicionales de propietario.
+- Reproduce el hash y valida versión, UUID, importe positivo y timestamp.
+- Recupera primero el recibo por `(user_id, idempotency_key)`: mismo hash devuelve el resultado guardado sin nuevos efectos; hash distinto devuelve `CONFLICT / IDEMPOTENCY_KEY_REUSED`.
+- Adquiere lock transaccional por usuario+compra y bloquea la fila de compra. Verifica que ambas operaciones sean del propietario, que la compra sea `EXPENSE` confirmada/vigente y elegible, que cuenta/tarjeta de origen siga siendo la asociada, que moneda coincida y que el importe no exceda el remanente válido.
+- En una sola transacción crea el movimiento REFUND, su asiento al instrumento original, el vínculo orientado compra→reembolso y el recibo. La unicidad del target impide un segundo vínculo para el mismo reembolso.
+- `transaction_links` conserva RLS de lectura por propietario. `authenticated` no recibe `INSERT`, `UPDATE` ni `DELETE`; las escrituras ocurren dentro de la RPC privilegiada con `search_path` fijo y validaciones explícitas. No se añade política que permita DML financiero directo.
 
-EP-MOV registra el hecho de devolución y su efecto de caja. EP-MOV no implementa la administración de presupuestos ni define por sí sola cómo el proveedor de EP-PRE actualiza el consumo de la compra en su periodo original. La interfaz de ajuste debe acordarse con el contrato real de HU-36; una fixture o un stub no cierra la aceptación integrada de HU-25. Hasta que ese contrato exista, puede avanzarse en slices independientes de EP-MOV después de aprobar el diseño, pero no declararse completa la conciliación entre periodos.
+### Respuesta
 
-## Decisiones que bloquean el contrato ejecutable
+```json
+{
+  "status": "APPLIED | DUPLICATE | CONFLICT | REJECTED",
+  "transaction_id": "uuid del reembolso si fue aceptado",
+  "receipt_id": "uuid del recibo",
+  "error": { "code": "REFUND_EXCEEDS_REMAINDER", "field": "amount_minor", "retryable": false }
+}
+```
 
-1. Qué clases/estados de compra son elegibles además de la compra propia confirmada: compras estándar, tarjeta/cuotas, relaciones con deuda y compras corregidas/anuladas.
-2. A qué cuenta o instrumento se devuelve el efectivo y si se permite seleccionar un destino distinto al de la compra.
-3. Qué estado y acción ofrece la UI si otra operación offline consume el saldo reembolsable antes de que el servidor acepte el comando, considerando que la devolución puede haber ocurrido fuera de Kipu.
-4. Qué versión, identidad de consumo, resultado idempotente y manejo de rechazo usa el contrato de EP-PRE para corregir el periodo original.
+`APPLIED` y `DUPLICATE` llevan el mismo `transaction_id` y recibo. `CONFLICT` no añade efectos. `REJECTED` usa códigos estables y no incluye importes, notas, nombres de comercio, tokens ni SQL. Códigos no reintentables: `INVALID_COMMAND`, `PURCHASE_NOT_FOUND`, `PURCHASE_NOT_ELIGIBLE`, `CURRENCY_MISMATCH`, `SOURCE_CHANGED`, `REFUND_EXCEEDS_REMAINDER`, `IDEMPOTENCY_KEY_REUSED`. Fallos transitorios de red/servidor conservan payload y clave en outbox y se reintentan.
 
-## Verificación prevista
+## Persistencia Android y reconciliación
 
-- Pruebas de dominio de devolución parcial, total, exceso, propiedad, moneda, vínculo único, replay exacto y misma clave/hash distinto.
-- Pruebas de persistencia/migración Room desde la versión vigente de la rama, atomicidad de ledger/proyección/recibo/outbox y recuperación tras reinicio.
-- pgTAP de propiedad de ambos movimientos, límite concurrente por compra, grants/RLS, rollback, unicidad y cero DML destructivo.
-- Pruebas de sincronización offline/reintento/conflicto y prueba integrada con el proveedor real de EP-PRE para la reasignación al periodo original.
-- Todas son criterios futuros. No se ejecutaron ni se usaron para afirmar aceptación en este refinamiento.
+- El comando se guarda como outbox `command_type=CREATE_REFUND`, `contract_version=1`, con payload serializado inmutable; no modifica bytes ni hashes de `register_transaction_v1/v2`.
+- Room confirma en una transacción movimiento, vínculo, ledger, proyección, recibo y outbox. La idempotencia local usa el mismo hash. El rechazo remoto marca el outbox `FAILED_PERMANENT`, recibo `REJECTED` y transacción local `sync_status=FAILED_PERMANENT`; conserva hechos y vínculo. El gasto neto no descuenta ese intento.
+- Anular un rechazo es una acción especializada local: cambia el estado del reembolso a `VOIDED` y agrega contrapartida al ledger/proyección dentro de una transacción; no entra en las rutas genéricas de editar/anular ni toca la compra. Mantiene el recibo, enlace y outbox rechazado como auditoría.
+- Los mensajes visibles traducen códigos estables. Logs técnicos no contienen monto, comercio, nota, cuenta, tarjeta, payload, hash ni tokens.
+
+## Consulta de gasto neto y EP-PRE
+
+`ExpenseConsumptionRepository.queryConsumption` conserva su contrato. Su implementación local resta de cada gasto elegible los importes de reembolsos válidos vinculados y usa la fecha/categoría del gasto origen. Un reembolso parcial de S/40 sobre compra S/100 deja S/60; uno total deja S/0; un reembolso de octubre a compra de septiembre ajusta septiembre y no el gasto de octubre. EP-PRE/HU-36 obtiene ese resultado de la consulta compartida. EP-MOV no crea adaptador, contador ni reglas presupuestarias. La prueba integrada contra el provider real de HU-36 queda fuera de este contrato local y pendiente de T144.
+
+## Estado y verificación
+
+Este contrato cierra el gate documental para implementar S7. T149 conserva la revisión cruzada. Las migraciones Room/Postgres son aditivas y locales; este contrato no afirma que se hayan ejecutado, aplicado a remoto ni que el provider de EP-PRE esté integrado.

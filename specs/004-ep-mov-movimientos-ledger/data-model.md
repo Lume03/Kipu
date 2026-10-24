@@ -209,27 +209,31 @@ Fixture: A=[2026-09-01T00:00:00-05:00,2026-10-01T00:00:00-05:00), B=[2026-10-01T
 
 Una reserva sin movimiento de fondos permanece como evento/reserva solamente. Cuando el usuario solicita explícitamente una transferencia entre cuentas propias, Room confirma en una única transacción: la transacción principal `TRANSFER` (`operation_kind=GOAL_FUNDING`), los asientos SOURCE negativos y DESTINATION positivos, proyecciones reconstruidas desde ledger, la actualización/reserva de meta, su evento enlazado y outbox/recibo. El `transaction_id` es igual al `operation_id` estable del comando; la RPC mantiene esa misma clave para que el feed/reintento concilie con la fila local. Dos asientos netean a cero y no se agrega gasto, ingreso ni activo duplicado. No se agrega entidad ni cambio de esquema Room.
 
-## Incremento S7 — HU-25 Reembolsos vinculados (borrador de modelo)
+## Incremento S7 — HU-25 Reembolsos vinculados (modelo aprobado para implementación)
 
-**Estado**: propuesta técnica trazable a HU-25, no esquema aprobado ni implementado. El tipo principal sigue siendo G/I/T.
+**Aprobación de diseño**: 2026-10-24, decisiones de Producto/Finanzas aportadas para S7 y contrato propio de EP-MOV. No implica ejecución de migraciones ni aceptación integrada de EP-PRE; revisión independiente T149 pendiente. Los tipos principales siguen siendo G/I/T.
 
 ### Hecho económico y vínculo
 
-- Un reembolso es un movimiento independiente, positivo y auditable con `operation_kind=REFUND`; la opción recomendada es `type=INCOME` únicamente para expresar la entrada de caja, excluyéndolo de todo total de ingreso operativo. No se convierte ni reemplaza el movimiento de compra original.
-- El vínculo recomendado es `transaction_links` con `link_type=REFUND`, compra original como `source_transaction_id` y reembolso como `target_transaction_id`. Esta decisión coincide con la investigación existente de EP-MOV y los enums de la migración local. No duplicar el vínculo en `refund_of_transaction_id`; esa columna existe en el baseline pero usa `ON DELETE SET NULL` y no se incluye en el modelo Kotlin observado.
-- El propietario de compra, reembolso y relación debe ser el usuario autenticado. La relación se conserva por toda la vida auditable de los hechos; nunca se usa `DELETE` para reparar un conflicto o eliminar el origen.
-- El destino de caja/cuenta acreditada queda pendiente de Producto/Finanzas. Importe positivo, moneda compatible y elegibilidad de compras con tarjeta/cuotas/especializadas se terminan de fijar en el contrato.
+- Un reembolso es una transacción `INCOME` positiva con `operation_kind=REFUND`. Se excluye de totales de ingreso operativo, pero genera el efecto de caja correspondiente: asiento positivo a la cuenta de origen para efectivo/débito o abono positivo al pasivo de la misma tarjeta de crédito.
+- La compra original no se modifica. La única relación canónica es `transaction_links.link_type=REFUND`, `source_transaction_id` = compra y `target_transaction_id` = reembolso. No se escribe `transactions.refund_of_transaction_id`.
+- El registro `INCOME/REFUND` conserva `category_id=NULL`: la validación de catálogo no permite asignar una categoría `EXPENSE` a un ingreso. La consulta de gasto neto obtiene la categoría de la compra mediante el vínculo canónico; no se cambia ni se duplica la categoría en la compra.
+- Compra, reembolso y relación pertenecen al mismo `user_id` autenticado. El RPC crea la relación; los roles de cliente no tienen DML directo sobre vínculos. La relación y los hechos se conservan, incluso si el reembolso se rechaza o luego se anula.
+- Elegibilidad: gasto propio confirmado/vigente, no anulado ni rechazado permanentemente; efectivo o débito con cuenta de origen propia, o compra con tarjeta de crédito con `installment_count=1`. `ACTIVE` se acepta para compras de tarjeta del flujo actual cuando sus hechos locales están confirmados. Se excluyen compras en cuotas, transferencias, pagos de principal y operaciones especializadas de deuda/metas.
+- El importe se acredita a la cuenta de origen o tarjeta original, sin selector de destino. La moneda debe coincidir con la compra; el importe es positivo.
 
-### Saldo reembolsable y periodos
+### Saldo reembolsable, estados e idempotencia
 
-- Regla lógica candidata: `saldo_reembolsable = importe_original - suma_de_reembolsos_válidos_vinculados`; aceptar sólo si el importe nuevo es positivo y no supera el remanente.
-- `occurred_at` del reembolso gobierna el efecto de caja. Para el consumo de gasto y presupuesto se conserva como referencia la fecha/periodo del movimiento original; EP-PRE es dueño del cálculo y recibe el ajuste por un contrato pendiente.
-- La consulta de gasto debe descontar el reembolso exactamente una vez del gasto de la compra original y no sumar el movimiento `REFUND` como gasto ni ingreso operativo. La partición por categoría/subcategoría y su interacción con jerarquías de presupuesto deben especificarse con el consumidor EP-PRE.
-- En local, los intentos pendientes participan de una proyección provisional de límite; el servidor serializa la aceptación del saldo entre dispositivos. La política de rechazo/conflicto y su recuperación visible aún depende de decisiones de Producto/Finanzas.
+- `remanente = importe_original - suma(importes de reembolsos vinculados vigentes y no rechazados)`. Se valida en el dominio/local para uso offline y de nuevo en el servidor, bajo lock por compra. El rechazo remoto por exceso conserva el intento local como `FAILED_PERMANENT`/rechazado con código seguro; el usuario puede anularlo por la operación especializada `void_rejected_refund`. La anulación agrega contrapartida local y no elimina el vínculo ni cambia la compra.
+- Cada reembolso usa `refund_transaction_v1` con clave idempotente y hash inmutable. Reintento con clave/hash idénticos devuelve el recibo; clave repetida con hash distinto devuelve conflicto; errores de validación no crean asientos.
+- En Room la transacción local confirma, atómicamente, reembolso, relación, ledger, proyección, recibo y outbox. Reintentos conservan identidad/hash/payload. Rechazo no elimina el efecto local ni la historia; el estado de sync deja de participar en el gasto neto.
 
-### Entidad y migración local candidatas
+### Fechas y frontera de consumo
 
-- La rama inspeccionada usa `KipuDatabase` versión 25 y no tiene `TransactionLinkEntity`/DAO. Si se mantiene la decisión anterior, el modelo local requerirá persistir una relación propietaria/única y migrar desde la versión vigente integrada, con schema exportado. No se presupone versión destino futura.
-- El baseline PostgreSQL ya posee `operation_kind=REFUND`, `transaction_link_type=REFUND` y `transaction_links`. Debe verificarse el estado real remoto por separado; aquí no se autoriza ni se aplica DDL.
-- Revisar los grants CRUD actuales de `transaction_links`: las verificaciones/RPC deben probar propiedad conjunta de ambas transacciones, evitar enlaces cruzados entre usuarios y hacer imposible una alteración/borrado cliente que rompa historia financiera. Si requiere cambiar grants o esquema compartidos, Seguridad/DB revisa el impacto antes de aprobar.
-- La entidad no define aún campos de resultado local ni la forma de emitir el ajuste a EP-PRE; éstos dependen de decisiones aprobadas y del contrato real de HU-36.
+- `occurred_at` del reembolso gobierna el cambio de caja. El gasto neto se atribuye al intervalo y categoría de la compra original: la consulta existente `MovementLocalDataSource.queryExpenseConsumption` resta los reembolsos válidos enlazados a cada gasto elegible. No suma un REFUND como gasto ni como ingreso operativo.
+- EP-PRE derivará el presupuesto desde `ExpenseConsumptionRepository.queryConsumption`; no se crea adaptador ni lógica de presupuesto en EP-MOV. La verificación JVM/Room cubrirá parcial, total y cruce de periodos; HU-36 real mantiene pendiente la aceptación integrada.
+
+### Persistencia local y remota
+
+- Room v25 evoluciona aditivamente a v26 con `transaction_links`, clave compuesta por usuario/origen/destino/tipo, unicidad del reembolso como target e índices de ambas direcciones. FK compuestas preservan propietario y transacciones. El JSON de schema v26 se exporta; no hay fallback destructivo.
+- PostgreSQL ya declara el enum y la tabla de vínculos en migraciones versionadas. La migración S7 agrega `refund_transaction_v1`, revoca INSERT/UPDATE/DELETE directo de vínculos a clientes, conserva lectura RLS propia y valida propietario, elegibilidad, moneda, instrumento, remanente, replay y hash dentro de la transacción RPC. No escribe `refund_of_transaction_id` ni se aplica a hosted.

@@ -47,3 +47,9 @@ Definir consultas de lectura para Inicio/patrimonio e historial (HU-39) y calend
 ## Verificación futura
 
 La guía [quickstart.md](quickstart.md) describe validación de aceptación exclusivamente futura. En esta tarea documental no se ejecutan Gradle, pruebas de aplicación, migraciones ni despliegues. Requisitos, paths y DAG se verifican con checks documentales y Spec Kit read-only; ningún resultado equivale a implementación.
+
+## Implementación S7 — 2026-10-24
+
+- Patrimonio: `feature/home/domain/NetWorth.kt`, `ObserveNetWorthSummary.kt`; presentación en `feature/home/presentation/` (`HomeNetWorthViewModel`, `NetWorthCard`), integrada como ítem del `DashboardScreen` existente.
+- Calendario: `feature/calendar/domain/` (`CalendarEvent`, `CalendarEventProjector`, `ObserveCalendarMonth`), `feature/calendar/presentation/` (`CalendarViewModel`, `CalendarScreen`) y `navigation/CalendarNavigation.kt` (ruta `calendar`, acceso desde Inicio).
+- Fuentes, rutas y decisiones de interpretación: ver «Verificación de código real para S7» en [research.md](research.md).

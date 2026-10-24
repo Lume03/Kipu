@@ -4,6 +4,7 @@ import com.kipu.app.feature.movements.data.OfflineFirstMovementRepository
 import com.kipu.app.feature.movements.domain.ExpenseConsumptionRepository
 import com.kipu.app.feature.movements.domain.MovementMaintenanceRepository
 import com.kipu.app.feature.movements.domain.MovementRepository
+import com.kipu.app.feature.movements.domain.MovementRefundRepository
 import com.kipu.app.feature.movements.domain.MovementRevisionPlanner
 import com.kipu.app.feature.movements.domain.MovementRevisionRequestHasher
 import com.kipu.app.feature.movements.domain.RegisterTransactionValidator
@@ -23,6 +24,12 @@ abstract class MovementsBindingModule {
     abstract fun bindMovementRepository(
         impl: OfflineFirstMovementRepository
     ): MovementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMovementRefundRepository(
+        impl: OfflineFirstMovementRepository
+    ): MovementRefundRepository
 
     @Binds
     @Singleton
