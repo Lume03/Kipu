@@ -52,6 +52,11 @@ fun MovementDetailSheet(
     onOpenReceipt: () -> Unit = {},
     onRemoveReceipt: () -> Unit = {},
     onRegisterRecurrence: () -> Unit = {},
+    canRegisterRefund: Boolean = false,
+    refundRemainingMinor: Long = 0L,
+    refundRejectionReason: String? = null,
+    onRegisterRefund: () -> Unit = {},
+    onVoidRejectedRefund: () -> Unit = {},
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val tx = item.transaction
@@ -63,6 +68,7 @@ fun MovementDetailSheet(
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showRevisions by remember { mutableStateOf(false) }
+    var confirmRejectedRefundVoid by remember { mutableStateOf(false) }
 
     val amountPrefix = when (tx.type) {
         MovementType.EXPENSE -> "− "
@@ -546,6 +552,38 @@ fun MovementDetailSheet(
             }
 
             // === 4. BOTONES DE ACCIÓN INFERIORES ===
+            if (!voided && tx.type == MovementType.EXPENSE && canRegisterRefund && refundRemainingMinor > 0L) {
+                OutlinedButton(
+                    onClick = onRegisterRefund,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("detail_register_refund"),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(Icons.Rounded.Replay, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Registrar reembolso", fontWeight = FontWeight.Bold)
+                }
+            }
+            if (!voided && tx.operationKind.equals("REFUND", ignoreCase = true) && !refundRejectionReason.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = emeraldColors.expenseBg,
+                    border = BorderStroke(1.dp, emeraldColors.expenseBorder),
+                    modifier = Modifier.fillMaxWidth().testTag("refund_rejection_notice"),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(refundRejectionReason, color = emeraldColors.expenseText, style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(
+                            onClick = { confirmRejectedRefundVoid = true },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("detail_void_rejected_refund"),
+                            border = BorderStroke(1.dp, emeraldColors.expenseText),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = emeraldColors.expenseText),
+                        ) { Text("Anular reembolso rechazado") }
+                    }
+                }
+            }
             if (!voided && tx.type == MovementType.EXPENSE && !specialized) {
                 OutlinedButton(
                     onClick = onRegisterRecurrence,
@@ -627,6 +665,23 @@ fun MovementDetailSheet(
 
             Spacer(Modifier.height(12.dp))
         }
+    }
+
+    if (confirmRejectedRefundVoid) {
+        AlertDialog(
+            onDismissRequest = { confirmRejectedRefundVoid = false },
+            title = { Text("Anular el reembolso rechazado") },
+            text = { Text("Se revertirá solo este reembolso. La compra original y su fecha permanecerán intactas.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRejectedRefundVoid = false
+                    onVoidRejectedRefund()
+                }) { Text("Anular reembolso") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRejectedRefundVoid = false }) { Text("Conservar") }
+            },
+        )
     }
 }
 
