@@ -83,6 +83,26 @@ class OfflineFirstBudgetRepositoryRoomTest {
     }
 
     @Test
+    fun renewalReplayWithBudgetRevisionAndNewPeriodIsIdempotent() = runBlocking {
+        val budget = budget()
+        val first = period(budget, LocalDate.parse("2026-10-01"), LocalDate.parse("2026-11-01"))
+        assertEquals(BudgetWriteResult.OK, repository.create(budget, first))
+
+        val revised = budget.copy(limitMinor = 20_000L, revision = budget.revision + 1)
+        val next = period(revised, LocalDate.parse("2026-11-01"), LocalDate.parse("2026-12-01"))
+        repeat(2) {
+            assertEquals(
+                BudgetWriteResult.OK,
+                repository.applyRenewal(ownerId, revised, budget.revision, listOf(next)),
+            )
+        }
+
+        assertEquals(revised, repository.getBudget(ownerId, budgetId))
+        assertEquals(listOf(first.id, next.id), repository.listPeriods(ownerId, budgetId).map { it.id })
+        assertEquals(4, database.budgetDao().pendingOutboxCount(ownerId))
+    }
+
+    @Test
     fun alertDedupeAndBudgetDeleteLeaveFinancialRowsUntouched() = runBlocking {
         val budget = budget()
         val period = period(budget, LocalDate.parse("2026-10-01"), LocalDate.parse("2026-11-01"))
@@ -115,6 +135,7 @@ class OfflineFirstBudgetRepositoryRoomTest {
         assertEquals(BudgetWriteResult.OK, repository.delete(ownerId, budgetId))
 
         assertNull(repository.getBudget(ownerId, budgetId))
+        assertEquals(BudgetWriteResult.ALREADY_EXISTS, repository.create(budget, period))
         assertTrue(repository.listPeriods(ownerId, budgetId).isEmpty())
         assertEquals(0, database.budgetAlertLedgerDao().countForBudget(ownerId, budgetId))
         assertEquals(budget.revision, database.budgetDao().getTombstone(ownerId, budgetId)?.lastRevision)

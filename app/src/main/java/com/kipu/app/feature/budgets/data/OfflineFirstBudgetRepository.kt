@@ -128,12 +128,15 @@ class OfflineFirstBudgetRepository @Inject constructor(
             if (budgetDao.getTombstone(ownerId, budgetId) != null) return@transactionRunner BudgetWriteResult.NOT_FOUND
             val existing = budgetDao.getBudget(ownerId, budgetId) ?: return@transactionRunner BudgetWriteResult.NOT_FOUND
             if (budget != null) {
-                if (existing.revision != expectedRevision || budget.revision <= expectedRevision) {
-                    return@transactionRunner BudgetWriteResult.REVISION_CONFLICT
+                when {
+                    existing.revision == expectedRevision && budget.revision > expectedRevision -> {
+                        val updated = budget.toEntity(existing, now)
+                        check(budgetDao.updateBudget(updated) == 1) { "Budget disappeared during renewal" }
+                        enqueueBudget(updated, expectedRevision, now)
+                    }
+                    existing.revision == budget.revision && existing.toDomain() == budget -> Unit
+                    else -> return@transactionRunner BudgetWriteResult.REVISION_CONFLICT
                 }
-                val updated = budget.toEntity(existing, now)
-                check(budgetDao.updateBudget(updated) == 1) { "Budget disappeared during renewal" }
-                enqueueBudget(updated, expectedRevision, now)
             }
             for (period in newPeriods) {
                 if (period.budgetId != budgetId) return@transactionRunner BudgetWriteResult.NOT_FOUND
