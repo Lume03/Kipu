@@ -1,12 +1,18 @@
-# Tasks: Sprint 2 y Sprint 4 — Movimientos y ledger
+# Tasks: Sprints 2, 4, 6 y 7 — Movimientos y ledger
 
 **Propagated**: 2026-10-02 — T093/F04: alta estándar v2 con array canónico inequívoco validado por servidor; outbox v1 histórica inmutable, dispatch por versión y nueva migración wrapper. Se conserva el trabajo S2 y el DAG existente.
+
+**Propagated**: 2026-10-21 — Sprint 7/HU-25: se añade US8 con gates de producto/contrato y seis slices TDD verticales (RED seguido por su implementación GREEN); T001–T131 y sus estados históricos se conservan. Todas las tareas nuevas siguen pendientes; este refinamiento no ejecuta implementación ni pruebas.
+
+**Propagated**: 2026-10-21 — Se conserva el alcance funcional aprobado de HU-25, distinto de su gate de preparación para código; se normalizan las fases S6/S7 a 15/16 y T136–T147 a seis pares TDD verticales, sin renumerar tareas ni alterar dependencias históricas.
 
 **Input**: documentos de diseño en `specs/004-ep-mov-movimientos-ledger/`
 
 **Alcance histórico S2**: US1/HU18, US2/HU19 y US3/HU23; T001–T057 conservan su contenido y estado de cierre.
 
 **Alcance activo S4**: US4/HU-20, US5/HU-21 y US6/HU-22 (15 puntos EP-MOV; total S4 31 con HU-58/HU-59 de EP-PLA). US7/HU-24 sigue en S6 y US8/HU-25 en S7.
+
+**Alcance planificado S7**: US8/HU-25, 8 puntos EP-MOV. T132–T149 son trabajo futuro: decisiones aprobadas y diseño antes del código, con slices TDD verticales donde cada prueba RED precede a su implementación GREEN. La integración y aceptación final esperan HU-36 real de EP-PRE; ninguna casilla S7 está marcada como terminada.
 
 **Propagated**: 2026-10-02 — Refinamiento aprobado P1–P5 y plan S4; nuevas tareas T058–T089, sin regenerar ni renumerar el trabajo S2. Baseline main `c80ea0ddea80dfe5332971f12418758ea1bc9923`, Room v16.
 
@@ -378,7 +384,7 @@ En `docs/audits/tema-oscuro/issue-39/evidencias/integrated-head-2026-10-17/full-
 
 T123 sigue abierta: falta una captura del IME real y la suite global continúa con fallos reproducibles en la base. T122 sigue abierta por la preview de pantalla completa de `UnifiedInstrumentFormScreen`. T125 sigue abierta hasta aceptación visual humana; no se cierra #39.
 
-## Phase 10: US7 — HU-24 Aplicar movimientos a obligaciones y metas (S6)
+## Phase 15: US7 — HU-24 Aplicar movimientos a obligaciones y metas (S6)
 
 **Propagated**: 2026-10-19 — HU-24 añade solo la trazabilidad de identidad transferencia→ledger local/remoto y tareas ejecutables para su atomicidad. Los contratos existentes de EP-DEU mantienen la autoridad contable de liquidaciones; no reabre HU-20–23/25.
 
@@ -388,3 +394,46 @@ T123 sigue abierta: falta una captura del IME real y la suite global continúa c
 - [x] T129 [US7] Inyectar fallo del outbox y probar rollback conjunto de transacción, ledger, proyecciones, evento de reserva y recibo; validar además contabilidad de principal/interés con pruebas domain y sync existentes de EP-DEU.
 - [ ] T130 [US7] Obtener cross-review independiente de seguridad, integridad financiera y pruebas; atender observaciones antes de cualquier merge.
 - [x] T131 Ejecutar pruebas focalizadas Room/unitarias y DB local, compilar Kotlin, revisar migración/diff y registrar veredicto y límites del alcance HU-24 en `verification-report.md`; no aplicar a hosted/prod.
+
+## Phase 16: US8 — HU-25 Registrar reembolsos vinculados (S7, Priority P3)
+
+**Goal**: devolver parcial o totalmente una compra propia sin exceder su saldo reembolsable ni crear ingreso operativo, conservar la compra original y conciliar caja/consumo entre la fecha de devolución y el periodo original.
+
+**Independent Test**: aplicar los cuatro escenarios de HU-25 con propiedad e idempotencia; aceptación integrada sólo cuando EP-PRE/HU-36 use su contrato/provider real.
+
+### Gate de decisiones y diseño (bloquea código)
+
+- [ ] T132 [US8] Resolver con Producto/Finanzas la elegibilidad de compras, cuenta/instrumento de devolución y resultado visible si otro dispositivo agota el remanente; registrar respuestas aprobadas en `specs/004-ep-mov-movimientos-ledger/team-questions.md` y actualizar sólo requisitos afectados en `specs/004-ep-mov-movimientos-ledger/spec.md`.
+- [ ] T133 [US8] Confirmar el vínculo canónico `transaction_links.link_type=REFUND`, orientación compra→reembolso, modelo local y controles de grants/ownership/retención frente a `refund_of_transaction_id`; registrar decisión y restricciones en `specs/004-ep-mov-movimientos-ledger/data-model.md` y `specs/004-ep-mov-movimientos-ledger/research.md`.
+- [ ] T134 [US8] Cerrar la contabilidad candidata `INCOME + operation_kind=REFUND`, exclusión de ingreso operativo, cálculo del remanente, serialización autoritativa y política de offline/rechazo en `specs/004-ep-mov-movimientos-ledger/data-model.md` y `specs/004-ep-mov-movimientos-ledger/contracts/refund-transaction-v1.md`.
+- [ ] T135 [US8] Finalizar y aprobar el contrato versionado de comando/respuesta, idempotencia, estados/errores, propiedad y frontera de ajuste de EP-PRE; documentar firma de Arquitectura, Finanzas y Seguridad en `specs/004-ep-mov-movimientos-ledger/contracts/refund-transaction-v1.md` y `specs/004-ep-mov-movimientos-ledger/review-record.md`.
+
+### Slices TDD por frontera (cada RED precede su implementación GREEN)
+
+- [ ] T136 [P] [US8] Crear `app/src/test/java/com/kipu/app/feature/movements/domain/RefundTransactionTest.kt` para parcial, total, exceso, moneda/propiedad, sumatoria de reembolsos, replay exacto y misma clave/hash distinto; cubrir FR-023–FR-024 y los cuatro escenarios, sin mocks que sustituyan el dominio.
+- [ ] T137 [P] [US8] Implementar el modelo/caso de uso especializado y resultados de reembolso en `app/src/main/java/com/kipu/app/feature/movements/domain/model/MovementModels.kt` y `app/src/main/java/com/kipu/app/feature/movements/domain/MovementRepository.kt`; mantener G/I/T, impedir mantenimiento genérico de REFUND y ejecutar T136 primero: observar RED conductual y luego GREEN (FR-023–FR-024).
+- [ ] T138 [P] [US8] Crear `supabase/tests/database/movements_refund_test.sql` con pruebas pgTAP de aceptación/rechazo del comando, límite serializado por compra, mismo propietario de ambas operaciones, grants/RLS, rollback, unicidad/replay y ausencia de `DELETE` financiero; cubrir FR-023, FR-024, FR-026 y FR-028.
+- [ ] T139 [P] [US8] Ejecutar primero T138 contra Supabase local autorizado y observar RED conductual antes de implementar; luego añadir una migración aditiva con sufijo `ep_mov_refund_v1.sql` bajo `supabase/migrations/`, usando el timestamp generado por la herramienta del proyecto para el comando RPC especializado, y validar límite bajo lock, propiedad conjunta, grants/RLS y retención. Si falta la RPC, el error de resolución no cuenta como RED. No ejecutar contra hosted/prod (FR-023–FR-024).
+- [ ] T140 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/data/local/MovementRefundRoomTest.kt` para migración desde esquema vigente, commit atómico de movimiento/enlace/ledger/proyección/recibo/outbox y recuperación tras reinicio/uso offline (FR-023–FR-024, FR-026–FR-027).
+- [ ] T141 [US8] Persistir el vínculo canónico en `app/src/main/java/com/kipu/app/feature/movements/data/local/MovementLinkEntity.kt` y `app/src/main/java/com/kipu/app/feature/movements/data/local/MovementLinkDao.kt`; adaptar `app/src/main/java/com/kipu/app/feature/movements/data/local/MovementEntities.kt`, `app/src/main/java/com/kipu/app/feature/movements/data/local/MovementDao.kt`, `app/src/main/java/com/kipu/app/feature/movements/data/local/TransactionMappers.kt`, `app/src/main/java/com/kipu/app/feature/movements/data/local/MovementLocalDataSource.kt` y `app/src/main/java/com/kipu/app/feature/movements/data/OfflineFirstMovementRepository.kt`, además de `app/src/main/java/com/kipu/app/core/database/KipuDatabase.kt`, `app/src/main/java/com/kipu/app/core/database/RoomMigrations.kt` y schema Room vigente; ejecutar T140 primero (RED conductual→GREEN), sin fallback destructivo.
+- [ ] T142 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/data/sync/MovementRefundSyncTest.kt` para replay, timeout posterior a commit, reintentos con payload inmutable, rechazo/conflicto, preservación del origen/historia y mensajes diagnósticos sin datos financieros sensibles (FR-026–FR-028).
+- [ ] T143 [US8] Integrar el contrato versionado en `app/src/main/java/com/kipu/app/feature/movements/data/remote/MovementDtos.kt`, `app/src/main/java/com/kipu/app/feature/movements/data/remote/MovementApi.kt`, `app/src/main/java/com/kipu/app/feature/movements/data/MovementOutboxPayloadFactory.kt` y `app/src/main/java/com/kipu/app/feature/movements/data/sync/SyncMovementsWorker.kt`; conservar comandos históricos e identidad/hash/payload en retry. Ejecutar T142 primero y demostrar RED conductual antes del cambio (FR-026–FR-028).
+- [ ] T144 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/MovementRefundBudgetIntegrationTest.kt` contra el contrato y provider real de HU-36 para la corrección del periodo original (FR-025); no cerrar la prueba con fixture/stub ni reemplazar la autoridad de EP-PRE.
+- [ ] T145 [US8] Implementar `app/src/main/java/com/kipu/app/feature/movements/data/budget/RefundBudgetAdjustmentAdapter.kt` únicamente cuando EP-PRE provea el contrato real aprobado; no duplicar reglas de presupuesto en MOV. Ejecutar T144 primero contra el provider real (RED conductual→GREEN) (FR-025).
+- [ ] T146 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/presentation/MovementRefundScreenTest.kt` para acción sobre compra elegible, resumen de remanente, fechas real/original, rechazo recuperable, privacidad, accesibilidad y destino aprobado (FR-023, FR-025, FR-028).
+- [ ] T147 [US8] Implementar el flujo de presentación ligado a la compra original en `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryViewModel.kt`, `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryScreen.kt` y `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementRefundSheet.kt`, según decisiones aprobadas; ejecutar T146 primero y demostrar RED conductual (FR-023, FR-025, FR-028).
+
+### Integración y cierre (no ejecutados en este refine)
+
+- [ ] T148 [US8] Ejecutar matriz focalizada JVM/Room/pgTAP/sync/UI y la integración real EP-PRE para FR-023–FR-028 y SC-009; actualizar `specs/004-ep-mov-movimientos-ledger/quickstart.md`, `specs/004-ep-mov-movimientos-ledger/review-record.md` y `specs/004-ep-mov-movimientos-ledger/verification-report.md` sólo con comandos, resultados, dispositivo, versión/migración y límites observados; no acceder a hosted/prod sin autorización.
+- [ ] T149 [US8] Obtener revisión independiente de `qa-auditor`, Finanzas y Seguridad sobre cobertura FR-023–FR-028, SC-009, ledger, ownership/RLS, privacidad y evidencia en `specs/004-ep-mov-movimientos-ledger/review-record.md`; mantener HU-25 sin aceptación si hay críticos, falta HU-36 real o pruebas no ejecutadas.
+
+### Dependencies & Execution Order — Sprint 7
+
+- T132 → T133 → T134 → T135 es el gate de decisiones/modelo/contrato antes de cualquier código.
+- T136 → T137 y T138 → T139 son slices independientes por archivos distintos; pueden ejecutarse en paralelo después de T135, pero cada implementación espera su propia RED conductual.
+- T140 depende de T137; T141 depende de T140 y T137. T142 depende de T139 y T141; T143 depende de T142, T139 y T141.
+- T144 depende de T143 y del contrato/provider real de HU-36; T145 depende de T144. T146 depende de T141, T143 y T145; T147 depende de T146.
+- T148 depende de T137, T139, T141, T143, T145, T147 y del provider real de EP-PRE; T149 depende de T148. La historia no se acepta ni se demo-acepta entre periodos sin HU-36 real.
+- Los `[P]` se limitan a las dos parejas TDD independientes tras el gate; no paralelizar escrituras de `MovementLocalDataSource.kt`, `MovementDao.kt`, Room schema/migrations, DTO/outbox/worker ni contratos compartidos.
+- Ninguna tarea de implementación, ejecución de pruebas, deploy, merge, commit o push se realizó como parte de esta planificación.
