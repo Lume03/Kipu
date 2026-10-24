@@ -940,7 +940,17 @@ class MovementLocalDataSource @Inject constructor(
             toExclusive = query.toExclusive,
         )
         val filtered = if (query.categoryIds.isEmpty()) expenses else expenses.filter { it.categoryId in query.categoryIds }
-        val totalMinor = filtered.sumOf { it.amountMinor }
+        val refundsByPurchase = if (filtered.isEmpty()) {
+            emptyMap()
+        } else {
+            database.transactionLinkDao()
+                .getValidRefundAmounts(userId, filtered.map(TransactionEntity::id))
+                .associate { it.purchaseId to it.amountMinor }
+        }
+        val totalMinor = filtered.sumOf { expense ->
+            val refunded = refundsByPurchase[expense.id] ?: 0L
+            if (refunded >= expense.amountMinor) 0L else expense.amountMinor - refunded
+        }
         return ExpenseConsumptionResult(totalMinor, datasetVersion = 1L)
     }
 
