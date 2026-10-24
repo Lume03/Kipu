@@ -110,3 +110,19 @@ User approved the broadened UI/UX Pro Max and Compose Animations plan. Recommend
 **Audit evidence**: 2026-10-03 — Se preserva FR-017. La auditoría detectó un pendiente heredado: el filtro por **fuente** exigido por HU-22 no tiene un campo de procedencia en `Transaction`/`AdvancedHistoryCriteria`/la proyección Room consumida por esta UI. Sincronización y cuenta de origen son conceptos distintos. Este refinamiento implementa los controles respaldados por los contratos actuales; no fabrica procedencia histórica ni modifica el ledger para inferirla. T110 conserva explícitamente el trabajo restante de contrato y filtro por fuente antes de aceptar HU-22 íntegramente.
 
 Evidencia de autoridad: consulta MCP Obsidian Mind `"HU-22" "fuente" filtros avanzados historial manual SMS notificación`, contrastada con la sección completa de `work/active/kipu/Kipu md/02_Kipu_V4.2_Product_Backlog.md` (HU-22, reglas 1–3). El requerimiento original continúa vigente.
+
+## Investigación S7 — HU-25 (2026-10-21)
+
+Inspección estática del branch EP-MOV y migraciones locales; no se consultó esquema remoto ni se ejecutaron tests.
+
+| Hallazgo | Evidencia | Consecuencia para diseño |
+|---|---|---|
+| La operación `REFUND` ya existe en el enum `public.operation_kind` | `supabase/migrations/20260920000000_financial_core_baseline.sql:24-28` | Recomendar tipo principal G/I/T con naturaleza REFUND; validar que ningún agregado de ingreso operativo lo incluya. |
+| Hay dos formas remotas de expresar el vínculo | Baseline: `transactions.refund_of_transaction_id` con `ON DELETE SET NULL`; migración `20260920162500_align_domain_schema_names.sql`: `transaction_link_type.REFUND` y tabla `transaction_links` | La decisión S2 de este archivo favorece `transaction_links` para operaciones independientes; para S7 usar un solo vínculo canónico y no hacer doble escritura. Revisar retención/ownership. |
+| La relación actual tiene políticas/grants amplios | Misma migración: RLS sobre `user_id` y grants CRUD a `authenticated`; FKs individuales, sin comprobar en esa definición que ambas transacciones tengan el mismo `user_id` | RPC/constraints deben verificar ambos propietarios y evitar modificación/borrado directo que rompa historia; Seguridad/DB revisa el impacto de permisos. |
+| Cliente de movimientos aún no modela refund/link | `MovementModels.kt`, `MovementEntities.kt`, `MovementDtos.kt`; sin `TransactionLinkEntity`/DAO en `app/src/main/java` | Se requiere diseño de relación Room y migración desde versión vigente; no asumir v16/v17 históricos como baseline S7. |
+| La versión actual de Room observada es 25 | `app/src/main/java/com/kipu/app/core/database/KipuDatabase.kt:138` | La migración S7 debe calcularse desde el esquema integrado actual; no fijar número destino hasta rebase/integración. |
+| La RPC genérica de revisión bloquea movimientos con `refund_of_transaction_id` | `supabase/migrations/20261003004348_s4_movement_revision_rpc_v1.sql:445-450` | Reembolso requiere flujo especializado; no modificar el origen mediante edición/anulación genérica. |
+| No existe contrato EP-PRE/HU-36 en el directorio de specs inspeccionado | Inventario actual de `specs/` no contiene EP-PRE | La aceptación integrada entre periodos depende de un contrato real posterior; no aceptar stubs como provider. |
+
+**Dirección recomendada**: `operation_kind=REFUND` + `transaction_links.link_type=REFUND`, con la compra como origen del vínculo y el reembolso como destino; comando especializado e idempotente, ownership conjunto validado por servidor y serialización del remanente por compra. Arquitectura, Seguridad y Finanzas deben aprobar las propiedades finales. La dirección de efectivo, elegibilidad ampliada de compras y tratamiento visible de una carrera offline son decisiones de Producto/Finanzas no inferidas.

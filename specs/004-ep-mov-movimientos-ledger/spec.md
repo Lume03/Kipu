@@ -14,6 +14,8 @@
 
 **Refined**: 2026-10-19 — HU-24/S6: se aclara que la transferencia explícita a una meta conserva la identidad cliente de la operación como identidad de transacción para reconciliar el ledger local previo a sync; los escenarios y alcance de FR-020–022 no cambian.
 
+**Refined**: 2026-10-21 — Sprint 7/HU-25: se explicita el alcance aprobado del reembolso y la frontera con EP-PRE, conservando los criterios existentes de HU-25 y FR-023–025. No se añaden reglas de producto; las decisiones técnicas y de experiencia aún no especificadas quedan como gates previos a implementación en plan.md/tasks.md.
+
 **Input**: Especificar funcionalmente EP-MOV completa, con HU-18 a HU-25; Sprint 2 entrega registro manual, saldos atómicos y detección de duplicados, y los sprints 4, 6 y 7 amplían correcciones, consulta, obligaciones, metas y reembolsos sin crear una segunda verdad financiera.
 
 ## Control de la Épica
@@ -74,6 +76,14 @@ Las capacidades futuras quedan especificadas para preservar contratos e invarian
 ### Guion de Demo del Sprint 4 Refinado
 
 Corregir un gasto de S/20 a S/15 y mostrar revisión y recuperación de S/5; anular una transferencia y mostrar ambas contrapartidas; mostrar búsqueda antigua/filtros básicos Free y rechazo de consulta avanzada no autorizada; caducar concesión Premium, guardar un gasto manual offline y reconectar sin duplicados; demostrar al menos un conflicto y su recuperación explícita. HU-25 se demuestra en S7.
+
+### Alcance aprobado de HU-25 para Sprint 7 (8 puntos)
+
+- EP-MOV entrega HU-25: reembolsos parciales o totales vinculados a una compra propia confirmada. No se puede reembolsar más que el saldo pendiente después de las devoluciones válidas previas.
+- El cambio de caja corresponde a la fecha efectiva del reembolso; el gasto y el consumo presupuestario se ajustan en el periodo de la compra original, explicando ambas fechas. El reembolso no debe crear ingreso operativo ni duplicar efectos monetarios.
+- Se conservan como criterios oficiales los cuatro escenarios de US8/HU-25 y los requisitos FR-023–FR-025; no se cambia su alcance, prioridad ni dependencias (HU-18, HU-19 y HU-36).
+- EP-MOV no administra presupuestos ni periodos: consume o publica el ajuste mediante un contrato acordado con EP-PRE. La aceptación integrada de HU-25 espera el contrato real de HU-36; no se considera suficiente un fixture que lo sustituya.
+- La forma exacta de representar el reembolso, la cuenta que recibe la caja, la elegibilidad de compras corregidas/especializadas y la resolución de competencia/offline se deben cerrar como decisiones previas a implementación. Este gate no modifica los criterios de producto aprobados.
 
 ### Fuera de Alcance
 

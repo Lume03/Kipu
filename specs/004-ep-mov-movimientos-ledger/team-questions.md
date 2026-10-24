@@ -89,3 +89,16 @@ Las preguntas 1–27 anteriores son historia S2. Las aclaraciones S4 siguientes 
 - EP-PLA debe implementar el productor verificado del contrato history-query-access para HU-58/59. T084 no se cierra con fixtures; T061 documenta la frontera de consumo y no acredita entrega del productor.
 - La siguiente versión Room se decide en T066 sobre baseline/rebase actual; v16 es el origen aquí verificado.
 - T063 documenta revisión de diseño; T088 exige revisión cruzada de implementación y evidencia. La revisión no autoriza alterar P1–P5 ni omitir RLS o pruebas reales.
+
+## Pendientes Sprint 7 — HU-25 (sin respuestas inferidas)
+
+Estas preguntas no cambian los cuatro criterios aprobados de HU-25; sus respuestas sí modifican el modelo, el contrato o la recuperación visible. No se deben resolver leyendo únicamente código/esquema.
+
+| ID | Decisión pendiente | Por qué es bloqueante |
+|---|---|---|
+| S7-01 | ¿Qué clases y estados de compra son elegibles, además de una compra propia confirmada? Precisar tarjeta/cuotas, compras corregidas/anuladas y relaciones especializadas. | Determina la validación financiera y qué operaciones deben rechazarse como no elegibles. |
+| S7-02 | ¿A qué cuenta o instrumento llega la devolución y puede el usuario elegir un destino distinto al original? | Determina qué saldo cambia y el flujo de registro; la HU no fija el destino. |
+| S7-03 | Si la devolución fue registrada offline y otro dispositivo consume el remanente antes de la aceptación remota, ¿qué resolución y mensaje debe ver el usuario, especialmente si el dinero ya se devolvió fuera de Kipu? | Una denegación remota no puede borrar el hecho de caja ni dejar saldos duplicados; falta la política de recuperación de producto. |
+| S7-04 | ¿Cuándo estará disponible el contrato/provider real de EP-PRE/HU-36 que acepta el ajuste del consumo original y cuál es la prueba de aceptación compartida? | Es dependencia bloqueante de aceptación; las fixtures no demuestran el ajuste real del periodo original. |
+
+**Decisión técnica recomendada** (pendiente de revisión de Arquitectura/Seguridad, no de producto): usar `transaction_links.link_type=REFUND` como vínculo canónico conforme a investigación existente; mantener como legado no utilizado para S7 la columna separada `refund_of_transaction_id`; no hacer doble escritura. El diseño debe validar propietario de ambas transacciones y proteger la relación contra DML directo/borrado.

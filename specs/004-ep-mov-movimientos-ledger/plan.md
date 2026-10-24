@@ -2,6 +2,10 @@
 
 **Propagated**: 2026-10-02 — T093/F04: alta estándar v2 con array canónico inequívoco validado por servidor; outbox v1 histórica inmutable, dispatch por versión y nueva migración wrapper. Se conserva el trabajo S2 y el DAG existente.
 
+**Propagated**: 2026-10-21 — Sprint 7/HU-25: se añade el gate de diseño, el modelo técnico recomendado, la frontera con EP-PRE, los riesgos de integridad del vínculo y la matriz de verificación. No se declara HU-25 implementada ni aprobada para código.
+
+**Propagated**: 2026-10-21 — Se aclara que la sección de HU-25 en `spec.md` representa alcance funcional aprobado, no estado de preparación para código; criterios y dependencias permanecen sin cambio.
+
 **Branch**: `004-ep-mov-movimientos-ledger` | **Date**: 2026-09-22 | **Spec**: [spec.md](./spec.md)
 
 **Propagated**: 2026-10-02 — Refinamiento S4 de HU-20/HU-21/HU-22 y decisiones P1–P5. Se conserva el diseño histórico S2; se agregan diseño, dependencias y gates S4. Modelo/contratos S4 se completan con T058–T063 antes de código financiero.
@@ -255,3 +259,49 @@ La presentación de filtros conserva SC-014–017: privacidad y owner, aplicar/c
 **Propagated**: 2026-10-19 — HU-24/S6: transferencia explícita a meta persistida como `TRANSFER` y dos asientos con la identidad estable del comando; reserva/evento, ledger, proyecciones y outbox se confirman en una transacción Room. El RPC devuelve esa identidad como transaction ID para reconciliar antes/después de sync. Las funciones vigentes de liquidación de deuda/préstamo siguen siendo dueñas de su contabilización; no se introduce una segunda clasificación operativa.
 
 **Propagated**: 2026-10-19 — Reconciliación del estado Refine tras revisión: la validación read-only basada en timestamps marcaría este plan stale (spec 18:47:43 > plan 18:42:29), aunque el contenido HU-24 ya estaba propagado en este artefacto; se registra aquí la propagación confirmada, sin ampliar alcance ni afectar otras HU.
+
+## Sprint 7 — HU-25 Reembolsos vinculados (8 puntos)
+
+**Estado**: alcance funcional propagado; diseño candidato con decisiones de producto y seguridad pendientes. Esta sección prepara tareas, no autoriza ni documenta implementación.
+
+### Alcance y dependencias
+
+- Entrega EP-MOV: HU-25/US8 y FR-023–FR-025, sin reabrir HU-18/19 ni alterar sus reglas.
+- Dependencias de aceptación según `docs/producto/backlog.md`: HU-18, HU-19 y HU-36 (EP-PRE). HU-18/19/HU-36 no se declaran verificadas por este refine.
+- El incremento local/remoto de EP-MOV puede avanzar por slices independientes cuando se aprueben las decisiones de producto y el contrato de reembolso. La conciliación real del periodo de presupuesto y la aceptación integrada de HU-25 quedan bloqueadas hasta disponer del contrato implementado de HU-36; un stub/fixture no demuestra esa integración.
+- No se altera el tipo principal Gasto/Ingreso/Transferencia, no se agrega una segunda verdad contable, no se modifica la compra original y no se permite `DELETE` físico de sus hechos o efectos.
+
+### Hallazgos verificados en la rama (solo lectura)
+
+- `KipuDatabase.kt` está en versión 25 en el código inspeccionado. Los números v16/v17 documentados como origen S4 son históricos; la siguiente migración se define desde el esquema vigente al implementar y tras integrar cambios de `main`.
+- El baseline PostgreSQL declara `operation_kind=REFUND` y `transactions.refund_of_transaction_id` con `ON DELETE SET NULL`. Otra migración declara `transaction_link_type=REFUND` y `public.transaction_links`; por tanto hay dos representaciones potenciales del vínculo.
+- La decisión ya registrada en `research.md` es emplear `transaction_links` para relaciones entre operaciones independientes. Se recomienda mantenerla como vínculo canónico de S7 (`link_type=REFUND`) y no escribir también `refund_of_transaction_id`; la orientación y persistencia Room deben confirmarse en revisión.
+- `transaction_links` tiene RLS basada en `user_id`, grants CRUD a `authenticated` y FKs individuales a transacciones; esa migración no demuestra que ambas operaciones enlazadas sean del mismo propietario ni hace inmutable el vínculo. El RPC/constraints/grants de S7 requieren revisión de Seguridad/DB para proteger propiedad, integridad y auditoría.
+- El modelo Room local no tiene una entidad/DAO `transaction_links`; tampoco hay refund en `MovementModels.Transaction` ni en `MovementDtos.TransactionDto`. La RPC genérica de revisión rechaza el vínculo `refund_of_transaction_id` como operación especializada.
+- No hay evidencia de esquema desplegado remoto ni de un contrato EP-PRE/HU-36 en la carpeta `specs/`; un artefacto/migración local no prueba despliegue.
+
+### Dirección de diseño recomendada (a aprobar antes de código)
+
+1. Representar el ingreso efectivo de caja como transacción principal existente `INCOME`, con `operation_kind=REFUND` y relación canónica `transaction_links.link_type=REFUND`; excluir explícitamente ese flujo de ingresos operativos y reducir el gasto neto/consumo de la compra en su periodo original. El enum ya existe en el baseline, pero la cobertura de agregados debe probarse antes de aprobar el diseño.
+2. Usar un comando de reembolso versionado independiente. No modificar los payloads/hashes ya encolados de `register_transaction_v1/v2` ni reutilizar las RPC genéricas de corrección/anulación. El servidor deriva propietario de sesión, lee recibo antes de evaluar la revisión/saldo y serializa el remanente por compra para evitar aceptación concurrente excesiva.
+3. En una sola transacción local, confirmar tentativa/ledger/proyección/recibo/outbox; reintentos conservan identidad, hash y payload. La respuesta remota de exceso/conflicto debe preservar compra e historia y tener resolución visible, no borrado silencioso. El detalle de la experiencia para una devolución material ya ocurrida fuera de Kipu requiere decisión Producto/Finanzas.
+4. EP-MOV notifica el hecho de devolución y el importe a EP-PRE mediante contrato acordado; EP-PRE es responsable de corregir el consumo presupuestario del periodo original. No duplicar la administración de presupuesto en MOV.
+
+### Decisiones de producto y gates
+
+- **Bloquean contrato/código**: clases/estados de compra elegibles (incluyendo tarjeta/cuotas y movimientos especializados/corregidos), cuenta/instrumento que recibe la devolución y comportamiento visible ante competencia offline que agota el remanente. Se registran sin respuesta inferida en `team-questions.md` y `checklists/refund.md`.
+- **Gate técnico**: resolver el uso exclusivo de `transaction_links`, su dirección, representación local, autorización del par de movimientos y retención; revisar grants y evitar escritura/borrado directo de vínculos por clientes.
+- **Gate de integración**: especificación/contrato real y proveedor de EP-PRE/HU-36 disponibles antes de ejecutar la prueba entre periodos y aceptar HU-25.
+- **Gate de implementación**: revisión de Arquitectura, Integridad Financiera y Seguridad sobre `data-model.md` y `contracts/refund-transaction-v1.md`; decisiones no resueltas permanecen bloqueantes. Ningún gate afirma pruebas ejecutadas.
+
+### Archivos y superficies futuras
+
+Áreas existentes afectadas previstas: `MovementModels.kt`, `MovementRepository.kt`, `MovementEntities.kt`, `MovementDao.kt`, `MovementLocalDataSource.kt`, `TransactionMappers.kt`, `OfflineFirstMovementRepository.kt`, `MovementOutboxPayloadFactory.kt`, `MovementDtos.kt`, `MovementApi.kt`, `SyncMovementsWorker.kt`, `MovementHistoryViewModel.kt`, `MovementHistoryScreen.kt`, `KipuDatabase.kt`, `RoomMigrations.kt`, y migraciones/tests bajo `supabase/`. Posibles entregables nuevos (no creados en esta etapa): `MovementLinkEntity.kt`, `MovementLinkDao.kt`, `MovementRefundSheet.kt`, `RefundBudgetAdjustmentAdapter.kt` y pruebas `RefundTransactionTest.kt`, `MovementRefundRoomTest.kt`, `MovementRefundSyncTest.kt`, `MovementRefundBudgetIntegrationTest.kt`, `MovementRefundScreenTest.kt`, `supabase/tests/database/movements_refund_test.sql`.
+
+### Criterios de verificación previstos
+
+- Los cuatro escenarios de HU-25: reembolso S/40 de S/100, devolución total, rechazo de S/70 tras devolver S/40 y compra de septiembre reembolsada en octubre con caja en octubre/gasto y presupuesto ajustados a septiembre.
+- Límites/concurrencia y aislamiento: propietario/moneda de ambas operaciones, no exceder remanente, dos dispositivos compitiendo, replay exacto sin efectos nuevos, misma clave con hash distinto en conflicto, rollback atómico, vínculo no duplicado ni borrado.
+- Persistencia/sync: migración desde el esquema Room actual, reinicio offline, retry/timeout y reconciliación; respetar historial, ownership, privacidad, RLS/grants y ausencia de `DELETE` financiero.
+- Integración EP-PRE: actualizar el periodo original una sola vez usando contrato/provider real; fixture de consumo no cierra aceptación integrada.
+- Sólo se registrará evidencia de tests, dispositivos, migraciones y despliegue cuando se ejecuten en tareas futuras. Este refine no ejecutó pruebas ni migraciones.
