@@ -54,7 +54,7 @@ val MIGRATION_BUDGETS_25_26 = object : Migration(25, 26) {
             `threshold_bps` INTEGER NOT NULL,
             `dedupe_key` TEXT NOT NULL,
             `emitted_at` INTEGER NOT NULL,
-            PRIMARY KEY(`user_id`, `budget_id`, `period_id`, `threshold_bps)
+            PRIMARY KEY(`user_id`, `budget_id`, `period_id`, `threshold_bps`)
         )""")
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `budget_alert_owner_dedupe_uq` ON `budget_alert_ledger` (`user_id`, `dedupe_key`)")
 
