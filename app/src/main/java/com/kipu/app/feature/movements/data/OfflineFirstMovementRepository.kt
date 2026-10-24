@@ -17,6 +17,8 @@ import com.kipu.app.feature.movements.domain.MovementHistoryQueryRepository
 import com.kipu.app.feature.movements.domain.MovementMaintenanceRepository
 import com.kipu.app.feature.movements.domain.MovementRepository
 import com.kipu.app.feature.movements.domain.MovementRevisionRequestHasher
+import com.kipu.app.feature.movements.domain.ExpenseConsumptionChangeListener
+import com.kipu.app.feature.movements.domain.NoOpExpenseConsumptionChangeListener
 import com.kipu.app.feature.movements.domain.TransactionRequestHasher
 import com.kipu.app.feature.movements.domain.model.*
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +40,7 @@ class OfflineFirstMovementRepository @Inject constructor(
     private val categoryDao: CategoryDao,
     private val merchantDao: MerchantCatalogDao,
     private val debtSyncScheduler: DebtSyncScheduler = NoOpDebtSyncScheduler,
+    private val expenseChangeListener: ExpenseConsumptionChangeListener = NoOpExpenseConsumptionChangeListener,
 ) : MovementRepository, MovementMaintenanceRepository, ExpenseConsumptionRepository, MovementHistoryQueryRepository {
 
     override fun observeTransactions(userId: String): Flow<List<TransactionItem>> =
@@ -99,6 +102,9 @@ class OfflineFirstMovementRepository @Inject constructor(
         val result = localDataSource.commitTransactionAtomic(command, requestHash)
         if (result is RegisterTransactionResult.Success && !result.isDuplicate) {
             syncScheduler.scheduleSync(command.userId)
+            if (command.type == MovementType.EXPENSE) {
+                expenseChangeListener.onExpenseConsumptionChanged(command.userId)
+            }
         }
         return result
     }
@@ -136,10 +142,14 @@ class OfflineFirstMovementRepository @Inject constructor(
         localDataSource.getRevisionAudit(userId, transactionId)
 
     override suspend fun revise(userId: String, command: MovementRevisionCommand.Revise): MovementMutationResult {
+        val previousHead = localDataSource.getRevisionHead(userId, command.transactionId)
         val requestHash = revisionHasher.computeHash(command)
         val result = localDataSource.commitRevisionAtomic(userId, command, requestHash)
         if (result is MovementMutationResult.Success && !result.isDuplicate) {
             syncScheduler.scheduleSync(userId)
+            if (previousHead?.payload?.affectsBudgetConsumption() == true || result.head.payload.affectsBudgetConsumption()) {
+                expenseChangeListener.onExpenseConsumptionChanged(userId)
+            }
         }
         return result
     }
@@ -151,6 +161,11 @@ class OfflineFirstMovementRepository @Inject constructor(
         val result = localDataSource.commitVoidAtomic(userId, command, requestHash)
         if (result is MovementMutationResult.Success && !result.isDuplicate) {
             syncScheduler.scheduleSync(userId)
+            if (target?.type == MovementType.EXPENSE.name || target?.operationKind.equals("REFUND", ignoreCase = true) ||
+                target?.legacyKind.equals("REFUND", ignoreCase = true)
+            ) {
+                expenseChangeListener.onExpenseConsumptionChanged(userId)
+            }
             if (isDebtSettlement) debtSyncScheduler.schedule(userId)
         }
         return result
@@ -172,6 +187,9 @@ class OfflineFirstMovementRepository @Inject constructor(
         val result = localDataSource.redoProposal(userId, proposalId, newIdempotencyKey)
         if (result is MovementMutationResult.Success) {
             syncScheduler.scheduleSync(userId)
+            if (result.head.payload.affectsBudgetConsumption()) {
+                expenseChangeListener.onExpenseConsumptionChanged(userId)
+            }
         }
         return result
     }
@@ -253,3 +271,6 @@ class OfflineFirstMovementRepository @Inject constructor(
         }
     }
 }
+
+private fun MovementRevisionPayload.affectsBudgetConsumption(): Boolean =
+    type == MovementType.EXPENSE || operationKind.equals("REFUND", ignoreCase = true)
