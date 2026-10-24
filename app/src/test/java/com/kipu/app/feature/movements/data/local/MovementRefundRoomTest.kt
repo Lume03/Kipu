@@ -6,7 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import org.robolectric.RobolectricTestRunner
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.local.AccountEntity
+import com.kipu.app.feature.movements.domain.RegisterRefundTransaction
 import com.kipu.app.feature.movements.domain.model.ExpenseConsumptionQuery
+import com.kipu.app.feature.movements.domain.model.RefundTransactionCommand
+import com.kipu.app.feature.movements.domain.model.RefundTransactionResult
 import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
@@ -70,24 +73,65 @@ class MovementRefundRoomTest {
         assertEquals(0L, consumption(from = 1_000L, to = 2_000L, categories = emptySet()))
     }
 
-    private suspend fun insertPurchaseAndRefund(purchaseAmount: Long, refundAmount: Long) {
-        val purchaseId = UUID.randomUUID().toString()
-        val refundId = UUID.randomUUID().toString()
-        dao.insertTransaction(
-            TransactionEntity(
-                id = purchaseId,
+    @Test
+    fun refundCommitAtomicallyWritesMovementLinkLedgerProjectionReceiptAndOutbox() = runBlocking {
+        val purchaseId = insertPurchase()
+        val result = RegisterRefundTransaction(source).invoke(
+            RefundTransactionCommand(
+                idempotencyKey = UUID.randomUUID().toString(),
                 userId = userId,
-                type = "EXPENSE",
-                amountMinor = purchaseAmount,
-                currencyCode = "PEN",
-                sourceAccountId = ACCOUNT_ID,
-                categoryId = CATEGORY_ID,
-                occurredAt = 1_500L,
-                status = "CONFIRMED",
-                syncStatus = "SYNCED",
-                operationKind = "STANDARD",
+                purchaseTransactionId = purchaseId,
+                refundTransactionId = UUID.randomUUID().toString(),
+                amountMinor = 4_000L,
+                currency = "PEN",
+                occurredAt = 2_500L,
             ),
         )
+
+        assertEquals(true, result is RefundTransactionResult.Success)
+        val refund = (result as RefundTransactionResult.Success).transaction
+        assertEquals(1, dao.getLedgerEntriesForTransaction(userId, refund.id).size)
+        assertEquals(4_000L, dao.getBalanceProjection(userId, ACCOUNT_ID)?.balanceMinor)
+        assertEquals(purchaseId, database.transactionLinkDao().getByRefundId(userId, refund.id)?.sourceTransactionId)
+        val outbox = dao.getPendingOutboxForTransaction(userId, refund.id).single()
+        assertEquals("CREATE_REFUND", outbox.commandType)
+        assertEquals(1, outbox.contractVersion)
+        val receipt = dao.getReceipt(userId, outbox.idempotencyKey)
+        assertEquals("REFUND", receipt?.commandType)
+        assertEquals("APPLIED", receipt?.status)
+    }
+
+    @Test
+    fun rejectedRefundRemainsVisibleAndCanBeVoidedWithoutChangingPurchase() = runBlocking {
+        val purchaseId = insertPurchase()
+        val result = RegisterRefundTransaction(source).invoke(
+            RefundTransactionCommand(
+                idempotencyKey = UUID.randomUUID().toString(),
+                userId = userId,
+                purchaseTransactionId = purchaseId,
+                refundTransactionId = UUID.randomUUID().toString(),
+                amountMinor = 4_000L,
+                currency = "PEN",
+                occurredAt = 2_500L,
+            ),
+        ) as RefundTransactionResult.Success
+        val outbox = dao.getPendingOutboxForTransaction(userId, result.transaction.id).single()
+        dao.updateOutboxResult(userId, outbox.id, "FAILED_PERMANENT", null, "REFUND_EXCEEDS_REMAINDER")
+        dao.updateTransactionSyncStatus(userId, result.transaction.id, "FAILED_PERMANENT")
+
+        assertEquals("REFUND_EXCEEDS_REMAINDER", source.getRefundRejection(userId, result.transaction.id))
+        val voided = source.voidRejectedRefund(userId, result.transaction.id) as RefundTransactionResult.Success
+
+        assertEquals("VOIDED", dao.getTransactionById(userId, result.transaction.id)?.status)
+        assertEquals("CONFIRMED", dao.getTransactionById(userId, purchaseId)?.status)
+        assertEquals(0L, dao.getBalanceProjection(userId, ACCOUNT_ID)?.balanceMinor)
+        assertEquals(10_000L, consumption(from = 1_000L, to = 2_000L, categories = emptySet()))
+        assertEquals("VOIDED", voided.transaction.status.name)
+    }
+
+    private suspend fun insertPurchaseAndRefund(purchaseAmount: Long, refundAmount: Long) {
+        val purchaseId = insertPurchase(purchaseAmount)
+        val refundId = UUID.randomUUID().toString()
         dao.insertTransaction(
             TransactionEntity(
                 id = refundId,
@@ -111,6 +155,26 @@ class MovementRefundRoomTest {
                 createdAt = 2_500L,
             ),
         )
+    }
+
+    private suspend fun insertPurchase(amountMinor: Long = 10_000L): String {
+        val purchaseId = UUID.randomUUID().toString()
+        dao.insertTransaction(
+            TransactionEntity(
+                id = purchaseId,
+                userId = userId,
+                type = "EXPENSE",
+                amountMinor = amountMinor,
+                currencyCode = "PEN",
+                sourceAccountId = ACCOUNT_ID,
+                categoryId = CATEGORY_ID,
+                occurredAt = 1_500L,
+                status = "CONFIRMED",
+                syncStatus = "SYNCED",
+                operationKind = "STANDARD",
+            ),
+        )
+        return purchaseId
     }
 
     private suspend fun consumption(from: Long, to: Long, categories: Set<String>): Long =

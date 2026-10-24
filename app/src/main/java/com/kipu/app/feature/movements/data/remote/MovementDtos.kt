@@ -44,6 +44,30 @@ data class TransactionDto(
 )
 
 @Serializable
+data class RefundTransactionRequestDto(
+    @SerialName("contract_version") val contractVersion: Int = 1,
+    @SerialName("idempotency_key") val idempotencyKey: String,
+    @SerialName("request_hash") val requestHash: String,
+    @SerialName("purchase_transaction_id") val purchaseTransactionId: String,
+    @SerialName("refund_transaction") val refundTransaction: RefundTransactionDto,
+)
+
+@Serializable
+data class RefundTransactionDto(
+    @SerialName("id") val id: String,
+    @SerialName("amount_minor") val amountMinor: Long,
+    @SerialName("currency_code") val currencyCode: String,
+    @SerialName("occurred_at") val occurredAt: String,
+)
+
+@Serializable
+data class RefundTransactionResponseDto(
+    @SerialName("status") val status: String,
+    @SerialName("transaction_id") val transactionId: String? = null,
+    @SerialName("error") val error: RemoteErrorDto? = null,
+)
+
+@Serializable
 data class RegisterTransactionResponseDto(
     @SerialName("status")
     val status: String,

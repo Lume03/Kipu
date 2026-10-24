@@ -17,7 +17,8 @@ enum class MovementType {
 
 enum class LedgerRole {
     SOURCE,
-    DESTINATION
+    DESTINATION,
+    LIABILITY,
 }
 
 enum class MovementSyncStatus {

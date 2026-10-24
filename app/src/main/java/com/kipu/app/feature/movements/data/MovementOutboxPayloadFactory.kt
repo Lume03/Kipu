@@ -3,6 +3,8 @@ package com.kipu.app.feature.movements.data
 import com.kipu.app.feature.movements.data.local.TransactionEntity
 import com.kipu.app.feature.movements.data.remote.RegisterTransactionRequestDto
 import com.kipu.app.feature.movements.data.remote.TransactionDto
+import com.kipu.app.feature.movements.data.remote.RefundTransactionDto
+import com.kipu.app.feature.movements.data.remote.RefundTransactionRequestDto
 import com.kipu.app.feature.movements.data.remote.ReviseOrVoidTransactionRequestDto
 import com.kipu.app.feature.movements.data.remote.RevisedMovementPayloadDto
 import com.kipu.app.feature.movements.domain.model.MovementRevisionPayload
@@ -38,6 +40,26 @@ internal object MovementOutboxPayloadFactory {
                 occurredAt = Instant.ofEpochMilli(transaction.occurredAt).toString(),
                 note = transaction.note,
                 paymentChannel = transaction.source,
+            ),
+        ),
+    )
+
+    fun buildRefund(
+        purchaseTransactionId: String,
+        refund: TransactionEntity,
+        idempotencyKey: String,
+        requestHash: String,
+    ): String = json.encodeToString(
+        RefundTransactionRequestDto(
+            contractVersion = 1,
+            idempotencyKey = idempotencyKey,
+            requestHash = requestHash,
+            purchaseTransactionId = purchaseTransactionId,
+            refundTransaction = RefundTransactionDto(
+                id = refund.id,
+                amountMinor = refund.amountMinor,
+                currencyCode = refund.currencyCode,
+                occurredAt = Instant.ofEpochMilli(refund.occurredAt).toString(),
             ),
         ),
     )

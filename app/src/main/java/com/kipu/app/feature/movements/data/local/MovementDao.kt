@@ -124,6 +124,9 @@ interface MovementDao {
     @Query("UPDATE local_command_receipts SET status = 'REJECTED', updated_at = :updatedAt WHERE user_id = :userId AND transaction_id = :transactionId")
     suspend fun markReceiptsRejectedForTransaction(userId: String, transactionId: String, updatedAt: Long = System.currentTimeMillis()): Int
 
+    @Query("UPDATE local_command_receipts SET status = :status, updated_at = :updatedAt WHERE user_id = :userId AND transaction_id = :transactionId AND command_type = 'REFUND'")
+    suspend fun updateRefundReceiptStatus(userId: String, transactionId: String, status: String, updatedAt: Long): Int
+
     // Ledger Entries
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertLedgerEntries(entries: List<LedgerEntryEntity>)
@@ -200,6 +203,9 @@ interface MovementDao {
 
     @Query("SELECT * FROM movement_outbox WHERE user_id = :userId AND id = :id")
     suspend fun getOutboxById(userId: String, id: String): MovementOutboxEntity?
+
+    @Query("SELECT * FROM movement_outbox WHERE user_id = :userId AND aggregate_id = :transactionId AND command_type = 'CREATE_REFUND' ORDER BY created_at DESC LIMIT 1")
+    suspend fun getRefundOutboxForTransaction(userId: String, transactionId: String): MovementOutboxEntity?
 
     // Balance Projections
     @Query("SELECT * FROM balance_projections WHERE user_id = :userId AND account_id = :accountId")
