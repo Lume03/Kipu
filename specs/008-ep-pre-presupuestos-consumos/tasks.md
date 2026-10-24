@@ -25,7 +25,7 @@
 **Independent Test**: Alta local con referencia propia y consulta sintética de gastos elegibles; HU-25 no se considera demostrada por fixture.
 
 - [X] T009 [P] [US1] Probar validaciones de importes/moneda, periodos aprobados y rangos invertidos en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetValidationTest.kt` (depends on T004).
-- [ ] T010 [P] [US1] (parcial: jerarquía/moneda/neto cubiertas en `BudgetHierarchyConsumptionTest` y `BudgetConsumptionTest`; falta `ExpenseEligibilityTest` contra el query real, que pertenece a EP-MOV) Probar elegibilidad y exclusión de pendientes/VOIDED/transferencias/principal/metas en `app/src/test/java/com/kipu/app/feature/budgets/domain/ExpenseEligibilityTest.kt` (depends on T007).
+- [X] T010 [P] [US1] Probar `ExpenseEligibilityTest` contra la consulta Room real: excluye pendiente, VOIDED, transferencia, principal, aporte a meta y otra moneda; incluye una sola compra con tarjeta. 1/1 JVM pasa después de corregir el filtro SQL de principal (depends on T007).
 - [X] T011 [US1] Implementar reglas de alta, consulta, money exacto y estado/vigencia en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T008,T009,T010).
 - [X] T012 [US1] Integrar quota policy de HU-57 para límite Free de dos activos sin eliminar/ocultar objetos en `app/src/main/java/com/kipu/app/feature/budgets/domain/` y adaptador de planes existente (depends on T011).
 - [X] T013 [US1] Integrar consumo derivado por movimiento único, categoría/jerarquía, owner/currency/period mediante `ExpenseConsumptionRepository` y el query real (depends on T011).
@@ -43,9 +43,9 @@
 - [X] T019 [P] [US2] Probar ids de gastos únicos en alcance padre/hijo/total sin doble conteo en `app/src/test/java/com/kipu/app/feature/budgets/domain/BudgetHierarchyConsumptionTest.kt` (depends on T013).
 - [X] T020 [US2] Implementar creación idempotente de vigencia y finalización automática de rango custom vencido, conservando snapshots de periodo (depends on T018).
 - [X] T021 [US2] Implementar cruces editables de umbral y deduplicación por propietario/presupuesto/periodo/threshold en el centro de notificaciones (depends on T007,T020).
-- [ ] T022 [US2] Implementar recalculo por reembolso HU-25 en el periodo de compra. Abierto: el modelo/query actual de EP-MOV no expone un vínculo real compra↔reembolso ni la fecha de imputación; G2 prohíbe inferirlo o cambiar reglas financieras desde EP-PRE (depends on T002,T007,T020).
+- [X] T022 [US2] Verificar el recálculo real de HU-25 en el periodo original mediante `queryExpenseConsumption` y el vínculo Room compra↔reembolso: S/100→S/60 tras el parcial→S/0 al completar; octubre conserva consumo de gasto S/0 (depends on T002,T007,T020).
 - [ ] T023 [US2] (parcial: historial con límite snapshot en detalle hecho y probado; falta la representación del aviso `BUDGET_ALERT` en el centro de avisos, que depende de T021) Implementar consulta de historial de periodos y representación de alertas en `app/src/main/java/com/kipu/app/feature/budgets/presentation/` (depends on T020,T021).
-- [ ] T024 [US2] Añadir integración E2E real HU-25 + HU-42, cross-period, replay y reentrada, en `app/src/androidTest/java/com/kipu/app/feature/budgets/` (depends on T021,T022,T023).
+- [X] T024 [US2] Integrar HU-25/HU-42 en Room con renovación/reentrada, replay idempotente y notificación `BUDGET_ALERT` persistida por `BudgetCenterAlertNotifier`; cruce 49%→51% crea una alerta única. `MovementRefundBudgetIntegrationTest` y `BudgetHierarchyAlertsIntegrationTest`: 2/2 instrumentados en `emulator-5554` (depends on T021,T022,T023).
 
 ## Fase 5: User Story 3 — HU-38 Editar, finalizar y eliminar (P3)
 
@@ -56,7 +56,7 @@
 - [X] T026 [US3] Implementar cambio de límite actual/futuro, preservación de snapshot y restricciones de cambio de scope/schedule en `app/src/main/java/com/kipu/app/feature/budgets/domain/` (depends on T020,T025).
 - [X] T027 [US3] Finalizar detiene renovaciones/alertas y conserva consulta histórica; incluye fin natural automático de `CUSTOM_RANGE` vencido (depends on T021,T026).
 - [X] T028 [US3] Implementar borrado local transaccional, tombstone y sync RPC conforme G5, sin tocar movimientos (depends on T004,T008,T027).
-- [ ] T029 [US3] (parcial — datos: tests Room comparan cuenta, movimiento y asiento antes/después del borrado y rechazan recrear un presupuesto tombstoned; falta E2E de CRUD completo y replay remoto atrasado) (depends on T028).
+- [X] T029 [US3] Room E2E de crear, editar límite, finalizar y eliminar confirmado compara cuenta, movimiento, ledger, saldo y sus conteos antes/después. `BudgetCrudFinancialIsolationIntegrationTest` valida tombstone local y `BudgetTombstoneReplayIntegrationTest` ejecuta el worker con respuesta HTTP simulada local; replay remoto atrasado de presupuesto/periodo no los resucita. 2/2 instrumentados en `emulator-5554` (depends on T028).
 
 ## Fase 6: Polish transversal y aceptación
 

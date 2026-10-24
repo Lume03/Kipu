@@ -1,6 +1,6 @@
-# Quickstart: EP-PRE — Validación prevista de presupuestos
+# Quickstart: EP-PRE — Validación y resultados focalizados de presupuestos
 
-Este documento es guía de validación para la fase de implementación futura; no es resultado de pruebas ejecutadas. Está bloqueado hasta resolver los gates G1–G6 de [research.md](research.md), verificar HU-14/18/19/25/42/57 y aprobar migraciones/cambios aplicables.
+La guía de escenarios se redactó antes de la implementación. La sección final registra la verificación focalizada ejecutada el 2026-10-24; no representa aceptación completa del EP-PRE ni cierre de los gates pendientes.
 
 ## Requisitos previos de validación
 
@@ -10,7 +10,7 @@ Este documento es guía de validación para la fase de implementación futura; n
 4. Decisión aprobada de periodo/calendario (G1), schema local/remote (G4) y borrado/sync (G5).
 5. Decisión de producto sobre moneda elegible y explicación al usuario (G6); la recomendación del modelo de coincidencia sin conversión no es aprobación.
 6. Entorno local de pruebas y datos sintéticos propios de usuario; nunca usar PII o datos reales. DB/migraciones solo en entorno local desechable y tras autorización del implementador.
-7. Antes de ejecutar comandos, revisar build scripts y nombres de tareas actuales. En esta fase no se corren build, tests, migraciones ni despliegues.
+7. Antes de ejecutar comandos, revisar build scripts y nombres de tareas actuales. Los comandos que sí se ejecutaron y sus resultados están registrados al final de este documento.
 
 ## Escenarios de aceptación que se deben automatizar
 
@@ -39,6 +39,31 @@ Este documento es guía de validación para la fase de implementación futura; n
 - Evidencia accesible de estados vacío, error, offline, límite, confirmación destructiva y navegación.
 - Reporte identifica revisiones/commits/ambiente y comandos exactos; no marcar aceptación con fixtures o modelo documental.
 
-## No ejecutar aún
+## Alcance del borrador inicial
 
-No ejecutar Gradle, pruebas, migraciones, consultas a Supabase remoto ni deployment desde este artefacto de planificación. Ningún comando de ejecución fue validado en esta tarea.
+La indicación de no ejecutar Gradle pertenecía al borrador de planificación, antes de contar con la implementación integrada. La verificación focalizada posterior se limita a los comandos y clases listados a continuación; no se ejecutó la suite instrumentada completa ni una migración en este pase.
+
+## Verificación focalizada ejecutada — 2026-10-24
+
+Entorno: worktree `s7-e2e`, emulador `emulator-5554` (Pixel_10 AVD), Room real en memoria/archivo según cada integración. No se usó Supabase remoto/hosted. El replay atrasado se simuló con Ktor `MockEngine` local en memoria.
+
+### Comandos y resultados
+
+- `$env:ANDROID_SERIAL = 'emulator-5554'; .\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.movements.MovementRefundBudgetIntegrationTest"` — `BUILD SUCCESSFUL`, 1/1 instrumentado.
+- `$env:ANDROID_SERIAL = 'emulator-5554'; .\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.budgets.BudgetHierarchyAlertsIntegrationTest"` — `BUILD SUCCESSFUL`, 1/1 instrumentado.
+- `$env:ANDROID_SERIAL = 'emulator-5554'; .\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.budgets.BudgetCrudFinancialIsolationIntegrationTest"` — `BUILD SUCCESSFUL`, 1/1 instrumentado.
+- `$env:ANDROID_SERIAL = 'emulator-5554'; .\gradlew.bat :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.budgets.data.sync.BudgetTombstoneReplayIntegrationTest"` — `BUILD SUCCESSFUL`, 1/1 instrumentado.
+- `.\gradlew.bat :app:testDebugUnitTest --tests com.kipu.app.feature.budgets.domain.ExpenseEligibilityTest` — `BUILD SUCCESSFUL`, 1/1 JVM.
+- `.\gradlew.bat :app:testDebugUnitTest` — `BUILD SUCCESSFUL`, 800 tests descubiertos, 0 fallos, 0 errores y 2 omitidos.
+
+T010 tuvo primero resultado RED en la consulta Room: consumo esperado de 3.700 minor units, resultado 8.700 por incluir pagos de principal. El filtro de `MovementDao.getExpensesInPeriod` se corrigió para excluir `DEBT_PAYMENT` y otras operaciones no elegibles, y `ExpenseEligibilityTest` pasó 1/1.
+
+### Cobertura integrada comprobada
+
+- HU-25/T022: compra de S/100 en septiembre, presupuesto mensual S/500 y reembolso parcial de S/40 en octubre. El consumo neto de septiembre pasa a S/60; octubre queda en S/0 de gasto; caja recupera S/40. El replay de reembolso no duplica asientos. Se rechaza S/70 cuando restan S/60; el reembolso final de S/60 deja el consumo en S/0. La transacción y el ledger originales permanecen iguales.
+- HU-37: gasto S/50 en Restaurantes aparece una vez como S/50 en Restaurantes, Alimentación y el presupuesto total. Con límite S/100, el gasto cambia de S/49 a S/51; al cruzar el 50% queda un aviso `BUDGET_ALERT` en Room, y tres reevaluaciones adicionales no crean duplicados.
+- HU-38/T029: crear, editar límite, finalizar y eliminar confirmado; snapshots de cuenta, movimiento, ledger, saldos y conteos coinciden antes/después. El tombstone local bloquea creación atrasada y una respuesta antigua de presupuesto/periodo, entregada al worker por `MockEngine` local, no resucita el presupuesto.
+
+### Pendiente
+
+No se ejecutó la suite instrumentada completa, la migración de Room en runtime, auditoría manual TalkBack/UI, ni revisión independiente. T023 (presentación de historial/aviso), T031, T032, T033 y la revisión EP-MOV T149 siguen abiertas; este resultado no declara aceptación integral. Los detalles y hashes de implementación se registran en `specs/004-ep-mov-movimientos-ledger/verification-report.md`.

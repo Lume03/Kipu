@@ -12,7 +12,7 @@
 
 **Alcance activo S4**: US4/HU-20, US5/HU-21 y US6/HU-22 (15 puntos EP-MOV; total S4 31 con HU-58/HU-59 de EP-PLA). US7/HU-24 sigue en S6 y US8/HU-25 en S7.
 
-**Estado de S7/HU-25 (2026-10-24)**: implementación parcial completada para T132–T143, T145–T147. T144 sigue pendiente del provider real HU-36 de EP-PRE; T148 conserva la integración y runtime instrumentado sin ejecutar; T149 requiere revisión independiente. No declarar aceptación integral mientras esos gates sigan abiertos.
+**Estado de S7/HU-25 (2026-10-24)**: implementación y verificación local completadas para T132–T148, incluida integración Room real con EP-PRE/HU-36 y runtime instrumentado filtrado. T149 conserva la revisión independiente pendiente; no declarar aceptación integral hasta completar ese gate.
 
 **Propagated**: 2026-10-02 — Refinamiento aprobado P1–P5 y plan S4; nuevas tareas T058–T089, sin regenerar ni renumerar el trabajo S2. Baseline main `c80ea0ddea80dfe5332971f12418758ea1bc9923`, Room v16.
 
@@ -418,14 +418,14 @@ T123 sigue abierta: falta una captura del IME real y la suite global continúa c
 - [X] T141 [US8] Persistir el vínculo en `TransactionLinkEntity.kt`/`TransactionLinkDao` y adaptar entidades, DAO, mappers, datasource/repositorio, base Room y schema 26 exportado. Migración aditiva exacta 25→26; commit Room atómico y sin fallback destructivo.
 - [X] T142 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/data/sync/MovementRefundSyncTest.kt` para timeout/red incierta con replay DUPLICATE, payload inmutable, rechazo visible, vínculo/origen preservados y códigos diagnósticos seguros. Compila; no se ejecutó en dispositivo.
 - [X] T143 [US8] Integrar DTO/API/outbox/worker en `refund_transaction_v1`, con `CREATE_REFUND` versión 1 sin modificar bytes de registros históricos; tests JVM focalizados de API/payload y compilación AndroidTest pasan.
-- [ ] T144 [US8] Crear `app/src/androidTest/java/com/kipu/app/feature/movements/MovementRefundBudgetIntegrationTest.kt` contra el contrato y provider real de HU-36 para la corrección del periodo original (FR-025); no cerrar la prueba con fixture/stub ni reemplazar la autoridad de EP-PRE.
+- [X] T144 [US8] Crear y ejecutar `app/src/androidTest/java/com/kipu/app/feature/movements/MovementRefundBudgetIntegrationTest.kt` con Room, `RegisterRefundTransaction`, `OfflineFirstBudgetRepository`, consumo EP-PRE y `BudgetCenterAlertNotifier` reales. Emulador `emulator-5554`: 1/1; cubre septiembre→octubre, rechazo por remanente, reembolso total, ledger/caja, replay y deduplicación.
 - [X] T145 [US8] Resuelto por la consulta existente de gasto neto, no por un adaptador: `queryExpenseConsumption` resta reembolsos válidos por fecha/categoría de compra. Pruebas JVM/Room cubren parcial, total y periodo cruzado; no se implementó adaptador ni código presupuestario. La integración HU-36 permanece en T144 (FR-025).
 - [X] T146 [US8] Crear pruebas instrumentadas de acción en compra elegible, remanente, fechas, rechazo recuperable, privacidad y anulación en `MovementRefundScreenTest.kt`; compilación AndroidTest pasa. No se ejecutaron en dispositivo.
 - [X] T147 [US8] Implementar CTA, hoja de importe/fecha, creación especializada y lectura/anulación de rechazo en Historial/detalle; compila Kotlin y AndroidTest. RED/GREEN de presentación comprobado por compilación; el runtime instrumentado queda pendiente de dispositivo.
 
 ### Integración y cierre (evidencia parcial; gates pendientes)
 
-- [ ] T148 [US8] Registrar en quickstart/review-record/verification-report la evidencia ya ejecutada (JVM 675/675, compilaciones Kotlin/AndroidTest y pgTAP local 31/31); quedan pendientes runtime instrumentado, integración real EP-PRE/HU-36 y revisión de aceptación FR-023–FR-028/SC-009. No acceder a hosted/prod.
+- [X] T148 [US8] Registrar en `specs/004-ep-mov-movimientos-ledger/verification-report.md` y quickstart de EP-PRE la ejecución focalizada real: JVM 800 tests, 0 fallos, 2 omitidos; cuatro clases instrumentadas, 4/4 en `emulator-5554`; y RED/GREEN de T010. La revisión independiente de aceptación continúa en T149. No se accedió a hosted/prod.
 - [ ] T149 [US8] Obtener revisión independiente de `qa-auditor`, Finanzas y Seguridad sobre cobertura FR-023–FR-028, SC-009, ledger, ownership/RLS, privacidad y evidencia en `specs/004-ep-mov-movimientos-ledger/review-record.md`; mantener HU-25 sin aceptación si hay críticos, falta HU-36 real o pruebas no ejecutadas.
 
 ### Dependencies & Execution Order — Sprint 7
@@ -434,6 +434,6 @@ T123 sigue abierta: falta una captura del IME real y la suite global continúa c
 - T136 → T137 y T138 → T139 son slices independientes por archivos distintos; pueden ejecutarse en paralelo después de T135, pero cada implementación espera su propia RED conductual.
 - T140 depende de T137; T141 depende de T140 y T137. T142 depende de T139 y T141; T143 depende de T142, T139 y T141.
 - T144 depende de T143 y del contrato/provider real de HU-36. T145 se resuelve mediante la consulta compartida de gasto neto, independiente de T144; decisión S7-04. T146 depende de T141, T143 y T145; T147 depende de T146.
-- T148 depende de T137, T139, T141, T143, T145, T147 y del provider real de EP-PRE; T149 depende de T148. La historia no se acepta ni se demo-acepta entre periodos sin HU-36 real.
+- T148 depende de T137, T139, T141, T143, T145, T147 y del provider real de EP-PRE; T149 depende de T148. La revisión T149 sigue pendiente y la historia no se acepta hasta cerrar ese gate.
 - Los `[P]` se limitan a las dos parejas TDD independientes tras el gate; no paralelizar escrituras de `MovementLocalDataSource.kt`, `MovementDao.kt`, Room schema/migrations, DTO/outbox/worker ni contratos compartidos.
 - Ninguna tarea de implementación, ejecución de pruebas, deploy, merge, commit o push se realizó como parte de esta planificación.
