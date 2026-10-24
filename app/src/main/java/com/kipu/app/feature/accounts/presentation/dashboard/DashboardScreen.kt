@@ -117,6 +117,7 @@ import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
+import com.kipu.app.feature.calendar.presentation.CalendarEntryCard
 import com.kipu.app.feature.home.presentation.NetWorthCard
 import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
@@ -152,6 +153,7 @@ fun DashboardScreen(
     onNavigateToGoals: () -> Unit = {},
     netWorthState: NetWorthUiState? = null,
     onRetryNetWorth: () -> Unit = {},
+    onNavigateToCalendar: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val state by viewModel.dashboardUiState.collectAsStateWithLifecycle()
@@ -338,6 +340,7 @@ fun DashboardScreen(
                         onNavigateToGoals = onNavigateToGoals,
                         netWorthState = netWorthState,
                         onRetryNetWorth = onRetryNetWorth,
+                        onNavigateToCalendar = onNavigateToCalendar,
                     )
                 }
             }
@@ -524,6 +527,7 @@ private fun ActiveDashboardContent(
     modifier: Modifier = Modifier,
     netWorthState: NetWorthUiState? = null,
     onRetryNetWorth: () -> Unit = {},
+    onNavigateToCalendar: (() -> Unit)? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val computableCount = data?.activeComputableCount ?: instruments.activeComputableCount
@@ -878,6 +882,9 @@ private fun ActiveDashboardContent(
             item(key = "net_worth_summary") {
                 NetWorthCard(state = netWorthState, onRetry = onRetryNetWorth)
             }
+        }
+        if (onNavigateToCalendar != null) {
+            item(key = "calendar_entry") { CalendarEntryCard(onClick = onNavigateToCalendar) }
         }
 
         // Quota reference is secondary to money; effective entitlement is validated on save.

@@ -302,6 +302,7 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
             onConsumeRegisterMovement = { backStackEntry.savedStateHandle["open_register_movement"] = false },
             onNavigateToGoals = { navController.navigateToGoals() },
             netWorthState = netWorthState,
+            onNavigateToCalendar = { navController.navigateToCalendar() },
             onRetryNetWorth = netWorthViewModel::retry,
         )
 }
