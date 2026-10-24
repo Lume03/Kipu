@@ -24,6 +24,43 @@ import org.junit.Test
 
 class MovementApiTest {
     @Test
+    fun `refund uses its dedicated versioned rpc and preserves the refund request contract`() = runTest {
+        val client = client(MockEngine { request ->
+            assertEquals("/rest/v1/rpc/refund_transaction_v1", request.url.encodedPath)
+            val command = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+                .getValue("p_command").jsonObject
+            assertEquals("1", command.getValue("contract_version").jsonPrimitive.content)
+            assertEquals("refund-key", command.getValue("idempotency_key").jsonPrimitive.content)
+            assertEquals("refund-hash", command.getValue("request_hash").jsonPrimitive.content)
+            assertEquals("purchase-id", command.getValue("purchase_transaction_id").jsonPrimitive.content)
+            val refund = command.getValue("refund_transaction").jsonObject
+            assertEquals("refund-id", refund.getValue("id").jsonPrimitive.content)
+            assertEquals("3500", refund.getValue("amount_minor").jsonPrimitive.content)
+            assertEquals("PEN", refund.getValue("currency_code").jsonPrimitive.content)
+            assertEquals("2026-10-24T12:30:00Z", refund.getValue("occurred_at").jsonPrimitive.content)
+            assertEquals(setOf("contract_version", "idempotency_key", "request_hash", "purchase_transaction_id", "refund_transaction"), command.keys)
+            respond("""{"status":"REJECTED","error":{"code":"REFUND_EXCEEDS_REMAINDER","retryable":false}}""",
+                HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        })
+        try {
+            val result = MovementApi(client, Sessions()).registerRefund(
+                RefundTransactionRequestDto(
+                    idempotencyKey = "refund-key",
+                    requestHash = "refund-hash",
+                    purchaseTransactionId = "purchase-id",
+                    refundTransaction = RefundTransactionDto(
+                        id = "refund-id",
+                        amountMinor = 3_500L,
+                        currencyCode = "PEN",
+                        occurredAt = "2026-10-24T12:30:00Z",
+                    ),
+                ),
+            )
+            assertEquals("REFUND_EXCEEDS_REMAINDER", (result as MovementApiResponse.Success).data.error?.code)
+        } finally { client.close() }
+    }
+
+    @Test
     fun `expired session refresh preserves pending movement identity`() = runTest {
         val sessions = object : AuthenticatedSessionProvider {
             override suspend fun currentSession(): AuthenticatedSession? = null

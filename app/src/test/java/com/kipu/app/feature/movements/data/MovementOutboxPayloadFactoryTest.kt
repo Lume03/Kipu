@@ -2,6 +2,7 @@ package com.kipu.app.feature.movements.data
 
 import com.kipu.app.feature.movements.data.local.TransactionEntity
 import com.kipu.app.feature.movements.data.remote.RegisterTransactionRequestDto
+import com.kipu.app.feature.movements.data.remote.RefundTransactionRequestDto
 import java.time.Instant
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -9,6 +10,39 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MovementOutboxPayloadFactoryTest {
+    @Test
+    fun `refund payload uses contract v1 and contains no client selected destination`() {
+        val occurredAt = Instant.parse("2026-10-24T12:30:00Z")
+        val refund = TransactionEntity(
+            id = "refund-id",
+            userId = "owner-id",
+            type = "INCOME",
+            amountMinor = 3_500L,
+            currencyCode = "PEN",
+            occurredAt = occurredAt.toEpochMilli(),
+            status = "CONFIRMED",
+            cardId = "original-credit-card",
+            operationKind = "REFUND",
+        )
+
+        val payload = MovementOutboxPayloadFactory.buildRefund(
+            purchaseTransactionId = "purchase-id",
+            refund = refund,
+            idempotencyKey = "refund-key",
+            requestHash = "refund-hash",
+        )
+        val decoded = Json.decodeFromString<RefundTransactionRequestDto>(payload)
+
+        assertEquals(1, decoded.contractVersion)
+        assertEquals("refund-key", decoded.idempotencyKey)
+        assertEquals("refund-hash", decoded.requestHash)
+        assertEquals("purchase-id", decoded.purchaseTransactionId)
+        assertEquals("refund-id", decoded.refundTransaction.id)
+        assertEquals(3_500L, decoded.refundTransaction.amountMinor)
+        assertEquals("PEN", decoded.refundTransaction.currencyCode)
+        assertEquals(occurredAt.toString(), decoded.refundTransaction.occurredAt)
+    }
+
     @Test
     fun `serializes an ISO timestamp and escapes free text for Postgres`() {
         val occurredAt = Instant.parse("2026-09-22T12:34:56.789Z")
