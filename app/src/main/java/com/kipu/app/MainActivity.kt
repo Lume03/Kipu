@@ -51,6 +51,7 @@ import com.kipu.app.core.security.model.LocalLockState
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
+import com.kipu.app.feature.movements.data.sync.MovementSyncScheduler
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
@@ -126,6 +127,9 @@ class MainActivity : FragmentActivity() {
     lateinit var budgetMaintenanceScheduler: BudgetMaintenanceScheduler
 
     @Inject
+    lateinit var movementSyncScheduler: MovementSyncScheduler
+
+    @Inject
     lateinit var localLockCoordinator: LocalLockCoordinator
 
     @Inject
@@ -176,6 +180,9 @@ class MainActivity : FragmentActivity() {
 
             LaunchedEffect(accessState) {
                 (accessState as? LocalAccess.Available)?.let { access ->
+                    // Pull remote changes when the session opens; otherwise a fresh
+                    // install only hydrates after the first local write.
+                    movementSyncScheduler.scheduleSync(access.userId)
                     budgetMaintenanceScheduler.scheduleNow(access.userId)
                 }
             }
