@@ -13,9 +13,12 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -116,7 +119,7 @@ class BudgetApi @Inject constructor(
                         header(HttpHeaders.Authorization, auth)
                         header(HttpHeaders.Prefer, prefer)
                         contentType(ContentType.Application.Json)
-                        setBody(budget)
+                        setBody(TextContent(wireJson.encodeToString(budget), ContentType.Application.Json))
                     }
                 } else {
                     httpClient.patch("rest/v1/budgets") {
@@ -129,7 +132,7 @@ class BudgetApi @Inject constructor(
                             parameters.append("revision", "eq.$expectedRevision")
                             parameters.append("deleted_at", "is.null")
                         }
-                        setBody(budget)
+                        setBody(TextContent(wireJson.encodeToString(budget), ContentType.Application.Json))
                     }
                 }
             },
@@ -149,7 +152,7 @@ class BudgetApi @Inject constructor(
                     header(HttpHeaders.Prefer, "resolution=merge-duplicates,return=minimal")
                     contentType(ContentType.Application.Json)
                     url { parameters.append("on_conflict", "id") }
-                    setBody(period)
+                    setBody(TextContent(wireJson.encodeToString(period), ContentType.Application.Json))
                 }
             },
             decode = { },
@@ -204,9 +207,17 @@ class BudgetApi @Inject constructor(
 
     companion object {
         private const val MAX_ERROR_BODY_LENGTH = 240
+
+        /**
+         * Writes must carry explicit nulls: clearing pending changes or switching a scope back to TOTAL
+         * has to reach the server, while the shared client omits null properties.
+         */
+        private val wireJson = Json { encodeDefaults = true; explicitNulls = true }
         private const val BUDGET_COLUMNS =
             "id,user_id,name,category_id,limit_minor,currency_code,period_type,range_start_on,range_end_on," +
-                "alert_thresholds_bps,status,is_active,revision,created_at,updated_at,deleted_at"
-        private const val PERIOD_COLUMNS = "id,user_id,budget_id,starts_on,ends_on,limit_minor,created_at"
+                "alert_thresholds_bps,status,is_active,revision,created_at,updated_at,deleted_at," +
+                "pending_scope_type,pending_scope_category_id,pending_schedule_type,pending_range_start_on," +
+                "pending_range_end_on,pending_effective_from"
+        private const val PERIOD_COLUMNS = "id,user_id,budget_id,starts_on,ends_on,limit_minor,scope_category_id,created_at"
     }
 }
