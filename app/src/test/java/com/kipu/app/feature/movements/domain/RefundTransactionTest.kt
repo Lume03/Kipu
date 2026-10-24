@@ -2,10 +2,13 @@ package com.kipu.app.feature.movements.domain
 
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.RefundTransactionCommand
+import com.kipu.app.feature.movements.domain.model.RefundTransactionError
 import com.kipu.app.feature.movements.domain.model.RefundTransactionResult
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionStatus
 import java.math.BigInteger
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,7 +33,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `partial refund leaves the original expense and records only the refund`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `partial refund leaves the original expense and records only the refund`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
         val result = registerRefund(repository, amountMinor = 4_000L)
 
@@ -43,7 +47,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `full refund is accepted when no earlier refund exists`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `full refund is accepted when no earlier refund exists`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
         val result = registerRefund(repository, amountMinor = 10_000L)
 
@@ -52,7 +57,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `sum of previous refunds bounds the remaining amount`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `sum of previous refunds bounds the remaining amount`() = runTest {
         val repository = InMemoryRefundRepository(purchase(), previouslyRefundedMinor = 4_000L)
         val result = registerRefund(repository, amountMinor = 7_000L)
 
@@ -64,7 +70,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `zero and negative refunds are rejected`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `zero and negative refunds are rejected`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
 
         assertEquals(
@@ -78,7 +85,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `refund currency must match the purchase`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `refund currency must match the purchase`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
 
         assertEquals(
@@ -89,7 +97,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `purchase must belong to the requesting owner`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `purchase must belong to the requesting owner`() = runTest {
         val repository = InMemoryRefundRepository(purchase(userId = "owner-1"))
 
         assertEquals(
@@ -100,7 +109,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `transfer and specialized purchase are not refundable`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `transfer and specialized purchase are not refundable`() = runTest {
         val transfer = purchase(type = MovementType.TRANSFER)
         val repository = InMemoryRefundRepository(transfer)
 
@@ -112,7 +122,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `single payment credit card purchase is eligible but installments are not`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `single payment credit card purchase is eligible but installments are not`() = runTest {
         val cardPurchase = purchase(
             sourceAccountId = null,
             cardId = "card-1",
@@ -132,7 +143,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `exact replay returns the original result before checking the exhausted remainder`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `exact replay returns the original result before checking the exhausted remainder`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
         val command = command(amountMinor = 10_000L)
         val first = RegisterRefundTransaction(repository)(command)
@@ -145,7 +157,8 @@ class RefundTransactionTest {
     }
 
     @Test
-    fun `reusing an idempotency key with a different payload conflicts`() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `reusing an idempotency key with a different payload conflicts`() = runTest {
         val repository = InMemoryRefundRepository(purchase())
         val useCase = RegisterRefundTransaction(repository)
         useCase(command(amountMinor = 4_000L))
@@ -159,7 +172,7 @@ class RefundTransactionTest {
         assertEquals(1, repository.committed.size)
     }
 
-    private fun registerRefund(
+    private suspend fun registerRefund(
         repository: InMemoryRefundRepository,
         amountMinor: Long,
         currency: String = "PEN",

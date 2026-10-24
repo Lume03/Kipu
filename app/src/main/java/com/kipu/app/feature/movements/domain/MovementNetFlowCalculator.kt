@@ -9,7 +9,7 @@ import java.util.Locale
 /** Net income minus expenses in the supplied history, per currency; never an account balance. */
 object MovementNetFlowCalculator {
     private val nonFlowKinds = setOf("OPENING", "ADJUSTMENT", "REVERSAL", "CARD_PAYMENT_CASH")
-    private val nonOperatingDebtKinds = setOf("DEBT_DISBURSEMENT", "DEBT_PAYMENT")
+    private val nonOperatingKinds = setOf("DEBT_DISBURSEMENT", "DEBT_PAYMENT", "REFUND")
 
     fun calculate(transactions: Iterable<Transaction>): Map<String, BigInteger> {
         val totals = mutableMapOf<String, BigInteger>()
@@ -20,7 +20,7 @@ object MovementNetFlowCalculator {
             ) continue
             val operationKind = transaction.operationKind ?: transaction.legacyKind
             if (transaction.legacyKind in nonFlowKinds ||
-                operationKind?.uppercase(Locale.ROOT) in nonOperatingDebtKinds ||
+                operationKind?.uppercase(Locale.ROOT) in nonOperatingKinds ||
                 transaction.type == MovementType.TRANSFER
             ) continue
             val currency = transaction.currency.uppercase(Locale.ROOT)

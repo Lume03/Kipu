@@ -3,6 +3,8 @@ package com.kipu.app.feature.movements.domain
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionResult
+import com.kipu.app.feature.movements.domain.model.RefundTransactionCommand
+import com.kipu.app.feature.movements.domain.model.RefundTransactionResult
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import kotlinx.coroutines.flow.Flow
@@ -42,4 +44,27 @@ interface MovementMaintenanceRepository {
 }
 interface ExpenseConsumptionRepository {
     suspend fun queryConsumption(userId: String, query: com.kipu.app.feature.movements.domain.model.ExpenseConsumptionQuery): com.kipu.app.feature.movements.domain.model.ExpenseConsumptionResult
+}
+
+/** Dedicated port: refunds never pass through generic registration or maintenance commands. */
+interface MovementRefundRepository {
+    suspend fun getPurchaseTransaction(userId: String, transactionId: String): Transaction?
+
+    suspend fun getRefundedAmount(userId: String, purchaseTransactionId: String): Long
+
+    suspend fun findRefundReplay(
+        userId: String,
+        idempotencyKey: String,
+        requestHash: String,
+    ): RefundTransactionResult?
+
+    suspend fun commitRefundAtomic(
+        command: RefundTransactionCommand,
+        requestHash: String,
+        refund: Transaction,
+    ): RefundTransactionResult
+
+    suspend fun getRefundRejection(userId: String, refundTransactionId: String): String?
+
+    suspend fun voidRejectedRefund(userId: String, refundTransactionId: String): RefundTransactionResult
 }
