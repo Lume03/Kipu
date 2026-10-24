@@ -69,7 +69,7 @@ interface TransactionLinkDao {
           AND refund.type = 'INCOME'
           AND refund.operation_kind = 'REFUND'
           AND refund.status IN ('ACTIVE', 'CONFIRMED', 'REVISED')
-          AND refund.sync_status != 'FAILED_PERMANENT'
+          AND refund.sync_status NOT IN ('CONFLICT', 'FAILED_PERMANENT')
         GROUP BY links.source_transaction_id
         """,
     )

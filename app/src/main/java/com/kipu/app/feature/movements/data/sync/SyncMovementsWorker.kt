@@ -32,6 +32,7 @@ import com.kipu.app.feature.movements.data.local.LedgerEntryEntity
 import com.kipu.app.feature.movements.data.remote.MovementApi
 import com.kipu.app.feature.movements.data.remote.MovementApiResponse
 import com.kipu.app.feature.movements.data.remote.RegisterTransactionRequestDto
+import com.kipu.app.feature.movements.data.remote.RefundTransactionRequestDto
 import com.kipu.app.feature.movements.data.remote.ReviseOrVoidTransactionRequestDto
 import com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity
 import com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity
@@ -630,6 +631,7 @@ class SyncMovementsWorker @AssistedInject constructor(
     private suspend fun processCommand(cmd: MovementOutboxEntity, now: Long): Boolean {
         return try {
             when (cmd.commandType) {
+                "CREATE_REFUND" -> processRefundCommand(cmd, now)
                 "REVISE_TRANSACTION", "VOID_TRANSACTION" -> processRevisionCommand(cmd, now)
                 else -> processRegisterCommand(cmd, now)
             }
@@ -640,6 +642,85 @@ class SyncMovementsWorker @AssistedInject constructor(
             retryCommand(cmd, now, "PARSE_ERROR")
             false
         }
+    }
+
+    private suspend fun processRefundCommand(cmd: MovementOutboxEntity, now: Long): Boolean {
+        val request = json.decodeFromString<RefundTransactionRequestDto>(cmd.payload)
+        val purchase = movementDao.getTransactionById(cmd.userId, request.purchaseTransactionId)
+        if (purchase == null) {
+            return finishRefund(cmd, "FAILED_PERMANENT", null, "PURCHASE_NOT_FOUND", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+        }
+        when (purchase.syncStatus) {
+            MovementSyncStatus.CONFLICT.name, MovementSyncStatus.FAILED_PERMANENT.name ->
+                return finishRefund(cmd, "FAILED_PERMANENT", null, "PURCHASE_NOT_SYNCED", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+            MovementSyncStatus.SYNCED.name -> Unit
+            else -> {
+                if (purchase.cardId != null) {
+                    com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler(applicationContext)
+                        .scheduleSync(cmd.userId)
+                }
+                retryCommand(cmd, now, "PURCHASE_SYNC_PENDING")
+                return false
+            }
+        }
+
+        return when (val response = api.registerRefund(request)) {
+            is MovementApiResponse.Success -> when (response.data.status) {
+                "APPLIED", "DUPLICATE" -> {
+                    if (response.data.transactionId != null && response.data.transactionId != cmd.aggregateId) {
+                        finishRefund(cmd, "FAILED_PERMANENT", null, "TRANSACTION_ID_MISMATCH", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+                    } else {
+                        finishRefund(cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name, "SYNCED")
+                    }
+                }
+                "REJECTED" -> finishRefund(
+                    cmd,
+                    "FAILED_PERMANENT",
+                    null,
+                    response.data.error?.code ?: "REJECTED",
+                    MovementSyncStatus.FAILED_PERMANENT.name,
+                    "REJECTED",
+                )
+                "CONFLICT" -> finishRefund(
+                    cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name, "CONFLICT",
+                )
+                else -> {
+                    retryCommand(cmd, now, "UNKNOWN_STATUS")
+                    false
+                }
+            }
+            is MovementApiResponse.Error -> {
+                val permanent = response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429
+                if (permanent) {
+                    finishRefund(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+                } else {
+                    retryCommand(cmd, now, "HTTP_${response.statusCode}")
+                    false
+                }
+            }
+            is MovementApiResponse.NetworkFailure -> {
+                if (response.exception is CancellationException) throw response.exception
+                retryCommand(cmd, now, "NETWORK_ERROR")
+                false
+            }
+        }
+    }
+
+    private suspend fun finishRefund(
+        cmd: MovementOutboxEntity,
+        outboxState: String,
+        nextAttemptAt: Long?,
+        errorCode: String?,
+        transactionSyncStatus: String,
+        receiptStatus: String,
+    ): Boolean = database.withTransaction {
+        val updated = movementDao.completeClaimedOutbox(
+            cmd, outboxState, nextAttemptAt, errorCode, transactionSyncStatus,
+        )
+        if (updated) {
+            movementDao.updateRefundReceiptStatus(cmd.userId, cmd.aggregateId, receiptStatus, System.currentTimeMillis())
+        }
+        updated && outboxState == "SYNCED"
     }
 
     private suspend fun processRegisterCommand(cmd: MovementOutboxEntity, now: Long): Boolean {

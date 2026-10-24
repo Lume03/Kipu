@@ -60,7 +60,9 @@ class MovementRefundRoomTest {
 
     @Test
     fun partialRefundReducesPurchasePeriodAndDoesNotAddExpenseToRefundPeriod() = runBlocking {
-        insertPurchaseAndRefund(purchaseAmount = 10_000L, refundAmount = 4_000L)
+        val purchaseId = insertPurchaseAndRefund(purchaseAmount = 10_000L, refundAmount = 4_000L)
+        insertLinkedRefund(purchaseId, 1_000L, "CONFLICT")
+        insertLinkedRefund(purchaseId, 1_000L, "FAILED_PERMANENT")
 
         assertEquals(6_000L, consumption(from = 1_000L, to = 2_000L, categories = setOf(CATEGORY_ID)))
         assertEquals(0L, consumption(from = 2_000L, to = 3_000L, categories = setOf(CATEGORY_ID)))
@@ -129,8 +131,13 @@ class MovementRefundRoomTest {
         assertEquals("VOIDED", voided.transaction.status.name)
     }
 
-    private suspend fun insertPurchaseAndRefund(purchaseAmount: Long, refundAmount: Long) {
+    private suspend fun insertPurchaseAndRefund(purchaseAmount: Long, refundAmount: Long): String {
         val purchaseId = insertPurchase(purchaseAmount)
+        insertLinkedRefund(purchaseId, refundAmount, "SYNCED")
+        return purchaseId
+    }
+
+    private suspend fun insertLinkedRefund(purchaseId: String, refundAmount: Long, syncStatus: String) {
         val refundId = UUID.randomUUID().toString()
         dao.insertTransaction(
             TransactionEntity(
@@ -142,7 +149,7 @@ class MovementRefundRoomTest {
                 sourceAccountId = ACCOUNT_ID,
                 occurredAt = 2_500L,
                 status = "CONFIRMED",
-                syncStatus = "SYNCED",
+                syncStatus = syncStatus,
                 operationKind = "REFUND",
             ),
         )

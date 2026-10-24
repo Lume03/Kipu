@@ -16,6 +16,7 @@ import com.kipu.app.feature.movements.domain.ExpenseConsumptionRepository
 import com.kipu.app.feature.movements.domain.MovementHistoryQueryRepository
 import com.kipu.app.feature.movements.domain.MovementMaintenanceRepository
 import com.kipu.app.feature.movements.domain.MovementRepository
+import com.kipu.app.feature.movements.domain.MovementRefundRepository
 import com.kipu.app.feature.movements.domain.MovementRevisionRequestHasher
 import com.kipu.app.feature.movements.domain.ExpenseConsumptionChangeListener
 import com.kipu.app.feature.movements.domain.NoOpExpenseConsumptionChangeListener
@@ -41,7 +42,7 @@ class OfflineFirstMovementRepository @Inject constructor(
     private val merchantDao: MerchantCatalogDao,
     private val debtSyncScheduler: DebtSyncScheduler = NoOpDebtSyncScheduler,
     private val expenseChangeListener: ExpenseConsumptionChangeListener = NoOpExpenseConsumptionChangeListener,
-) : MovementRepository, MovementMaintenanceRepository, ExpenseConsumptionRepository, MovementHistoryQueryRepository {
+) : MovementRepository, MovementMaintenanceRepository, MovementRefundRepository, ExpenseConsumptionRepository, MovementHistoryQueryRepository {
 
     override fun observeTransactions(userId: String): Flow<List<TransactionItem>> =
         observeItems(userId, localDataSource.observeTransactions(userId))
@@ -108,6 +109,36 @@ class OfflineFirstMovementRepository @Inject constructor(
         }
         return result
     }
+
+    override suspend fun getPurchaseTransaction(userId: String, transactionId: String): Transaction? =
+        localDataSource.getPurchaseTransaction(userId, transactionId)
+
+    override suspend fun getRefundedAmount(userId: String, purchaseTransactionId: String): Long =
+        localDataSource.getRefundedAmount(userId, purchaseTransactionId)
+
+    override suspend fun findRefundReplay(
+        userId: String,
+        idempotencyKey: String,
+        requestHash: String,
+    ): RefundTransactionResult? = localDataSource.findRefundReplay(userId, idempotencyKey, requestHash)
+
+    override suspend fun commitRefundAtomic(
+        command: RefundTransactionCommand,
+        requestHash: String,
+        refund: Transaction,
+    ): RefundTransactionResult {
+        val result = localDataSource.commitRefundAtomic(command, requestHash, refund)
+        if (result is RefundTransactionResult.Success && !result.isDuplicate) {
+            syncScheduler.scheduleSync(command.userId)
+        }
+        return result
+    }
+
+    override suspend fun getRefundRejection(userId: String, refundTransactionId: String): String? =
+        localDataSource.getRefundRejection(userId, refundTransactionId)
+
+    override suspend fun voidRejectedRefund(userId: String, refundTransactionId: String): RefundTransactionResult =
+        localDataSource.voidRejectedRefund(userId, refundTransactionId)
 
     override suspend fun findSimilarTransactions(
         userId: String,
