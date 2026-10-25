@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -145,6 +147,7 @@ fun GoalFormScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .imePadding()
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 20.dp, vertical = 12.dp),
@@ -200,6 +203,14 @@ fun GoalFormScreen(
                 }
             }
 
+            if (existingGoal == null) {
+                Text("Parte de una idea", style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Fondo de emergencia" to "shield", "Viaje" to "flight", "Laptop" to "laptop", "Hogar" to "home").forEach { (idea, icon) ->
+                        com.kipu.app.ui.component.KipuFilterChip(selected = name == idea, onClick = { name = idea; iconKey = icon }, label = { Text(idea) })
+                    }
+                }
+            }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FieldLabel("NOMBRE DE LA META", required = true)
                 OutlinedTextField(
@@ -295,6 +306,12 @@ fun GoalFormScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FieldLabel("FECHA OBJETIVO", suffix = "(opcional)")
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("3 meses" to 3L, "6 meses" to 6L, "1 año" to 12L, "2 años" to 24L, "Sin fecha" to 0L).forEach { (label, months) ->
+                        val date = if (months == 0L) "" else LocalDate.now().plusMonths(months).toString()
+                        com.kipu.app.ui.component.KipuFilterChip(selected = dateText == date, onClick = { dateText = date }, label = { Text(label) })
+                    }
+                }
                 KipuOptionalDateField(
                     value = dateText,
                     onValueChange = { dateText = it.take(10) },

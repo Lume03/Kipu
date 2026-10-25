@@ -21,7 +21,7 @@ import com.kipu.app.feature.goals.presentation.GoalListViewModel
 
 const val GOALS_LIST_ROUTE = "goals"
 const val GOAL_CREATE_ROUTE = "goals/new"
-const val GOAL_DETAIL_ROUTE = "goals/{goalId}?withdraw={withdraw}"
+const val GOAL_DETAIL_ROUTE = "goals/{goalId}?withdraw={withdraw}&action={action}"
 const val GOAL_EDIT_ROUTE = "goals/{goalId}/edit"
 const val GOAL_CONTRIBUTION_ROUTE = "goals/{goalId}/contribute"
 
@@ -91,6 +91,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         arguments = listOf(
             navArgument("goalId") { type = NavType.StringType },
             navArgument("withdraw") { type = NavType.BoolType; defaultValue = false },
+            navArgument("action") { type = NavType.StringType; nullable = true; defaultValue = null },
         ),
     ) { backStackEntry ->
         val viewModel: GoalDetailViewModel = hiltViewModel()
@@ -104,6 +105,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onArchive = viewModel::archive,
             onEdit = { state.goal?.id?.let { navController.navigate("goals/$it/edit") } },
             startWithWithdrawal = backStackEntry.arguments?.getBoolean("withdraw") == true,
+            initialAction = backStackEntry.arguments?.getString("action"),
             onCreateGoal = { navController.navigate(GOAL_CREATE_ROUTE) },
         )
     }

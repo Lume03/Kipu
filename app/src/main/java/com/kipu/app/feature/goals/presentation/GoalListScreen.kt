@@ -1,9 +1,8 @@
 package com.kipu.app.feature.goals.presentation
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.kipu.app.ui.component.KipuBottomSheet
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -55,12 +53,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,6 +93,10 @@ fun GoalListScreen(
     onOpenBudgets: (() -> Unit)? = null,
     onWithdrawGoal: ((String) -> Unit)? = null,
     embedded: Boolean = false,
+    onArchiveGoal: (String) -> Unit = onOpenGoal,
+    onGoalHistory: (String) -> Unit = onOpenGoal,
+    createRequested: Boolean = false,
+    onCreateRequestConsumed: () -> Unit = {},
 ) {
     val colors = rememberCalmEmeraldColors()
     val visibleGoals = state.goals.filter { it.goal.status != GoalStatus.ARCHIVED }
@@ -103,6 +104,14 @@ fun GoalListScreen(
     var showArchived by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<GoalListItemState?>(null) }
     var selectedForOptions by remember { mutableStateOf<GoalListItemState?>(null) }
+    var showPlanLimit by rememberSaveable { mutableStateOf(false) }
+    val requestCreate = { if (state.freeGoalLimitReached) showPlanLimit = true else onCreateGoal() }
+    LaunchedEffect(createRequested, state.isLoading) {
+        if (createRequested && !state.isLoading) {
+            onCreateRequestConsumed()
+            requestCreate()
+        }
+    }
 
     Scaffold(
         // Embedded in the Planning host, which owns the title, actions and tab selector.
@@ -140,7 +149,25 @@ fun GoalListScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (!embedded) item { PlanningSelector(onOpenBudgets) }
-                item {
+                if (visibleGoals.isNotEmpty()) item {
+                    Surface(shape = RoundedCornerShape(18.dp), color = colors.primaryDeep, contentColor = colors.onPrimaryDeep) {
+                        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("TOTAL RESERVADO EN METAS", style = MaterialTheme.typography.labelSmall)
+                            visibleGoals.groupBy { it.goal.currency }.forEach { (currency, entries) ->
+                                MoneyText(com.kipu.app.core.finance.domain.model.Money(entries.sumOf { it.progress.reserved.minorUnits }, currency),
+                                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = colors.onPrimaryDeep)
+                            }
+                            Text("Dinero ya apartado: no cuenta como disponible para gastar.", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(if (state.hasPremiumAccess) "PRO · metas ilimitadas" else "${state.activeGoalCount.coerceAtMost(2)} de 2 activas",
+                                    style = MaterialTheme.typography.labelMedium)
+                                if (!state.hasPremiumAccess) Text(if (state.freeGoalLimitReached) "Plan Básico: límite alcanzado" else "Plan Básico",
+                                    style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
+                if (visibleGoals.isEmpty()) item {
                     SavingsCapacityCard(
                         activeGoalCount = state.activeGoalCount,
                         hasPremiumAccess = state.hasPremiumAccess,
@@ -150,7 +177,7 @@ fun GoalListScreen(
                 item {
                     if (state.freeGoalLimitReached) {
                         Button(
-                            onClick = onNavigateToPlans,
+                            onClick = { showPlanLimit = true },
                             colors = ButtonDefaults.buttonColors(containerColor = colors.warningBg, contentColor = colors.warningText),
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                         ) {
@@ -159,7 +186,7 @@ fun GoalListScreen(
                         }
                     } else {
                         Button(
-                            onClick = onCreateGoal,
+                            onClick = requestCreate,
                             modifier = Modifier.fillMaxWidth().height(52.dp).testTag("goal_create_button"),
                             shape = RoundedCornerShape(14.dp),
                         ) {
@@ -229,10 +256,10 @@ fun GoalListScreen(
                 val goalId = item.goal.id
                 if (onContributeGoal != null) onContributeGoal(goalId) else onOpenGoal(goalId)
             },
-            onHistory = { selectedForOptions = null; onOpenGoal(item.goal.id) },
+            onHistory = { selectedForOptions = null; onGoalHistory(item.goal.id) },
             onWithdraw = { selectedForOptions = null; (onWithdrawGoal ?: onOpenGoal)(item.goal.id) },
             onEdit = { selectedForOptions = null; onEditGoal(item.goal.id) },
-            onArchive = { selectedForOptions = null; onOpenGoal(item.goal.id) },
+            onArchive = { selectedForOptions = null; onArchiveGoal(item.goal.id) },
             onDelete = { selectedForOptions = null; pendingDelete = item },
         )
     }
@@ -257,6 +284,9 @@ fun GoalListScreen(
             },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") } },
         )
+    }
+    if (showPlanLimit) {
+        GoalPlanLimitSheet(onDismiss = { showPlanLimit = false }, onSeePlans = { showPlanLimit = false; onNavigateToPlans() })
     }
 }
 
@@ -380,7 +410,7 @@ private fun GoalSummaryCard(
     val progress = item.progress.progressPercent
     val progressFraction = progress.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f)
     Card(
-        modifier = Modifier.fillMaxWidth().testTag("goal_card_${goal.id}"),
+        modifier = Modifier.fillMaxWidth().testTag("goal_card_${goal.id}").clickable(role = Role.Button, onClickLabel = "Ver detalle", onClick = onOpen),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -388,7 +418,7 @@ private fun GoalSummaryCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 GoalIconBadge(goal.iconKey)
-                Column(Modifier.weight(1f).clickable(onClick = onOpen).padding(start = 12.dp)) {
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(goal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(
@@ -399,7 +429,7 @@ private fun GoalSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onOptions) {
+                IconButton(onClick = onOptions, modifier = Modifier.testTag("goal_options_${goal.id}")) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${goal.name}")
                 }
             }
@@ -454,63 +484,33 @@ private fun GoalOptionsSheet(
     onArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    KipuBottomSheet(onDismissRequest = onDismiss, containerColor = rememberCalmEmeraldColors().surfaceCard,
-        footer = { Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = rememberCalmEmeraldColors().pillTrack, contentColor = MaterialTheme.colorScheme.onSurface),
-            shape = RoundedCornerShape(16.dp)) { Text("Cancelar") } },
-    ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                GoalIconBadge(item.goal.iconKey)
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(item.goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Meta · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        MoneyText(item.progress.reserved, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(" de ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        MoneyText(item.goal.target, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+    com.kipu.app.ui.component.PlanningActionsSheet(
+        title = item.goal.name,
+        onDismiss = onDismiss,
+        actions = buildList {
+            if (item.goal.status == GoalStatus.ACTIVE) add(com.kipu.app.ui.component.PlanningAction(
+                "Aportar", "Aparta dinero de una cuenta", Icons.Default.Add, onContribute,
+                com.kipu.app.ui.component.PlanningActionTone.PRIMARY))
+            if (item.progress.reserved.minorUnits > 0L) add(com.kipu.app.ui.component.PlanningAction(
+                "Retirar", "Devuelve dinero a tu disponible", Icons.Default.Remove, onWithdraw))
+            if (item.goal.status != GoalStatus.ARCHIVED) add(com.kipu.app.ui.component.PlanningAction(
+                "Editar", "Nombre, monto, fecha e icono", Icons.Default.Edit, onEdit))
+            add(com.kipu.app.ui.component.PlanningAction("Ver historial de aportes", "Consulta los aportes y retiros", Icons.Default.History, onHistory))
+            if (item.goal.status != GoalStatus.ARCHIVED) add(com.kipu.app.ui.component.PlanningAction(
+                "Archivar meta", "Resuelve la reserva y conserva su historial", Icons.Default.Archive, onArchive,
+                com.kipu.app.ui.component.PlanningActionTone.WARNING))
+            if (item.progress.reserved.minorUnits == 0L && item.goal.status != GoalStatus.ARCHIVED) add(com.kipu.app.ui.component.PlanningAction(
+                "Eliminar meta vacía", "Solo si no tiene historia ni operaciones pendientes", Icons.Default.Delete, onDelete,
+                com.kipu.app.ui.component.PlanningActionTone.DESTRUCTIVE))
+        },
+        summary = {
+            Row {
+                MoneyText(item.progress.reserved, style = MaterialTheme.typography.bodySmall)
+                Text(" de ", style = MaterialTheme.typography.bodySmall)
+                MoneyText(item.goal.target, style = MaterialTheme.typography.bodySmall)
             }
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            GoalOptionRow(Icons.Default.Add, "Aportar", "Aparta dinero de una cuenta", onContribute, enabled = item.goal.status == GoalStatus.ACTIVE)
-            GoalOptionRow(Icons.Default.Remove, "Retirar", "Devuelve dinero a tu disponible", onWithdraw, enabled = item.progress.reserved.minorUnits > 0L)
-            GoalOptionRow(Icons.Default.History, "Ver historial de aportes", "Consulta el detalle y los movimientos", onHistory)
-            GoalOptionRow(Icons.Default.Edit, "Editar", "Nombre, monto, fecha e icono", onEdit, enabled = item.goal.status != GoalStatus.ARCHIVED)
-            GoalOptionRow(Icons.Default.Archive, "Archivar meta", "Resolver la reserva y conservar su historial", onArchive)
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            GoalOptionRow(Icons.Default.Delete, "Eliminar meta vacía", "Solo si no tiene historia ni operaciones pendientes", onDelete, destructive = true)
-        }
-    }
-}
-
-@Composable
-private fun GoalOptionRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    destructive: Boolean = false,
-) {
-    val contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
-            modifier = Modifier.size(42.dp),
-        ) {
-            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.padding(10.dp))
-        }
-        Column(Modifier.weight(1f).padding(start = 14.dp)) {
-            Text(title, color = contentColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        }
-        Text("›", color = if (destructive) contentColor else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+        },
+    )
 }
 
 private fun GoalStatus.label(): String = when (this) {

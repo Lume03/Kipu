@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.kipu.app.core.finance.domain.model.Currency
@@ -25,6 +26,30 @@ import org.junit.Test
 
 class GoalManagementFlowTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun goalCardAndOverflowDoNotDispatchBothActions() {
+        var details = 0
+        compose.setContent {
+            GoalListScreen(state(listOf(goal("qa", GoalStatus.ACTIVE))), {}, {}, { details++ }, {}, {}, {})
+        }
+        compose.onNodeWithContentDescription("Opciones de qa").performClick()
+        compose.runOnIdle { assertEquals(0, details) }
+        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithTag("goal_card_qa").performClick()
+        compose.runOnIdle { assertEquals(1, details) }
+    }
+
+    @Test fun rootCreateRequestHonoursGoalQuotaAndCanBeDismissedWithoutCreating() {
+        var creates = 0
+        compose.setContent {
+            GoalListScreen(state(listOf(goal("a", GoalStatus.ACTIVE), goal("b", GoalStatus.ACTIVE))), {}, { creates++ }, {}, {}, {}, {},
+                createRequested = true)
+        }
+        compose.onNodeWithTag("goal_plan_limit_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Ver mis metas activas").performClick()
+        compose.onNodeWithTag("goal_plan_limit_sheet").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(0, creates) }
+    }
 
     @Test
     fun createsVirtualGoalWithoutChangingAnyAccount() {
@@ -48,10 +73,10 @@ class GoalManagementFlowTest {
 
         compose.onNodeWithText("Ingresa un nombre para tu meta de ahorro").assertDoesNotExist()
         compose.onNodeWithText("El monto objetivo debe ser mayor a 0.00").assertDoesNotExist()
-        compose.onNodeWithText("Sin cuenta vinculada").assertIsDisplayed()
+        compose.onNodeWithText("Sin cuenta vinculada").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Meta virtual independiente").assertIsDisplayed()
-        compose.onNodeWithTag("goal_form_name").performTextInput("Fondo de viaje")
-        compose.onNodeWithTag("goal_form_target").performTextInput("120.50")
+        compose.onNodeWithTag("goal_form_name").performScrollTo().performTextInput("Fondo de viaje")
+        compose.onNodeWithTag("goal_form_target").performScrollTo().performTextInput("120.50")
         compose.onNodeWithTag("goal_save_button").performClick()
 
         compose.runOnIdle {
@@ -246,7 +271,7 @@ class GoalManagementFlowTest {
             )
         }
 
-        compose.onNodeWithTag("goal_form_account").performClick()
+        compose.onNodeWithTag("goal_form_account").performScrollTo().performClick()
         compose.onNodeWithText("Vincular cuenta de respaldo").assertIsDisplayed()
         compose.onNodeWithText("Cuenta principal", useUnmergedTree = true).performClick()
         compose.onNodeWithText("Confirmar selección").performClick()

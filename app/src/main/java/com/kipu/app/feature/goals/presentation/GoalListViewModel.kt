@@ -91,6 +91,15 @@ class GoalListViewModel @Inject constructor(
 
     fun clearFeedback() = _state.updateError(null, clearMessage = true)
 
+    /** Revalidate the entitlement on return without discarding goals or showing a new loader. */
+    fun refreshPlanAccess() {
+        val owner = _state.value.userId ?: return
+        viewModelScope.launch {
+            val premium = hasVerifiedPremium(owner)
+            _state.update { if (it.userId == owner) it.copy(hasPremiumAccess = premium) else it }
+        }
+    }
+
     fun saveGoal(
         goalId: String?,
         name: String,
@@ -188,7 +197,7 @@ class GoalListViewModel @Inject constructor(
     private fun GoalCommandResult.Rejected.message(): String = when (code) {
         "GOAL_LIMIT", "REPLACEMENT_REQUIRED" -> "Elige una meta activa para pausar y liberar un espacio del plan Free."
         "GOAL_DELETE_PENDING" -> "El borrado ya está pendiente de sincronización."
-        "HISTORY_PRESERVED", "GOAL_NOT_EMPTY" -> "La meta tiene historia o reservas y no se puede borrar."
+        "HISTORY_PRESERVED", "GOAL_NOT_EMPTY" -> "La meta tiene historial, reservas u operaciones pendientes de sincronizar. Puedes archivarla cuando no tenga reservas."
         "NAME_REQUIRED" -> "Escribe un nombre para la meta."
         "TARGET_MUST_BE_POSITIVE" -> "El objetivo debe ser mayor que cero."
         "CURRENCY_MISMATCH" -> "La cuenta vinculada debe usar la misma moneda."

@@ -1,5 +1,7 @@
 package com.kipu.app.feature.goals.presentation
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.MoreVert
@@ -20,6 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.heightIn
@@ -39,8 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,12 +75,18 @@ fun GoalDetailScreen(
     onEdit: (() -> Unit)? = null,
     startWithWithdrawal: Boolean = false,
     onCreateGoal: (() -> Unit)? = null,
+    initialAction: String? = null,
 ) {
     val colors = rememberCalmEmeraldColors()
     var optionsExpanded by remember { mutableStateOf(false) }
     val goal = state.goal
     val progress = state.progress
-    var openDialog by remember { mutableStateOf<GoalDetailDialog?>(if (startWithWithdrawal) GoalDetailDialog.RELEASE else null) }
+    var openDialog by remember { mutableStateOf<GoalDetailDialog?>(when {
+        startWithWithdrawal -> GoalDetailDialog.RELEASE
+        initialAction == "archive" -> GoalDetailDialog.ARCHIVE
+        else -> null
+    }) }
+    var showHistory by rememberSaveable { mutableStateOf(initialAction == "history") }
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var destinationGoalId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var accountMenuExpanded by remember { mutableStateOf(false) }
@@ -134,9 +144,7 @@ fun GoalDetailScreen(
                 actions = {
                     if (onEdit != null && goal != null && goal.status != GoalStatus.ARCHIVED) {
                         IconButton(onClick = { optionsExpanded = true }) { Icon(Icons.Default.MoreVert, "Opciones de la meta") }
-                        DropdownMenu(expanded = optionsExpanded, onDismissRequest = { optionsExpanded = false }) {
-                            DropdownMenuItem(text = { Text("Editar meta") }, onClick = { optionsExpanded = false; onEdit() })
-                        }
+
                     }
                 },
             )
@@ -172,10 +180,15 @@ fun GoalDetailScreen(
                         Surface(shape = RoundedCornerShape(12.dp), color = colors.incomeBg, contentColor = colors.incomeText) {
                             Text(goal.status.detailLabel(), Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
                         }
-                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GoalAmountLine("Reservado", progress.reserved)
-                            GoalAmountLine("Faltan", Money((goal.target.minorUnits - progress.reserved.minorUnits).coerceAtLeast(0L), goal.currency))
-                            GoalAmountLine("Objetivo", goal.target)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Reservado" to progress.reserved,
+                                "Faltan" to Money((goal.target.minorUnits - progress.reserved.minorUnits).coerceAtLeast(0L), goal.currency),
+                                "Objetivo" to goal.target).forEach { (label, amount) ->
+                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(label, style = MaterialTheme.typography.labelSmall, color = colors.secondaryMuted)
+                                    MoneyText(amount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
@@ -196,6 +209,22 @@ fun GoalDetailScreen(
                 Spacer(Modifier.height(20.dp))
             }
         }
+    }
+
+    if (optionsExpanded && goal != null && progress != null) {
+        com.kipu.app.ui.component.PlanningActionsSheet(goal.name, { optionsExpanded = false }, buildList {
+            if (goal.status == GoalStatus.ACTIVE) add(com.kipu.app.ui.component.PlanningAction(
+                "Aportar", "Aparta dinero de una cuenta", Icons.Default.Add, onContribute,
+                com.kipu.app.ui.component.PlanningActionTone.PRIMARY))
+            if (releasableAccounts.isNotEmpty()) add(com.kipu.app.ui.component.PlanningAction(
+                "Retirar", "Devuelve dinero a tu disponible", Icons.Default.Remove, { openDialog = GoalDetailDialog.RELEASE }))
+            onEdit?.let { edit -> add(com.kipu.app.ui.component.PlanningAction(
+                "Editar meta", "Nombre, monto, fecha e icono", Icons.Default.Edit, edit)) }
+            add(com.kipu.app.ui.component.PlanningAction("Ver historial", "Aportes, retiros y ajustes", Icons.Default.History, { showHistory = true }))
+            if (goal.status != GoalStatus.ARCHIVED) add(com.kipu.app.ui.component.PlanningAction(
+                "Archivar meta", "Resuelve la reserva y conserva su historial", Icons.Default.Archive,
+                { openDialog = GoalDetailDialog.ARCHIVE }, com.kipu.app.ui.component.PlanningActionTone.WARNING))
+        })
     }
 
     when (openDialog) {
@@ -270,13 +299,30 @@ fun GoalDetailScreen(
         GoalDetailDialog.ARCHIVE -> AlertDialog(
             onDismissRequest = { openDialog = null },
             title = { Text("Archivar meta") },
-            text = { Text("Se conservarán la meta y todos sus eventos. No se liberarán fondos ni se creará un movimiento.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(if (progress != null && progress.reserved.minorUnits > 0L)
+                        "Primero retira o reasigna la reserva. Archivar conserva todos los eventos y requiere que no quede dinero reservado."
+                        else "Se conservarán la meta y todos sus eventos. No se liberarán fondos ni se creará un movimiento.")
+                    if (releasableAccounts.isNotEmpty()) {
+                        OutlinedButton(onClick = { openDialog = GoalDetailDialog.RELEASE }) { Text("Retirar reserva") }
+                        if (candidateGoals.isNotEmpty()) TextButton(onClick = { openDialog = GoalDetailDialog.REASSIGN }) { Text("Reasignar reserva") }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { openDialog = null; onArchive() }, modifier = Modifier.testTag("goal_archive_confirm")) { Text("Archivar") }
+                TextButton(enabled = goal != null && progress?.reserved?.minorUnits == 0L && !state.isSaving,
+                    onClick = { openDialog = null; onArchive() }, modifier = Modifier.testTag("goal_archive_confirm")) { Text("Archivar") }
             },
             dismissButton = { TextButton(onClick = { openDialog = null }, modifier = Modifier.testTag("goal_archive_cancel")) { Text("Cancelar") } },
         )
         null -> Unit
+    }
+    if (showHistory) {
+        com.kipu.app.ui.component.KipuBottomSheet(onDismissRequest = { showHistory = false },
+            footer = { TextButton(onClick = { showHistory = false }, modifier = Modifier.fillMaxWidth()) { Text("Cerrar historial") } }) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) { GoalEventHistory(state.events) }
+        }
     }
 }
 
