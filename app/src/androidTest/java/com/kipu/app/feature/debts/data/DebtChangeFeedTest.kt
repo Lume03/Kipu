@@ -127,15 +127,29 @@ class DebtChangeFeedTest {
     }
 
     @Test
-    fun sequenceGapRejectsWholePageWithoutPartialWrites() = runBlocking {
+    fun nonIncreasingSequenceRejectsWholePageWithoutPartialWrites() = runBlocking {
         val result = applier.applyPage("owner", page(
             change(2, "DEBT", DEBT_ID, debtPayload(revision = 1L)),
+            change(2, "DEBT_EVENT", EVENT_ID, eventPayload()),
             nextSequence = 2L,
         ))
 
         assertEquals(DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP"), result)
         assertNull(database.debtDao().getDebt("owner", DEBT_ID))
         assertNull(database.debtDao().getSyncCheckpoint("owner"))
+    }
+
+    @Test
+    fun globalSequenceGapFromOtherOwnersStillAppliesThePage() = runBlocking {
+        val result = applier.applyPage("owner", page(
+            change(7, "DEBT", DEBT_ID, debtPayload(revision = 1L)),
+            change(19, "DEBT_EVENT", EVENT_ID, eventPayload()),
+            nextSequence = 19L,
+        ))
+
+        assertTrue(result is DebtChangeApplyResult.Applied)
+        assertEquals(DEBT_ID, database.debtDao().getDebt("owner", DEBT_ID)?.id)
+        assertEquals(19L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
     }
 
     @Test

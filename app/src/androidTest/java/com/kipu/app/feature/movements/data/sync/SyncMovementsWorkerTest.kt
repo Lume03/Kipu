@@ -335,12 +335,111 @@ class SyncMovementsWorkerTest {
     }
 
     @Test
-    fun sequenceGapAfterOpeningAccountRollsBackWholePage() = runTest {
-        val gap = SyncChangeItemDto(
-            sequence = 3, entityType = "ACCOUNT", entityId = UUID.randomUUID().toString(),
+    fun nonIncreasingSequenceAfterOpeningAccountRollsBackWholePage() = runTest {
+        val repeated = SyncChangeItemDto(
+            sequence = 1, entityType = "ACCOUNT", entityId = UUID.randomUUID().toString(),
             revision = 1, operation = "UPSERT", payload = Json.parseToJsonElement("{}"),
         )
-        assertRejectedPageLeavesNoOpeningEffects(nextSequence = 3L, secondChange = gap)
+        assertRejectedPageLeavesNoOpeningEffects(nextSequence = 1L, secondChange = repeated)
+    }
+
+    /**
+     * Reinstall restore: the shared feed has global gaps, foreign CATEGORY/BUDGET changes and
+     * row-shaped ACCOUNT snapshots. All money data must be restored and the cursor advanced.
+     */
+    @Test
+    fun restoreAfterReinstallAppliesSharedFeedWithGapsForeignTypesAndRowShapedAccounts() = runTest {
+        val bankId = UUID.randomUUID().toString()
+        val cashId = UUID.randomUUID().toString()
+        val expenseId = UUID.randomUUID().toString()
+        val changes = listOf(
+            SyncChangeItemDto(
+                sequence = 1, entityType = "CATEGORY", entityId = UUID.randomUUID().toString(), revision = 1,
+                operation = "UPSERT", payload = Json.parseToJsonElement("""{"name":"Comida"}"""),
+            ),
+            SyncChangeItemDto(
+                sequence = 23, entityType = "ACCOUNT", entityId = bankId, revision = 1, operation = "UPSERT",
+                payload = Json.parseToJsonElement(
+                    """{"id":"$bankId","name":"Cuenta BCP","user_id":"$userId","account_type":"SAVINGS","currency_code":"PEN",
+                       "initial_balance_minor_units":100000,"opened_at":"2026-10-21T20:02:03.686+00:00","is_archived":false,
+                       "preset_id":null,"linked_account_id":null,"creation_operation_id":"${UUID.randomUUID()}","revision":1}""",
+                ),
+            ),
+            SyncChangeItemDto(
+                sequence = 30, entityType = "BUDGET", entityId = UUID.randomUUID().toString(), revision = 1,
+                operation = "UPSERT", payload = Json.parseToJsonElement("{}"),
+            ),
+            SyncChangeItemDto(
+                sequence = 41, entityType = "ACCOUNT", entityId = cashId, revision = 1, operation = "UPSERT",
+                payload = Json.parseToJsonElement(
+                    """{"id":"$cashId","alias":"Efectivo","type":"CASH","currency":"PEN","initial_balance_minor_units":5000,
+                       "opened_at":"2026-10-25T17:03:52.104+00:00"}""",
+                ),
+            ),
+            SyncChangeItemDto(
+                sequence = 64, entityType = "TRANSACTION", entityId = expenseId, revision = 1, operation = "UPSERT",
+                payload = Json.parseToJsonElement(
+                    """{"id":"$expenseId","type":"EXPENSE","status":"ACTIVE","amount_minor":150,"currency_code":"PEN",
+                       "source_account_id":"$bankId","destination_account_id":null,"occurred_at":"2026-10-23T17:16:00+00:00",
+                       "ledger_entries":[{"id":"${UUID.randomUUID()}","role":"PRIMARY","account_id":"$bankId",
+                       "currency_code":"PEN","signed_amount_minor":-150,"created_at":"2026-10-24T01:10:51.521+00:00"}]}""",
+                ),
+            ),
+        )
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+            PullChangesResponseDto(changes, nextSequence = 64, hasMore = false),
+        )
+
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals("Cuenta BCP", accountDao.getById(userId, bankId)?.alias)
+        assertEquals("Efectivo", accountDao.getById(userId, cashId)?.alias)
+        assertEquals(expenseId, movementDao.getTransactionById(userId, expenseId)?.id)
+        assertEquals(99_850L, movementDao.getBalanceProjection(userId, bankId)?.balanceMinor)
+        assertEquals(64L, movementDao.getSyncCheckpoint(userId)?.sequence)
+    }
+
+    /** Server voids arrive as STANDARD + ledger_effects; the restored balance must undo the expense once. */
+    @Test
+    fun remoteVoidOfPulledExpenseRestoresBalanceOnceAndKeepsTheHistory() = runTest {
+        val accountId = UUID.randomUUID().toString()
+        val expenseId = UUID.randomUUID().toString()
+        val account = SyncChangeItemDto(
+            sequence = 238, entityType = "ACCOUNT", entityId = accountId, revision = 1, operation = "UPSERT",
+            payload = Json.parseToJsonElement(
+                """{"id":"$accountId","alias":"Yape","type":"CASH","currency":"PEN","initial_balance_minor_units":5000,
+                   "opened_at":"2026-10-21T19:00:00+00:00"}""",
+            ),
+        )
+        val expense = SyncChangeItemDto(
+            sequence = 239, entityType = "TRANSACTION", entityId = expenseId, revision = 1, operation = "UPSERT",
+            payload = Json.parseToJsonElement(
+                """{"id":"$expenseId","type":"EXPENSE","status":"ACTIVE","amount_minor":1000,"currency_code":"PEN",
+                   "source_account_id":"$accountId","occurred_at":"2026-10-21T19:25:55.361+00:00",
+                   "ledger_entries":[{"id":"${UUID.randomUUID()}","role":"PRIMARY","account_id":"$accountId",
+                   "currency_code":"PEN","signed_amount_minor":-1000,"created_at":"2026-10-21T19:25:56+00:00"}]}""",
+            ),
+        )
+        fun void(sequence: Long) = SyncChangeItemDto(
+            sequence = sequence, entityType = "TRANSACTION", entityId = expenseId, revision = 2, operation = "UPSERT",
+            payload = Json.parseToJsonElement(
+                """{"id":"$expenseId","type":"EXPENSE","status":"VOIDED","operation_kind":"STANDARD","amount_minor":1000,
+                   "currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-21T19:25:55.361+00:00",
+                   "ledger_effects":[{"reverses":["${UUID.randomUUID()}","0"],"effect_ordinal":0,"ledger_entry_id":"${UUID.randomUUID()}"}]}""",
+            ),
+        )
+        coEvery { financialApi.pullChanges(any()) } returnsMany listOf(
+            FinancialApiResponse.Success(PullChangesResponseDto(listOf(account, expense, void(248)), 248, false)),
+            FinancialApiResponse.Success(PullChangesResponseDto(listOf(void(249)), 249, false)),
+        )
+
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals("VOIDED", movementDao.getTransactionById(userId, expenseId)?.status)
+        assertEquals(5_000L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(5_000L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        assertEquals(5_000L, movementDao.getBalanceProjection(userId, accountId)?.balanceMinor)
+        assertEquals(249L, movementDao.getSyncCheckpoint(userId)?.sequence)
     }
 
     @Test

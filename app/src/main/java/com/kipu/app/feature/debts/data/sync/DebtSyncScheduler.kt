@@ -85,6 +85,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             return Result.retry()
         }
 
+        outboxDao.requeueMissingEndpoint(targetOwner, System.currentTimeMillis())
         var needsRetry = false
         repeat(MAX_COMMANDS_PER_RUN) {
             val now = System.currentTimeMillis()
@@ -107,7 +108,9 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         return when (val response = debtApi.execute(command.commandType, payload)) {
             is DebtApiResponse.Success -> processRemoteResult(command, response.data)
             is DebtApiResponse.Error -> {
-                val retryable = response.statusCode == 401 || response.statusCode == 408 || response.statusCode == 429 || response.statusCode >= 500
+                // 404 means the debt RPC is not deployed yet (same policy as goals): keep the command queued.
+                val retryable = response.statusCode == 401 || response.statusCode == 404 || response.statusCode == 408 ||
+                    response.statusCode == 429 || response.statusCode >= 500
                 finishCommand(
                     command,
                     if (retryable) "RETRY" else "FAILED_PERMANENT",

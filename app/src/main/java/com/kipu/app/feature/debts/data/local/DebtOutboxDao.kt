@@ -23,6 +23,23 @@ interface DebtOutboxDao {
     @Query("UPDATE debt_command_outbox SET state = :state, attempt_count = attempt_count + :incrementAttempt, next_attempt_at = :nextAttemptAt, lease_until = NULL, last_error_code = :errorCode, updated_at = :now WHERE user_id = :userId AND operation_id = :operationId")
     suspend fun updateResult(userId: String, operationId: String, state: String, incrementAttempt: Int, nextAttemptAt: Long?, errorCode: String?, now: Long): Int
 
+    /**
+     * A missing debt RPC answers 404 until its migration is deployed. Older builds parked those
+     * commands as permanent failures; put them back in the queue so they replay once it exists.
+     */
+    @Query("UPDATE debt_command_outbox SET state = 'RETRY', next_attempt_at = :now, lease_until = NULL, updated_at = :now WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND last_error_code = 'HTTP_404'")
+    suspend fun requeueMissingEndpointFailures(userId: String, now: Long): Int
+
+    @Query("UPDATE debts SET sync_state = 'PENDING' WHERE user_id = :userId AND sync_state = 'FAILED' AND id IN (SELECT debt_id FROM debt_command_outbox WHERE user_id = :userId AND state = 'RETRY' AND last_error_code = 'HTTP_404')")
+    suspend fun markRequeuedDebtsPending(userId: String): Int
+
+    @Transaction
+    suspend fun requeueMissingEndpoint(userId: String, now: Long): Int {
+        val requeued = requeueMissingEndpointFailures(userId, now)
+        if (requeued > 0) markRequeuedDebtsPending(userId)
+        return requeued
+    }
+
     @Transaction
     suspend fun claimPending(userId: String, now: Long, limit: Int = 10): List<DebtOutboxEntity> {
         require(limit > 0) { "Debt command claim limit must be positive" }

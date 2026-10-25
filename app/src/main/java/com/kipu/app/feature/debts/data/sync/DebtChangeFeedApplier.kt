@@ -3,6 +3,8 @@ package com.kipu.app.feature.debts.data.sync
 import androidx.room.withTransaction
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto
+import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
+import com.kipu.app.feature.accounts.data.remote.SyncFeedCursor
 import com.kipu.app.feature.accounts.data.remote.SyncChangeItemDto
 import com.kipu.app.feature.debts.data.local.DebtDao
 import com.kipu.app.feature.debts.data.local.DebtEntity
@@ -41,14 +43,7 @@ class DebtChangeFeedApplier @Inject constructor(
             return DebtChangeApplyResult.Rejected("INVALID_SYNC_PAGE")
         }
         val checkpoint = debtDao.getSyncCheckpoint(userId)?.sequence ?: 0L
-        val expectedSequence = checkpoint + 1L
-        var expected = expectedSequence
-        for (change in page.changes) {
-            if (change.sequence != expected) return DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP")
-            expected += 1L
-        }
-        val nextSequence = page.changes.lastOrNull()?.sequence ?: checkpoint
-        if (page.nextSequence != nextSequence) return DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP")
+        if (!SyncFeedCursor.isValidPage(checkpoint, page)) return DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP")
 
         return try {
             database.withTransaction {
@@ -272,7 +267,7 @@ class DebtChangeFeedApplier @Inject constructor(
             left.occurredAt == right.occurredAt
 
     private fun parseInstantMillis(value: String): Long =
-        runCatching { Instant.parse(value).toEpochMilli() }.getOrElse {
+        runCatching { parseFeedInstant(value).toEpochMilli() }.getOrElse {
             runCatching { LocalDate.parse(value).atStartOfDay(java.time.ZoneId.of("America/Lima")).toInstant().toEpochMilli() }
                 .getOrElse { throw InvalidDebtChangePage("INVALID_REMOTE_TIMESTAMP") }
         }

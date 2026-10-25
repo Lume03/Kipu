@@ -71,6 +71,8 @@ import com.kipu.app.navigation.BUDGET_CREATE_ROUTE
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
 import com.kipu.app.navigation.navigateRootTab
 import com.kipu.app.navigation.appDestinations
+import com.kipu.app.feature.debts.data.sync.DebtSyncScheduler
+import com.kipu.app.feature.goals.data.sync.GoalsSyncScheduler
 import com.kipu.app.navigation.ANALYSIS_ROUTE
 import com.kipu.app.navigation.PLANNING_CREATE_REQUEST_KEY
 import com.kipu.app.navigation.PLANNING_ROUTE
@@ -117,6 +119,12 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var movementSyncScheduler: MovementSyncScheduler
+
+    @Inject
+    lateinit var debtSyncScheduler: DebtSyncScheduler
+
+    @Inject
+    lateinit var goalsSyncScheduler: GoalsSyncScheduler
 
     @Inject
     lateinit var localLockCoordinator: LocalLockCoordinator
@@ -172,6 +180,8 @@ class MainActivity : FragmentActivity() {
                     // Pull remote changes when the session opens; otherwise a fresh
                     // install only hydrates after the first local write.
                     movementSyncScheduler.scheduleSync(access.userId)
+                    debtSyncScheduler.schedule(access.userId)
+                    goalsSyncScheduler.schedule(access.userId)
                     budgetMaintenanceScheduler.scheduleNow(access.userId)
                 }
             }

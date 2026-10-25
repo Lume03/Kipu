@@ -1,5 +1,7 @@
 package com.kipu.app.feature.accounts.data.remote
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -229,11 +231,16 @@ data class CreditCardTermsCommandDto(
     @SerialName("last_four_digits") val lastFourDigits: String? = null,
 )
 
+/**
+ * Named parameters of `pull_financial_changes_v1`. The Supabase client omits default values, and
+ * PostgREST answers 404 when an RPC parameter is missing, so every field must always be encoded.
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PullChangesRequestDto(
-    @SerialName("contract_version") val contractVersion: Int = 1,
+    @EncodeDefault @SerialName("contract_version") val contractVersion: Int = 1,
     @SerialName("after_sequence") val afterSequence: Long,
-    @SerialName("limit") val limit: Int = 100,
+    @EncodeDefault @SerialName("limit") val limit: Int = 100,
 )
 
 @Serializable

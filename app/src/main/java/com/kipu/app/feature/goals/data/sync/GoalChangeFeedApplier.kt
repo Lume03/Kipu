@@ -5,6 +5,7 @@ import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto
+import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import com.kipu.app.feature.accounts.data.remote.SyncChangeItemDto
 import com.kipu.app.feature.goals.data.local.GoalDao
 import com.kipu.app.feature.goals.data.local.GoalOutboxDao
@@ -252,7 +253,7 @@ class GoalChangeFeedApplier @Inject constructor(
             left.operationId == right.operationId && left.occurredAt == right.occurredAt
 
     private fun parseInstantMillis(value: String): Long =
-        runCatching { Instant.parse(value).toEpochMilli() }.getOrElse {
+        runCatching { parseFeedInstant(value).toEpochMilli() }.getOrElse {
             throw InvalidGoalChangePage("INVALID_REMOTE_TIMESTAMP")
         }
 

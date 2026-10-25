@@ -24,6 +24,8 @@ import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.data.remote.FinancialApiResponse
 import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
 import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
+import com.kipu.app.feature.accounts.data.remote.SyncFeedCursor
+import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import com.kipu.app.feature.movements.data.local.MovementDao
 import com.kipu.app.feature.movements.data.local.MovementOutboxEntity
 import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
@@ -99,6 +101,9 @@ class SyncMovementsWorker @AssistedInject constructor(
         const val KEY_USER_ID = "key_user_id"
         const val WORK_PREFIX = "movement-sync"
         private val json = Json { ignoreUnknownKeys = true }
+        private val FOREIGN_FEED_ENTITY_TYPES = setOf(
+            "CATEGORY", "BUDGET", "GOAL", "GOAL_EVENT", "DEBT", "DEBT_EVENT", "DEBT_INSTALLMENT",
+        )
     }
 
     override suspend fun doWork(): Result {
@@ -142,11 +147,11 @@ class SyncMovementsWorker @AssistedInject constructor(
                 is FinancialApiResponse.Success -> {
                     val page = response.data
                     if (page.changes.isEmpty()) return page.nextSequence == checkpoint
+                    if (!SyncFeedCursor.isValidPage(checkpoint, page)) return false
                     val appliedPage = try {
                         database.withTransaction {
                             var expectedSequence = checkpoint
                             for (change in page.changes.sortedBy { it.sequence }) {
-                                if (change.sequence != expectedSequence + 1L) throw InvalidSyncPage()
                                 val payload = change.payload
                                 val applied = try {
                                     when (change.entityType.uppercase()) {
@@ -176,6 +181,9 @@ class SyncMovementsWorker @AssistedInject constructor(
                                         "TRANSACTION", "MOVEMENT" -> if (change.operation.equals("UPSERT", true) && payload != null) {
                                             applyPulledTransaction(userId, json.decodeFromJsonElement<SyncTransactionPayload>(payload), change.revision)
                                         } else false
+                                        // Shared-feed types applied by their own sync must not block restoring
+                                        // money data; an unknown future type still rolls the page back.
+                                        in FOREIGN_FEED_ENTITY_TYPES -> true
                                         else -> false
                                     }
                                 } catch (e: CancellationException) {
@@ -184,7 +192,10 @@ class SyncMovementsWorker @AssistedInject constructor(
                                     SecureLog.e("SyncMovementsWorker", "Could not apply sync change: ${e.javaClass.simpleName}")
                                     false
                                 }
-                                if (!applied) throw InvalidSyncPage()
+                                if (!applied) {
+                                    SecureLog.w("SyncMovementsWorker", "Rejected sync change ${change.sequence} ${change.entityType} ${change.operation}")
+                                    throw InvalidSyncPage()
+                                }
                                 expectedSequence = change.sequence
                             }
                             if (expectedSequence != page.nextSequence) throw InvalidSyncPage()
@@ -222,7 +233,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 return@withTransaction false
             }
             if (existing == null) {
-                val openedAt = Instant.parse(remote.openedAt).toEpochMilli()
+                val openedAt = parseFeedInstant(remote.openedAt).toEpochMilli()
                 accountDao.insertIfAbsent(AccountEntity(
                     id = remote.id, userId = userId,
                     creationOperationId = remote.creationOperationId ?: "remote:${remote.id}",
@@ -279,7 +290,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 ) return@withTransaction false
                 var liabilityAccount = accountDao.getById(userId, accountId)
                 if (liabilityAccount == null) {
-                    val openedAt = remote.createdAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                    val openedAt = remote.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() }
                         ?: System.currentTimeMillis()
                     accountDao.insertIfAbsent(
                         AccountEntity(
@@ -310,7 +321,7 @@ class SyncMovementsWorker @AssistedInject constructor(
 
             val existing = cardDao.getById(userId, remote.id)
             val nowMicros = System.currentTimeMillis() * 1_000L
-            val createdAt = remote.createdAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+            val createdAt = remote.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() }
                 ?: existing?.createdAt
                 ?: System.currentTimeMillis()
             val projection = CardEntity(
@@ -354,11 +365,13 @@ class SyncMovementsWorker @AssistedInject constructor(
         remote: SyncTransactionPayload,
         revision: Long,
     ): Boolean = database.withTransaction {
+        // The server names an ordinary movement STANDARD; locally that kind is null.
+        val remoteKind = remote.operationKind?.takeUnless { it.equals("STANDARD", ignoreCase = true) }
         val existing = movementDao.getTransactionById(userId, remote.id)
         val accountIds = remote.ledgerEntries.map { it.accountId }.distinct()
         if (accountIds.any { accountDao.getById(userId, it) == null }) return@withTransaction false
-        val isCardPurchase = remote.operationKind.equals("CARD_PURCHASE", true)
-        val isCardPayment = remote.operationKind.equals("CARD_PAYMENT", true)
+        val isCardPurchase = remoteKind.equals("CARD_PURCHASE", true)
+        val isCardPayment = remoteKind.equals("CARD_PAYMENT", true)
         if (isCardPurchase || isCardPayment) {
             val cardId = remote.cardId ?: return@withTransaction false
             val card = cardDao.getById(userId, cardId) ?: return@withTransaction false
@@ -392,7 +405,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             if (revision < existing.revision) {
                 return@withTransaction true
             }
-            if (existing.cardId != remote.cardId || existing.operationKind != remote.operationKind ||
+            if (existing.cardId != remote.cardId || existing.operationKind != remoteKind ||
                 existing.installmentCount != remote.installmentCount
             ) return@withTransaction false
 
@@ -423,7 +436,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 return@withTransaction true
             }
 
-            val occurredAt = runCatching { Instant.parse(remote.occurredAt).toEpochMilli() }.getOrNull() ?: existing.occurredAt
+            val occurredAt = runCatching { parseFeedInstant(remote.occurredAt).toEpochMilli() }.getOrNull() ?: existing.occurredAt
             if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
             if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false
             if (!reconcilePulledLedgerEntries(userId, remote, occurredAt)) return@withTransaction false
@@ -457,7 +470,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             }
             return@withTransaction true
         }
-        val occurredAt = Instant.parse(remote.occurredAt).toEpochMilli()
+        val occurredAt = parseFeedInstant(remote.occurredAt).toEpochMilli()
         movementDao.insertPulledTransaction(TransactionEntity(
             id = remote.id, userId = userId, type = remote.type,
             amountMinor = remote.amountMinor, currencyCode = remote.currencyCode,
@@ -468,7 +481,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             status = remote.status, syncStatus = MovementSyncStatus.SYNCED.name,
             createdAt = occurredAt, updatedAt = occurredAt,
             cardId = remote.cardId,
-            operationKind = remote.operationKind,
+            operationKind = remoteKind,
             installmentCount = remote.installmentCount,
             source = remote.paymentChannel,
         ))
@@ -494,6 +507,28 @@ class SyncMovementsWorker @AssistedInject constructor(
         val existingEntries = movementDao.getLedgerEntriesForTransaction(userId, remote.id)
         val existingIds = existingEntries.map { it.id }.toSet()
 
+        // A remote void carries ledger_effects instead of ledger_entries: neutralize what is still
+        // net on each account, like a local void does. Deterministic ids keep it idempotent.
+        if (remote.status.equals("VOIDED", ignoreCase = true) && remote.ledgerEntries.isEmpty()) {
+            val compensations = existingEntries.groupBy { it.accountId }.mapNotNull { (accountId, entries) ->
+                val net = entries.sumOf { it.signedAmountMinor }
+                if (net == 0L) return@mapNotNull null
+                val original = entries.first()
+                LedgerEntryEntity(
+                    id = "remote:void:${remote.id}:$accountId",
+                    userId = userId,
+                    transactionId = remote.id,
+                    accountId = accountId,
+                    role = original.role,
+                    signedAmountMinor = -net,
+                    currencyCode = original.currencyCode,
+                    createdAt = occurredAt,
+                )
+            }
+            if (compensations.isNotEmpty()) movementDao.insertPulledLedgerEntries(compensations)
+            return true
+        }
+
         if (existingEntries.isEmpty()) {
             if (remote.ledgerEntries.isEmpty()) return true
             movementDao.insertPulledLedgerEntries(remote.ledgerEntries.mapIndexed { index, entry ->
@@ -505,7 +540,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                     role = entry.role,
                     signedAmountMinor = entry.signedAmountMinor,
                     currencyCode = entry.currencyCode,
-                    createdAt = entry.createdAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
+                    createdAt = entry.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
                 )
             })
             return true
@@ -524,7 +559,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                     role = entry.role,
                     signedAmountMinor = entry.signedAmountMinor,
                     currencyCode = entry.currencyCode,
-                    createdAt = entry.createdAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
+                    createdAt = entry.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
                 )
             })
         }

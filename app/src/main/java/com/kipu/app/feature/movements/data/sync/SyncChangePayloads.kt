@@ -1,15 +1,22 @@
 package com.kipu.app.feature.movements.data.sync
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
+/**
+ * The feed carries two ACCOUNT shapes: the command snapshot (`alias`, `type`, `currency`) and
+ * the table-row snapshot (`name`, `account_type`, `currency_code`). Both describe the same account.
+ */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 internal data class SyncAccountPayload(
     val id: String,
     @SerialName("creation_operation_id") val creationOperationId: String? = null,
-    val alias: String,
-    val type: String,
-    val currency: String,
+    @JsonNames("name") val alias: String,
+    @JsonNames("account_type") val type: String,
+    @JsonNames("currency_code") val currency: String,
     @SerialName("preset_id") val presetId: String? = null,
     @SerialName("initial_balance_minor_units") val initialBalanceMinorUnits: Long,
     @SerialName("opened_at") val openedAt: String,
