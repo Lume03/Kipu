@@ -51,6 +51,7 @@ import com.kipu.app.core.security.model.LocalLockState
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
+import com.kipu.app.feature.budgets.data.sync.BudgetSyncScheduler
 import com.kipu.app.feature.movements.data.sync.MovementSyncScheduler
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.model.AuthResult
@@ -118,6 +119,9 @@ class MainActivity : FragmentActivity() {
     lateinit var budgetMaintenanceScheduler: BudgetMaintenanceScheduler
 
     @Inject
+    lateinit var budgetSyncScheduler: BudgetSyncScheduler
+
+    @Inject
     lateinit var movementSyncScheduler: MovementSyncScheduler
 
     @Inject
@@ -154,6 +158,7 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.let { access ->
             budgetMaintenanceScheduler.scheduleNow(access.userId)
+            budgetSyncScheduler.scheduleSync(access.userId)
         }
     }
 
@@ -182,6 +187,7 @@ class MainActivity : FragmentActivity() {
                     movementSyncScheduler.scheduleSync(access.userId)
                     debtSyncScheduler.schedule(access.userId)
                     goalsSyncScheduler.schedule(access.userId)
+                    budgetSyncScheduler.scheduleSync(access.userId)
                     budgetMaintenanceScheduler.scheduleNow(access.userId)
                 }
             }
