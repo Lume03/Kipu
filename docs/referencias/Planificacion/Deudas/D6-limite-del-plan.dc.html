@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Planificación · Límite de deudas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+a{text-decoration:none;color:inherit}
+</style>
+</helmet>
+<div style="position:relative;width:390px;height:844px;box-sizing:border-box;background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;overflow:hidden">
+
+<div style="position:absolute;inset:0;padding:96px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="height:150px;border-radius:18px;background:#fff"></div>
+<div style="height:150px;border-radius:18px;background:#fff"></div>
+</div>
+<div style="position:absolute;inset:0;background:rgba(15,23,42,.5)"></div>
+
+<div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:28px 28px 0 0;padding:10px 20px 28px 20px;box-shadow:0 -8px 30px rgba(15,23,42,.25);display:flex;flex-direction:column;gap:12px">
+<div style="width:40px;height:5px;border-radius:3px;background:#CBD5E1;margin:0 auto 6px"></div>
+
+<div style="display:flex;align-items:center;gap:14px">
+<span style="width:56px;height:56px;border-radius:18px;background:#FEF3C7;color:#8A4B00;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+<div><div style="font-size:20px;font-weight:800;line-height:1.2">Llegaste al límite de tu Plan Básico</div></div>
+</div>
+<div style="font-size:14px;color:#475569;line-height:1.5">Tienes <b style="color:#0F172A">2 de 2 deudas o préstamos activos</b>. El límite se comparte entre lo que debes y lo que te deben. Para registrar otro, mejora a PRO o salda uno existente.</div>
+<div style="display:flex;gap:4px"><div style="flex:1;height:6px;border-radius:3px;background:#F59E0B"></div><div style="flex:1;height:6px;border-radius:3px;background:#F59E0B"></div></div>
+
+<div style="background:#FFF8E1;border:1px solid #F3D58A;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;margin-top:4px">
+<div style="font-size:12px;font-weight:800;letter-spacing:.05em;color:#8A4B00">CON PRO</div>
+<sc-for list="{{perks}}" as="p" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600"><span style="width:22px;height:22px;border-radius:11px;background:#F59E0B;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>{{ p.t }}</div>
+</sc-for>
+</div>
+
+<a href="DeudasLista.dc.html" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:16px;background:#F59E0B;color:#3D2300;font-size:16px;font-weight:800;margin-top:4px">Mejorar a PRO</a>
+<a href="DeudasLista.dc.html" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:16px;background:#fff;border:1.5px solid #D5DEE5;font-size:15px;font-weight:600">Ver mis deudas activas</a>
+<a href="DeudasLista.dc.html" style="display:flex;align-items:center;justify-content:center;height:44px;font-size:14px;font-weight:600;color:#475569">Ahora no</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { perks: [
+      { t:'Más presupuestos y metas activas' },
+      { t:'Filtros avanzados en movimientos' },
+      { t:'Más categorías personalizadas' }
+    ]};
+  }
+}
+</script>
+</body>
+</html>

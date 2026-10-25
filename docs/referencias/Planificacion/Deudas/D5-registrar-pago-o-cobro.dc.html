@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Planificación · Registrar pago o cobro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+a{text-decoration:none;color:inherit}
+button,input{font-family:inherit}
+input:focus{outline:2px solid #0F766E;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;display:flex;flex-direction:column">
+
+<div style="height:64px;background:#fff;display:flex;align-items:center;padding:0 8px;box-shadow:0 1px 0 #E6ECF0;flex-shrink:0">
+<a href="DeudaDetalle.dc.html" aria-label="Cerrar" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>
+<div style="flex:1"><div style="font-size:19px;font-weight:700">{{title}}</div><div style="font-size:12px;color:#475569">{{who}}</div></div>
+</div>
+
+<div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">
+
+<div style="display:flex;background:#E6EDF1;border-radius:14px;padding:4px;gap:4px">
+<button aria-pressed="{{isPago}}" onClick="{{pickPago}}" style="{{pagoStyle}}">Pago (yo debo)</button>
+<button aria-pressed="{{isCobro}}" onClick="{{pickCobro}}" style="{{cobroStyle}}">Cobro (me deben)</button>
+</div>
+
+<div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(15,23,42,.07)">
+<label for="amt" style="font-size:13px;font-weight:600;color:#475569">Monto</label>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+<span style="font-size:28px;font-weight:700;color:#0F766E">S/</span>
+<input id="amt" inputmode="decimal" value="{{amount}}" onChange="{{setAmount}}" placeholder="0.00" style="flex:1;min-width:0;border:0;background:transparent;font-size:44px;font-weight:800;letter-spacing:-0.02em;color:#0F172A;padding:0">
+</div>
+<div style="font-size:12px;font-weight:600;color:#B42F2F;min-height:18px;margin-top:6px">{{err}}</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+<sc-for list="{{quick}}" as="q" hint-placeholder-count="3">
+<button onClick="{{ q.pick }}" style="{{ q.style }}">{{ q.label }}</button>
+</sc-for>
+</div>
+</div>
+
+<div>
+<div style="font-size:14px;font-weight:700;margin-bottom:8px">{{fromLabel}}</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{accts}}" as="a" hint-placeholder-count="4">
+<button aria-pressed="{{ a.on }}" onClick="{{ a.pick }}" style="{{ a.style }}">
+<span style="{{ a.dot }}"></span>
+<span style="flex:1;text-align:left"><span style="display:block;font-size:15px;font-weight:700">{{ a.name }}</span><span style="display:block;font-size:12px;color:#475569;font-weight:500">{{ a.sub }}</span></span>
+<span style="font-size:15px;font-weight:800">{{ a.bal }}</span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;gap:10px">
+<div style="flex:1;display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #D5DEE5;border-radius:14px;padding:0 14px;min-height:52px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span style="font-size:14px;font-weight:600">Hoy, 24 Oct</span></div>
+<div style="flex:1;display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #D5DEE5;border-radius:14px;padding:0 14px;min-height:52px;color:#475569"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg><span style="font-size:14px">Nota (opcional)</span></div>
+</div>
+
+<div style="background:#E8F6F3;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#0B3F3A"><span>Saldo pendiente después</span><b>{{pendAfter}}</b></div>
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#0B3F3A"><span>Dinero disponible después</span><b>{{availAfter}}</b></div>
+<div style="height:8px;border-radius:4px;background:#C7E7E1;overflow:hidden"><div style="{{bar}}"></div></div>
+<div style="font-size:12px;color:#2F6762;line-height:1.45">{{note}}</div>
+</div>
+</div>
+
+<div style="background:#fff;padding:12px 16px 20px 16px;box-shadow:0 -1px 0 #E6ECF0;flex-shrink:0">
+<a href="{{ctaHref}}" style="{{ctaStyle}}">{{cta}}</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { mode:'pago', amount:'400', acct:3 };
+  renderVals() {
+    const s = this.state;
+    const A = [
+      { n:'PLIN', sub:'Saldo compartido', b:101 },
+      { n:'BBVA', sub:'Ahorros', b:101 },
+      { n:'YAPE', sub:'Saldo compartido', b:987.70 },
+      { n:'Cuenta BCP', sub:'Ahorros', b:987.70 }
+    ];
+    const fmt = (v) => 'S/ ' + v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const pago = s.mode === 'pago';
+    const total = pago ? 4000 : 300;
+    const left = pago ? 2400 : 150;
+    const amt = parseFloat((s.amount||'').replace(',','')) || 0;
+    const acct = A[s.acct];
+    const bad = amt <= 0 || amt > left || (pago && amt > acct.b);
+    const err = amt > left ? 'Supera el saldo pendiente (' + fmt(left) + ')' : (pago && amt > acct.b ? 'Supera lo disponible en ' + acct.n + ' (' + fmt(acct.b) + ')' : '');
+    const chipOn = 'height:44px;padding:0 14px;border-radius:22px;font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid #0F766E;background:#0F766E;color:#fff';
+    const chipOff = 'height:44px;padding:0 14px;border-radius:22px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #D5DEE5;background:#fff;color:#334155';
+    const seg = (on) => 'flex:1;height:44px;border-radius:11px;border:0;font-size:14px;font-weight:'+(on?700:600)+';cursor:pointer;background:'+(on?'#fff':'transparent')+';color:'+(on?'#0B5F58':'#4A5668')+';box-shadow:'+(on?'0 1px 3px rgba(15,23,42,.15)':'none');
+    const quick = pago ? [['Cuota S/ 400',400],['S/ 800',800],['Todo S/ 2,400',2400]] : [['S/ 50',50],['S/ 100',100],['Todo S/ 150',150]];
+    const pendNew = Math.max(0, left - amt);
+    const availNew = pago ? acct.b - amt : acct.b + amt;
+    const pct = Math.min(100, ((total - pendNew) / total) * 100);
+    return {
+      title: pago ? 'Registrar pago' : 'Registrar cobro',
+      who: pago ? 'Préstamo BCP · cuota 5 de 10' : 'Carlos R. · préstamo personal',
+      isPago:pago, isCobro:!pago,
+      pickPago:()=>this.setState({mode:'pago', amount:'400'}), pickCobro:()=>this.setState({mode:'cobro', amount:'50'}),
+      pagoStyle:seg(pago), cobroStyle:seg(!pago),
+      amount:s.amount, setAmount:(e)=>this.setState({amount:e.target.value}), err,
+      quick: quick.map(q=>({ label:q[0], pick:()=>this.setState({amount:String(q[1])}), style: amt===q[1]?chipOn:chipOff })),
+      fromLabel: pago ? 'Pagar desde' : 'Recibir en',
+      accts: A.map((a,i)=>({ name:a.n, sub:a.sub, bal:fmt(a.b), on:s.acct===i, pick:()=>this.setState({acct:i}),
+        dot:'width:22px;height:22px;border-radius:11px;box-sizing:border-box;flex-shrink:0;border:'+(s.acct===i?'7px solid #0F766E':'2px solid #94A3B8')+';background:#fff',
+        style:'width:100%;display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;border-radius:16px;cursor:pointer;color:#0F172A;border:2px solid '+(s.acct===i?'#0F766E':'#E2E8F0')+';background:'+(s.acct===i?'#F0FAF8':'#fff') })),
+      pendAfter: fmt(pendNew) + (pendNew === 0 && amt > 0 ? ' · saldada' : ''), availAfter: fmt(availNew),
+      bar:'height:8px;border-radius:4px;background:#0F766E;width:'+pct+'%',
+      note: pago ? 'El pago sale de la cuenta elegida y reduce tu saldo pendiente.' : 'El dinero cobrado entra a la cuenta elegida y reduce lo que te deben.',
+      cta: bad ? 'Ingresa un monto válido' : (pago ? 'Registrar pago de ' + fmt(amt) : 'Registrar cobro de ' + fmt(amt)),
+      ctaHref: bad ? '#' : 'DeudaDetalle.dc.html',
+      ctaStyle:'display:flex;align-items:center;justify-content:center;height:52px;border-radius:16px;font-size:16px;font-weight:700;background:'+(bad?'#E2E8F0':'#0F766E')+';color:'+(bad?'#475569':'#fff')
+    };
+  }
+}
+</script>
+</body>
+</html>

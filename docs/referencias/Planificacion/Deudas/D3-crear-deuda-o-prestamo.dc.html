@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Planificación · Crear deuda o préstamo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+a{text-decoration:none;color:inherit}
+button,input{font-family:inherit}
+input:focus{outline:2px solid #0F766E;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;display:flex;flex-direction:column">
+
+<div style="height:64px;background:#fff;display:flex;align-items:center;gap:4px;padding:0 8px;flex-shrink:0;box-shadow:0 1px 0 #E6ECF0">
+<a href="DeudasLista.dc.html" aria-label="Volver" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
+<div style="font-size:19px;font-weight:700">Nueva deuda o préstamo</div>
+</div>
+
+<div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
+
+<div>
+<div style="font-size:14px;font-weight:700;margin-bottom:8px">¿Qué quieres registrar?</div>
+<div style="display:flex;gap:10px">
+<button aria-pressed="{{isDebo}}" onClick="{{pickDebo}}" style="{{deboStyle}}"><span style="font-size:15px;font-weight:700">Yo debo</span><span style="font-size:12px;color:#475569;font-weight:500">Dinero que me prestaron</span></button>
+<button aria-pressed="{{isCobro}}" onClick="{{pickCobro}}" style="{{cobroStyle}}"><span style="font-size:15px;font-weight:700">Me deben</span><span style="font-size:12px;color:#475569;font-weight:500">Dinero que presté</span></button>
+</div>
+</div>
+
+<div>
+<label for="who" style="font-size:14px;font-weight:700;display:block;margin-bottom:8px">{{whoLabel}}</label>
+<input id="who" value="{{who}}" onChange="{{setWho}}" placeholder="Ej. Préstamo BCP, Carlos R." style="width:100%;box-sizing:border-box;height:52px;border-radius:14px;border:1.5px solid #D5DEE5;background:#fff;padding:0 16px;font-size:16px;color:#0F172A">
+</div>
+
+<div style="background:#fff;border-radius:20px;padding:16px 18px;box-shadow:0 1px 3px rgba(15,23,42,.07)">
+<div style="display:flex;align-items:center;gap:10px">
+<label for="amt" style="flex:1;font-size:13px;font-weight:700;color:#475569">Monto total</label>
+<div style="display:flex;background:#E6EDF1;border-radius:12px;padding:3px;gap:3px">
+<button aria-pressed="{{isPen}}" onClick="{{pickPen}}" style="{{penStyle}}">PEN</button>
+<button aria-pressed="{{isUsd}}" onClick="{{pickUsd}}" style="{{usdStyle}}">USD</button>
+</div>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">
+<span style="font-size:26px;font-weight:700;color:#0F766E">{{sym}}</span>
+<input id="amt" inputmode="decimal" value="{{amount}}" onChange="{{setAmount}}" placeholder="0.00" style="flex:1;min-width:0;border:0;background:transparent;font-size:40px;font-weight:800;letter-spacing:-0.02em;color:#0F172A;padding:0">
+</div>
+</div>
+
+<div>
+<div style="font-size:14px;font-weight:700;margin-bottom:8px">¿Cómo se paga?</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{plans}}" as="p" hint-placeholder-count="4">
+<button aria-pressed="{{ p.on }}" onClick="{{ p.pick }}" style="{{ p.style }}">{{ p.label }}</button>
+</sc-for>
+</div>
+<div style="margin-top:12px;background:#E8F6F3;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center">
+<span style="width:40px;height:40px;border-radius:12px;background:#0F766E;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>
+<div style="flex:1"><div style="font-size:15px;font-weight:800;color:#0B4F49">{{planTitle}}</div><div style="font-size:12px;color:#2F6762;margin-top:2px">{{planSub}}</div></div>
+</div>
+</div>
+
+<div>
+<div style="font-size:14px;font-weight:700;margin-bottom:8px">Cuenta relacionada <span style="font-weight:500;color:#475569">(opcional)</span></div>
+<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid #D5DEE5;border-radius:14px;padding:0 14px;min-height:56px">
+<span style="width:36px;height:36px;border-radius:10px;background:#E1F4F0;color:#0B5F58;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-5 9 5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></svg></span>
+<span style="flex:1"><span style="display:block;font-size:14px;font-weight:600">Sin cuenta</span><span style="display:block;font-size:12px;color:#475569">{{accountHint}}</span></span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</div>
+</div>
+</div>
+
+<div style="background:#fff;padding:12px 16px 20px 16px;box-shadow:0 -1px 0 #E6ECF0;flex-shrink:0">
+<div style="font-size:12px;color:#475569;text-align:center;margin-bottom:8px">{{summary}}</div>
+<a href="DeudasLista.dc.html" style="display:flex;align-items:center;justify-content:center;height:52px;border-radius:16px;background:#0F766E;color:#fff;font-size:16px;font-weight:700;box-shadow:0 4px 12px rgba(15,118,110,.3)">Guardar</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { type:'debo', who:'Préstamo BCP', amount:'4000', cur:'PEN', plan:'cuotas' };
+  renderVals() {
+    const s = this.state;
+    const sym = s.cur === 'PEN' ? 'S/' : 'US$';
+    const debo = s.type === 'debo';
+    const chipOn = 'height:44px;padding:0 16px;border-radius:22px;font-size:14px;font-weight:700;cursor:pointer;border:1.5px solid #0F766E;background:#0F766E;color:#fff';
+    const chipOff = 'height:44px;padding:0 16px;border-radius:22px;font-size:14px;font-weight:600;cursor:pointer;border:1.5px solid #D5DEE5;background:#fff;color:#334155';
+    const seg = (on) => 'height:36px;min-width:52px;border-radius:10px;border:0;font-size:13px;font-weight:'+(on?700:600)+';cursor:pointer;background:'+(on?'#fff':'transparent')+';color:'+(on?'#0B5F58':'#4A5668')+';box-shadow:'+(on?'0 1px 3px rgba(15,23,42,.15)':'none');
+    const card = (on) => 'flex:1;min-height:76px;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;align-items:flex-start;justify-content:center;cursor:pointer;color:#0F172A;background:'+(on?'#E8F6F3':'#fff')+';border:2px solid '+(on?'#0F766E':'#D5DEE5');
+    const P = [['unico','Pago único'],['cuotas','En cuotas'],['libre','Sin fecha fija']];
+    const amt = parseFloat((s.amount||'').replace(',','')) || 0;
+    const money = (v) => sym + ' ' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    let planTitle, planSub;
+    if (s.plan === 'cuotas') { planTitle = '10 cuotas de ' + money(amt/10); planSub = 'Primera cuota el 28 Jun 2026 · mensual'; }
+    else if (s.plan === 'unico') { planTitle = 'Vence el 30 Nov 2026'; planSub = 'Te avisaremos 3 días antes'; }
+    else { planTitle = 'Sin vencimiento'; planSub = 'Registra pagos cuando quieras'; }
+    return {
+      isDebo:debo, isCobro:!debo, pickDebo:()=>this.setState({type:'debo'}), pickCobro:()=>this.setState({type:'cobro'}),
+      deboStyle:card(debo), cobroStyle:card(!debo),
+      whoLabel: debo ? 'Acreedor (a quién le debes)' : 'Deudor (quién te debe)',
+      who:s.who, setWho:(e)=>this.setState({who:e.target.value}),
+      sym, amount:s.amount, setAmount:(e)=>this.setState({amount:e.target.value}),
+      isPen:s.cur==='PEN', isUsd:s.cur==='USD', pickPen:()=>this.setState({cur:'PEN'}), pickUsd:()=>this.setState({cur:'USD'}), penStyle:seg(s.cur==='PEN'), usdStyle:seg(s.cur==='USD'),
+      plans:P.map(p=>({label:p[1], on:s.plan===p[0], pick:()=>this.setState({plan:p[0]}), style:s.plan===p[0]?chipOn:chipOff})),
+      planTitle, planSub,
+      accountHint: debo ? 'Elige una si recibiste el dinero en una cuenta' : 'Elige una si el dinero salió de una cuenta',
+      summary:(debo?'Debes ':'Te deben ') + money(amt) + ' · ' + (s.who||'Sin nombre')
+    };
+  }
+}
+</script>
+</body>
+</html>

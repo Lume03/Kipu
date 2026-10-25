@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Planificación · Deudas vacías</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',system-ui,sans-serif}
+a{text-decoration:none;color:inherit}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden">
+
+<div style="display:flex;align-items:center;gap:10px;padding:24px 16px 10px 16px;background:#fff;flex-shrink:0">
+<div style="flex:1;font-size:22px;font-weight:800">Planificación</div>
+<span aria-label="Notificaciones" style="width:44px;height:44px;border-radius:22px;background:#fff;border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span>
+<span aria-label="Ajustes" style="width:44px;height:44px;border-radius:22px;background:#fff;border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span>
+</div>
+
+<div style="flex:1;overflow:hidden;padding:0 16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;background:#E6EDF1;border-radius:16px;padding:4px;gap:4px;margin-top:2px;flex-shrink:0">
+<a href="MetasVacio.dc.html" style="flex:1;min-width:0;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;white-space:nowrap;color:#475569;font-weight:600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></svg>Metas</a>
+<a href="Vacio.dc.html" style="flex:1;min-width:0;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;white-space:nowrap;color:#475569;font-weight:600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>Presupuestos</a>
+<div style="flex:1;min-width:0;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;white-space:nowrap;background:#fff;color:#0F766E;font-weight:700;box-shadow:0 1px 3px rgba(15,23,42,.14)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-5 9 5"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg>Deudas</div>
+</div>
+
+<div style="background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 1px 3px rgba(15,23,42,.07);display:flex;flex-shrink:0">
+<div style="flex:1"><div style="font-size:12px;color:#475569;font-weight:500">Debo (pasivos pendientes)</div><div style="font-size:20px;font-weight:800;margin-top:2px">S/ 0.00</div></div>
+<div style="width:1px;background:#E6ECF0;margin:0 14px"></div>
+<div style="flex:1"><div style="font-size:12px;color:#475569;font-weight:500">Me deben (por cobrar)</div><div style="font-size:20px;font-weight:800;margin-top:2px">S/ 0.00</div></div>
+</div>
+
+<div style="display:flex;gap:8px;flex-shrink:0">
+<span style="height:40px;padding:0 14px;border-radius:20px;font-size:13px;font-weight:600;display:flex;align-items:center;background:#0F766E;color:#fff;border:1px solid #0F766E">Todas 0</span>
+<span style="height:40px;padding:0 14px;border-radius:20px;font-size:13px;font-weight:600;display:flex;align-items:center;background:#fff;color:#334155;border:1px solid #D5DEE5">Debo 0</span>
+<span style="height:40px;padding:0 14px;border-radius:20px;font-size:13px;font-weight:600;display:flex;align-items:center;background:#fff;color:#334155;border:1px solid #D5DEE5">Me deben 0</span>
+</div>
+
+<div style="background:#fff;border-radius:22px;padding:24px 18px 20px 18px;box-shadow:0 1px 3px rgba(15,23,42,.07);display:flex;flex-direction:column;align-items:center;gap:8px">
+<div style="width:88px;height:88px;border-radius:44px;background:#E1F4F0;color:#0F766E;display:flex;align-items:center;justify-content:center"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-5 9 5"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg></div>
+<div style="font-size:19px;font-weight:800;margin-top:6px;text-align:center">Todavía no tienes deudas ni préstamos</div>
+<div style="font-size:14px;color:#475569;text-align:center;line-height:1.5">Registra lo que debes o lo que te deben para seguir los pagos, los vencimientos y tu saldo pendiente.</div>
+<a href="DeudasAgregar.dc.html" style="margin-top:10px;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;background:#0F766E;color:#fff;font-size:15px;font-weight:700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Registrar deuda o préstamo</a>
+</div>
+
+<div style="display:flex;gap:10px">
+<a href="DeudaNueva.dc.html" style="flex:1;background:#fff;border:1.5px solid #E2E8F0;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:92px"><span style="width:40px;height:40px;border-radius:12px;background:#FDECEC;color:#B42F2F;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg></span><span><span style="display:block;font-size:14px;font-weight:700">Yo debo</span><span style="display:block;font-size:12px;color:#475569">Préstamos, cuotas, familiares</span></span></a>
+<a href="DeudaNueva.dc.html" style="flex:1;background:#fff;border:1.5px solid #E2E8F0;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:92px"><span style="width:40px;height:40px;border-radius:12px;background:#DCFCE7;color:#166534;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 7L7 17M15 17H7V9"/></svg></span><span><span style="display:block;font-size:14px;font-weight:700">Me deben</span><span style="display:block;font-size:12px;color:#475569">Dinero que prestaste</span></span></a>
+</div>
+</div>
+
+<!-- bottom nav -->
+<div style="height:76px;background:#fff;border-top:1px solid #E6ECF0;display:flex;align-items:center;padding:0 12px 0 8px;gap:2px;flex-shrink:0">
+<span title="Pendiente en el prototipo: pantalla existente en la app real, sin artboard en este lienzo" aria-disabled="true" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;color:#475569;font-size:11px;font-weight:500;white-space:nowrap"><span style="width:52px;height:28px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h12v4"/><path d="M4 7v11a2 2 0 0 0 2 2h14V9H6a2 2 0 0 1-2-2z"/><path d="M16 14.5h.01"/></svg></span>Dinero</span>
+<span title="Pendiente en el prototipo: pantalla existente en la app real, sin artboard en este lienzo" aria-disabled="true" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;color:#475569;font-size:11px;font-weight:500;white-space:nowrap"><span style="width:52px;height:28px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>Movimientos</span>
+<a href="Main.dc.html" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;color:#0B5F58;font-size:11px;font-weight:700;white-space:nowrap"><span style="width:52px;height:28px;border-radius:14px;background:#CDEFE8;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg></span>Planificación</a>
+<a href="Analisis.dc.html" style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;color:#475569;font-size:11px;font-weight:500;white-space:nowrap"><span style="width:52px;height:28px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-7"/></svg></span>Análisis</a>
+<div style="width:56px;height:56px;border-radius:28px;background:#0F766E;color:#fff;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;box-shadow:0 4px 12px rgba(15,118,110,.4)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
