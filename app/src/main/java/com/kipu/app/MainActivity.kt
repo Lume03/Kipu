@@ -350,6 +350,12 @@ class MainActivity : FragmentActivity() {
                                                     if (currentRoute == PLANNING_ROUTE) {
                                                         navController.currentBackStackEntry?.savedStateHandle
                                                             ?.set(PLANNING_CREATE_REQUEST_KEY, true)
+                                                    } else if (currentRoute == ANALYSIS_ROUTE) {
+                                                        // Análisis has no create flow yet: register a movement from Dinero.
+                                                        movementsSelected.value = false
+                                                        navController.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
+                                                        navController.currentBackStackEntry?.savedStateHandle
+                                                            ?.set("open_register_movement", true)
                                                     } else {
                                                         navController.currentBackStackEntry?.savedStateHandle
                                                             ?.set("open_register_movement", true)

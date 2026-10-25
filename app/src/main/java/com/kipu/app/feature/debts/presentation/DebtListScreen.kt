@@ -564,6 +564,7 @@ private fun DebtStatusLine(debt: DebtSummary, installment: DebtScheduleItem?, cu
     // A planned installment is never a payment: only its due date and amount are shown here.
     val pendingInstallment = installment?.takeIf { it.status == "PENDING" || it.status == "PARTIAL" }
     val dueDate = pendingInstallment?.dueDate ?: debt.dueDate
+    if (dueDate == null && installment?.status != "PARTIAL" && installment?.status != "PAID") return
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (dueDate != null) {
             val days = ChronoUnit.DAYS.between(today, dueDate)

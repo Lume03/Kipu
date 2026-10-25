@@ -19,6 +19,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -46,24 +47,29 @@ data class DebtListUiState(
 class DebtListViewModel @Inject constructor(
     repository: DebtRepository,
     debtDao: DebtDao,
-    sessionCoordinator: SessionCoordinator,
+    private val sessionCoordinator: SessionCoordinator,
     private val featureAccessCacheDao: FeatureAccessCacheDao,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
 ) : ViewModel() {
-    private val userId = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+    private var userId: String? = null
 
     private val _state = MutableStateFlow(DebtListUiState())
     val state = _state.asStateFlow()
 
     init {
-        refreshPlanAccess()
-        if (userId == null) {
-            _state.value = DebtListUiState(isLoading = false, errorMessage = "Inicia sesión para consultar tus deudas.")
-        } else {
-            viewModelScope.launch {
+        // Follow the session: after process death the list is restored before the session is.
+        viewModelScope.launch {
+            sessionCoordinator.localAccess.collectLatest { access ->
+                val ownerId = (access as? LocalAccess.Available)?.userId
+                userId = ownerId
+                if (ownerId == null) {
+                    _state.value = DebtListUiState(isLoading = false, selectedType = _state.value.selectedType)
+                    return@collectLatest
+                }
+                refreshPlanAccess()
                 combine(
-                    repository.observeDebts(userId),
-                    debtDao.observeInstallmentHighlights(userId),
+                    repository.observeDebts(ownerId),
+                    debtDao.observeInstallmentHighlights(ownerId),
                 ) { debts, installments ->
                     val highlights = installments.groupBy { it.debtId }.mapValues { (_, items) ->
                         val selected = items.firstOrNull { it.status == "PENDING" || it.status == "PARTIAL" }
