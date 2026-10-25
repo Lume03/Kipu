@@ -211,6 +211,9 @@ interface MovementDao {
     @Query("SELECT * FROM balance_projections WHERE user_id = :userId AND account_id = :accountId")
     suspend fun getBalanceProjection(userId: String, accountId: String): BalanceProjectionEntity?
 
+    @Query("SELECT * FROM balance_projections WHERE user_id = :userId")
+    fun observeBalanceProjections(userId: String): Flow<List<BalanceProjectionEntity>>
+
     @Query("SELECT balance_minor FROM balance_projections WHERE user_id = :userId AND account_id = :accountId")
     fun observeBalanceProjection(userId: String, accountId: String): Flow<Long?>
 

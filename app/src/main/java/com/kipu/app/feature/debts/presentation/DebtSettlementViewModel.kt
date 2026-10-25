@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.accounts.data.local.AccountDao
+import com.kipu.app.feature.movements.data.local.MovementDao
 import com.kipu.app.feature.categories.data.local.CategoryDao
 import com.kipu.app.feature.debts.domain.DebtAmountParser
 import com.kipu.app.feature.debts.domain.DebtCommandHasher
@@ -56,6 +57,7 @@ class DebtSettlementViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DebtRepository,
     private val accountDao: AccountDao,
+    private val movementDao: MovementDao,
     private val categoryDao: CategoryDao,
     private val sessionCoordinator: SessionCoordinator,
 ) : ViewModel() {
@@ -73,10 +75,12 @@ class DebtSettlementViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     repository.observeDebt(userId, debtId),
-                    accountDao.observeActive(userId),
+                    combine(accountDao.observeActive(userId), movementDao.observeBalanceProjections(userId)) { entities, balances ->
+                        entities to balances.associate { it.accountId to it.balanceMinor }
+                    },
                     categoryDao.observeCategoriesForUser(userId),
                     categoryDao.observePresentationsForUser(userId),
-                ) { debt, accountEntities, categories, presentations ->
+                ) { debt, (accountEntities, balanceByAccount), categories, presentations ->
                     val type = debt?.obligationType
                     val validTypes = if (type == DebtObligationType.PAYABLE) setOf("GENERAL", "EXPENSE")
                         else setOf("GENERAL", "INCOME")
@@ -84,7 +88,7 @@ class DebtSettlementViewModel @Inject constructor(
                     val accounts = accountEntities
                         .filterNot { it.type in EXCLUDED_ACCOUNT_TYPES }
                         .filter { debt == null || it.currency == debt.currencyCode }
-                        .map { DebtAccountOption(it.id, it.alias, it.currency) }
+                        .map { DebtAccountOption(it.id, it.alias, it.currency, balanceByAccount[it.id]) }
                     val interestCategories = categories
                         .filter { it.isActive && it.categoryType in validTypes }
                         .filter { it.userId == null || it.userId == userId }

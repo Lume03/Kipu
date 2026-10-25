@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.accounts.data.local.AccountDao
+import com.kipu.app.feature.movements.data.local.MovementDao
+import kotlinx.coroutines.flow.combine
 import com.kipu.app.feature.debts.domain.DebtAmountParser
 import com.kipu.app.feature.debts.domain.DebtCommandHasher
 import com.kipu.app.feature.debts.domain.DebtRepository
@@ -38,6 +40,7 @@ class DebtOpeningViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DebtRepository,
     private val accountDao: AccountDao,
+    private val movementDao: MovementDao,
     private val sessionCoordinator: SessionCoordinator,
     private val featureAccessCacheDao: FeatureAccessCacheDao,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
@@ -153,12 +156,14 @@ class DebtOpeningViewModel @Inject constructor(
 
     private fun observeAccounts(userId: String) {
         viewModelScope.launch {
-            accountDao.observeActive(userId)
+            combine(accountDao.observeActive(userId), movementDao.observeBalanceProjections(userId)) { entities, balances ->
+                entities to balances.associate { it.accountId to it.balanceMinor }
+            }
                 .catch { _state.update { it.copy(errorMessage = "No se pudieron cargar las cuentas.") } }
-                .collect { entities ->
+                .collect { (entities, balanceByAccount) ->
                     val accounts = entities
                         .filterNot { it.type in EXCLUDED_ACCOUNT_TYPES }
-                        .map { DebtAccountOption(it.id, it.alias, it.currency) }
+                        .map { DebtAccountOption(it.id, it.alias, it.currency, balanceByAccount[it.id]) }
                     _state.update { current ->
                         val existing = accounts.firstOrNull { it.id == current.selectedAccountId && it.currencyCode == current.currencyCode }
                         current.copy(

@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onNodeWithTag
 import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
 import org.junit.Rule
@@ -41,7 +42,7 @@ class ReceivableDebtFlowTest {
             )
         }
 
-        compose.onNodeWithText("Moneda distinta (PEN)").assertIsDisplayed()
+        compose.onNodeWithText("Moneda distinta (PEN)").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("save-debt").assertIsNotEnabled()
     }
 }

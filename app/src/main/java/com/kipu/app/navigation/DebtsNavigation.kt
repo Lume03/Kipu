@@ -50,6 +50,13 @@ fun NavController.navigateToDebtOpening(type: DebtObligationType) {
     navigate("debts/open/${type.name}")
 }
 
+/** Swaps the open form for the other obligation type without stacking a second form. */
+private fun NavController.switchDebtOpening(type: DebtObligationType) {
+    navigate("debts/open/${type.name}") {
+        popUpTo(DEBT_OPENING_ROUTE) { inclusive = true }
+    }
+}
+
 fun NavController.navigateToDebtDetail(debtId: String) {
     navigate("debts/detail/$debtId")
 }
@@ -90,6 +97,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
                 onNotesChange = viewModel::onNotesChange,
                 onSave = viewModel::save,
                 onNavigateBack = navController::popBackStack,
+                onSwitchType = { navController.switchDebtOpening(DebtObligationType.RECEIVABLE) },
             )
         } else {
             ReceivableDebtFormScreen(
@@ -103,6 +111,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
                 onNotesChange = viewModel::onNotesChange,
                 onSave = viewModel::save,
                 onNavigateBack = navController::popBackStack,
+                onSwitchType = { navController.switchDebtOpening(DebtObligationType.PAYABLE) },
             )
         }
     }
