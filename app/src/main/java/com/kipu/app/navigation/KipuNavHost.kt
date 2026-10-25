@@ -16,16 +16,27 @@ fun NavGraphBuilder.planSelectionDestination(navController: NavController, onCon
     composable(PLAN_PURCHASE_ROUTE) { PlanPurchaseRoute(onNavigateBack = { navController.popBackStack() }) }
 }
 
+/**
+ * Single source of the authenticated app graph. MainActivity's NavHost must use this builder:
+ * a hand-copied list once omitted [calendarDestinations] and crashed "Calendario financiero".
+ */
 fun NavGraphBuilder.appDestinations(
     navController: NavController,
     onAuthenticated: (userId: String) -> Unit,
     onSignOut: () -> Unit,
     movementsSelected: MutableState<Boolean> = mutableStateOf(false),
+    debtsSelected: MutableState<Boolean> = mutableStateOf(false),
 ) {
     authDestinations(navController = navController, onAuthenticated = onAuthenticated)
     planSelectionDestination(navController = navController, onConfirmed = { navController.navigate(BIOMETRIC_ROUTE) })
     settingsDestinations(navController = navController, onSignOut = onSignOut)
-    accountsDestinations(navController, movementsSelected, onSelectMoney = { movementsSelected.value = false })
+    accountsDestinations(
+        navController = navController,
+        movementsSelected = movementsSelected,
+        onSelectMoney = { movementsSelected.value = false },
+        debtsSelected = debtsSelected,
+        onBackFromDebtTab = { debtsSelected.value = false },
+    )
     movementDestinations(navController = navController)
     receiptDestinations(navController)
     movementsDestinations(navController = navController)

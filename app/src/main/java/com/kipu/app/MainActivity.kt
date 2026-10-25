@@ -73,10 +73,9 @@ import com.kipu.app.navigation.DEBT_LIST_ROUTE
 import com.kipu.app.navigation.BUDGETS_LIST_ROUTE
 import com.kipu.app.navigation.BUDGET_CREATE_ROUTE
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
-import com.kipu.app.navigation.budgetDestinations
-import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.navigateToDebtOpening
 import com.kipu.app.navigation.navigateRootTab
+import com.kipu.app.navigation.appDestinations
 import com.kipu.app.navigation.KipuNavigationBar
 import com.kipu.app.navigation.RootTabMotion
 import com.kipu.app.navigation.MOVEMENTS_HISTORY_PATTERN
@@ -85,20 +84,10 @@ import com.kipu.app.navigation.NOTIFICATION_CENTER_ROUTE
 import com.kipu.app.navigation.PLAN_PURCHASE_ROUTE
 import com.kipu.app.navigation.PLAN_SELECTION_ROUTE
 import com.kipu.app.navigation.PROFILE_SETTINGS_ROUTE
-import com.kipu.app.navigation.accountsDestinations
-import com.kipu.app.navigation.debtDestinations
-import com.kipu.app.navigation.authDestinations
-import com.kipu.app.navigation.movementDestinations
-import com.kipu.app.navigation.receiptDestinations
 import com.kipu.app.navigation.ReceiptShareIntent
 import com.kipu.app.navigation.navigateToReceiptImport
-import com.kipu.app.navigation.movementsDestinations
-import com.kipu.app.navigation.notificationDestinations
-import com.kipu.app.navigation.goalDestinations
 import com.kipu.app.navigation.GOALS_LIST_ROUTE
 import com.kipu.app.navigation.GOAL_CREATE_ROUTE
-import com.kipu.app.navigation.planSelectionDestination
-import com.kipu.app.navigation.settingsDestinations
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
@@ -532,7 +521,7 @@ class MainActivity : FragmentActivity() {
                                         }
                                     },
                                 ) {
-                                    authDestinations(
+                                    appDestinations(
                                         navController = navController,
                                         onAuthenticated = { userId ->
                                             scope.launch {
@@ -545,15 +534,6 @@ class MainActivity : FragmentActivity() {
                                                 }
                                             }
                                         },
-                                    )
-                                    planSelectionDestination(
-                                        navController = navController,
-                                        onConfirmed = {
-                                            navController.navigate(BIOMETRIC_ROUTE)
-                                        },
-                                    )
-                                    settingsDestinations(
-                                        navController = navController,
                                         onSignOut = {
                                             navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)
                                             navController.clearBackStack(MOVEMENTS_HISTORY_PATTERN)
@@ -563,29 +543,8 @@ class MainActivity : FragmentActivity() {
                                                 popUpTo(0) { inclusive = true }
                                             }
                                         },
-                                    )
-                                    accountsDestinations(
-                                        navController = navController,
                                         movementsSelected = movementsSelected,
-                                        onSelectMoney = { movementsSelected.value = false },
                                         debtsSelected = debtsSelected,
-                                        onBackFromDebtTab = { debtsSelected.value = false },
-                                    )
-                                    movementDestinations(
-                                        navController = navController,
-                                    )
-                                    receiptDestinations(navController)
-                                    movementsDestinations(
-                                        navController = navController,
-                                    )
-                                    debtDestinations(navController = navController)
-                                    goalDestinations(navController = navController)
-                                    budgetDestinations(navController = navController)
-                                    notificationDestinations(
-                                        navController = navController,
-                                    )
-                                    goalDestinations(
-                                        navController = navController,
                                     )
                                 }
                             }
