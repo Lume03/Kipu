@@ -2,6 +2,7 @@
 
 ## Auditorías
 
+- [Correcciones de Planificación (2026-10-25)](planificacion-2026-10-25.md): Metas, Presupuestos, Deudas, navegación retenida y validación en teléfono.
 - [Auditoría funcional, UI y UX — Sprint 6 (2026-10-19)](auditoria-sprint-6-2026-10-19/README.md): matriz de casos, observaciones, seguimiento de issues y evidencia revisada.
 - [Incidente de sincronización y restauración tras reinstalar (2026-10-25)](incidente-sync-restauracion-2026-10-25/README.md): causas raíz, correcciones de cliente y migraciones remotas pendientes.
 - [Revisiones de Pull Request](pr-reviews/README.md): informes por PR, plantilla y evidencia visual cuando aplique.

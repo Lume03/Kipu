@@ -87,7 +87,7 @@ class PlanningVisualEvidenceTest {
                                 "goal-contribution" -> GoalContributionSheet(GoalContributionUiState(goal = goal, accounts = accounts,
                                     isLoading = false), {}, { _, _, _, _ -> })
                                 "goal-options", "goal-delete" -> GoalListScreen(GoalManagementUiState(
-                                    goals = listOf(GoalListItemState(goal, GoalProgressCalculator.calculate(goal, events))),
+                                    goals = listOf(GoalListItemState(goal, GoalProgressCalculator.calculate(goal, if (screen.value == "goal-delete") emptyList() else events))),
                                     isLoading = false), {}, {}, {}, {}, {}, {})
                                 "goal-empty" -> GoalListScreen(GoalManagementUiState(isLoading = false), {}, {}, {}, {}, {}, {})
                                 "budget-list" -> BudgetListScreen(BudgetListUiState.Content(budgetItems, quota), {}, {}, {}, {}, {})
