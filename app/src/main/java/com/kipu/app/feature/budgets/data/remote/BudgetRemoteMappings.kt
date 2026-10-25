@@ -4,6 +4,7 @@ import com.kipu.app.feature.budgets.data.local.BudgetEntity
 import com.kipu.app.feature.budgets.data.local.BudgetPeriodEntity
 import com.kipu.app.feature.budgets.domain.BudgetInterval
 import com.kipu.app.feature.budgets.domain.BudgetPeriod
+import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import java.time.Instant
 import java.time.ZoneId
 import java.util.UUID
@@ -44,7 +45,7 @@ internal fun BudgetPeriodEntity.toRemoteDto(): BudgetPeriodRemoteDto = BudgetPer
 )
 
 internal fun BudgetRemoteDto.toLocalEntity(zoneId: ZoneId): BudgetEntity {
-    val createdAtMillis = Instant.parse(createdAt).toEpochMilli()
+    val createdAtMillis = parseFeedInstant(createdAt).toEpochMilli()
     val periodType = if (periodType == "CUSTOM") "CUSTOM_RANGE" else periodType
     return BudgetEntity(
         id = id,
@@ -61,7 +62,7 @@ internal fun BudgetRemoteDto.toLocalEntity(zoneId: ZoneId): BudgetEntity {
         revision = revision,
         createdOn = Instant.ofEpochMilli(createdAtMillis).atZone(zoneId).toLocalDate().toString(),
         createdAt = createdAtMillis,
-        updatedAt = Instant.parse(updatedAt).toEpochMilli(),
+        updatedAt = parseFeedInstant(updatedAt).toEpochMilli(),
         pendingScopeType = pendingScopeType,
         pendingScopeCategoryId = pendingScopeCategoryId,
         pendingScheduleType = pendingScheduleType,
@@ -82,7 +83,7 @@ internal fun BudgetPeriodRemoteDto.toLocalEntity(): BudgetPeriodEntity {
         endsOn = endsOn,
         limitMinor = limitMinor,
         scopeCategoryId = scopeCategoryId,
-        createdAt = Instant.parse(createdAt).toEpochMilli(),
+        createdAt = parseFeedInstant(createdAt).toEpochMilli(),
     )
 }
 

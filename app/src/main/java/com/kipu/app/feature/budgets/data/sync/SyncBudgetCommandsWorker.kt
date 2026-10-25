@@ -14,6 +14,7 @@ import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.kipu.app.feature.budgets.data.local.BudgetAlertLedgerDao
 import com.kipu.app.feature.budgets.data.local.BudgetDao
@@ -28,7 +29,6 @@ import com.kipu.app.feature.budgets.data.remote.toLocalEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.Clock
-import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.decodeFromString
@@ -161,7 +161,7 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
                     userId = userId,
                     budgetId = remote.budgetId,
                     lastRevision = maxOf(current?.lastRevision ?: 0L, remote.lastRevision),
-                    deletedAt = current?.deletedAt ?: Instant.parse(remote.deletedAt).toEpochMilli(),
+                    deletedAt = current?.deletedAt ?: parseFeedInstant(remote.deletedAt).toEpochMilli(),
                 )
                 budgetDao.upsertTombstone(tombstone)
                 budgetDao.deletePeriods(userId, remote.budgetId)

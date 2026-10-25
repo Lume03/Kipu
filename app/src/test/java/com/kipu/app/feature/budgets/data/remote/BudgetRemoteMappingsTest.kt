@@ -24,6 +24,15 @@ class BudgetRemoteMappingsTest {
     private val transport = "44444444-4444-4444-8444-444444444444"
     private val zone = ZoneId.of("UTC")
 
+    @Test fun supabaseOffsetTimestampsPreserveTheInstantForBudgetsAndPeriods() {
+        val timestamp = "2026-10-24T19:53:56.490936+00:00"
+        val expected = java.time.Instant.parse("2026-10-24T19:53:56.490936Z").toEpochMilli()
+        val row = budget().toRemoteDto().copy(createdAt = timestamp, updatedAt = "2026-10-24T14:53:56.490936-05:00").toLocalEntity(zone)
+        assertEquals(expected, row.createdAt)
+        assertEquals(expected, row.updatedAt)
+        assertEquals(expected, period(food).toRemoteDto().copy(createdAt = timestamp).toLocalEntity().createdAt)
+    }
+
     private fun budget(
         categoryId: String? = food,
         pendingScopeType: String? = null,

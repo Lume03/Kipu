@@ -27,6 +27,7 @@ import com.kipu.app.feature.budgets.domain.BudgetWriteResult
 import com.kipu.app.feature.budgets.data.remote.BudgetApi
 import com.kipu.app.feature.budgets.data.remote.BudgetRemoteDto
 import com.kipu.app.feature.budgets.data.remote.BudgetPeriodRemoteDto
+import com.kipu.app.feature.budgets.data.remote.BudgetTombstoneRemoteDto
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -143,16 +144,22 @@ class BudgetTombstoneReplayIntegrationTest {
             limitMinor = 50_000L,
             createdAt = clock.instant().toString(),
         )
+        val remoteDeletedId = UUID.randomUUID().toString()
+        val remoteActiveId = UUID.randomUUID().toString()
+        val offsetTimestamp = "2026-10-24T19:53:56.490936+00:00"
+        val remoteTombstone = BudgetTombstoneRemoteDto(remoteDeletedId, ownerId, 2L, offsetTimestamp)
+        val activeRemote = staleBudget.copy(id = remoteActiveId, createdAt = offsetTimestamp, updatedAt = offsetTimestamp)
+        val activePeriod = stalePeriod.copy(id = UUID.randomUUID().toString(), budgetId = remoteActiveId, createdAt = offsetTimestamp)
         val requests = mutableListOf<String>()
         val engine = MockEngine { request ->
             requests += request.url.encodedPath
             when (request.url.encodedPath) {
-                "/rest/v1/budget_tombstones" -> jsonResponse("[]")
+                "/rest/v1/budget_tombstones" -> jsonResponse(Json.encodeToString(listOf(remoteTombstone)))
                 "/rest/v1/rpc/delete_budget_v1" -> jsonResponse(
                     """{"status":"APPLIED","budget_id":"$budgetId","deleted":true}""",
                 )
-                "/rest/v1/budgets" -> jsonResponse(Json.encodeToString(listOf(staleBudget)))
-                "/rest/v1/budget_periods" -> jsonResponse(Json.encodeToString(listOf(stalePeriod)))
+                "/rest/v1/budgets" -> jsonResponse(Json.encodeToString(listOf(staleBudget, activeRemote)))
+                "/rest/v1/budget_periods" -> jsonResponse(Json.encodeToString(listOf(stalePeriod, activePeriod)))
                 else -> error("Unexpected request; test network must remain inside MockEngine: ${request.url}")
             }
         }
@@ -197,6 +204,10 @@ class BudgetTombstoneReplayIntegrationTest {
             assertEquals(null, repository.getBudget(ownerId, budgetId))
             assertTrue(repository.listPeriods(ownerId, budgetId).isEmpty())
             assertEquals(deletedTombstone, database.budgetDao().getTombstone(ownerId, budgetId))
+            val expectedTimestamp = Instant.parse("2026-10-24T19:53:56.490936Z").toEpochMilli()
+            assertEquals(expectedTimestamp, database.budgetDao().getTombstone(ownerId, remoteDeletedId)?.deletedAt)
+            assertEquals(expectedTimestamp, database.budgetDao().getBudget(ownerId, remoteActiveId)?.createdAt)
+            assertEquals(expectedTimestamp, database.budgetDao().listPeriods(ownerId, remoteActiveId).single().createdAt)
             assertTrue(requests.contains("/rest/v1/budgets"))
             assertTrue(requests.contains("/rest/v1/budget_periods"))
         } finally {
