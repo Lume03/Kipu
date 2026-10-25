@@ -4,6 +4,8 @@ Trabajo realizado en `main` y en el worktree recibido, sin ejecutar Spec Kit. No
 
 **Resultado:** correcciones enumeradas verificadas localmente, con las diferencias y límites documentados al final. No certifica despliegue remoto ni paridad total con funciones del mockup fuera del contrato aprobado.
 
+**Comprobación remota posterior:** la [auditoría de sincronización](sincronizacion-planificacion-2026-10-25.md) confirmó RPC/esquema pendientes de Metas y Deudas y un fallo de fechas de Presupuestos, corregido posteriormente. Los resultados de interfaz de este informe no acreditan respaldo remoto de sus operaciones.
+
 ## Referencias y autoridad
 
 Se revisaron el README de Planificación, M1–M9, Presupuesto 1–8 y P1–P6, su guía de colores, D0–D17 y las variantes D2–D5. Los HTML empaquetados se descomprimieron localmente para leer 42 plantillas; los `.dc.html` también se inspeccionaron como fuentes de artboards. La ausencia de `support.js` no se interpretó como ausencia del diseño: se contrastaron las capturas.
