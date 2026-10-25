@@ -1,5 +1,7 @@
 package com.kipu.app.navigation
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -11,7 +13,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,10 +37,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,16 +116,10 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
     val debtViewModel: DebtListViewModel = hiltViewModel(backStackEntry)
     val debtState by debtViewModel.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        budgetViewModel.reload()
+        goalViewModel.clearFeedback()
+        goalViewModel.refreshPlanAccess()
+        budgetViewModel.onResume()
         debtViewModel.refreshPlanAccess()
-    }
-
-    // Goals keep their existing (+) behavior; Budgets and Debts run their own quota-aware create flow.
-    LaunchedEffect(createRequested, selectedTab) {
-        if (createRequested && selectedTab == PlanningTab.GOALS) {
-            consumeCreate()
-            navController.navigate(GOAL_CREATE_ROUTE)
-        }
     }
 
     Column(Modifier.fillMaxSize().testTag("planning_screen")) {
@@ -151,6 +144,10 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
                     onContributeGoal = { goalId -> navController.navigate("goals/$goalId/contribute") },
                     onWithdrawGoal = { goalId -> navController.navigate("goals/$goalId?withdraw=true") },
+                    onArchiveGoal = { goalId -> navController.navigate("goals/$goalId?action=archive") },
+                    onGoalHistory = { goalId -> navController.navigate("goals/$goalId?action=history") },
+                    createRequested = createRequested && selectedTab == PlanningTab.GOALS,
+                    onCreateRequestConsumed = consumeCreate,
                     embedded = true,
                 )
             }
@@ -160,6 +157,9 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     onNavigateBack = { navController.popBackStack() },
                     onCreateBudget = { navController.navigate(BUDGET_CREATE_ROUTE) },
                     onOpenBudget = navController::navigateToBudget,
+                    onEditBudget = { navController.navigate("budgets/$it/edit") },
+                    onFinishBudget = { navController.navigate("budgets/$it?action=finish") },
+                    onDeleteBudget = { navController.navigate("budgets/$it?action=delete") },
                     onRetry = budgetViewModel::reload,
                     onSeePlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
                     embedded = true,
@@ -170,12 +170,22 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
             PlanningPage(active = selectedTab == PlanningTab.DEBTS) {
                 DebtListScreen(
                     debts = debtState.debts,
+                    isLoading = debtState.isLoading,
+                    onDebtAction = { id, action ->
+                        when (action) {
+                            "settle" -> navController.navigateToDebtSettlement(id)
+                            "edit" -> navController.navigate("debts/detail/$id/edit")
+                            "close" -> navController.navigateToDebtClosure(id)
+                            else -> navController.navigate("debts/detail/$id?action=$action")
+                        }
+                    },
                     selectedType = debtState.selectedType,
                     onTypeSelected = debtViewModel::selectType,
                     onDebtSelected = navController::navigateToDebtDetail,
                     onAddPayable = { navController.navigateToDebtOpening(DebtObligationType.PAYABLE) },
                     onAddReceivable = { navController.navigateToDebtOpening(DebtObligationType.RECEIVABLE) },
                     scheduledInstallments = debtState.scheduledInstallments,
+                    allInstallments = debtState.allInstallments,
                     errorMessage = debtState.errorMessage,
                     openRegisterDebt = createRequested && selectedTab == PlanningTab.DEBTS,
                     onConsumeRegisterDebt = consumeCreate,
