@@ -68,6 +68,33 @@ class BudgetScreensTest {
 
     // ---- Lista ----
 
+    @Test fun createdBudgetOffersDetailAndOnlyShowsTheCelebrationOnce() {
+        compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, {}, {}, initialAction = "created") }
+        compose.onNodeWithTag("budget_created_screen").assertIsDisplayed()
+        compose.onNodeWithText("Ver presupuesto").performClick()
+        compose.onNodeWithTag("budget_detail_screen").assertIsDisplayed()
+        compose.onNodeWithTag("budget_created_screen").assertDoesNotExist()
+    }
+
+    @Test fun cardAndOverflowHaveIndependentActionsAndDismissDoesNotNavigate() {
+        var details = 0
+        var edits = 0
+        compose.setContent {
+            BudgetListScreen(BudgetListUiState.Content(listOf(item()), freeQuota), {}, {}, { details++ }, {}, {},
+                onEditBudget = { edits++ })
+        }
+        compose.onNodeWithTag("budget_options_b1").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions_sheet").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, details) }
+        compose.onNodeWithTag("planning_actions_cancel").performClick()
+        compose.onNodeWithTag("budget_actions_sheet").assertDoesNotExist()
+        compose.onNodeWithTag("budget_options_b1").performClick()
+        compose.onNodeWithText("Editar").performClick()
+        compose.runOnIdle { assertEquals(1, edits); assertEquals(0, details) }
+        compose.onNodeWithTag("budget_card_b1").performClick()
+        compose.runOnIdle { assertEquals(1, details) }
+    }
+
     @Test
     fun localFiltersUseConfiguredThresholdsAndKeepExceededSeparate() {
         val warning = item("warning", consumed = 35_000L).copy(thresholdsBps = listOf(7000))
@@ -119,7 +146,7 @@ class BudgetScreensTest {
         var actions = 0
         compose.setContent { BudgetDetailScreen(detail(), {}, { actions++ }, { actions++ }, { actions++ }, {}) }
         compose.onNodeWithTag("budget_actions").performClick()
-        compose.onNodeWithTag("budget_sheet_cancel").performScrollTo().performClick()
+        compose.onNodeWithTag("planning_actions_cancel").performClick()
         compose.onNodeWithTag("budget_actions_sheet").assertDoesNotExist()
         compose.onNodeWithTag("budget_detail_screen").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, actions) }
@@ -171,7 +198,7 @@ class BudgetScreensTest {
             )
         }
         val card = compose.onNodeWithTag("budget_card_b1")
-        compose.onNodeWithTag("budget_remaining").assertTextContains("Excedido", substring = true)
+        compose.onNodeWithTag("budget_remaining").assertTextContains("Te pasaste", substring = true)
         compose.onNodeWithTag("budget_remaining").assertTextContains("100.00", substring = true)
         card.assertContentDescriptionContains("Excedido por", substring = true)
     }
@@ -344,7 +371,7 @@ class BudgetScreensTest {
         compose.onNodeWithTag("budget_delete_cancel").performClick()
         compose.onNodeWithTag("budget_delete_dialog").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, deleted) }
-        compose.onNodeWithTag("budget_current_card").assertIsDisplayed()
+        compose.onNodeWithTag("budget_current_card").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -381,8 +408,9 @@ class BudgetScreensTest {
     @Test
     fun detailEditAndBackAreLabelledForTalkBack() {
         compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, {}, {}) }
-        compose.onNodeWithContentDescription("Editar presupuesto").assertIsDisplayed()
         compose.onNodeWithContentDescription("Volver").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Acciones del presupuesto").performClick()
+        compose.onNodeWithText("Editar").assertIsDisplayed()
     }
 
     @Test

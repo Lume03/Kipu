@@ -75,7 +75,11 @@ fun BudgetListScreen(
     embedded: Boolean = false,
     createRequested: Boolean = false,
     onCreateRequestConsumed: () -> Unit = {},
+    onEditBudget: (String) -> Unit = onOpenBudget,
+    onFinishBudget: (String) -> Unit = onOpenBudget,
+    onDeleteBudget: (String) -> Unit = onOpenBudget,
 ) {
+    var optionsId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedFilter by rememberSaveable { mutableStateOf(0) }
     var showQuotaDialog by rememberSaveable { mutableStateOf(false) }
     val quota = when (state) {
@@ -172,7 +176,7 @@ fun BudgetListScreen(
                 } }
                 if (visible.isEmpty()) item { Text("No hay presupuestos en este filtro.", Modifier.padding(16.dp)) }
                 items(visible, key = { it.id }) { item ->
-                    BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) })
+                    BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }, onOptions = { optionsId = item.id })
                 }
                 item { Box(Modifier.height(20.dp)) }
             }
@@ -184,6 +188,14 @@ fun BudgetListScreen(
             limit = quota?.limit ?: 2,
             onDismiss = { showQuotaDialog = false },
             onSeePlans = { showQuotaDialog = false; onSeePlans() },
+        )
+    }
+    (state as? BudgetListUiState.Content)?.items?.firstOrNull { it.id == optionsId }?.let { item ->
+        BudgetActionsSheet(
+            item.name, item.status == BudgetStatus.ACTIVE, { optionsId = null },
+            { onOpenBudget(item.id) }, { onEditBudget(item.id) },
+            { onFinishBudget(item.id) }, { onDeleteBudget(item.id) },
+            summary = { item.consumption?.let { BudgetMoney(it.consumedMinor, item.currency) } },
         )
     }
 }
@@ -260,13 +272,13 @@ private fun EmptyBudgets() {
 }
 
 @Composable
-private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
+private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptions: () -> Unit) {
     val finished = item.status == BudgetStatus.FINISHED
     val colors = rememberCalmEmeraldColors()
     KipuCard(
         modifier = Modifier.fillMaxWidth().testTag("budget_card_${item.id}")
             .clickable(role = Role.Button, onClickLabel = "Abrir detalle de ${item.name}", onClick = onOpen),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         borderColor = null,
         elevation = 1.dp,
     ) {
@@ -284,7 +296,7 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
                     })
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(item.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(
                             item.scopeLabel,
@@ -295,7 +307,9 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onOpen) { Icon(Icons.Default.MoreVert, contentDescription = "Ver presupuesto y acciones") }
+                IconButton(onClick = onOptions, modifier = Modifier.testTag("budget_options_${item.id}")) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${item.name}")
+                }
             }
             item.interval?.let {
                 Text(

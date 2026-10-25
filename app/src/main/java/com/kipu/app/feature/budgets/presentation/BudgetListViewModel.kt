@@ -45,6 +45,7 @@ class BudgetListViewModel @Inject constructor(
     internal var todayProvider: () -> LocalDate = { LocalDate.now(zone) }
 
     private val reload = MutableStateFlow(0)
+    private var hasResumed = false
     private val _state = MutableStateFlow<BudgetListUiState>(BudgetListUiState.Loading)
     val state: StateFlow<BudgetListUiState> = _state.asStateFlow()
 
@@ -71,6 +72,11 @@ class BudgetListViewModel @Inject constructor(
     /** Reintenta tras un error o refresca el consumo al volver a la pantalla. */
     fun reload() {
         reload.update { it + 1 }
+    }
+
+    /** init already loads the first visit; later resumes refresh consumption without a loader. */
+    fun onResume() {
+        if (hasResumed) reload() else hasResumed = true
     }
 
     private suspend fun build(

@@ -32,6 +32,23 @@ class BudgetListViewModelTest {
         ).also { it.todayProvider = { TEST_TODAY } }
 
     @Test
+    fun `first resume does not duplicate initial read and return refreshes without discarding content`() = runTest(dispatcher) {
+        val reader = FakeReader(consumed = 12_000L)
+        val kit = BudgetTestKit(reader = reader)
+        kit.seed(sampleBudget())
+        val vm = viewModel(kit)
+        advanceUntilIdle()
+        reader.consumed = 18_000L
+        vm.onResume()
+        advanceUntilIdle()
+        assertEquals(12_000L, assertIs<BudgetListUiState.Content>(vm.state.value).items.single().consumption!!.consumedMinor)
+        vm.onResume()
+        assertIs<BudgetListUiState.Content>(vm.state.value)
+        advanceUntilIdle()
+        assertEquals(18_000L, assertIs<BudgetListUiState.Content>(vm.state.value).items.single().consumption!!.consumedMinor)
+    }
+
+    @Test
     fun `starts in loading and then shows empty with quota`() = runTest(dispatcher) {
         val vm = viewModel(BudgetTestKit())
         assertIs<BudgetListUiState.Loading>(vm.state.value)

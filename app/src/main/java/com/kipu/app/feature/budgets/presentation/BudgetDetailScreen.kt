@@ -1,5 +1,7 @@
 package com.kipu.app.feature.budgets.presentation
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -35,10 +36,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -49,7 +48,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.PlanningProgressRing
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -63,11 +61,17 @@ fun BudgetDetailScreen(
     onFinish: () -> Unit,
     onDelete: () -> Unit,
     onRetry: () -> Unit,
+    initialAction: String? = null,
 ) {
     var showActions by rememberSaveable { mutableStateOf(false) }
-    var confirmFinish by rememberSaveable { mutableStateOf(false) }
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var confirmFinish by rememberSaveable { mutableStateOf(initialAction == "finish") }
+    var confirmDelete by rememberSaveable { mutableStateOf(initialAction == "delete") }
     val content = (state as? BudgetDetailUiState.Content)?.content
+    var showCreated by rememberSaveable { mutableStateOf(initialAction == "created") }
+    if (showCreated && content != null) {
+        BudgetCreatedScreen(content, onView = { showCreated = false }, onReturn = onNavigateBack)
+        return
+    }
 
     Scaffold(
         modifier = Modifier.testTag("budget_detail_screen"),
@@ -91,11 +95,7 @@ fun BudgetDetailScreen(
                             Icon(Icons.Default.MoreVert, contentDescription = "Acciones del presupuesto")
                         }
                     }
-                    if (content?.isActive == true) {
-                        IconButton(onClick = onEdit, enabled = !content.isWorking, modifier = Modifier.testTag("budget_edit")) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar presupuesto")
-                        }
-                    }
+
                 },
             )
         },
@@ -110,6 +110,7 @@ fun BudgetDetailScreen(
             is BudgetDetailUiState.Error -> BudgetErrorPanel(state.message, onRetry, Modifier.padding(padding), "budget_detail_error")
             is BudgetDetailUiState.Content -> DetailContent(
                 state.content,
+                onEdit = onEdit,
                 onAskFinish = { confirmFinish = true },
                 onAskDelete = { confirmDelete = true },
                 modifier = Modifier.padding(padding),
@@ -118,30 +119,15 @@ fun BudgetDetailScreen(
     }
 
     if (showActions && content != null) {
-        KipuBottomSheet(onDismissRequest = { showActions = false }, modifier = Modifier.testTag("budget_actions_sheet")) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(content.budget.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                content.current?.let { BudgetAmountsRow(it.consumption, content.budget.currency) }
-                HorizontalDivider()
-                if (content.isActive) {
-                    TextButton(onClick = { showActions = false; onEdit() }, enabled = !content.isWorking, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                        BudgetActionLabel(Icons.Default.Edit, "Editar", "Nombre, límite, periodo y alertas")
-                    }
-                    TextButton(onClick = { showActions = false; confirmFinish = true }, enabled = !content.isWorking, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                        BudgetActionLabel(Icons.Default.Flag, "Finalizar", "Conserva el historial; detiene renovaciones y alertas")
-                    }
-                }
-                TextButton(onClick = { showActions = false; confirmDelete = true }, enabled = !content.isWorking,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("budget_sheet_delete")) {
-                    BudgetActionLabel(Icons.Default.Delete, "Eliminar", "No afecta movimientos ni cuentas")
-                }
-                OutlinedButton(onClick = { showActions = false }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_sheet_cancel")) { Text("Cancelar") }
-            }
-        }
+        BudgetActionsSheet(
+            content.budget.name, content.isActive, { showActions = false }, {}, onEdit,
+            { confirmFinish = true }, { confirmDelete = true },
+            summary = { content.current?.let { BudgetMoney(it.consumption.consumedMinor, content.budget.currency) } },
+        )
     }
 
     val name = content?.budget?.name.orEmpty()
-    if (confirmFinish) {
+    if (confirmFinish && content?.isActive == true) {
         AlertDialog(
             onDismissRequest = { confirmFinish = false },
             modifier = Modifier.testTag("budget_finish_dialog"),
@@ -162,7 +148,7 @@ fun BudgetDetailScreen(
             },
         )
     }
-    if (confirmDelete) {
+    if (confirmDelete && content != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             modifier = Modifier.testTag("budget_delete_dialog"),
@@ -205,21 +191,9 @@ fun BudgetDetailScreen(
 }
 
 @Composable
-private fun BudgetActionLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Surface(shape = RoundedCornerShape(16.dp), color = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.1f)) {
-            Icon(icon, null, Modifier.padding(12.dp).size(24.dp))
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
 private fun DetailContent(
     content: BudgetDetailContent,
+    onEdit: () -> Unit,
     onAskFinish: () -> Unit,
     onAskDelete: () -> Unit,
     modifier: Modifier,
@@ -232,28 +206,21 @@ private fun DetailContent(
     ) {
         KipuCard(
             Modifier.fillMaxWidth().testTag("budget_current_card"),
-            shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp,
+            shape = RoundedCornerShape(18.dp), borderColor = null, elevation = 1.dp,
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    listOf(
-                        content.scopeLabel,
-                        BudgetTexts.schedule(budget.schedule),
-                        if (!content.isActive) "Finalizado" else null,
-                    ).filterNotNull().joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 val current = content.current
                 if (current != null) {
                     Text(
                         (if (current.isCurrent) "Periodo actual: " else "Último periodo: ") + BudgetTexts.interval(current.interval),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.semantics { heading() },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.secondaryMuted,
+                        modifier = Modifier.align(Alignment.CenterHorizontally).semantics { heading() },
                     )
                     val consumption = current.consumption
                     val ringColor = when {
                         consumption.isExceeded -> colors.expenseCoral
+                        consumption.percentBps >= 8000 && consumption.needsAttention(budget.thresholdsBps) -> colors.nearLimitOrange
                         consumption.remainingMinor == 0L || consumption.needsAttention(budget.thresholdsBps) -> colors.warningAmber
                         else -> MaterialTheme.colorScheme.primary
                     }
@@ -265,20 +232,11 @@ private fun DetailContent(
                             consumption.needsAttention(budget.thresholdsBps) -> colors.warningText
                             else -> MaterialTheme.colorScheme.primary
                         })
-                    BudgetAmountsRow(consumption, budget.currency)
+                    BudgetDetailAmounts(consumption, budget.currency, budget.thresholdsBps)
+
                 } else {
                     Text("Sin periodo disponible todavía.")
                 }
-                Text(
-                    BudgetTexts.currencyNotice(budget.currency),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "Alertas en: ${BudgetTexts.thresholds(budget.thresholdsBps)}" +
-                        if (content.isActive) "" else " (desactivadas: presupuesto finalizado)",
-                    style = MaterialTheme.typography.labelMedium,
-                )
                 content.pendingChangeLabel?.let {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.testTag("budget_pending_change"))
@@ -286,14 +244,53 @@ private fun DetailContent(
             }
         }
 
-        KipuCard(Modifier.fillMaxWidth().testTag("budget_alerts"), shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
+        content.current?.let { current ->
+            val consumption = current.consumption
+            val warning = consumption.needsAttention(budget.thresholdsBps)
+            Surface(shape = RoundedCornerShape(14.dp),
+                color = when { consumption.isExceeded -> colors.expenseBg; warning -> colors.warningBg; else -> colors.incomeBg },
+                contentColor = when { consumption.isExceeded -> colors.expenseText; warning -> colors.warningText; else -> colors.incomeText }) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(when {
+                        !content.isActive -> "Presupuesto finalizado"
+                        consumption.isExceeded -> "Superaste el límite del periodo"
+                        consumption.remainingMinor == 0L -> "Alcanzaste tu límite"
+                        warning -> "Atención a tus gastos"
+                        else -> "Vas dentro de tu presupuesto"
+                    }, fontWeight = FontWeight.Bold)
+                    Text(if (!content.isActive) "El historial se conserva; no habrá nuevas renovaciones ni alertas."
+                        else "El consumo incluye los gastos confirmados que cumplen el alcance y la moneda del presupuesto.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        KipuCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), borderColor = null) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                BudgetInfoLine("Qué gastos cuentan", content.scopeLabel)
+                BudgetInfoLine("Periodo", BudgetTexts.schedule(budget.schedule))
+                BudgetInfoLine("Moneda", budget.currency)
+                BudgetInfoLine("Renovación", when {
+                    !content.isActive -> "Finalizado"
+                    budget.schedule is com.kipu.app.feature.budgets.domain.BudgetSchedule.CustomRange -> "No se renueva"
+                    else -> content.current?.interval?.endExclusive?.let { "$it · automática" } ?: "Automática"
+                })
+                Text(BudgetTexts.currencyNotice(budget.currency), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                Surface(shape = RoundedCornerShape(8.dp), color = colors.incomeBg, contentColor = colors.incomeText) {
+                    Text("Solo planificación · no mueve dinero", Modifier.padding(8.dp), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+
+        KipuCard(Modifier.fillMaxWidth().testTag("budget_alerts"), shape = RoundedCornerShape(18.dp), borderColor = null, elevation = 1.dp) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Umbrales de alerta", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 if (budget.thresholdsBps.isEmpty()) Text("Sin umbrales configurados")
+                content.current?.let { BudgetProgressBar(it.consumption, budget.currency, thresholdsBps = budget.thresholdsBps) }
                 budget.thresholdsBps.sorted().forEach { threshold ->
                     val reached = content.current?.consumption?.percentBps?.let { it >= threshold }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(BudgetTexts.thresholds(listOf(threshold)), fontWeight = FontWeight.SemiBold)
+                        Text(BudgetTexts.thresholds(listOf(threshold)), fontWeight = FontWeight.SemiBold,
+                            color = if (threshold >= 10000) colors.expenseText else colors.warningText)
                         Text(when {
                             !content.isActive -> "Desactivado"
                             reached == true -> "Alcanzado"
@@ -331,8 +328,8 @@ private fun DetailContent(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        BudgetAmountsRow(row.consumption, budget.currency)
-                        BudgetProgressBar(row.consumption, budget.currency)
+                        BudgetDetailAmounts(row.consumption, budget.currency, budget.thresholdsBps)
+                        BudgetProgressBar(row.consumption, budget.currency, thresholdsBps = budget.thresholdsBps)
                     }
                 }
             }
@@ -348,6 +345,8 @@ private fun DetailContent(
 
         HorizontalDivider()
         if (content.isActive) {
+            Button(onClick = onEdit, enabled = !content.isWorking,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_edit"), shape = RoundedCornerShape(14.dp)) { Text("Editar presupuesto") }
             OutlinedButton(
                 onClick = onAskFinish,
                 enabled = !content.isWorking,

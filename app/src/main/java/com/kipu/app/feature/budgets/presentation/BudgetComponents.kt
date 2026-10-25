@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -67,8 +66,43 @@ internal fun BudgetConsumption.needsAttention(thresholdsBps: List<Int>): Boolean
 internal fun BudgetConsumption.statusLabel(thresholdsBps: List<Int> = emptyList()): String = when {
     isExceeded -> "Excedido"
     remainingMinor == 0L -> "Límite alcanzado"
+    percentBps >= 8000 && needsAttention(thresholdsBps) -> "Casi al límite"
     needsAttention(thresholdsBps) -> "Atención"
     else -> "Dentro del límite"
+}
+
+/** Detail reference: three peer metrics below the ring, with no nested statistic cards. */
+@Composable
+internal fun BudgetDetailAmounts(consumption: BudgetConsumption, currencyCode: String, thresholdsBps: List<Int> = com.kipu.app.feature.budgets.domain.Budget.DEFAULT_THRESHOLDS_BPS) {
+    val colors = rememberCalmEmeraldColors()
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            Triple("Consumido", consumption.consumedMinor, "budget_consumed"),
+            Triple(if (consumption.isExceeded) "Te pasaste" else "Restante",
+                if (consumption.isExceeded) -consumption.remainingMinor else consumption.remainingMinor, "budget_remaining"),
+            Triple("Límite", consumption.limitMinor, "budget_limit"),
+        ).forEachIndexed { index, (label, amount, tag) ->
+            Column(Modifier.weight(1f).testTag(tag).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = colors.secondaryMuted)
+                BudgetMoney(amount, currencyCode, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
+                    color = if (index == 1) when {
+                        consumption.isExceeded -> colors.expenseText
+                        consumption.needsAttention(thresholdsBps) -> colors.warningText
+                        else -> colors.primaryDeep
+                    } else colors.primaryText)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun BudgetInfoLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End)
+    }
 }
 
 private fun spoken(minor: Long, currencyCode: String): String =
@@ -92,6 +126,7 @@ internal fun BudgetProgressBar(
     else (consumption.consumedMinor.toDouble() / consumption.limitMinor.toDouble()).toFloat().coerceIn(0f, 1f)
     val barColor = when {
         consumption.isExceeded -> colors.expenseCoral
+        consumption.percentBps >= 8000 && consumption.needsAttention(thresholdsBps) -> colors.nearLimitOrange
         consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps) -> colors.warningAmber
         else -> MaterialTheme.colorScheme.primary
     }
@@ -148,49 +183,40 @@ internal fun BudgetProgressBar(
 @Composable
 internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: String, modifier: Modifier = Modifier) {
     val colors = rememberCalmEmeraldColors()
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
-            Text("Consumido", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BudgetMoney(consumption.consumedMinor, currencyCode, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.weight(1f).testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
+            Text("Consumido", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BudgetMoney(consumption.consumedMinor, currencyCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Row(Modifier.testTag("budget_limit").semantics(mergeDescendants = true) {}) {
+                Text("de ", style = MaterialTheme.typography.labelSmall)
+                BudgetMoney(consumption.limitMinor, currencyCode, style = MaterialTheme.typography.labelSmall)
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AmountStat("Límite", consumption.limitMinor, currencyCode, "budget_limit", Modifier.weight(1f))
-            AmountStat(if (consumption.isExceeded) "Excedido" else "Restante",
+        Column(Modifier.weight(1f).testTag("budget_remaining").semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.End) {
+            Text(if (consumption.isExceeded) "Te pasaste" else "Restante", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BudgetMoney(
                 if (consumption.isExceeded) -consumption.remainingMinor else consumption.remainingMinor,
-                currencyCode, "budget_remaining", Modifier.weight(1f),
-                if (consumption.isExceeded) colors.expenseText else MaterialTheme.colorScheme.primary)
-        }
-    }
-}
-
-@Composable
-private fun AmountStat(label: String, minor: Long, currencyCode: String, tag: String, modifier: Modifier, color: Color = Color.Unspecified) {
-    com.kipu.app.ui.component.KipuCard(modifier.testTag(tag).semantics(mergeDescendants = true) {},
-        containerColor = MaterialTheme.colorScheme.surfaceVariant, borderColor = null) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            BudgetMoney(minor, currencyCode, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = color)
+                currencyCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = if (consumption.isExceeded) colors.expenseText else colors.primaryDeep)
         }
     }
 }
 
 /** Explica el cupo Free sin borrar ni ocultar nada y ofrece ver planes. */
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 internal fun BudgetQuotaDialog(limit: Int, onDismiss: () -> Unit, onSeePlans: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.testTag("budget_quota_dialog"),
-        icon = { Icon(Icons.Default.WorkspacePremium, contentDescription = null) },
-        title = { Text("Límite de presupuestos del plan Free") },
-        text = {
-            Text(
-                "El plan Free permite hasta $limit presupuestos activos y ya los tienes. " +
-                    "No se borró ni se ocultó ninguno: puedes seguir consultándolos y editándolos. " +
-                    "Para crear otro, finaliza uno activo o revisa los planes.",
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        },
-        confirmButton = { TextButton(onClick = onSeePlans) { Text("Ver planes") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Ahora no") } },
-    )
+    val colors = rememberCalmEmeraldColors()
+    com.kipu.app.ui.component.KipuBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("budget_quota_dialog")) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.WorkspacePremium, null, tint = colors.warningText)
+            Text("Llegaste al límite de tu Plan Básico", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("El plan Free permite hasta $limit presupuestos activos y ya los tienes. No se borró ni se ocultó ninguno. Puedes seguir consultándolos y editándolos. Para crear otro, finaliza uno activo o revisa los planes.")
+            androidx.compose.material3.Button(onClick = onSeePlans, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.warningAmber, contentColor = colors.primaryText)) { Text("Ver planes") }
+            androidx.compose.material3.OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ver mis presupuestos") }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Ahora no") }
+        }
+    }
 }

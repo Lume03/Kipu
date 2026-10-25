@@ -15,11 +15,12 @@ import com.kipu.app.feature.budgets.presentation.BudgetDetailViewModel
 import com.kipu.app.feature.budgets.presentation.BudgetFormEvent
 import com.kipu.app.feature.budgets.presentation.BudgetFormScreen
 import com.kipu.app.feature.budgets.presentation.BudgetFormViewModel
+import com.kipu.app.feature.budgets.presentation.BudgetFormUiState
 
 const val BUDGET_CREATE_ROUTE = "budgets/new"
 
 /** Detalle por id. Lo abre tambien el centro de avisos (aviso BUDGET_ALERT, referencia BUDGET). */
-const val BUDGET_DETAIL_ROUTE = "budgets/{budgetId}"
+const val BUDGET_DETAIL_ROUTE = "budgets/{budgetId}?action={action}"
 const val BUDGET_EDIT_ROUTE = "budgets/{budgetId}/edit"
 
 /** Budgets live in the Planning tab: there is no standalone list route any more. */
@@ -41,7 +42,10 @@ fun NavGraphBuilder.budgetDestinations(navController: NavController) {
 
     composable(
         route = BUDGET_DETAIL_ROUTE,
-        arguments = listOf(navArgument("budgetId") { type = NavType.StringType }),
+        arguments = listOf(
+            navArgument("budgetId") { type = NavType.StringType },
+            navArgument("action") { type = NavType.StringType; nullable = true; defaultValue = null },
+        ),
     ) { backStackEntry ->
         val viewModel: BudgetDetailViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
@@ -61,6 +65,7 @@ fun NavGraphBuilder.budgetDestinations(navController: NavController) {
             onFinish = viewModel::finish,
             onDelete = viewModel::delete,
             onRetry = viewModel::reload,
+            initialAction = backStackEntry.arguments?.getString("action"),
         )
     }
 }
@@ -71,7 +76,15 @@ private fun BudgetFormDestination(navController: NavController) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
-            if (event is BudgetFormEvent.Saved) navController.popBackStack()
+            if (event is BudgetFormEvent.Saved) {
+                if ((viewModel.state.value as? BudgetFormUiState.Content)?.form?.isEdit == true) {
+                    navController.popBackStack()
+                } else {
+                    navController.navigate("budgets/${event.budgetId}?action=created") {
+                        popUpTo(BUDGET_CREATE_ROUTE) { inclusive = true }
+                    }
+                }
+            }
         }
     }
     BudgetFormScreen(
