@@ -9,6 +9,8 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,7 @@ import com.kipu.app.ui.theme.KipuMotionTokens
 @Composable
 internal fun RetainedRootTabs(
     selectedTabIndex: State<Int>,
+    pageCount: Int = 3,
     content: @Composable () -> Unit,
 ) {
     val reducedMotion = rememberReducedMotionEnabled()
@@ -27,13 +30,13 @@ internal fun RetainedRootTabs(
     val durationMillis = if (reducedMotion) 0 else KipuMotionTokens.RootTabSwitchMillis
     val transition = updateTransition(selectedTabIndex.value, label = "retained_root_tabs")
     val slideDistance = 64.dp
-    val pageAlpha = (0..2).map { index ->
+    val pageAlpha = (0 until pageCount).map { index ->
         transition.animateFloat(
             transitionSpec = { tween(durationMillis, easing = KipuEasingTokens.Standard) },
             label = "root_page_alpha_$index",
         ) { targetIndex -> if (targetIndex == index) 1f else 0f }
     }
-    val pageOffset = (0..2).map { index ->
+    val pageOffset = (0 until pageCount).map { index ->
         transition.animateDp(
             transitionSpec = { tween(durationMillis, easing = KipuEasingTokens.Standard) },
             label = "root_page_offset_$index",
@@ -61,6 +64,17 @@ internal fun RetainedRootTabs(
                     translationX = with(density) { pageOffset[index].value.toPx() }
                     alpha = pageAlpha[index].value
                 }
+            }
+        }
+    }
+}
+
+/** Swallows touches on retained pages that are composed but not the selected one. */
+internal fun Modifier.rootTabInputShield(active: Boolean): Modifier = pointerInput(active) {
+    if (!active) {
+        awaitPointerEventScope {
+            while (true) {
+                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
             }
         }
     }

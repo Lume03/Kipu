@@ -25,7 +25,6 @@ fun NavGraphBuilder.appDestinations(
     onAuthenticated: (userId: String) -> Unit,
     onSignOut: () -> Unit,
     movementsSelected: MutableState<Boolean> = mutableStateOf(false),
-    debtsSelected: MutableState<Boolean> = mutableStateOf(false),
 ) {
     authDestinations(navController = navController, onAuthenticated = onAuthenticated)
     planSelectionDestination(navController = navController, onConfirmed = { navController.navigate(BIOMETRIC_ROUTE) })
@@ -34,8 +33,6 @@ fun NavGraphBuilder.appDestinations(
         navController = navController,
         movementsSelected = movementsSelected,
         onSelectMoney = { movementsSelected.value = false },
-        debtsSelected = debtsSelected,
-        onBackFromDebtTab = { debtsSelected.value = false },
     )
     movementDestinations(navController = navController)
     receiptDestinations(navController)
@@ -45,4 +42,5 @@ fun NavGraphBuilder.appDestinations(
     goalDestinations(navController = navController)
     calendarDestinations(navController = navController)
     budgetDestinations(navController = navController)
+    analysisDestinations()
 }

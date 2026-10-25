@@ -33,6 +33,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -68,6 +72,9 @@ fun BudgetListScreen(
     onOpenBudget: (String) -> Unit,
     onRetry: () -> Unit,
     onSeePlans: () -> Unit,
+    embedded: Boolean = false,
+    createRequested: Boolean = false,
+    onCreateRequestConsumed: () -> Unit = {},
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf(0) }
     var showQuotaDialog by rememberSaveable { mutableStateOf(false) }
@@ -79,11 +86,21 @@ fun BudgetListScreen(
     val requestCreate = {
         if (quota?.isAtLimit == true) showQuotaDialog = true else onCreateBudget()
     }
+    // The root (+) button asks for the same quota-aware flow as the in-list create button.
+    LaunchedEffect(createRequested, quota) {
+        if (createRequested && state !is BudgetListUiState.Loading) {
+            onCreateRequestConsumed()
+            requestCreate()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.testTag("budget_list_screen"),
+        // Embedded in the Planning host, which owns the title and the Metas/Presupuestos/Deudas tabs.
+        contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+        containerColor = if (embedded) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
-            Column {
+            if (!embedded) Column {
                 TopAppBar(
                     title = {
                         Column {

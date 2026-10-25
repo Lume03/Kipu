@@ -14,8 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ fun DebtCreationTypeSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var selectionInProgress by remember { mutableStateOf(false) }
+    val colors = rememberCalmEmeraldColors()
 
     fun selectType(type: DebtObligationType) {
         if (selectionInProgress) return
@@ -72,7 +74,7 @@ fun DebtCreationTypeSheet(
                 .padding(top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Agregar deuda o préstamo", style = MaterialTheme.typography.titleLarge)
+            Text("Agregar deuda o préstamo", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             Text(
                 "Elige cómo se mueve el dinero.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -82,14 +84,18 @@ fun DebtCreationTypeSheet(
             DebtCreationOption(
                 title = "Me prestaron",
                 description = "Recibí dinero y tengo que devolverlo",
-                icon = Icons.Default.AccountBalanceWallet,
+                icon = Icons.AutoMirrored.Filled.CallMade,
+                tint = colors.expenseText,
+                background = colors.expenseBg,
                 enabled = !selectionInProgress,
                 onClick = { selectType(DebtObligationType.PAYABLE) },
             )
             DebtCreationOption(
                 title = "Presté dinero",
                 description = "Presté dinero y espero que me lo devuelvan",
-                icon = Icons.Default.AccountBalance,
+                icon = Icons.AutoMirrored.Filled.CallReceived,
+                tint = colors.incomeText,
+                background = colors.incomeBg,
                 enabled = !selectionInProgress,
                 onClick = { selectType(DebtObligationType.RECEIVABLE) },
             )
@@ -102,6 +108,8 @@ private fun DebtCreationOption(
     title: String,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: androidx.compose.ui.graphics.Color,
+    background: androidx.compose.ui.graphics.Color,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -112,8 +120,8 @@ private fun DebtCreationOption(
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = "$title. $description" },
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, rememberCalmEmeraldColors().borderSubtle),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -122,13 +130,13 @@ private fun DebtCreationOption(
         ) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = background,
                 modifier = Modifier.size(44.dp),
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = tint,
                     modifier = Modifier.padding(10.dp),
                 )
             }

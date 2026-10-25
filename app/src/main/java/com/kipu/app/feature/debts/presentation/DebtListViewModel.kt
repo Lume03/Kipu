@@ -6,7 +6,12 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.debts.data.local.DebtDao
 import com.kipu.app.feature.debts.domain.DebtRepository
+import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
+import com.kipu.app.feature.plans.data.entitlement.EffectiveEntitlementEvaluator
+import com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao
+import com.kipu.app.feature.plans.domain.model.OfflineEntitlementLeaseDecision
+import java.util.UUID
 import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,19 +29,34 @@ data class DebtListUiState(
     val selectedType: DebtObligationType? = null,
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
-)
+    val hasPremiumAccess: Boolean = false,
+) {
+    val activeDebtCount: Int get() = debts.count { it.status == DebtLifecycleStatus.ACTIVE }
+
+    /** UI pre-check of the Basic plan quota; the local data source still enforces it when saving. */
+    val freeLimitReached: Boolean get() = !hasPremiumAccess && activeDebtCount >= FREE_ACTIVE_DEBT_LIMIT
+
+    companion object {
+        /** Shared between payables and receivables; mirrors DebtLocalDataSource. */
+        const val FREE_ACTIVE_DEBT_LIMIT = 2
+    }
+}
 
 @HiltViewModel
 class DebtListViewModel @Inject constructor(
     repository: DebtRepository,
     debtDao: DebtDao,
     sessionCoordinator: SessionCoordinator,
+    private val featureAccessCacheDao: FeatureAccessCacheDao,
+    private val entitlementEvaluator: EffectiveEntitlementEvaluator,
 ) : ViewModel() {
+    private val userId = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+
     private val _state = MutableStateFlow(DebtListUiState())
     val state = _state.asStateFlow()
 
     init {
-        val userId = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+        refreshPlanAccess()
         if (userId == null) {
             _state.value = DebtListUiState(isLoading = false, errorMessage = "Inicia sesión para consultar tus deudas.")
         } else {
@@ -74,4 +94,20 @@ class DebtListViewModel @Inject constructor(
     }
 
     fun selectType(type: DebtObligationType?) = _state.update { it.copy(selectedType = type) }
+
+    /** Re-reads the verified plan, e.g. when returning from the purchase screen. */
+    fun refreshPlanAccess() {
+        val ownerId = userId ?: return
+        viewModelScope.launch {
+            val premium = runCatching { hasVerifiedPremium(ownerId) }.getOrDefault(false)
+            _state.update { it.copy(hasPremiumAccess = premium) }
+        }
+    }
+
+    private suspend fun hasVerifiedPremium(userId: String): Boolean {
+        val uuid = runCatching { UUID.fromString(userId) }.getOrNull() ?: return false
+        val cache = featureAccessCacheDao.get(uuid) ?: return false
+        if (!cache.effectiveTier.equals("PREMIUM", ignoreCase = true)) return false
+        return entitlementEvaluator.evaluate(userId, cache) is OfflineEntitlementLeaseDecision.Allowed
+    }
 }

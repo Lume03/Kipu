@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.TrackChanges
@@ -61,18 +61,18 @@ fun KipuNavigationBar(
     onNavigateToMovimientos: () -> Unit,
     modifier: Modifier = Modifier,
     onRegisterClick: (() -> Unit)? = null,
-    onNavigateToDeudas: () -> Unit = {},
     onNavigateToPlanificacion: () -> Unit = {},
+    onNavigateToAnalisis: () -> Unit = {},
+    registerContentDescription: String? = null,
 ) {
     val isDineroSelected = currentRoute == ACCOUNTS_DASHBOARD_ROUTE
     val isMovimientosSelected = currentRoute == MOVEMENTS_HISTORY_PATTERN ||
         currentRoute == MOVEMENTS_HISTORY_ROUTE ||
         currentRoute?.startsWith("movements/history") == true
-    val isDeudasSelected = currentRoute == DEBT_LIST_ROUTE
-    val isPlanificacionSelected = currentRoute == GOALS_LIST_ROUTE
+    val isPlanificacionSelected = currentRoute == PLANNING_ROUTE
+    val isAnalisisSelected = currentRoute == ANALYSIS_ROUTE
     val colors = rememberCalmEmeraldColors()
     val largeText = LocalDensity.current.fontScale > 1.3f
-    val isDebtTabSelected = isDeudasSelected
 
     Surface(
         modifier = modifier
@@ -116,20 +116,20 @@ fun KipuNavigationBar(
                         modifier = Modifier.weight(1f),
                     )
                     KipuRootNavigationItem(
-                        selected = isDeudasSelected,
-                        onClick = onNavigateToDeudas,
-                        icon = Icons.Default.AccountBalance,
-                        label = "Deudas",
-                        tag = "nav_item_deudas",
-                        largeText = largeText,
-                        modifier = Modifier.weight(1f),
-                    )
-                    KipuRootNavigationItem(
                         selected = isPlanificacionSelected,
                         onClick = onNavigateToPlanificacion,
                         icon = Icons.Default.TrackChanges,
                         label = "Planificación",
                         tag = "nav_item_planificacion",
+                        largeText = largeText,
+                        modifier = Modifier.weight(1f),
+                    )
+                    KipuRootNavigationItem(
+                        selected = isAnalisisSelected,
+                        onClick = onNavigateToAnalisis,
+                        icon = Icons.Default.BarChart,
+                        label = "Análisis",
+                        tag = "nav_item_analisis",
                         largeText = largeText,
                         modifier = Modifier.weight(1f),
                     )
@@ -150,13 +150,8 @@ fun KipuNavigationBar(
                         .size(56.dp)
                         .testTag("btn_root_register")
                         .semantics {
-                            contentDescription = if (isDebtTabSelected) {
-                                "Agregar deuda o préstamo"
-                            } else if (isPlanificacionSelected) {
-                                "Crear meta"
-                            } else {
-                                "Registrar movimiento"
-                            }
+                            contentDescription = registerContentDescription
+                                ?: if (isPlanificacionSelected) "Crear meta" else "Registrar movimiento"
                         },
                 ) {
                     Icon(

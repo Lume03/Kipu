@@ -28,8 +28,6 @@ import com.kipu.app.feature.debts.presentation.DebtDetailViewModel
 import com.kipu.app.feature.debts.presentation.DebtEditDetailsScreen
 import com.kipu.app.feature.debts.presentation.DebtEditUiEvent
 import com.kipu.app.feature.debts.presentation.DebtEditViewModel
-import com.kipu.app.feature.debts.presentation.DebtListScreen
-import com.kipu.app.feature.debts.presentation.DebtListViewModel
 import com.kipu.app.feature.debts.presentation.DebtOpeningUiEvent
 import com.kipu.app.feature.debts.presentation.DebtOpeningViewModel
 import com.kipu.app.feature.debts.presentation.DebtSettlementSheet
@@ -41,7 +39,6 @@ import com.kipu.app.feature.debts.presentation.DebtScheduleViewModel
 import com.kipu.app.feature.debts.presentation.PayableDebtFormScreen
 import com.kipu.app.feature.debts.presentation.ReceivableDebtFormScreen
 
-const val DEBT_LIST_ROUTE = "debts"
 const val DEBT_OPENING_ROUTE = "debts/open/{obligationType}"
 const val DEBT_DETAIL_ROUTE = "debts/detail/{debtId}"
 const val DEBT_EDIT_ROUTE = "debts/detail/{debtId}/edit"
@@ -66,26 +63,6 @@ fun NavController.navigateToDebtSchedule(debtId: String) {
 }
 
 fun NavGraphBuilder.debtDestinations(navController: NavController) {
-    composable(DEBT_LIST_ROUTE) { backStackEntry ->
-        val viewModel: DebtListViewModel = hiltViewModel()
-        val state by viewModel.state.collectAsStateWithLifecycle()
-        val openRegisterMovement by backStackEntry.savedStateHandle
-            .getStateFlow("open_register_movement", false)
-            .collectAsStateWithLifecycle()
-
-        DebtListScreen(
-            debts = state.debts,
-            selectedType = state.selectedType,
-            onTypeSelected = viewModel::selectType,
-            onDebtSelected = navController::navigateToDebtDetail,
-            onAddPayable = { navController.navigateToDebtOpening(DebtObligationType.PAYABLE) },
-            onAddReceivable = { navController.navigateToDebtOpening(DebtObligationType.RECEIVABLE) },
-            scheduledInstallments = state.scheduledInstallments,
-            errorMessage = state.errorMessage,
-            openRegisterDebt = openRegisterMovement,
-            onConsumeRegisterDebt = { backStackEntry.savedStateHandle["open_register_movement"] = false },
-        )
-    }
     composable(
         DEBT_OPENING_ROUTE,
         arguments = listOf(navArgument("obligationType") { type = NavType.StringType }),
@@ -96,7 +73,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
             viewModel.events.collect { event ->
                 if (event is DebtOpeningUiEvent.Saved) {
                     navController.navigate("debts/detail/${event.debtId}") {
-                        popUpTo(DEBT_LIST_ROUTE) { inclusive = false }
+                        popUpTo(PLANNING_ROUTE) { inclusive = false }
                     }
                 }
             }

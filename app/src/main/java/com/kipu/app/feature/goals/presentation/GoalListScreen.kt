@@ -48,6 +48,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -92,6 +95,7 @@ fun GoalListScreen(
     showBackButton: Boolean = false,
     onOpenBudgets: (() -> Unit)? = null,
     onWithdrawGoal: ((String) -> Unit)? = null,
+    embedded: Boolean = false,
 ) {
     val colors = rememberCalmEmeraldColors()
     val visibleGoals = state.goals.filter { it.goal.status != GoalStatus.ARCHIVED }
@@ -101,8 +105,11 @@ fun GoalListScreen(
     var selectedForOptions by remember { mutableStateOf<GoalListItemState?>(null) }
 
     Scaffold(
+        // Embedded in the Planning host, which owns the title, actions and tab selector.
+        contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+        containerColor = if (embedded) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
+            if (!embedded) TopAppBar(
                 title = { Text("Planificación", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (showBackButton) {
@@ -132,7 +139,7 @@ fun GoalListScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { PlanningSelector(onOpenBudgets) }
+                if (!embedded) item { PlanningSelector(onOpenBudgets) }
                 item {
                     SavingsCapacityCard(
                         activeGoalCount = state.activeGoalCount,

@@ -17,7 +17,6 @@ import com.kipu.app.feature.goals.presentation.GoalDetailScreen
 import com.kipu.app.feature.goals.presentation.GoalDetailViewModel
 import com.kipu.app.feature.goals.presentation.GoalFormScreen
 import com.kipu.app.feature.goals.presentation.GoalListEvent
-import com.kipu.app.feature.goals.presentation.GoalListScreen
 import com.kipu.app.feature.goals.presentation.GoalListViewModel
 
 const val GOALS_LIST_ROUTE = "goals"
@@ -26,28 +25,13 @@ const val GOAL_DETAIL_ROUTE = "goals/{goalId}?withdraw={withdraw}"
 const val GOAL_EDIT_ROUTE = "goals/{goalId}/edit"
 const val GOAL_CONTRIBUTION_ROUTE = "goals/{goalId}/contribute"
 
-fun NavController.navigateToGoals() = navigate(GOALS_LIST_ROUTE)
+fun NavController.navigateToGoals() = navigateToPlanning(PlanningTab.GOALS)
 
 fun NavController.navigateToGoal(goalId: String) = navigate("goals/$goalId")
 
 fun NavGraphBuilder.goalDestinations(navController: NavController) {
-    composable(GOALS_LIST_ROUTE) {
-        val viewModel: GoalListViewModel = hiltViewModel()
-        val state by viewModel.state.collectAsStateWithLifecycle()
-        GoalListScreen(
-            state = state,
-            onNavigateBack = { navController.popBackStack() },
-            onCreateGoal = { navController.navigate(GOAL_CREATE_ROUTE) },
-            onOpenGoal = navController::navigateToGoal,
-            onEditGoal = { goalId -> navController.navigate("goals/$goalId/edit") },
-            onDeleteGoal = viewModel::deleteEmptyGoal,
-            onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
-            onContributeGoal = { goalId -> navController.navigate("goals/$goalId/contribute") },
-            onNotifications = navController::navigateToNotifications,
-            onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
-            onOpenBudgets = navController::navigateToBudgets,
-            onWithdrawGoal = { goalId -> navController.navigate("goals/$goalId?withdraw=true") },
-        )
+    composable(PLANNING_ROUTE) { backStackEntry ->
+        PlanningRootContent(navController, backStackEntry)
     }
 
     composable(GOAL_CREATE_ROUTE) { backStackEntry ->

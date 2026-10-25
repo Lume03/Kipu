@@ -217,6 +217,7 @@ class DebtSettlementFlowTest {
         compose.setContent {
             DebtListScreen(
                 debts = listOf(pendingDebt, settledDebt, partialDebt),
+                today = LocalDate.parse("2026-11-05"),
                 selectedType = null,
                 onTypeSelected = {},
                 onDebtSelected = {},
@@ -248,8 +249,8 @@ class DebtSettlementFlowTest {
             )
         }
 
-        compose.onNodeWithText("Cuota planificada · 2026-11-10").assertIsDisplayed()
-        compose.onNodeWithText("Pendiente · no es pago").assertIsDisplayed()
+        // A planned installment only shows its amount and due date, never a payment state.
+        compose.onNodeWithText("Cuota de S/ 20.00 vence en 5 días").assertIsDisplayed()
         compose.onNodeWithText("Pago completado").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Pago parcial registrado").performScrollTo().assertIsDisplayed()
     }
