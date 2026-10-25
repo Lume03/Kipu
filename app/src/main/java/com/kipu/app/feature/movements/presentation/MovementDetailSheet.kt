@@ -84,7 +84,10 @@ fun MovementDetailSheet(
         MovementType.TRANSFER -> emeraldColors.primaryDeep
     }
 
-    val typeLabel = when (tx.type) {
+    val debtSettlement = isDebtSettlementMovement(item)
+    val typeLabel = if (debtSettlement) {
+        if (tx.operationKind == "DEBT_AMORTIZATION") "Interés de deuda" else if (tx.type == MovementType.INCOME) "Cobro de préstamo" else "Pago de deuda"
+    } else when (tx.type) {
         MovementType.EXPENSE -> "Gasto"
         MovementType.INCOME -> "Ingreso"
         MovementType.TRANSFER -> "Transferencia"
@@ -192,7 +195,7 @@ fun MovementDetailSheet(
                             }
                             Column {
                                 Text(
-                                    text = if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
+                                    text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = emeraldColors.secondaryMuted,
                                     fontWeight = FontWeight.SemiBold,
@@ -594,7 +597,7 @@ fun MovementDetailSheet(
                     Text("Registrar pago recurrente")
                 }
             }
-            if (!voided && !specialized) {
+            if (!voided && canVoidMovement(item)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -627,6 +630,7 @@ fun MovementDetailSheet(
 
                     Button(
                         onClick = onEdit,
+                        enabled = !specialized,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)

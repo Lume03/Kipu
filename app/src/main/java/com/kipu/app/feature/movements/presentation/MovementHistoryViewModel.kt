@@ -540,6 +540,21 @@ class MovementHistoryViewModel @Inject constructor(
         }
     }
 
+    /** Debt history opens the real ledger movement, using the same editing and void flow. */
+    fun onOpenDetailById(transactionId: String) {
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        viewModelScope.launch {
+            try {
+                val item = queryMovementHistoryUseCase?.getHistoryItemById(owner, transactionId) ?: return@launch
+                if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == owner) onOpenDetail(item)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _history.update { if (it.ownerId == owner) it.copy(firstPageError = true) else it }
+            }
+        }
+    }
+
     fun onCloseDetail() { detailJob?.cancel(); _detail.value = HistoryDetailState() }
 
     fun onOpenRefund(item: TransactionItem) {

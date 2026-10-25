@@ -66,8 +66,16 @@ fun isSpecializedMovement(item: TransactionItem): Boolean {
         tx.installmentCount != null ||
         tx.operationKind.equals("CARD_PAYMENT", ignoreCase = true) ||
         tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) ||
-        tx.legacyKind in setOf("OPENING", "ADJUSTMENT", "REVERSAL", "CARD_PAYMENT_CASH")
+        tx.legacyKind in setOf("OPENING", "ADJUSTMENT", "REVERSAL", "CARD_PAYMENT_CASH", "DEBT_PAYMENT")
 }
+
+/** These two grouped debt operations have an explicit atomic reversal in the domain. */
+internal fun isDebtSettlementMovement(item: TransactionItem): Boolean =
+    (item.transaction.operationKind ?: item.transaction.legacyKind?.takeIf { it == "DEBT_PAYMENT" }) in
+        setOf("DEBT_PAYMENT", "DEBT_AMORTIZATION")
+
+internal fun canVoidMovement(item: TransactionItem): Boolean =
+    !isSpecializedMovement(item) || isDebtSettlementMovement(item)
 
 @Composable
 fun VoidMovementDialog(
@@ -81,7 +89,7 @@ fun VoidMovementDialog(
     currentDestinationBalanceMinor: Long? = null,
 ) {
     var reasonText by remember { mutableStateOf("") }
-    val isSpecialized = remember(item) { isSpecializedMovement(item) }
+    val isSpecialized = remember(item) { !canVoidMovement(item) }
     val emeraldColors = rememberCalmEmeraldColors()
     val tx = item.transaction
 
@@ -232,7 +240,9 @@ fun VoidMovementDialog(
                     }
                 } else {
                     // Concrete consequences description
-                    val consequences = when (tx.type) {
+                    val consequences = if (isDebtSettlementMovement(item)) {
+                        "Se revertirán juntos el capital y el interés asociado. El saldo pendiente y las cuotas se recalcularán; el pago quedará en el historial como anulado."
+                    } else when (tx.type) {
                         MovementType.TRANSFER -> stringResource(
                             R.string.movement_void_dialog_desc_transfer,
                             item.sourceAccountAlias ?: "Origen",
@@ -250,7 +260,7 @@ fun VoidMovementDialog(
                     )
 
                     // Balance impact preview
-                    MovementVoidBalancePreview(
+                    if (!isDebtSettlementMovement(item)) MovementVoidBalancePreview(
                         item = item,
                         sourceBalanceMinor = currentSourceBalanceMinor,
                         destinationBalanceMinor = currentDestinationBalanceMinor,

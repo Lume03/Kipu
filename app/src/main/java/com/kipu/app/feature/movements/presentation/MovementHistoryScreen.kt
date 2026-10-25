@@ -138,6 +138,7 @@ fun MovementHistoryRoute(
     onSavedMessageConsumed: () -> Unit = {},
     openRegisterMovement: Boolean = false,
     onConsumeRegisterMovement: () -> Unit = {},
+    onDetailDismissed: (() -> Unit)? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val recurrenceState by recurrenceViewModel?.state?.collectAsStateWithLifecycle()
@@ -751,7 +752,7 @@ fun MovementHistoryRoute(
             uiState.detailRevisions,
             uiState.detailLoading,
             uiState.detailError,
-            onDismiss = viewModel::onCloseDetail,
+            onDismiss = { viewModel.onCloseDetail(); onDetailDismissed?.invoke() },
             onEdit = { viewModel.onCloseDetail(); onNavigateToEditor(item.transaction.id) },
             onVoid = { viewModel.onCloseDetail(); viewModel.onSelectTransactionForVoid(item) },
             receiptAttached = !receiptUriText.isNullOrBlank(),

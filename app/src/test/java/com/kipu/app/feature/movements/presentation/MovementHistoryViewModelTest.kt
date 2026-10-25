@@ -62,6 +62,27 @@ class MovementHistoryViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(mainDispatcher)
     @After fun tearDown() = Dispatchers.resetMain()
 
+    @Test fun debtHistoryCanOpenAnOwnedMovementOutsideTheLoadedPage() = runTest {
+        val tx = item("debt-payment", 1_000)
+        val repository = FakeHistoryRepository().apply { detailItem = tx }
+        val viewModel = viewModel(repository)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.allTransactions.isEmpty())
+        viewModel.onOpenDetailById(tx.transaction.id)
+        advanceUntilIdle()
+        assertEquals(tx, viewModel.uiState.value.selectedDetail)
+        assertEquals(1, repository.queries.size)
+    }
+
+    @Test fun debtHistoryNeverOpensAnotherOwnersMovement() = runTest {
+        val tx = item("foreign", 1_000).let { it.copy(transaction = it.transaction.copy(userId = "other")) }
+        val viewModel = viewModel(FakeHistoryRepository().apply { detailItem = tx })
+        advanceUntilIdle()
+        viewModel.onOpenDetailById(tx.transaction.id)
+        advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.selectedDetail)
+    }
+
     @Test
     fun initialLoadBuildsPagedQueryAndUsesRepositorySummary() = runTest {
         val repository = FakeHistoryRepository { query ->
@@ -514,6 +535,8 @@ class MovementHistoryViewModelTest {
         val queries = mutableListOf<MovementHistoryQuery>()
         var summary = MovementHistorySummary(0, emptyMap(), null)
         var allowedUsers: Set<String>? = null
+        var detailItem: TransactionItem? = null
+        override suspend fun getHistoryItemById(userId: String, transactionId: String) = detailItem?.takeIf { it.transaction.id == transactionId }
         override suspend fun queryHistory(userId: String, query: MovementHistoryQuery): MovementHistoryPage {
             queries += query
             val users = allowedUsers
