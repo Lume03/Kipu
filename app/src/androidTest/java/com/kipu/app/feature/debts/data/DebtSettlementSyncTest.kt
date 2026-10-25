@@ -90,6 +90,10 @@ class DebtSettlementSyncTest {
 
         assertTrue(repository.settleDebt(OWNER_ID, command) is DebtCommandResult.Applied)
         assertTrue(repository.settleDebt(OWNER_ID, command) is DebtCommandResult.Duplicate)
+        val historyRow = database.debtDao().observeSettlementActivities(OWNER_ID, DEBT_ID).first().single()
+        assertEquals(OPERATION_ID, historyRow.transactionId)
+        assertEquals(2_000L, historyRow.principalMinor)
+        assertEquals(100L, historyRow.interestMinor)
         val databaseSql = database.openHelper.writableDatabase
         assertEquals(1L, databaseSql.scalarLong("SELECT COUNT(*) FROM debt_events WHERE event_type='PAYMENT' AND debt_id='$DEBT_ID'"))
         assertEquals(1L, databaseSql.scalarLong("SELECT COUNT(*) FROM transactions WHERE id='$OPERATION_ID' AND operation_kind='DEBT_PAYMENT'"))

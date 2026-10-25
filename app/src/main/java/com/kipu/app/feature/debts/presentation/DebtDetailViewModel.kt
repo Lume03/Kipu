@@ -73,6 +73,7 @@ class DebtDetailViewModel @Inject constructor(
                                 isVoided = row.isVoided,
                                 eventType = row.eventType,
                                 principalDeltaMinor = row.principalDeltaMinor,
+                                transactionId = row.transactionId,
                             )
                         },
                         installments = installments,

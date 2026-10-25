@@ -1,6 +1,8 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,7 +67,7 @@ fun DebtEditDetailsScreen(
             Button(
                 onClick = onSave,
                 enabled = state.counterpartyName.isNotBlank() && state.revision > 0 && !state.isSaving && !state.isLoading,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 20.dp, vertical = 12.dp)
                     .heightIn(min = 52.dp).testTag("edit-debt-save"),
                 shape = RoundedCornerShape(16.dp),
             ) { Text(if (state.isSaving) "Guardando…" else "Guardar cambios") }

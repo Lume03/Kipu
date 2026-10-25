@@ -6,6 +6,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
@@ -18,6 +21,46 @@ import org.junit.Test
 
 class DebtPlanningTabTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun dueAlertsSeparateOverdueFromUpcomingAndOpenTheCorrectCollection() {
+        var action = ""
+        compose.setContent {
+            KipuTheme {
+                DebtListScreen(listOf(
+                    debt("past", DebtObligationType.RECEIVABLE, dueDate = LocalDate.parse("2026-10-21")),
+                    debt("future", DebtObligationType.PAYABLE, dueDate = LocalDate.parse("2026-10-28"))),
+                    null, {}, {}, {}, {}, today = LocalDate.parse("2026-10-24"), onDebtAction = { id, selected -> action = "$id:$selected" })
+            }
+        }
+        compose.onNodeWithTag("debt_due_open").performClick()
+        compose.onNodeWithTag("debt_due_filter_1").performClick()
+        compose.onNode(hasText("Contraparte past") and hasAnyAncestor(hasTestTag("debt_due_alerts"))).assertIsDisplayed()
+        compose.onNode(hasText("Contraparte future") and hasAnyAncestor(hasTestTag("debt_due_alerts"))).assertDoesNotExist()
+        compose.onNodeWithText("Registrar cobro").performClick()
+        compose.runOnIdle { assertEquals("past:settle", action) }
+    }
+
+    @Test fun overflowOpensSheetWithoutOpeningCardAndDispatchesTheChosenAction() {
+        var details = 0
+        var action = ""
+        compose.setContent {
+            KipuTheme {
+                DebtListScreen(listOf(debt("d1", DebtObligationType.RECEIVABLE)), null, {}, { details++ }, {}, {},
+                    onDebtAction = { id, selected -> action = "$id:$selected" })
+            }
+        }
+        compose.onNodeWithTag("debt_options_d1").performClick()
+        compose.onNodeWithTag("debt_actions_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Registrar cobro").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, details) }
+        compose.onNodeWithTag("planning_actions_cancel").performClick()
+        compose.onNodeWithTag("debt_actions_sheet").assertDoesNotExist()
+        compose.onNodeWithTag("debt_options_d1").performClick()
+        compose.onNodeWithTag("debt_action_edit").performClick()
+        compose.runOnIdle { assertEquals("d1:edit", action); assertEquals(0, details) }
+        compose.onNodeWithTag("debt_card_d1").performClick()
+        compose.runOnIdle { assertEquals(1, details) }
+    }
 
     @Test fun withoutRecordsTheEmptyStateOffersBothDirections() {
         var payable = 0

@@ -1,14 +1,16 @@
 package com.kipu.app.feature.debts.presentation
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import com.kipu.app.ui.theme.rememberKipuColors
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,33 +31,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -63,10 +56,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,6 +89,7 @@ data class DebtSettlementActivity(
     val isVoided: Boolean,
     val eventType: String = "PAYMENT",
     val principalDeltaMinor: Long? = null,
+    val transactionId: String? = null,
 )
 
 @Composable
@@ -112,8 +104,12 @@ fun DebtDetailScreen(
     errorMessage: String? = null,
     activities: List<DebtSettlementActivity> = emptyList(),
     installments: List<DebtScheduleItem> = emptyList(),
+    initialAction: String? = null,
+    onClose: () -> Unit = onSchedule,
+    onOpenMovement: (String) -> Unit = {},
 ) {
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "manage") }
+    var showHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "history") }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var certificateMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -155,45 +151,16 @@ fun DebtDetailScreen(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
                     }
                     Text(
-                        if (isLiquidated) "Detalle de liquidación" else debt.counterpartyName,
+                        debt.counterpartyName,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                     )
                 }
-                if (isLiquidated) {
-                    IconButton(onClick = { /* Share summary */ }) {
-                        Icon(Icons.Rounded.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
-                        }
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Editar datos") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onEdit()
-                                },
-                                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Eliminar deuda") },
-                                enabled = !hasFinancialHistory,
-                                onClick = {
-                                    showOverflowMenu = false
-                                    showDeleteConfirmation = true
-                                },
-                                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-                            )
-                        }
-                    }
+                IconButton(onClick = { showOverflowMenu = true }, modifier = Modifier.testTag("debt_detail_options")) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
                 }
+
             }
         },
     ) { insets ->
@@ -237,22 +204,34 @@ fun DebtDetailScreen(
                     installments = installments,
                     emeraldColors = emeraldColors,
                     errorMessage = errorMessage,
+                    onHistory = { showHistory = true },
+                    onMovement = onOpenMovement,
                 )
             }
         }
     }
 
+    if (showOverflowMenu) {
+        DebtActionsSheet(debt, { showOverflowMenu = false }, {}, onSettle,
+            { showHistory = true }, onEdit, onClose, { showDeleteConfirmation = true })
+    }
+    if (showHistory) {
+        DebtHistorySheet(debt, activities, onDismiss = { showHistory = false }, onOpenMovement = onOpenMovement)
+    }
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("¿Eliminar esta deuda?") },
-            text = { Text("Se elimina la obligación y sus cuotas sin pagos asociados. Esta acción no se puede deshacer.") },
+            title = { Text(if (hasFinancialHistory) "Historial protegido" else "¿Eliminar esta deuda?") },
+            text = { Text(if (hasFinancialHistory)
+                "Esta deuda tiene operaciones relacionadas. Se conserva junto con su historial y saldo pendiente. Para resolver el saldo usa Cerrar deuda."
+                else "Se elimina la obligación y sus cuotas sin pagos asociados. Esta acción no se puede deshacer.") },
             confirmButton = {
                 Button(
                     onClick = {
                         showDeleteConfirmation = false
                         onDelete()
                     },
+                    enabled = !hasFinancialHistory,
                     modifier = Modifier.testTag("confirm-delete-debt"),
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.expenseText),
                 ) { Text("Eliminar") }
@@ -277,6 +256,8 @@ private fun ActiveDebtDetailView(
     installments: List<DebtScheduleItem>,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
     errorMessage: String?,
+    onHistory: () -> Unit,
+    onMovement: (String) -> Unit,
 ) {
     val payable = debt.obligationType.name == "PAYABLE"
     val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
@@ -521,7 +502,8 @@ private fun ActiveDebtDetailView(
                     style = MaterialTheme.typography.bodySmall,
                     color = emeraldColors.secondaryMuted,
                 )
-                activities.forEach { activity ->
+                TextButton(onClick = onHistory, modifier = Modifier.testTag("debt_history_all")) { Text("Ver historial completo") }
+                activities.take(3).forEach { activity ->
                     HorizontalDivider(color = emeraldColors.borderSubtle, modifier = Modifier.padding(top = 12.dp))
                     val displayedPrincipal = if (activity.eventType == "PAYMENT") {
                         activity.principalMinor
@@ -529,7 +511,9 @@ private fun ActiveDebtDetailView(
                         (activity.principalDeltaMinor ?: activity.principalMinor).absoluteValue
                     }
                     val reducesBalance = activity.eventType != "ADJUSTMENT" || (activity.principalDeltaMinor ?: 0L) < 0L
-                    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable(enabled = activity.transactionId != null) {
+                        activity.transactionId?.let(onMovement)
+                    }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             when (activity.eventType) {
                                 "PAYMENT" -> Text("Principal · reduce el saldo", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)

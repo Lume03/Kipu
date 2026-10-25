@@ -120,13 +120,14 @@ fun DebtScheduleScreen(
     onAdjustmentAmountChange: (String) -> Unit = {},
     onForgivenessAmountChange: (String) -> Unit = {},
     onClosureReasonChange: (String) -> Unit = {},
+    startWithClosure: Boolean = false,
 ) {
     val debt = state.debt
     val emeraldColors = rememberCalmEmeraldColors()
     var attemptedAction by remember(debt?.debtId) { mutableStateOf<CloseDebtAction?>(null) }
     var showScheduleReplacementConfirmation by remember(debt?.debtId) { mutableStateOf(false) }
     var selectedTab by remember(debt?.debtId) {
-        mutableIntStateOf(if (debt != null && debt.remainingPrincipalMinor == 0L) 1 else 0)
+        mutableIntStateOf(if (startWithClosure || (debt != null && debt.remainingPrincipalMinor == 0L)) 1 else 0)
     }
     var showContextualHelp by remember(debt?.debtId) { mutableStateOf(false) }
 

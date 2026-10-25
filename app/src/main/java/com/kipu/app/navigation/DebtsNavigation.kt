@@ -38,12 +38,14 @@ import com.kipu.app.feature.debts.presentation.DebtScheduleUiEvent
 import com.kipu.app.feature.debts.presentation.DebtScheduleViewModel
 import com.kipu.app.feature.debts.presentation.PayableDebtFormScreen
 import com.kipu.app.feature.debts.presentation.ReceivableDebtFormScreen
+import com.kipu.app.feature.movements.presentation.MovementHistoryRoute
+import com.kipu.app.feature.movements.presentation.MovementHistoryViewModel
 
 const val DEBT_OPENING_ROUTE = "debts/open/{obligationType}"
-const val DEBT_DETAIL_ROUTE = "debts/detail/{debtId}"
+const val DEBT_DETAIL_ROUTE = "debts/detail/{debtId}?action={action}"
 const val DEBT_EDIT_ROUTE = "debts/detail/{debtId}/edit"
 const val DEBT_SETTLE_ROUTE = "debts/detail/{debtId}/settle"
-const val DEBT_SCHEDULE_ROUTE = "debts/detail/{debtId}/schedule"
+const val DEBT_SCHEDULE_ROUTE = "debts/detail/{debtId}/schedule?close={close}"
 const val DEBT_REMINDER_DEEP_LINK = "kipu://debts/detail/{debtId}"
 
 fun NavController.navigateToDebtOpening(type: DebtObligationType) {
@@ -69,7 +71,27 @@ fun NavController.navigateToDebtSchedule(debtId: String) {
     navigate("debts/detail/$debtId/schedule")
 }
 
+fun NavController.navigateToDebtClosure(debtId: String) {
+    navigate("debts/detail/$debtId/schedule?close=true")
+}
+
 fun NavGraphBuilder.debtDestinations(navController: NavController) {
+    composable("debts/movement/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.StringType })) { entry ->
+        val viewModel: MovementHistoryViewModel = hiltViewModel()
+        val history by viewModel.uiState.collectAsStateWithLifecycle()
+        val id = entry.arguments?.getString("transactionId").orEmpty()
+        LaunchedEffect(id, history.ownerId) {
+            if (history.ownerId != null) viewModel.onOpenDetailById(id)
+        }
+        MovementHistoryRoute(
+            viewModel = viewModel,
+            onNavigateToEditor = { navController.navigateToMovementEditor(it) },
+            onNavigateToSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
+            onNavigateToNewAccount = navController::navigateToAccountForm,
+            onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+            onDetailDismissed = { navController.popBackStack() },
+        )
+    }
     composable(
         DEBT_OPENING_ROUTE,
         arguments = listOf(navArgument("obligationType") { type = NavType.StringType }),
@@ -117,9 +139,12 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
     }
     composable(
         DEBT_DETAIL_ROUTE,
-        arguments = listOf(navArgument("debtId") { type = NavType.StringType }),
+        arguments = listOf(
+            navArgument("debtId") { type = NavType.StringType },
+            navArgument("action") { type = NavType.StringType; nullable = true; defaultValue = null },
+        ),
         deepLinks = listOf(navDeepLink { uriPattern = DEBT_REMINDER_DEEP_LINK }),
-    ) {
+    ) { backStackEntry ->
         val viewModel: DebtDetailViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(viewModel) {
@@ -142,16 +167,22 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
                 onDelete = viewModel::delete,
                 onSettle = { navController.navigateToDebtSettlement(viewModel.debtId) },
                 onSchedule = { navController.navigateToDebtSchedule(viewModel.debtId) },
+                onClose = { navController.navigateToDebtClosure(viewModel.debtId) },
+                onOpenMovement = { navController.navigate("debts/movement/$it") },
                 errorMessage = state.errorMessage,
                 activities = state.activities,
                 installments = state.installments,
+                initialAction = backStackEntry.arguments?.getString("action"),
             )
         }
     }
     composable(
         DEBT_SCHEDULE_ROUTE,
-        arguments = listOf(navArgument("debtId") { type = NavType.StringType }),
-    ) {
+        arguments = listOf(
+            navArgument("debtId") { type = NavType.StringType },
+            navArgument("close") { type = NavType.BoolType; defaultValue = false },
+        ),
+    ) { backStackEntry ->
         val viewModel: DebtScheduleViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(viewModel) {
@@ -161,6 +192,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
         }
         DebtScheduleScreen(
             state = state,
+            startWithClosure = backStackEntry.arguments?.getBoolean("close") == true,
             onInstallmentCountChange = viewModel::onInstallmentCountChange,
             onFirstDueDateChange = viewModel::onFirstDueDateChange,
             onReminderLeadDaysChange = viewModel::onReminderLeadDaysChange,

@@ -31,6 +31,7 @@ data class DebtListUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val hasPremiumAccess: Boolean = false,
+    val allInstallments: Map<String, List<DebtScheduleItem>> = emptyMap(),
 ) {
     val activeDebtCount: Int get() = debts.count { it.status == DebtLifecycleStatus.ACTIVE }
 
@@ -87,12 +88,17 @@ class DebtListViewModel @Inject constructor(
                             }.getOrNull()
                         }
                     }.mapNotNull { (debtId, installment) -> installment?.let { debtId to it } }.toMap()
-                    debts to highlights
+                    val all = installments.groupBy { it.debtId }.mapValues { (_, items) ->
+                        items.mapNotNull { row -> runCatching {
+                            DebtScheduleItem(row.id, row.installmentNumber, java.time.LocalDate.parse(row.dueDate), row.amountMinor, row.status, row.revision)
+                        }.getOrNull() }
+                    }
+                    Triple(debts, highlights, all)
                 }
                     .catch { _state.update { it.copy(isLoading = false, errorMessage = "No se pudieron cargar tus deudas.") } }
-                    .collect { (debts, highlights) ->
+                    .collect { (debts, highlights, all) ->
                         _state.update {
-                            it.copy(debts = debts, scheduledInstallments = highlights, isLoading = false, errorMessage = null)
+                            it.copy(debts = debts, scheduledInstallments = highlights, allInstallments = all, isLoading = false, errorMessage = null)
                         }
                     }
             }

@@ -32,6 +32,8 @@ import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -98,13 +100,18 @@ fun DebtListScreen(
     activeDebtCount: Int = debts.count { it.status == DebtLifecycleStatus.ACTIVE },
     onSeePlans: () -> Unit = {},
     today: LocalDate = LocalDate.now(),
+    onDebtAction: (String, String) -> Unit = { id, _ -> onDebtSelected(id) },
+    isLoading: Boolean = false,
+    allInstallments: Map<String, List<DebtScheduleItem>> = emptyMap(),
 ) {
+    var optionsId by rememberSaveable { mutableStateOf<String?>(null) }
     val colors = rememberCalmEmeraldColors()
     val filtered = remember(debts, selectedType) {
         debts.filter { selectedType == null || it.obligationType == selectedType }
     }
     var showRegisterTypeSheet by rememberSaveable { mutableStateOf(false) }
     var showLimitSheet by rememberSaveable { mutableStateOf(false) }
+    var showDueAlerts by rememberSaveable { mutableStateOf(false) }
     // Every entry point (root +, "Nueva", empty state) passes through the Basic plan check first.
     val requestCreate: (DebtObligationType?) -> Unit = { type ->
         when {
@@ -163,7 +170,17 @@ fun DebtListScreen(
                     onNew = { requestCreate(null) },
                 )
             }
+            if (debts.any { it.status == DebtLifecycleStatus.ACTIVE && (it.dueDate != null || allInstallments[it.debtId].orEmpty().isNotEmpty()) }) {
+                item(key = "due_alerts") {
+                    androidx.compose.material3.TextButton(onClick = { showDueAlerts = true }, modifier = Modifier.testTag("debt_due_open")) { Text("Ver vencimientos") }
+                }
+            }
             when {
+                isLoading && debts.isEmpty() -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                }
                 debts.isEmpty() -> {
                     item(key = "empty") { DebtEmptyCard(onRegister = { requestCreate(null) }) }
                     item(key = "empty_types") {
@@ -188,12 +205,21 @@ fun DebtListScreen(
                         scheduledInstallment = scheduledInstallments[debt.debtId],
                         today = today,
                         onClick = { onDebtSelected(debt.debtId) },
+                        onOptions = { optionsId = debt.debtId },
                     )
                 }
             }
         }
     }
 
+    if (showDueAlerts) DebtDueAlertsSheet(debts, allInstallments, today, { showDueAlerts = false }, onDebtSelected,
+        { onDebtAction(it, "settle") })
+    debts.firstOrNull { it.debtId == optionsId }?.let { debt ->
+        DebtActionsSheet(debt, { optionsId = null }, { onDebtSelected(debt.debtId) },
+            { onDebtAction(debt.debtId, "settle") }, { onDebtAction(debt.debtId, "history") },
+            { onDebtAction(debt.debtId, "edit") }, { onDebtAction(debt.debtId, "close") },
+            { onDebtAction(debt.debtId, "manage") })
+    }
     if (showRegisterTypeSheet) {
         DebtCreationTypeSheet(
             onDismissRequest = { showRegisterTypeSheet = false },
@@ -451,6 +477,7 @@ private fun DebtListItem(
     scheduledInstallment: DebtScheduleItem?,
     today: LocalDate,
     onClick: () -> Unit,
+    onOptions: () -> Unit,
 ) {
     val colors = rememberCalmEmeraldColors()
     val isPayable = debt.obligationType == DebtObligationType.PAYABLE
@@ -493,6 +520,9 @@ private fun DebtListItem(
                             maxLines = 1,
                         )
                     }
+                }
+                IconButton(onClick = onOptions, modifier = Modifier.testTag("debt_options_${debt.debtId}")) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${debt.counterpartyName}", tint = colors.secondaryMuted)
                 }
             }
             Row(verticalAlignment = Alignment.Bottom) {

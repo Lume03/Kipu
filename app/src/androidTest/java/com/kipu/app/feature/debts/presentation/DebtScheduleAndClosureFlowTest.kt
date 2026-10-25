@@ -27,6 +27,16 @@ class DebtScheduleAndClosureFlowTest {
     @get:Rule
     val compose = createComposeRule()
 
+    @Test fun closeActionStartsOnClosureWithoutChangingTheOutstandingBalance() {
+        val original = debt()
+        var commands = 0
+        compose.setContent {
+            DebtScheduleScreen(DebtScheduleUiState(debt = original), {}, {}, {}, {}, {}, { _, _ -> commands++ }, {}, startWithClosure = true)
+        }
+        compose.onNodeWithText("Ajustes y cierre").assertIsSelected()
+        compose.runOnIdle { assertEquals(0, commands); assertEquals(10_000L, original.remainingPrincipalMinor) }
+    }
+
     @Test
     fun reminderDefaultsToTwoDaysCanBeEditedAndDoesNotChangeDebtFinancialState() {
         val originalDebt = debt().copy(dueDate = LocalDate.parse("2026-11-10"))
