@@ -1,13 +1,17 @@
 package com.kipu.app.feature.budgets.presentation
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -41,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -51,8 +56,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.budgets.domain.BudgetPeriodType
+import com.kipu.app.ui.component.KipuCard
+import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.KipuOptionalDateField
+import com.kipu.app.ui.component.symbol
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +93,23 @@ fun BudgetFormScreen(
                 },
             )
         },
+        bottomBar = {
+            (state as? BudgetFormUiState.Content)?.form?.let { form ->
+                Surface(shadowElevation = 4.dp) {
+                    Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        val scope = if (form.input.scopeKind == BudgetScopeKind.TOTAL) "Todos los gastos"
+                            else form.categories.firstOrNull { it.id == form.input.categoryId }?.label ?: "Elegir categoría"
+                        Text("${form.input.currency} ${form.input.limitText.ifBlank { "—" }} · ${BudgetTexts.periodTypeShort(form.input.periodType)} · $scope",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Button(onClick = onSave, enabled = !form.isSaving,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("budget_save"), shape = RoundedCornerShape(20.dp)) {
+                            Text(if (form.isSaving) "Guardando…" else if (form.isEdit) "Guardar presupuesto" else "Crear presupuesto", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        },
     ) { padding ->
         when (state) {
             BudgetFormUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -94,7 +120,7 @@ fun BudgetFormScreen(
             )
             is BudgetFormUiState.Error -> BudgetErrorPanel(state.message, onRetry, Modifier.padding(padding), "budget_form_error")
             is BudgetFormUiState.Content -> {
-                BudgetFormContent(state.form, onChange, onSave, Modifier.padding(padding))
+                BudgetFormContent(state.form, onChange, Modifier.padding(padding))
                 state.form.quotaLimitDialog?.let { limit ->
                     BudgetQuotaDialog(limit, onDismiss = onDismissQuota, onSeePlans = { onDismissQuota(); onSeePlans() })
                 }
@@ -107,7 +133,6 @@ fun BudgetFormScreen(
 private fun BudgetFormContent(
     form: BudgetFormState,
     onChange: ((BudgetFormInput) -> BudgetFormInput) -> Unit,
-    onSave: () -> Unit,
     modifier: Modifier,
 ) {
     val input = form.input
@@ -118,6 +143,36 @@ private fun BudgetFormContent(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        KipuCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Límite de gasto por periodo", style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = input.limitText,
+                    onValueChange = { v -> onChange { it.copy(limitText = v) } },
+                    label = { Text("Límite de gasto (${input.currency})") },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                    prefix = { Text(Currency.fromCode(input.currency).symbol(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = BudgetFormField.LIMIT in errors,
+                    supportingText = {
+                        Text(errors[BudgetFormField.LIMIT] ?: if (form.isEdit) {
+                            "El nuevo límite aplica al periodo actual y a los futuros; los periodos cerrados conservan el suyo."
+                        } else "Importe máximo a gastar en cada periodo.")
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("budget_limit_input"),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("300", "500", "800", "1000").forEach { amount ->
+                        KipuFilterChip(selected = input.limitText == amount,
+                            onClick = { onChange { it.copy(limitText = amount) } },
+                            label = { Text("${Currency.fromCode(input.currency).symbol()} $amount") }, modifier = Modifier.testTag("budget_quick_$amount"))
+                    }
+                }
+            }
+        }
         OutlinedTextField(
             value = input.name,
             onValueChange = { v -> onChange { it.copy(name = v) } },
@@ -129,21 +184,6 @@ private fun BudgetFormContent(
             modifier = Modifier.fillMaxWidth().testTag("budget_name"),
         )
 
-        OutlinedTextField(
-            value = input.limitText,
-            onValueChange = { v -> onChange { it.copy(limitText = v) } },
-            label = { Text("Límite de gasto (${input.currency})") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            isError = BudgetFormField.LIMIT in errors,
-            supportingText = {
-                Text(errors[BudgetFormField.LIMIT] ?: if (form.isEdit) {
-                    "El nuevo límite aplica al periodo actual y a los futuros; los periodos cerrados conservan el suyo."
-                } else "Importe máximo a gastar en cada periodo.")
-            },
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().testTag("budget_limit_input"),
-        )
 
         Section("Moneda") {
             if (form.isEdit) {
@@ -166,7 +206,7 @@ private fun BudgetFormContent(
         }
 
         Section("Qué gastos cuenta") {
-            Column(Modifier.selectableGroup()) {
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ChoiceRow("Todos los gastos", input.scopeKind == BudgetScopeKind.TOTAL, "budget_scope_total") {
                     onChange { it.copy(scopeKind = BudgetScopeKind.TOTAL, categoryId = null) }
                 }
@@ -195,11 +235,10 @@ private fun BudgetFormContent(
         }
 
         Section("Periodo") {
-            Column(Modifier.selectableGroup()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BudgetPeriodType.entries.forEach { type ->
-                    ChoiceRow(BudgetTexts.periodType(type), input.periodType == type, "budget_period_${type.name}") {
-                        onChange { it.copy(periodType = type) }
-                    }
+                    KipuFilterChip(selected = input.periodType == type, onClick = { onChange { it.copy(periodType = type) } },
+                        label = { Text(BudgetTexts.periodType(type)) }, modifier = Modifier.testTag("budget_period_${type.name}"))
                 }
             }
             if (input.periodType == BudgetPeriodType.CUSTOM_RANGE) {
@@ -261,14 +300,7 @@ private fun BudgetFormContent(
             )
         }
 
-        Button(
-            onClick = onSave,
-            enabled = !form.isSaving,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_save"),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            Text(if (form.isSaving) "Guardando…" else "Guardar presupuesto", fontWeight = FontWeight.SemiBold)
-        }
+
     }
 
     if (showCategoryPicker) {
@@ -320,8 +352,12 @@ private fun ChoiceRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 48.dp)
+        modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(horizontal = 8.dp)
             .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {

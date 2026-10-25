@@ -8,6 +8,7 @@ import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationCategory
 import com.kipu.app.feature.notifications.domain.NotificationDestination
 import com.kipu.app.feature.notifications.domain.NotificationDestinationResolver
+import com.kipu.app.feature.notifications.domain.NotificationReferenceType
 import com.kipu.app.feature.notifications.domain.NotificationsRepository
 import com.kipu.app.feature.notifications.domain.UNAVAILABLE_DESTINATION_MESSAGE
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +29,8 @@ import kotlinx.coroutines.launch
 
 enum class NotificationFilter(val label: String) {
     ALL("Todos"),
+    BUDGETS("Presupuestos"),
+    GOALS("Metas"),
     ALERTS("Alertas"),
     REMINDERS("Recordatorios"),
 }
@@ -80,6 +83,8 @@ class NotificationsViewModel @Inject constructor(
             .toList()
         val visible = when (filter) {
             NotificationFilter.ALL -> ordered
+            NotificationFilter.BUDGETS -> ordered.filter { it.referenceType == NotificationReferenceType.BUDGET }
+            NotificationFilter.GOALS -> ordered.filter { it.referenceType == NotificationReferenceType.GOAL }
             NotificationFilter.ALERTS -> ordered.filter { it.category == NotificationCategory.ALERT }
             NotificationFilter.REMINDERS -> ordered.filter { it.category == NotificationCategory.REMINDER }
         }

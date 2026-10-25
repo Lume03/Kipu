@@ -44,7 +44,8 @@ class NotificationActionsTest {
             }
         }
 
-        compose.onNodeWithText("Marcar todo como leído").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Notificaciones").assertIsDisplayed()
+        compose.onNodeWithText("Marcar leídas").assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Marcar leído: Umbral de crédito").assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Archivar aviso: Umbral de crédito").assertIsDisplayed().performClick()
         compose.onNodeWithTag("notification-row-notice-1").assertHeightIsAtLeast(48.dp)

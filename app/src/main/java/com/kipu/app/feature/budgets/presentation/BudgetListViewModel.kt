@@ -101,6 +101,7 @@ class BudgetListViewModel @Inject constructor(
                 interval = current?.period?.interval,
                 consumption = current?.consumption,
                 hasPendingChange = budget.pendingChange != null,
+                thresholdsBps = budget.thresholdsBps,
             )
         }
         return BudgetListUiState.Content(items, quota)

@@ -4,8 +4,10 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performImeAction
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.model.Goal
@@ -51,8 +53,10 @@ class GoalContributionFlowTest {
         }
 
         compose.onNodeWithTag("goal_contribution_amount").performTextInput("100.00")
-        compose.onNodeWithTag("goal_transfer_toggle").performClick()
-        compose.onNodeWithTag("goal_transfer_source_picker").performClick()
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
+        compose.waitForIdle()
+        compose.onNodeWithTag("goal_transfer_toggle").performScrollTo().performClick()
+        compose.onNodeWithTag("goal_transfer_source_picker").performScrollTo().performClick()
         compose.onNodeWithText("Origen · libre 500.00").performClick()
         compose.onNodeWithTag("goal_contribution_submit").performClick()
 

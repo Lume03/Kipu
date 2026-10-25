@@ -16,6 +16,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performTextInput
 import com.kipu.app.feature.budgets.domain.Budget
 import com.kipu.app.feature.budgets.domain.BudgetConsumption
@@ -67,20 +69,86 @@ class BudgetScreensTest {
     // ---- Lista ----
 
     @Test
+    fun localFiltersUseConfiguredThresholdsAndKeepExceededSeparate() {
+        val warning = item("warning", consumed = 35_000L).copy(thresholdsBps = listOf(7000))
+        val below = item("below", consumed = 35_000L).copy(thresholdsBps = listOf(9000))
+        val exceeded = item("exceeded", consumed = 60_000L)
+        val finished = warning.copy(id = "finished", status = BudgetStatus.FINISHED)
+        compose.setContent {
+            BudgetListScreen(BudgetListUiState.Content(listOf(warning, below, exceeded, finished), freeQuota), {}, {}, {}, {}, {})
+        }
+        compose.onNodeWithTag("budget_filter_1").assertTextContains("Atención 1").performClick()
+        compose.onNodeWithTag("budget_card_warning").assertIsDisplayed()
+        compose.onNodeWithTag("budget_card_below").assertDoesNotExist()
+        compose.onNodeWithTag("budget_card_exceeded").assertDoesNotExist()
+        compose.onNodeWithTag("budget_card_finished").assertDoesNotExist()
+        compose.onNodeWithTag("budget_filter_2").performClick()
+        compose.onNodeWithTag("budget_card_warning").assertDoesNotExist()
+        compose.onNodeWithTag("budget_card_exceeded").assertIsDisplayed()
+    }
+
+    @Test
+    fun quickAmountUpdatesInputAndSaveRemainsVisible() {
+        var input by mutableStateOf(BudgetFormInput())
+        var saves = 0
+        compose.setContent {
+            BudgetFormScreen(formState(input = input), {}, { input = it(input) }, { saves++ }, {}, {}, {})
+        }
+        compose.onNodeWithTag("budget_quick_500").performClick()
+        compose.onNodeWithTag("budget_limit_input").assertTextContains("500")
+        compose.onNodeWithTag("budget_thresholds").performScrollTo()
+        compose.onNodeWithTag("budget_save").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals("500", input.limitText); assertEquals(1, saves) }
+    }
+
+    @Test
+    fun actionsSheetOpensDeleteConfirmationWithoutDeletingUntilConfirmed() {
+        var deletes = 0
+        compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, { deletes++ }, {}) }
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithTag("budget_actions_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("budget_sheet_delete").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_delete_dialog").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, deletes) }
+        compose.onNodeWithTag("budget_delete_confirm").performClick()
+        compose.runOnIdle { assertEquals(1, deletes) }
+    }
+
+    @Test
+    fun cancellingActionsSheetDoesNotEditFinishOrDelete() {
+        var actions = 0
+        compose.setContent { BudgetDetailScreen(detail(), {}, { actions++ }, { actions++ }, { actions++ }, {}) }
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithTag("budget_sheet_cancel").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions_sheet").assertDoesNotExist()
+        compose.onNodeWithTag("budget_detail_screen").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, actions) }
+    }
+
+    @Test
+    fun planningGoalsTabUsesExistingBackRoute() {
+        var backs = 0
+        compose.setContent { BudgetListScreen(BudgetListUiState.Empty(freeQuota), { backs++ }, {}, {}, {}, {}) }
+        compose.onNodeWithText("Planificación").assertIsDisplayed()
+        compose.onNodeWithTag("budget_tab_goals").performClick()
+        compose.runOnIdle { assertEquals(1, backs) }
+    }
+
+    @Test
     fun listShowsLoadingThenContentWithLimitConsumedRemainingAndPercent() {
         var state by mutableStateOf<BudgetListUiState>(BudgetListUiState.Loading)
         compose.setContent { BudgetListScreen(state, {}, {}, {}, {}, {}) }
         compose.onNodeWithTag("budget_loading").assertIsDisplayed()
 
         state = BudgetListUiState.Content(listOf(item()), freeQuota)
-        // La tarjeta es un unico elemento clicable: sus textos se anuncian combinados.
+        // Las estadísticas conservan grupos accesibles propios dentro de la tarjeta.
         val card = compose.onNodeWithTag("budget_card_b1")
         card.assertIsDisplayed()
-        card.assertTextContains("500.00", substring = true)
-        card.assertTextContains("120.00", substring = true)
-        card.assertTextContains("380.00", substring = true)
-        card.assertTextContains("Restante", substring = true)
-        card.assertContentDescriptionContains("Consumido 24 %")
+        compose.onNodeWithTag("budget_limit").assertTextContains("500.00", substring = true)
+        compose.onNodeWithTag("budget_consumed").assertTextContains("120.00", substring = true)
+        compose.onNodeWithTag("budget_remaining").assertTextContains("380.00", substring = true)
+        compose.onNodeWithTag("budget_remaining").assertTextContains("Restante", substring = true)
+        card.assertContentDescriptionContains("Consumido 24 %", substring = true)
         card.assertTextContains("Solo se cuentan gastos en PEN", substring = true)
     }
 
@@ -91,8 +159,8 @@ class BudgetScreensTest {
         }
         compose.onNodeWithTag("budget_progress", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo))
-            .assertContentDescriptionContains("Consumido 24 %")
-            .assertContentDescriptionContains("Restante")
+            .assertContentDescriptionContains("Consumido 24 %", substring = true)
+            .assertContentDescriptionContains("Restante", substring = true)
     }
 
     @Test
@@ -103,9 +171,9 @@ class BudgetScreensTest {
             )
         }
         val card = compose.onNodeWithTag("budget_card_b1")
-        card.assertTextContains("Excedido", substring = true)
-        card.assertTextContains("100.00", substring = true)
-        card.assertContentDescriptionContains("Excedido por")
+        compose.onNodeWithTag("budget_remaining").assertTextContains("Excedido", substring = true)
+        compose.onNodeWithTag("budget_remaining").assertTextContains("100.00", substring = true)
+        card.assertContentDescriptionContains("Excedido por", substring = true)
     }
 
     @Test
@@ -142,8 +210,11 @@ class BudgetScreensTest {
                 BudgetListUiState.Content(listOf(item("a"), item("b")), atLimit), {}, { created = true }, {}, {}, { plans = true },
             )
         }
+        compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_card_a"))
         compose.onNodeWithTag("budget_card_a").assertIsDisplayed()
+        compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_card_b"))
         compose.onNodeWithTag("budget_card_b").assertIsDisplayed()
+        compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_create_button"))
         compose.onNodeWithTag("budget_create_button").performClick()
         compose.runOnIdle { assertFalse(created) }
         compose.onNodeWithTag("budget_quota_dialog").assertIsDisplayed()
@@ -201,7 +272,7 @@ class BudgetScreensTest {
         }
         compose.onNodeWithTag("budget_name").performTextInput("Comida")
         compose.onNodeWithTag("budget_limit_input").performTextInput("500")
-        compose.onNodeWithTag("budget_save").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_save").assertIsDisplayed().performClick()
         compose.runOnIdle {
             assertEquals("Comida", form.name)
             assertEquals("500", form.limitText)

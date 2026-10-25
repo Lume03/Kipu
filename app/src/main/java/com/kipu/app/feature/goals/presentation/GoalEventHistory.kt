@@ -6,9 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -17,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.goals.domain.model.GoalEvent
 import com.kipu.app.feature.goals.domain.model.GoalEventType
 import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.KipuCard
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -25,18 +26,18 @@ fun GoalEventHistory(
     events: List<GoalEvent>,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val colors = rememberCalmEmeraldColors()
+    KipuCard(modifier = modifier.fillMaxWidth(), containerColor = colors.surfaceCard,
+        shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
+    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Historial de la meta", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (events.isEmpty()) {
             Text("Aún no hay aportes ni liberaciones.", style = MaterialTheme.typography.bodySmall)
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 events.asReversed().forEach { event ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    ) {
+                    Column {
+                        HorizontalDivider(color = colors.borderSubtle)
                         Row(
                             Modifier.fillMaxWidth().padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -52,12 +53,16 @@ fun GoalEventHistory(
                                     Text("Traslado interno registrado", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            MoneyText(event.delta, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            MoneyText(event.delta, modifier = Modifier.weight(0.8f),
+                                style = MaterialTheme.typography.bodyMedium.copy(textAlign = androidx.compose.ui.text.style.TextAlign.End),
+                                color = if (event.delta.minorUnits > 0L) colors.incomeText else colors.expenseText,
+                                fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
+    }
     }
 }
 

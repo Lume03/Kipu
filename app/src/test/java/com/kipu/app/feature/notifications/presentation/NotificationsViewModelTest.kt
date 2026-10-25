@@ -63,6 +63,51 @@ class NotificationsViewModelTest {
     }
 
     @Test
+    fun `budget and goal filters use normalized references and preserve owner scope and order`() = runTest(dispatcher) {
+        val budget = notice("budget-old", USER_A, "SYSTEM", NOW.minusSeconds(60))
+            .copy(referenceEntityType = " budget ")
+        val newerBudget = notice("budget-new", USER_A, "BILLING_DUE", NOW)
+            .copy(referenceEntityType = "BUDGET")
+        val goal = notice("goal", USER_A, "SYSTEM", NOW.minusSeconds(30))
+            .copy(referenceEntityType = "goal")
+        val unreferenced = notice("unreferenced", USER_A, "BUDGET_ALERT", NOW)
+        val deletedBudget = budget.copy(id = "deleted-budget", deletedAt = NOW)
+        val otherOwnerGoal = goal.copy(id = "private-goal", userId = USER_B)
+        val viewModel = viewModel(FakeRepository(mapOf(
+            USER_A to listOf(budget, goal, newerBudget, unreferenced, deletedBudget, otherOwnerGoal),
+        )))
+
+        viewModel.setFilter(NotificationFilter.BUDGETS)
+        assertEquals(listOf("budget-new", "budget-old"), viewModel.state.value.visibleNotifications.map { it.id })
+        viewModel.setFilter(NotificationFilter.GOALS)
+        assertEquals(listOf("goal"), viewModel.state.value.visibleNotifications.map { it.id })
+        viewModel.setFilter(NotificationFilter.REMINDERS)
+        assertEquals(listOf("budget-new"), viewModel.state.value.visibleNotifications.map { it.id })
+        viewModel.setFilter(NotificationFilter.ALERTS)
+        assertEquals(setOf("budget-old", "goal", "unreferenced"), viewModel.state.value.visibleNotifications.map { it.id }.toSet())
+        viewModel.setFilter(NotificationFilter.ALL)
+        assertEquals(4, viewModel.state.value.visibleNotifications.size)
+    }
+
+    @Test
+    fun `budget and goal filters stay empty without matching references`() = runTest(dispatcher) {
+        val rows = listOf(
+            notice("budget-type-only", USER_A, "BUDGET_ALERT", NOW),
+            notice("goal-type-only", USER_A, "GOAL_REACHED", NOW),
+            notice("card", USER_A, "SYSTEM", NOW).copy(referenceEntityType = "CARD"),
+            notice("unknown", USER_A, "SYSTEM", NOW).copy(referenceEntityType = "OTHER"),
+        )
+        val viewModel = viewModel(FakeRepository(mapOf(USER_A to rows)))
+
+        listOf(NotificationFilter.BUDGETS, NotificationFilter.GOALS).forEach { filter ->
+            viewModel.setFilter(filter)
+            assertEquals(emptyList<AppNotification>(), viewModel.state.value.visibleNotifications)
+        }
+        assertEquals("Presupuestos", NotificationFilter.BUDGETS.label)
+        assertEquals("Metas", NotificationFilter.GOALS.label)
+    }
+
+    @Test
     fun `empty account reports exact empty-state copy`() = runTest(dispatcher) {
         val viewModel = viewModel(FakeRepository(mapOf(USER_A to emptyList())))
         assertEquals("Todo al día. No tienes avisos pendientes", viewModel.state.value.emptyMessage)

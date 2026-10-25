@@ -61,9 +61,13 @@ internal fun BudgetMoney(
     )
 }
 
-internal fun BudgetConsumption.statusLabel(): String = when {
+internal fun BudgetConsumption.needsAttention(thresholdsBps: List<Int>): Boolean =
+    !isExceeded && thresholdsBps.any { percentBps >= it }
+
+internal fun BudgetConsumption.statusLabel(thresholdsBps: List<Int> = emptyList()): String = when {
     isExceeded -> "Excedido"
     remainingMinor == 0L -> "Límite alcanzado"
+    needsAttention(thresholdsBps) -> "Atención"
     else -> "Dentro del límite"
 }
 
@@ -80,6 +84,7 @@ internal fun BudgetProgressBar(
     consumption: BudgetConsumption,
     currencyCode: String,
     modifier: Modifier = Modifier,
+    thresholdsBps: List<Int> = emptyList(),
 ) {
     val colors = rememberCalmEmeraldColors()
     val masked = LocalBalanceMasked.current
@@ -87,10 +92,10 @@ internal fun BudgetProgressBar(
     else (consumption.consumedMinor.toDouble() / consumption.limitMinor.toDouble()).toFloat().coerceIn(0f, 1f)
     val barColor = when {
         consumption.isExceeded -> colors.expenseCoral
-        consumption.remainingMinor == 0L -> colors.warningAmber
+        consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps) -> colors.warningAmber
         else -> MaterialTheme.colorScheme.primary
     }
-    val status = consumption.statusLabel()
+    val status = consumption.statusLabel(thresholdsBps)
     val description = if (masked) {
         "Consumido ${consumption.percentWhole} %. $status. Importes ocultos."
     } else {
@@ -114,10 +119,10 @@ internal fun BudgetProgressBar(
             progress = { fraction },
             color = barColor,
             drawStopIndicator = {},
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+            modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (consumption.isExceeded || consumption.remainingMinor == 0L) {
+            if (consumption.isExceeded || consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps)) {
                 Icon(
                     Icons.Default.ErrorOutline, contentDescription = null, tint = barColor, modifier = Modifier.size(16.dp),
                 )
@@ -129,32 +134,43 @@ internal fun BudgetProgressBar(
             Text(
                 "${consumption.percentWhole} % · $status",
                 style = MaterialTheme.typography.labelMedium,
-                color = if (consumption.isExceeded) colors.expenseText else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = when {
+                    consumption.isExceeded -> colors.expenseText
+                    consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps) -> colors.warningText
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
         }
     }
 }
 
-/** Limite, consumido y restante (o excedido) en filas etiquetadas. */
+/** Importe principal y dos estadísticas, manteniendo la máscara de privacidad. */
 @Composable
 internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: String, modifier: Modifier = Modifier) {
     val colors = rememberCalmEmeraldColors()
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        AmountLine("Límite", consumption.limitMinor, currencyCode, "budget_limit")
-        AmountLine("Consumido", consumption.consumedMinor, currencyCode, "budget_consumed")
-        if (consumption.isExceeded) {
-            AmountLine("Excedido", -consumption.remainingMinor, currencyCode, "budget_remaining", colors.expenseText)
-        } else {
-            AmountLine("Restante", consumption.remainingMinor, currencyCode, "budget_remaining")
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
+            Text("Consumido", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BudgetMoney(consumption.consumedMinor, currencyCode, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AmountStat("Límite", consumption.limitMinor, currencyCode, "budget_limit", Modifier.weight(1f))
+            AmountStat(if (consumption.isExceeded) "Excedido" else "Restante",
+                if (consumption.isExceeded) -consumption.remainingMinor else consumption.remainingMinor,
+                currencyCode, "budget_remaining", Modifier.weight(1f),
+                if (consumption.isExceeded) colors.expenseText else MaterialTheme.colorScheme.primary)
         }
     }
 }
 
 @Composable
-private fun AmountLine(label: String, minor: Long, currencyCode: String, tag: String, color: Color = Color.Unspecified) {
-    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag(tag), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        BudgetMoney(minor, currencyCode, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = color)
+private fun AmountStat(label: String, minor: Long, currencyCode: String, tag: String, modifier: Modifier, color: Color = Color.Unspecified) {
+    com.kipu.app.ui.component.KipuCard(modifier.testTag(tag).semantics(mergeDescendants = true) {},
+        containerColor = MaterialTheme.colorScheme.surfaceVariant, borderColor = null) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            BudgetMoney(minor, currencyCode, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = color)
+        }
     }
 }
 

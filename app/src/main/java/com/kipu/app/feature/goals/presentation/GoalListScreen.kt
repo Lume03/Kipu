@@ -1,6 +1,9 @@
 package com.kipu.app.feature.goals.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.kipu.app.ui.component.KipuBottomSheet
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -42,20 +46,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,6 +91,7 @@ fun GoalListScreen(
     onSettings: (() -> Unit)? = null,
     showBackButton: Boolean = false,
     onOpenBudgets: (() -> Unit)? = null,
+    onWithdrawGoal: ((String) -> Unit)? = null,
 ) {
     val colors = rememberCalmEmeraldColors()
     val visibleGoals = state.goals.filter { it.goal.status != GoalStatus.ARCHIVED }
@@ -220,6 +223,7 @@ fun GoalListScreen(
                 if (onContributeGoal != null) onContributeGoal(goalId) else onOpenGoal(goalId)
             },
             onHistory = { selectedForOptions = null; onOpenGoal(item.goal.id) },
+            onWithdraw = { selectedForOptions = null; (onWithdrawGoal ?: onOpenGoal)(item.goal.id) },
             onEdit = { selectedForOptions = null; onEditGoal(item.goal.id) },
             onArchive = { selectedForOptions = null; onOpenGoal(item.goal.id) },
             onDelete = { selectedForOptions = null; pendingDelete = item },
@@ -229,12 +233,20 @@ fun GoalListScreen(
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Eliminar meta vacía") },
+            icon = {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
+                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(18.dp).size(28.dp))
+                }
+            },
+            title = { Text("¿Eliminar “${item.goal.name}”?") },
             text = {
                 Text("Solo se elimina físicamente una meta sin aportes, movimientos relacionados ni operaciones pendientes. Las metas con historial deben conservarse y archivarse desde su detalle.")
             },
             confirmButton = {
-                TextButton(onClick = { pendingDelete = null; onDeleteGoal(item.goal.id) }) { Text("Eliminar") }
+                Button(onClick = { pendingDelete = null; onDeleteGoal(item.goal.id) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)) { Text("Eliminar meta") }
             },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") } },
         )
@@ -430,12 +442,17 @@ private fun GoalOptionsSheet(
     onDismiss: () -> Unit,
     onContribute: () -> Unit,
     onHistory: () -> Unit,
+    onWithdraw: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
+    KipuBottomSheet(onDismissRequest = onDismiss, containerColor = rememberCalmEmeraldColors().surfaceCard,
+        footer = { Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = rememberCalmEmeraldColors().pillTrack, contentColor = MaterialTheme.colorScheme.onSurface),
+            shape = RoundedCornerShape(16.dp)) { Text("Cancelar") } },
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 GoalIconBadge(item.goal.iconKey)
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -443,18 +460,19 @@ private fun GoalOptionsSheet(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Meta · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         MoneyText(item.progress.reserved, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(" acumulados", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(" de ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        MoneyText(item.goal.target, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            GoalOptionRow(Icons.Default.Add, "Registrar aporte a la meta", "Suma dinero a este objetivo", onContribute, enabled = item.goal.status == GoalStatus.ACTIVE)
+            GoalOptionRow(Icons.Default.Add, "Aportar", "Aparta dinero de una cuenta", onContribute, enabled = item.goal.status == GoalStatus.ACTIVE)
+            GoalOptionRow(Icons.Default.Remove, "Retirar", "Devuelve dinero a tu disponible", onWithdraw, enabled = item.progress.reserved.minorUnits > 0L)
             GoalOptionRow(Icons.Default.History, "Ver historial de aportes", "Consulta el detalle y los movimientos", onHistory)
-            GoalOptionRow(Icons.Default.Edit, "Editar parámetros", "Modifica nombre, monto objetivo o fecha límite", onEdit, enabled = item.goal.status != GoalStatus.ARCHIVED)
+            GoalOptionRow(Icons.Default.Edit, "Editar", "Nombre, monto, fecha e icono", onEdit, enabled = item.goal.status != GoalStatus.ARCHIVED)
             GoalOptionRow(Icons.Default.Archive, "Archivar meta", "Resolver la reserva y conservar su historial", onArchive)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             GoalOptionRow(Icons.Default.Delete, "Eliminar meta vacía", "Solo si no tiene historia ni operaciones pendientes", onDelete, destructive = true)
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("Cancelar") }
         }
     }
 }
@@ -475,7 +493,7 @@ private fun GoalOptionRow(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+            color = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
             modifier = Modifier.size(42.dp),
         ) {
             Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.padding(10.dp))

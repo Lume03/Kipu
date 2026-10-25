@@ -275,9 +275,9 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithContentDescription("Opciones de goal-with-history").performClick()
-        compose.onNodeWithText("Registrar aporte a la meta").assertIsDisplayed()
+        compose.onNodeWithText("Aportar").assertIsDisplayed()
         compose.onNodeWithText("Ver historial de aportes").assertIsDisplayed()
-        compose.onNodeWithText("Editar parámetros").assertIsDisplayed()
+        compose.onNodeWithText("Editar").assertIsDisplayed()
         compose.onNodeWithText("Eliminar meta vacía").assertIsDisplayed()
         compose.onNodeWithText("Cancelar").performClick()
 
@@ -302,7 +302,7 @@ class GoalManagementFlowTest {
         }
 
         compose.onNodeWithContentDescription("Opciones de goal-edit").performClick()
-        compose.onNodeWithText("Editar parámetros").performClick()
+        compose.onNodeWithText("Editar").performClick()
 
         compose.runOnIdle { assertEquals("goal-edit", editedGoalId) }
     }

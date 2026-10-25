@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.kipu.app.core.finance.domain.model.Currency
@@ -34,9 +35,9 @@ class GoalLifecycleFlowTest {
         val state = detailState(goal, events, listOf(account("account", 20_000L, 0L)))
         compose.setContent { GoalDetailScreen(state, {}, {}, { _, _, _ -> }, { _, _, _ -> }, {}) }
 
-        compose.onNodeWithText("Completaste el objetivo. La reserva permanece intacta hasta que decidas liberarla o reasignarla.").assertIsDisplayed()
+        compose.onNodeWithText("Completaste el objetivo. La reserva permanece intacta hasta que decidas liberarla o reasignarla.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("goal_archive").assertIsNotEnabled()
-        compose.onNodeWithText("Historial de la meta").assertIsDisplayed()
+        compose.onNodeWithText("Historial de la meta").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -189,10 +190,10 @@ class GoalLifecycleFlowTest {
         }
 
         compose.onNodeWithText("Archivada").assertIsDisplayed()
-        compose.onNodeWithTag("goal_archived_explanation").assertIsDisplayed()
+        compose.onNodeWithTag("goal_archived_explanation").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("solo las metas activas aceptan aportes", substring = true).assertIsDisplayed()
         compose.onNodeWithText("elige otra meta activa", substring = true).assertIsDisplayed()
-        compose.onAllNodesWithText("Aportar o reservar").assertCountEquals(0)
+        compose.onAllNodesWithText("Aportar").assertCountEquals(0)
         compose.onNodeWithTag("goal_release").assertIsNotEnabled()
         compose.onNodeWithTag("goal_reassign").assertIsNotEnabled()
         compose.onNodeWithTag("goal_archive").assertIsNotEnabled()
@@ -218,7 +219,7 @@ class GoalLifecycleFlowTest {
         }
 
         compose.onNodeWithText("Activa").assertIsDisplayed()
-        compose.onNodeWithText("Aportar o reservar", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Aportar", substring = true).assertIsDisplayed()
         compose.onAllNodesWithTag("goal_archived_explanation").assertCountEquals(0)
     }
 

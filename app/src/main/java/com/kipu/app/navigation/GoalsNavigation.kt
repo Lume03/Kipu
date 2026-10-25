@@ -22,7 +22,7 @@ import com.kipu.app.feature.goals.presentation.GoalListViewModel
 
 const val GOALS_LIST_ROUTE = "goals"
 const val GOAL_CREATE_ROUTE = "goals/new"
-const val GOAL_DETAIL_ROUTE = "goals/{goalId}"
+const val GOAL_DETAIL_ROUTE = "goals/{goalId}?withdraw={withdraw}"
 const val GOAL_EDIT_ROUTE = "goals/{goalId}/edit"
 const val GOAL_CONTRIBUTION_ROUTE = "goals/{goalId}/contribute"
 
@@ -46,6 +46,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onNotifications = navController::navigateToNotifications,
             onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
             onOpenBudgets = navController::navigateToBudgets,
+            onWithdrawGoal = { goalId -> navController.navigate("goals/$goalId?withdraw=true") },
         )
     }
 
@@ -103,7 +104,10 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
 
     composable(
         route = GOAL_DETAIL_ROUTE,
-        arguments = listOf(navArgument("goalId") { type = NavType.StringType }),
+        arguments = listOf(
+            navArgument("goalId") { type = NavType.StringType },
+            navArgument("withdraw") { type = NavType.BoolType; defaultValue = false },
+        ),
     ) { backStackEntry ->
         val viewModel: GoalDetailViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
@@ -114,6 +118,9 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onRelease = viewModel::release,
             onReassign = viewModel::reassign,
             onArchive = viewModel::archive,
+            onEdit = { state.goal?.id?.let { navController.navigate("goals/$it/edit") } },
+            startWithWithdrawal = backStackEntry.arguments?.getBoolean("withdraw") == true,
+            onCreateGoal = { navController.navigate(GOAL_CREATE_ROUTE) },
         )
     }
 
@@ -132,6 +139,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             state = state,
             onNavigateBack = { navController.popBackStack() },
             onReserve = viewModel::reserve,
+            onWithdraw = { state.goal?.id?.let { navController.navigate("goals/$it?withdraw=true") } },
         )
     }
 }

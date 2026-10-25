@@ -1,10 +1,12 @@
 package com.kipu.app.feature.budgets.presentation
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,23 +15,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -40,15 +45,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.budgets.domain.BudgetStatus
+import com.kipu.app.ui.component.KipuCard
+import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +69,7 @@ fun BudgetListScreen(
     onRetry: () -> Unit,
     onSeePlans: () -> Unit,
 ) {
+    var selectedFilter by rememberSaveable { mutableStateOf(0) }
     var showQuotaDialog by rememberSaveable { mutableStateOf(false) }
     val quota = when (state) {
         is BudgetListUiState.Content -> state.quota
@@ -73,16 +83,32 @@ fun BudgetListScreen(
     Scaffold(
         modifier = Modifier.testTag("budget_list_screen"),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("Presupuestos", fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("Organización", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Planificación", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+                        }
+                    },
+                )
+                Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    FlowRow(Modifier.padding(4.dp), maxItemsInEachRow = if (LocalDensity.current.fontScale >= 1.3f) 1 else 2) {
+                        Tab(selected = false, onClick = onNavigateBack, modifier = Modifier.weight(1f).testTag("budget_tab_goals"),
+                            text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Flag, null, Modifier.size(20.dp))
+                                Text("Metas", fontWeight = FontWeight.SemiBold)
+                            } })
+                        Surface(Modifier.weight(1f), shape = RoundedCornerShape(20.dp), shadowElevation = 1.dp) {
+                            Tab(selected = true, onClick = {}, modifier = Modifier.testTag("budget_tab_budgets"), selectedContentColor = MaterialTheme.colorScheme.primary,
+                                text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.PieChart, null, Modifier.size(20.dp))
+                                    Text("Presupuestos", fontWeight = FontWeight.Bold)
+                                } })
+                        }
                     }
-                },
-            )
+                }
+            }
         },
     ) { padding ->
         when (state) {
@@ -106,12 +132,29 @@ fun BudgetListScreen(
                 item { EmptyBudgets() }
             }
             is BudgetListUiState.Content -> LazyColumn(
-                Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).testTag("budget_items"),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item { QuotaCard(state.quota) }
                 item { CreateButton(state.quota.isAtLimit, requestCreate) }
-                items(state.items, key = { it.id }) { item ->
+                item {
+                    val counts = listOf(state.items.size,
+                        state.items.count { it.status == BudgetStatus.ACTIVE && it.consumption?.needsAttention(it.thresholdsBps) == true },
+                        state.items.count { it.status == BudgetStatus.ACTIVE && it.consumption?.isExceeded == true })
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Todos", "Atención", "Excedidos").forEachIndexed { index, label ->
+                            KipuFilterChip(selected = selectedFilter == index, onClick = { selectedFilter = index },
+                                label = { Text("$label ${counts[index]}") }, modifier = Modifier.testTag("budget_filter_$index"))
+                        }
+                    }
+                }
+                val visible = state.items.filter { item -> when (selectedFilter) {
+                    1 -> item.status == BudgetStatus.ACTIVE && item.consumption?.needsAttention(item.thresholdsBps) == true
+                    2 -> item.status == BudgetStatus.ACTIVE && item.consumption?.isExceeded == true
+                    else -> true
+                } }
+                if (visible.isEmpty()) item { Text("No hay presupuestos en este filtro.", Modifier.padding(16.dp)) }
+                items(visible, key = { it.id }) { item ->
                     BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) })
                 }
                 item { Box(Modifier.height(20.dp)) }
@@ -153,34 +196,32 @@ private fun CreateButton(atLimit: Boolean, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_create_button"),
         shape = RoundedCornerShape(14.dp),
     ) {
-        Icon(Icons.Default.Add, contentDescription = null)
-        Text(if (atLimit) "  Crear presupuesto (límite Free)" else "  Crear presupuesto", fontWeight = FontWeight.SemiBold)
+        Icon(if (atLimit) Icons.Default.Lock else Icons.Default.Add, contentDescription = null)
+        Text(if (atLimit) "  Nuevo presupuesto · Ver planes" else "  Crear presupuesto", fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun QuotaCard(quota: BudgetQuotaState) {
     if (quota.isPremium) return
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        modifier = Modifier.fillMaxWidth().testTag("budget_quota_card"),
-    ) {
-        Text(
-            "${quota.activeCount.coerceAtMost(quota.limit)} de ${quota.limit} presupuestos activos en el plan Free" +
-                if (quota.isAtLimit) ". Límite alcanzado." else ".",
-            modifier = Modifier.padding(14.dp),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+    val colors = rememberCalmEmeraldColors()
+    KipuCard(modifier = Modifier.fillMaxWidth().testTag("budget_quota_card"), shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("PLAN FREE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text("${quota.activeCount} de ${quota.limit} presupuestos activos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            LinearProgressIndicator(progress = { if (quota.limit > 0) (quota.activeCount.toFloat() / quota.limit).coerceIn(0f, 1f) else 0f },
+                modifier = Modifier.fillMaxWidth().height(8.dp), color = if (quota.isAtLimit) colors.warningAmber else MaterialTheme.colorScheme.primary)
+            if (quota.isAtLimit) Text("Límite alcanzado", color = colors.warningText, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
 @Composable
 private fun EmptyBudgets() {
-    Card(
+    KipuCard(
         modifier = Modifier.fillMaxWidth().testTag("budget_empty"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        borderColor = null,
     ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
@@ -204,17 +245,29 @@ private fun EmptyBudgets() {
 @Composable
 private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
     val finished = item.status == BudgetStatus.FINISHED
-    Card(
+    val colors = rememberCalmEmeraldColors()
+    KipuCard(
         modifier = Modifier.fillMaxWidth().testTag("budget_card_${item.id}")
             .clickable(role = Role.Button, onClickLabel = "Abrir detalle de ${item.name}", onClick = onOpen),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(24.dp),
+        borderColor = null,
+        elevation = 1.dp,
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = when {
+                    item.consumption?.isExceeded == true -> colors.expenseBg
+                    item.consumption?.needsAttention(item.thresholdsBps) == true -> colors.warningBg
+                    else -> MaterialTheme.colorScheme.secondaryContainer
+                }) {
+                    Icon(Icons.Default.PieChart, null, modifier = Modifier.padding(12.dp).size(24.dp), tint = when {
+                        item.consumption?.isExceeded == true -> colors.expenseText
+                        item.consumption?.needsAttention(item.thresholdsBps) == true -> colors.warningText
+                        else -> MaterialTheme.colorScheme.primary
+                    })
+                }
                 Column(Modifier.weight(1f)) {
-                    Text(item.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(item.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(
                             item.scopeLabel,
@@ -225,6 +278,7 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                IconButton(onClick = onOpen) { Icon(Icons.Default.MoreVert, contentDescription = "Ver presupuesto y acciones") }
             }
             item.interval?.let {
                 Text(
@@ -236,7 +290,7 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit) {
             val consumption = item.consumption
             if (consumption != null) {
                 BudgetAmountsRow(consumption, item.currency)
-                BudgetProgressBar(consumption, item.currency)
+                BudgetProgressBar(consumption, item.currency, thresholdsBps = item.thresholdsBps)
             } else {
                 Text("Sin periodo disponible todavía.", style = MaterialTheme.typography.bodySmall)
             }

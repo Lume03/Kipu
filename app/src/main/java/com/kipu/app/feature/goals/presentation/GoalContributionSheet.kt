@@ -1,5 +1,21 @@
 package com.kipu.app.feature.goals.presentation
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import com.kipu.app.ui.component.KipuCard
+import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.symbol
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,12 +48,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -54,14 +70,15 @@ fun GoalContributionSheet(
     state: GoalContributionUiState,
     onNavigateBack: () -> Unit,
     onReserve: (amount: Money, backingAccountId: String, confirmTransfer: Boolean, sourceAccountId: String?) -> Unit,
+    onWithdraw: (() -> Unit)? = null,
 ) {
+    val colors = rememberCalmEmeraldColors()
     val goal = state.goal
     val focusManager = LocalFocusManager.current
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var backingAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var sourceAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var confirmTransfer by rememberSaveable(goal?.id) { mutableStateOf(false) }
-    var backingMenuExpanded by remember { mutableStateOf(false) }
     var sourceMenuExpanded by remember { mutableStateOf(false) }
     val accounts = state.accounts.filter { it.currency == goal?.currency }
     val chosenBackingId = backingAccountId.takeIf { id -> accounts.any { it.id == id } }
@@ -79,6 +96,20 @@ fun GoalContributionSheet(
         }
 
     Scaffold(
+        containerColor = colors.background,
+        bottomBar = {
+            if (goal != null && !state.isLoading) Surface(color = colors.surfaceCard) {
+                Button(
+                    onClick = { focusManager.clearFocus(); amount?.let { onReserve(it, chosenBackingId, effectiveTransfer, sourceAccountId.takeIf(String::isNotBlank)) } },
+                    enabled = !state.isSaving && canReserve,
+                    modifier = Modifier.navigationBarsPadding().imePadding().padding(16.dp).fillMaxWidth().heightIn(min = 52.dp).testTag("goal_contribution_submit"),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text(if (state.isSaving) "Guardando…" else if (effectiveTransfer) "Trasladar y reservar" else "Aportar", fontWeight = FontWeight.Bold)
+                    if (!state.isSaving && !effectiveTransfer && amount != null) MoneyText(amount, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text("Aportar a ${goal?.name.orEmpty()}") },
@@ -95,27 +126,67 @@ fun GoalContributionSheet(
                 Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("Elige de qué cuenta se respalda. Una meta puede recibir reservas de varias cuentas de la misma moneda.")
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it.filter { char -> char.isDigit() || char == '.' || char == ',' } },
-                    label = { Text("Importe") },
-                    prefix = { Text(if (goal.currency.name == "PEN") "S/ " else "$ ") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth().testTag("goal_contribution_amount"),
-                )
-                AccountChoice(
-                    title = "Cuenta de respaldo",
-                    accounts = accounts,
-                    selectedId = chosenBackingId,
-                    expanded = backingMenuExpanded,
-                    onExpand = { backingMenuExpanded = it },
-                    onSelect = { backingAccountId = it },
-                    testTag = "goal_backing_account_picker",
-                )
-                selectedBacking?.let { GoalBackingStatus(listOf(it)) }
+                onWithdraw?.let { withdraw ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KipuFilterChip(selected = true, onClick = {}, label = { Text("Aportar") }, modifier = Modifier.weight(1f))
+                        KipuFilterChip(selected = false, onClick = withdraw, label = { Text("Retirar") }, modifier = Modifier.weight(1f))
+                    }
+                }
+                KipuCard(containerColor = colors.surfaceCard, borderColor = null, shape = RoundedCornerShape(24.dp), elevation = 1.dp) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Monto", style = MaterialTheme.typography.titleSmall, color = colors.secondaryMuted)
+                        OutlinedTextField(
+                            value = amountText,
+                            onValueChange = { amountText = it.filter { char -> char.isDigit() || char == '.' || char == ',' } },
+                            label = { Text("Importe") },
+                            prefix = { Text(goal.currency.symbol(), color = colors.primaryDeep, style = MaterialTheme.typography.headlineMedium) },
+                            textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                            modifier = Modifier.fillMaxWidth().testTag("goal_contribution_amount"),
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(100, 300, 500).forEach { quick ->
+                                KipuFilterChip(selected = amount?.minorUnits == quick * 100L,
+                                    onClick = { amountText = quick.toString() },
+                                    label = { Text("${goal.currency.symbol()} $quick") })
+                            }
+                        }
+                    }
+                }
+                Text("Aportar desde", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column(Modifier.selectableGroup().testTag("goal_backing_account_picker"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    accounts.forEach { account ->
+                        val selected = account.id == chosenBackingId
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = { backingAccountId = account.id }),
+                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else colors.surfaceCard,
+                            border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primaryDeep else colors.borderSubtle),
+                            shape = RoundedCornerShape(16.dp),
+                        ) {
+                            Row(Modifier.padding(12.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                RadioButton(selected = selected, onClick = null)
+                                Column(Modifier.weight(1f)) {
+                                    Text(account.name, fontWeight = FontWeight.SemiBold)
+                                    Text("Disponible para reservar", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                                }
+                                MoneyText(account.available, modifier = Modifier.weight(0.8f), style = MaterialTheme.typography.titleSmall.copy(textAlign = androidx.compose.ui.text.style.TextAlign.End), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                if (accounts.isEmpty()) Text("No hay cuentas activas compatibles para respaldar esta meta.")
+                if (selectedBacking != null && amount != null && !effectiveTransfer) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Dinero disponible después", style = MaterialTheme.typography.bodyMedium)
+                            MoneyText(selectedBacking.available.minus(amount), fontWeight = FontWeight.Bold)
+                            if (selectedBacking.available < amount) Text("El importe supera el disponible de esta cuenta.", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = confirmTransfer,
@@ -143,17 +214,7 @@ fun GoalContributionSheet(
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { amount?.let { onReserve(it, chosenBackingId, effectiveTransfer, sourceAccountId.takeIf(String::isNotBlank)) } },
-                    enabled = !state.isSaving && canReserve,
-                    modifier = Modifier.fillMaxWidth().testTag("goal_contribution_submit"),
-                ) {
-                    Text(
-                        if (state.isSaving) "Guardando…"
-                        else if (effectiveTransfer) "Trasladar y reservar"
-                        else "Reservar sin traslado",
-                    )
-                }
+
             }
         }
     }
