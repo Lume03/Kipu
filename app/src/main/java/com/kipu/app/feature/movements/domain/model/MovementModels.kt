@@ -21,6 +21,14 @@ enum class LedgerRole {
     LIABILITY,
 }
 
+/** The server posts ordinary entries as PRIMARY/REVERSAL; locally the role follows the side of the movement. */
+fun localLedgerRole(role: String, type: String, accountId: String, sourceAccountId: String?): LedgerRole =
+    LedgerRole.entries.firstOrNull { it.name == role } ?: when {
+        type == MovementType.INCOME.name -> LedgerRole.DESTINATION
+        type == MovementType.TRANSFER.name && accountId != sourceAccountId -> LedgerRole.DESTINATION
+        else -> LedgerRole.SOURCE
+    }
+
 enum class MovementSyncStatus {
     PENDING,
     IN_FLIGHT,

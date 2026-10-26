@@ -779,7 +779,7 @@ class MovementLocalDataSource @Inject constructor(
             val appliedEffects = existingEntries.map { entry ->
                 MovementFinancialEffect(
                     accountId = entry.accountId,
-                    role = LedgerRole.valueOf(entry.role),
+                    role = localLedgerRole(entry.role, txEntity.type, entry.accountId, txEntity.sourceAccountId),
                     signedAmountMinor = entry.signedAmountMinor,
                     currency = entry.currencyCode,
                 )
@@ -1005,7 +1005,7 @@ class MovementLocalDataSource @Inject constructor(
             val appliedEffects = existingEntries.map { entry ->
                 MovementFinancialEffect(
                     accountId = entry.accountId,
-                    role = LedgerRole.valueOf(entry.role),
+                    role = localLedgerRole(entry.role, txEntity.type, entry.accountId, txEntity.sourceAccountId),
                     signedAmountMinor = entry.signedAmountMinor,
                     currency = entry.currencyCode,
                 )
@@ -1219,7 +1219,7 @@ class MovementLocalDataSource @Inject constructor(
             val effects = movementDao.getLedgerEntriesForTransaction(userId, transaction.id).map { entry ->
                 MovementFinancialEffect(
                     accountId = entry.accountId,
-                    role = LedgerRole.valueOf(entry.role),
+                    role = localLedgerRole(entry.role, transaction.type, entry.accountId, transaction.sourceAccountId),
                     signedAmountMinor = entry.signedAmountMinor,
                     currency = entry.currencyCode,
                 )
