@@ -857,7 +857,8 @@ class MovementHistoryViewModel @Inject constructor(
                 )
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                com.kipu.app.core.logging.SecureLog.e("MovementHistoryViewModel", "History read failed: ${error.javaClass.simpleName}")
                 if (isCurrent(request)) _history.value = HistoryLoadState(
                     ownerId = owner,
                     key = request.key,

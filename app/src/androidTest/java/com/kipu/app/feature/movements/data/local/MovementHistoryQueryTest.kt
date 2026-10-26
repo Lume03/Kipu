@@ -390,6 +390,27 @@ class MovementHistoryQueryTest {
     }
 
     @Test
+    fun syncedDebtRowsLoadAndOnlyInterestChangesTheOperatingNetFlow() = runBlocking {
+        val before = repository.getHistorySummary(userId, MovementHistoryQuery())
+        val rows = listOf(
+            TransactionEntity(id = "debt-principal", userId = userId, type = "EXPENSE", amountMinor = 10000,
+                currencyCode = "PEN", sourceAccountId = bcpAccountId, operationKind = "DEBT_PAYMENT", syncStatus = "SYNCED", occurredAt = 80000),
+            TransactionEntity(id = "debt-collected", userId = userId, type = "INCOME", amountMinor = 20000,
+                currencyCode = "PEN", destinationAccountId = bcpAccountId, operationKind = "DEBT_PAYMENT", syncStatus = "SYNCED", occurredAt = 80001),
+            TransactionEntity(id = "debt-interest", userId = userId, type = "EXPENSE", amountMinor = 500,
+                currencyCode = "PEN", sourceAccountId = bcpAccountId, categoryId = foodCategoryId,
+                operationKind = "DEBT_AMORTIZATION", syncStatus = "SYNCED", occurredAt = 80002),
+        )
+        rows.forEach { dao.insertTransaction(it) }
+        val page = repository.queryHistory(userId, MovementHistoryQuery())
+        assertTrue(page.items.map { it.transaction.id }.containsAll(rows.map { it.id }))
+        assertEquals(bcpAccountId, page.items.single { it.transaction.id == "debt-collected" }.transaction.sourceAccountId)
+        val after = repository.getHistorySummary(userId, MovementHistoryQuery())
+        assertEquals(before.totalCount + 3, after.totalCount)
+        assertEquals(before.netByCurrency.getValue("PEN") - java.math.BigInteger.valueOf(500), after.netByCurrency["PEN"])
+    }
+
+    @Test
     fun historySummaryUsesUnpagedSqlAggregates() = runBlocking {
         dao.insertTransaction(
             TransactionEntity(

@@ -11,8 +11,10 @@ internal fun TransactionEntity.toDomain(): Transaction = Transaction(
     type = MovementType.fromString(type),
     amountMinor = amountMinor,
     currency = currencyCode,
-    sourceAccountId = sourceAccountId,
-    destinationAccountId = destinationAccountId,
+    // Older planning snapshots used destination_account_id for an income. Read those
+    // rows through the same single-account contract without changing their ledger.
+    sourceAccountId = sourceAccountId ?: destinationAccountId.takeIf { type.equals("INCOME", ignoreCase = true) },
+    destinationAccountId = destinationAccountId.takeUnless { type.equals("INCOME", ignoreCase = true) && sourceAccountId == null },
     cardId = cardId,
     operationKind = operationKind,
     installmentCount = installmentCount,

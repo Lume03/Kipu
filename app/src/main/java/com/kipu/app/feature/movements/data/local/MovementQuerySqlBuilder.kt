@@ -37,6 +37,7 @@ object MovementQuerySqlBuilder {
         sql.append(" AND status IN ('ACTIVE', 'CONFIRMED', 'REVISED')")
         sql.append(" AND type != 'TRANSFER'")
         sql.append(" AND (legacy_kind IS NULL OR legacy_kind NOT IN ('OPENING', 'ADJUSTMENT', 'REVERSAL', 'CARD_PAYMENT_CASH'))")
+        sql.append(" AND COALESCE(UPPER(operation_kind), UPPER(legacy_kind), '') NOT IN ('DEBT_DISBURSEMENT', 'DEBT_PAYMENT', 'REFUND')")
         sql.append(" GROUP BY UPPER(currency_code)")
         return SimpleSQLiteQuery(sql.toString(), args.toTypedArray())
     }

@@ -101,7 +101,9 @@ data class Transaction(
                 } else {
                     require(!sourceAccountId.isNullOrBlank()) { "Expense requires a source account" }
                     require(cardId.isNullOrBlank()) { "Standard expense cannot carry a card source" }
-                    require(legacyKind != null || !categoryId.isNullOrBlank()) { "Expense requires a category" }
+                    val isDebtPrincipal = operationKind.equals("DEBT_DISBURSEMENT", ignoreCase = true) ||
+                        operationKind.equals("DEBT_PAYMENT", ignoreCase = true)
+                    require(legacyKind != null || isDebtPrincipal || !categoryId.isNullOrBlank()) { "Expense requires a category" }
                 }
             }
             MovementType.INCOME -> {
