@@ -64,6 +64,32 @@ class RetainedRootTabsTest {
         }
     }
 
+    @Test fun allFourBottomBarPagesStayMountedWhileSwitchingInAnyOrder() {
+        val selected = mutableIntStateOf(RootTab.MONEY)
+        val mounts = IntArray(RootTab.COUNT)
+        compose.setContent {
+            RetainedRootTabs(selectedTabIndex = selected, pageCount = RootTab.COUNT) {
+                repeat(RootTab.COUNT) { index ->
+                    DisposableEffect(Unit) {
+                        mounts[index]++
+                        onDispose { }
+                    }
+                    RetainedRootPage(active = selected.intValue == index) {
+                        Box(Modifier.fillMaxSize().testTag("root_page_$index")) { Text("Root $index") }
+                    }
+                }
+            }
+        }
+        listOf(0, 2, 1, 2, 3, 0, 2, 3, 1).forEach { tab ->
+            compose.runOnIdle { selected.intValue = tab }
+            compose.onNodeWithTag("root_page_$tab").assertIsDisplayed()
+            (0 until RootTab.COUNT).filter { it != tab }.forEach { hidden ->
+                compose.onAllNodesWithTag("root_page_$hidden").assertCountEquals(0)
+            }
+        }
+        compose.runOnIdle { assertEquals(List(RootTab.COUNT) { 1 }, mounts.toList()) }
+    }
+
     @Test fun eachTabKeepsItsOwnScrollPosition() {
         val selected = mutableIntStateOf(0)
         compose.setContent {

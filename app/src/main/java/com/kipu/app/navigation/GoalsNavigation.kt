@@ -19,7 +19,6 @@ import com.kipu.app.feature.goals.presentation.GoalFormScreen
 import com.kipu.app.feature.goals.presentation.GoalListEvent
 import com.kipu.app.feature.goals.presentation.GoalListViewModel
 
-const val GOALS_LIST_ROUTE = "goals"
 const val GOAL_CREATE_ROUTE = "goals/new"
 const val GOAL_DETAIL_ROUTE = "goals/{goalId}?withdraw={withdraw}&action={action}"
 const val GOAL_EDIT_ROUTE = "goals/{goalId}/edit"
@@ -30,12 +29,8 @@ fun NavController.navigateToGoals() = navigateToPlanning(PlanningTab.GOALS)
 fun NavController.navigateToGoal(goalId: String) = navigate("goals/$goalId")
 
 fun NavGraphBuilder.goalDestinations(navController: NavController) {
-    composable(PLANNING_ROUTE) { backStackEntry ->
-        PlanningRootContent(navController, backStackEntry)
-    }
-
     composable(GOAL_CREATE_ROUTE) { backStackEntry ->
-        val ownerEntry = remember(backStackEntry) { navController.getBackStackEntry(GOALS_LIST_ROUTE) }
+        val ownerEntry = remember(backStackEntry) { navController.getBackStackEntry(ACCOUNTS_DASHBOARD_ROUTE) }
         val viewModel: GoalListViewModel = hiltViewModel(ownerEntry)
         val state by viewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(viewModel) {
@@ -57,7 +52,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         route = GOAL_EDIT_ROUTE,
         arguments = listOf(navArgument("goalId") { type = NavType.StringType }),
     ) { backStackEntry ->
-        val ownerEntry = remember(backStackEntry) { navController.getBackStackEntry(GOALS_LIST_ROUTE) }
+        val ownerEntry = remember(backStackEntry) { navController.getBackStackEntry(ACCOUNTS_DASHBOARD_ROUTE) }
         val viewModel: GoalListViewModel = hiltViewModel(ownerEntry)
         val state by viewModel.state.collectAsStateWithLifecycle()
         val goalId = backStackEntry.arguments?.getString("goalId")

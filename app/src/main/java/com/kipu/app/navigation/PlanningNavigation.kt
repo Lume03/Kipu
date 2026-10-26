@@ -58,8 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -75,10 +74,13 @@ import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
-/** Planning hosts Goals, Budgets and Debts as tabs of one destination: switching tabs never navigates. */
-const val PLANNING_ROUTE = GOALS_LIST_ROUTE
+/**
+ * Bottom-bar identifier of Planning. It is a page of the dashboard destination ([RootTab.PLANNING]),
+ * not a NavHost route, and hosts Goals, Budgets and Debts as tabs: switching never navigates.
+ */
+const val PLANNING_ROUTE = "planning"
 
-/** Selected [PlanningTab] ordinal, kept in the Planning entry so it survives rotation and process death. */
+/** Selected [PlanningTab] ordinal, kept in the dashboard entry so it survives rotation and process death. */
 const val PLANNING_TAB_KEY = "planning_tab"
 
 /** Set by the root (+) button; the Planning host turns it into the selected tab's create action. */
@@ -96,12 +98,12 @@ enum class PlanningTab(val label: String, val createDescription: String) {
 
 /** Opens Planning as a root tab on [tab] without stacking a new screen per tab. */
 fun NavController.navigateToPlanning(tab: PlanningTab = PlanningTab.GOALS) {
-    if (currentDestination?.route != PLANNING_ROUTE) navigateRootTab(PLANNING_ROUTE)
-    currentBackStackEntry?.savedStateHandle?.set(PLANNING_TAB_KEY, tab.ordinal)
+    selectRootTab(RootTab.PLANNING)
+    dashboardEntryOrNull()?.savedStateHandle?.set(PLANNING_TAB_KEY, tab.ordinal)
 }
 
 @Composable
-internal fun PlanningRootContent(navController: NavController, backStackEntry: NavBackStackEntry) {
+internal fun PlanningRootContent(navController: NavController, backStackEntry: NavBackStackEntry, active: Boolean = true) {
     val handle = backStackEntry.savedStateHandle
     val selectedIndex by handle.getStateFlow(PLANNING_TAB_KEY, PlanningTab.GOALS.ordinal).collectAsStateWithLifecycle()
     val createRequested by handle.getStateFlow(PLANNING_CREATE_REQUEST_KEY, false).collectAsStateWithLifecycle()
@@ -115,11 +117,15 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
     val budgetState by budgetViewModel.state.collectAsStateWithLifecycle()
     val debtViewModel: DebtListViewModel = hiltViewModel(backStackEntry)
     val debtState by debtViewModel.state.collectAsStateWithLifecycle()
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        goalViewModel.clearFeedback()
-        goalViewModel.refreshPlanAccess()
-        budgetViewModel.onResume()
-        debtViewModel.refreshPlanAccess()
+    // Planning stays composed behind the other bottom-bar pages: refresh when it is shown or resumed.
+    LifecycleResumeEffect(active) {
+        if (active) {
+            goalViewModel.clearFeedback()
+            goalViewModel.refreshPlanAccess()
+            budgetViewModel.onResume()
+            debtViewModel.refreshPlanAccess()
+        }
+        onPauseOrDispose { }
     }
 
     Column(Modifier.fillMaxSize().testTag("planning_screen")) {
@@ -133,7 +139,7 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
         )
         RetainedRootTabs(selectedTabIndex = selectedTabIndex, pageCount = PlanningTab.entries.size) {
-            PlanningPage(active = selectedTab == PlanningTab.GOALS) {
+            RetainedRootPage(active = selectedTab == PlanningTab.GOALS) {
                 GoalListScreen(
                     state = goalState,
                     onNavigateBack = { navController.popBackStack() },
@@ -151,7 +157,7 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     embedded = true,
                 )
             }
-            PlanningPage(active = selectedTab == PlanningTab.BUDGETS) {
+            RetainedRootPage(active = selectedTab == PlanningTab.BUDGETS) {
                 BudgetListScreen(
                     state = budgetState,
                     onNavigateBack = { navController.popBackStack() },
@@ -167,7 +173,7 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     onCreateRequestConsumed = consumeCreate,
                 )
             }
-            PlanningPage(active = selectedTab == PlanningTab.DEBTS) {
+            RetainedRootPage(active = selectedTab == PlanningTab.DEBTS) {
                 DebtListScreen(
                     debts = debtState.debts,
                     isLoading = debtState.isLoading,
@@ -197,17 +203,6 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
             }
         }
     }
-}
-
-/** Retained page: hidden tabs stay composed (scroll, filters) but are silent to touch and TalkBack. */
-@Composable
-private fun PlanningPage(active: Boolean, content: @Composable () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .then(if (active) Modifier else Modifier.clearAndSetSemantics { })
-            .rootTabInputShield(active = active),
-    ) { content() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

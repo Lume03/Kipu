@@ -79,8 +79,8 @@ class CellularCorrectionsTest {
 
     @Test fun bottomNavigationKeepsEveryLabelVisibleAndPlanningActionWorks() {
         var created = false
-        compose.setContent { KipuTheme { KipuNavigationBar(GOALS_LIST_ROUTE, {}, {}, onRegisterClick = { created = true }) } }
-        listOf("Dinero", "Movimientos", "Deudas", "Planificación").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+        compose.setContent { KipuTheme { KipuNavigationBar(PLANNING_ROUTE, {}, {}, onRegisterClick = { created = true }) } }
+        listOf("Dinero", "Movimientos", "Planificación", "Análisis").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
         compose.onNodeWithTag("btn_root_register").performClick()
         compose.runOnIdle { assertEquals(true, created) }
         capture("barra-inferior")
@@ -97,11 +97,11 @@ class CellularCorrectionsTest {
             val density = LocalDensity.current.density
             CompositionLocalProvider(LocalDensity provides Density(density, 1.5f)) {
                 KipuTheme(darkTheme = false) {
-                    KipuNavigationBar(GOALS_LIST_ROUTE, {}, {}, modifier = Modifier.width(360.dp), onRegisterClick = {})
+                    KipuNavigationBar(PLANNING_ROUTE, {}, {}, modifier = Modifier.width(360.dp), onRegisterClick = {})
                 }
             }
         }
-        listOf("Dinero", "Movimientos", "Deudas", "Planificación").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+        listOf("Dinero", "Movimientos", "Planificación", "Análisis").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
         capture("barra-texto-grande")
     }
 
@@ -137,19 +137,23 @@ class CellularCorrectionsTest {
 
     @Test fun rootTabsDoNotRestoreAReceiptOrAccountHistoryOverTheSelectedRoot() {
         compose.runOnUiThread {
-            val nav = TestNavHostController(compose.activity).apply { navigatorProvider.addNavigator(ComposeNavigator()) }
+            val nav = TestNavHostController(compose.activity).apply {
+                navigatorProvider.addNavigator(ComposeNavigator())
+                setViewModelStore(androidx.lifecycle.ViewModelStore())
+            }
             nav.graph = nav.createGraph(startDestination = ACCOUNTS_DASHBOARD_ROUTE) {
                 composable(ACCOUNTS_DASHBOARD_ROUTE) {}
                 composable(MOVEMENTS_HISTORY_ROUTE) {}
-                composable(GOALS_LIST_ROUTE) {}
                 composable("receipts") {}
             }
             repeat(3) {
                 nav.navigate("receipts")
                 nav.navigate(MOVEMENTS_HISTORY_ROUTE)
-                nav.navigateRootTab(GOALS_LIST_ROUTE)
-                assertEquals(GOALS_LIST_ROUTE, nav.currentDestination?.route)
-                nav.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
+                nav.selectRootTab(RootTab.PLANNING)
+                assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
+                assertEquals(1, nav.currentBackStack.value.count { it.destination.route != null })
+                assertEquals(RootTab.PLANNING, nav.currentBackStackEntry!!.savedStateHandle.get<Int>(ROOT_TAB_KEY))
+                nav.selectRootTab(RootTab.MONEY)
                 assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
             }
         }

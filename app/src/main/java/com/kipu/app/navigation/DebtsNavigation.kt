@@ -102,7 +102,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
             viewModel.events.collect { event ->
                 if (event is DebtOpeningUiEvent.Saved) {
                     navController.navigate("debts/detail/${event.debtId}") {
-                        popUpTo(PLANNING_ROUTE) { inclusive = false }
+                        popUpTo(ACCOUNTS_DASHBOARD_ROUTE) { inclusive = false }
                     }
                 }
             }

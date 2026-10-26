@@ -69,8 +69,10 @@ import com.kipu.app.navigation.BIOMETRIC_ROUTE
 import com.kipu.app.navigation.CARD_FORM_ROUTE
 import com.kipu.app.navigation.DeepLinkResult
 import com.kipu.app.navigation.BUDGET_CREATE_ROUTE
-import com.kipu.app.navigation.GOALS_LIST_ROUTE
-import com.kipu.app.navigation.navigateRootTab
+import com.kipu.app.navigation.ROOT_TAB_KEY
+import com.kipu.app.navigation.RootTab
+import com.kipu.app.navigation.dashboardEntryOrNull
+import com.kipu.app.navigation.selectRootTab
 import com.kipu.app.navigation.appDestinations
 import com.kipu.app.feature.debts.data.sync.DebtSyncScheduler
 import com.kipu.app.feature.goals.data.sync.GoalsSyncScheduler
@@ -89,7 +91,6 @@ import com.kipu.app.navigation.PLAN_SELECTION_ROUTE
 import com.kipu.app.navigation.PROFILE_SETTINGS_ROUTE
 import com.kipu.app.navigation.ReceiptShareIntent
 import com.kipu.app.navigation.navigateToReceiptImport
-import com.kipu.app.navigation.GOALS_LIST_ROUTE
 import com.kipu.app.navigation.GOAL_CREATE_ROUTE
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
@@ -213,15 +214,12 @@ class MainActivity : FragmentActivity() {
             }
             val isMasked = profileState.value?.hideBalances ?: false
 
-            val movementsSelected = rememberSaveable(currentUserId) { mutableStateOf(false) }
-
             var lastKnownUserId by remember { mutableStateOf(currentUserId) }
             LaunchedEffect(currentUserId) {
                 if (lastKnownUserId != null && lastKnownUserId != currentUserId) {
                     navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)
                     navController.clearBackStack(MOVEMENTS_HISTORY_PATTERN)
                     navController.clearBackStack(MOVEMENTS_HISTORY_ROUTE)
-                    navController.clearBackStack(PLANNING_ROUTE)
                 }
                 lastKnownUserId = currentUserId
 
@@ -292,20 +290,29 @@ class MainActivity : FragmentActivity() {
                         Box(modifier = Modifier.fillMaxSize()) {
                             val navBackStackEntry by navController.currentBackStackEntryAsState()
                             val currentRoute = navBackStackEntry?.destination?.route
-                            val rootTabRoute = when {
-                                currentRoute == ACCOUNTS_DASHBOARD_ROUTE && movementsSelected.value -> MOVEMENTS_HISTORY_ROUTE
-                                else -> currentRoute
+                            // Every bottom-bar page lives in the dashboard entry, which keeps the selected page
+                            // and Planning's tab; the bar and the (+) button adapt to them.
+                            val dashboardHandle = remember(navBackStackEntry) {
+                                navBackStackEntry?.takeIf { it.destination.route == ACCOUNTS_DASHBOARD_ROUTE }?.savedStateHandle
                             }
-                            // Planning keeps its selected tab in its own entry; the (+) button adapts to it.
-                            val planningTabFlow = remember(navBackStackEntry) {
-                                navBackStackEntry?.takeIf { it.destination.route == PLANNING_ROUTE }
-                                    ?.savedStateHandle?.getStateFlow(PLANNING_TAB_KEY, PlanningTab.GOALS.ordinal)
+                            val rootTab = dashboardHandle?.getStateFlow(ROOT_TAB_KEY, RootTab.MONEY)
+                                ?.collectAsStateWithLifecycle()?.value ?: RootTab.MONEY
+                            val planningTab = PlanningTab.fromIndex(
+                                dashboardHandle?.getStateFlow(PLANNING_TAB_KEY, PlanningTab.GOALS.ordinal)
+                                    ?.collectAsStateWithLifecycle()?.value,
+                            )
+                            val rootTabRoute = if (currentRoute == ACCOUNTS_DASHBOARD_ROUTE) {
+                                when (rootTab) {
+                                    RootTab.MOVEMENTS -> MOVEMENTS_HISTORY_ROUTE
+                                    RootTab.PLANNING -> PLANNING_ROUTE
+                                    RootTab.ANALYSIS -> ANALYSIS_ROUTE
+                                    else -> ACCOUNTS_DASHBOARD_ROUTE
+                                }
+                            } else {
+                                currentRoute
                             }
-                            val planningTab = PlanningTab.fromIndex(planningTabFlow?.collectAsStateWithLifecycle()?.value)
 
                             val isRootDestination = currentRoute == ACCOUNTS_DASHBOARD_ROUTE ||
-                                currentRoute == PLANNING_ROUTE ||
-                                currentRoute == ANALYSIS_ROUTE ||
                                 currentRoute == MOVEMENTS_HISTORY_PATTERN ||
                                 currentRoute == MOVEMENTS_HISTORY_ROUTE ||
                                 currentRoute?.startsWith("movements/history") == true
@@ -332,44 +339,23 @@ class MainActivity : FragmentActivity() {
                                     if (shouldShowBottomBar) {
                                         KipuNavigationBar(
                                             currentRoute = rootTabRoute,
-                                            onNavigateToDinero = {
-                                                movementsSelected.value = false
-                                                if (currentRoute != ACCOUNTS_DASHBOARD_ROUTE) {
-                                                    navController.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
-                                                }
-                                            },
-                                            onNavigateToMovimientos = {
-                                                movementsSelected.value = true
-                                                if (currentRoute != ACCOUNTS_DASHBOARD_ROUTE) {
-                                                    navController.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
-                                                }
-                                            },
-                                            onNavigateToPlanificacion = {
-                                                movementsSelected.value = false
-                                                if (currentRoute != PLANNING_ROUTE) {
-                                                    navController.navigateRootTab(PLANNING_ROUTE)
-                                                }
-                                            },
-                                            onNavigateToAnalisis = {
-                                                movementsSelected.value = false
-                                                if (currentRoute != ANALYSIS_ROUTE) {
-                                                    navController.navigateRootTab(ANALYSIS_ROUTE)
-                                                }
-                                            },
-                                            registerContentDescription = if (currentRoute == PLANNING_ROUTE) {
+                                            onNavigateToDinero = { navController.selectRootTab(RootTab.MONEY) },
+                                            onNavigateToMovimientos = { navController.selectRootTab(RootTab.MOVEMENTS) },
+                                            onNavigateToPlanificacion = { navController.selectRootTab(RootTab.PLANNING) },
+                                            onNavigateToAnalisis = { navController.selectRootTab(RootTab.ANALYSIS) },
+                                            registerContentDescription = if (rootTabRoute == PLANNING_ROUTE) {
                                                 planningTab.createDescription
                                             } else {
                                                 null
                                             },
                                             onRegisterClick = {
                                                 if (accessState is LocalAccess.Available) {
-                                                    if (currentRoute == PLANNING_ROUTE) {
+                                                    if (rootTabRoute == PLANNING_ROUTE) {
                                                         navController.currentBackStackEntry?.savedStateHandle
                                                             ?.set(PLANNING_CREATE_REQUEST_KEY, true)
-                                                    } else if (currentRoute == ANALYSIS_ROUTE) {
+                                                    } else if (rootTabRoute == ANALYSIS_ROUTE) {
                                                         // Análisis has no create flow yet: register a movement from Dinero.
-                                                        movementsSelected.value = false
-                                                        navController.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
+                                                        navController.selectRootTab(RootTab.MONEY)
                                                         navController.currentBackStackEntry?.savedStateHandle
                                                             ?.set("open_register_movement", true)
                                                     } else {
@@ -389,7 +375,7 @@ class MainActivity : FragmentActivity() {
                                 // A captured Boolean would still describe the outgoing debt tab
                                 // while NavHost chooses the incoming transition.
                                 val selectedDashboardTabForMotion = {
-                                    if (movementsSelected.value) 1 else 0
+                                    navController.dashboardEntryOrNull()?.savedStateHandle?.get<Int>(ROOT_TAB_KEY) ?: RootTab.MONEY
                                 }
                                 NavHost(
                                     navController = navController,
@@ -554,12 +540,10 @@ class MainActivity : FragmentActivity() {
                                             navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)
                                             navController.clearBackStack(MOVEMENTS_HISTORY_PATTERN)
                                             navController.clearBackStack(MOVEMENTS_HISTORY_ROUTE)
-                                            navController.clearBackStack(PLANNING_ROUTE)
                                             navController.navigate(AUTH_LOGIN_ROUTE) {
                                                 popUpTo(0) { inclusive = true }
                                             }
                                         },
-                                        movementsSelected = movementsSelected,
                                     )
                                 }
                             }
@@ -574,7 +558,6 @@ class MainActivity : FragmentActivity() {
                                             navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)
                                             navController.clearBackStack(MOVEMENTS_HISTORY_PATTERN)
                                             navController.clearBackStack(MOVEMENTS_HISTORY_ROUTE)
-                                            navController.clearBackStack(PLANNING_ROUTE)
                                             navController.navigate(AUTH_LOGIN_ROUTE) {
                                                 popUpTo(0) { inclusive = true }
                                             }
@@ -639,7 +622,6 @@ private fun isDetailRoute(route: String?): Boolean {
         route == NOTIFICATION_CENTER_ROUTE ||
         route.startsWith("settings/") ||
         route == PLAN_PURCHASE_ROUTE ||
-        route == GOALS_LIST_ROUTE ||
         route == GOAL_CREATE_ROUTE ||
         route == BUDGET_CREATE_ROUTE
 }
@@ -647,8 +629,6 @@ private fun isDetailRoute(route: String?): Boolean {
 private fun isTopLevelRoute(route: String?): Boolean {
     if (route == null) return false
     return route == ACCOUNTS_DASHBOARD_ROUTE ||
-        route == PLANNING_ROUTE ||
-        route == ANALYSIS_ROUTE ||
         route == MOVEMENTS_HISTORY_PATTERN ||
         route == MOVEMENTS_HISTORY_ROUTE ||
         route.startsWith("movements/history")

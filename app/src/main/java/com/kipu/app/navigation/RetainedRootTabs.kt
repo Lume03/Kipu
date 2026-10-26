@@ -8,7 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -67,6 +69,17 @@ internal fun RetainedRootTabs(
             }
         }
     }
+}
+
+/** Retained page: hidden pages stay composed (scroll, filters) but are silent to touch and TalkBack. */
+@Composable
+internal fun RetainedRootPage(active: Boolean, content: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .then(if (active) Modifier else Modifier.clearAndSetSemantics { })
+            .rootTabInputShield(active = active),
+    ) { content() }
 }
 
 /** Swallows touches on retained pages that are composed but not the selected one. */

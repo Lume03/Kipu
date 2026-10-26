@@ -25,6 +25,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
+import com.kipu.app.feature.analysis.presentation.AnalysisScreen
 import com.kipu.app.feature.home.presentation.HomeNetWorthViewModel
 import com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreen
 import com.kipu.app.feature.notifications.presentation.NotificationBadgeViewModel
@@ -95,34 +96,27 @@ private fun NavController.navigateToInstrumentDetail(instrumentId: String, isCar
     navigate("accounts/instrument/${Uri.encode(instrumentId)}?isCard=$isCard&startPurchase=$startPurchase")
 }
 
-fun NavGraphBuilder.accountsDestinations(
-    navController: NavController,
-    movementsSelected: State<Boolean>,
-    onSelectMoney: () -> Unit,
-) {
+fun NavGraphBuilder.accountsDestinations(navController: NavController) {
+    // One destination hosts every bottom-bar page, so switching pages never rebuilds a screen.
     composable(ACCOUNTS_DASHBOARD_ROUTE) { backStackEntry ->
-        val selectedTabIndex = remember(movementsSelected) {
-            derivedStateOf { if (movementsSelected.value) 1 else 0 }
-        }
-        BackHandler(enabled = movementsSelected.value) { onSelectMoney() }
-        RetainedRootTabs(selectedTabIndex = selectedTabIndex, pageCount = 2) {
-            val moneySelected = selectedTabIndex.value == 0
-            val movementTabSelected = selectedTabIndex.value == 1
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(if (moneySelected) Modifier else Modifier.clearAndSetSemantics { })
-                    .rootTabInputShield(active = moneySelected),
-            ) {
-                AccountsRootContent(navController, backStackEntry, movementsSelected)
+        val handle = backStackEntry.savedStateHandle
+        val selectedTabIndex = handle.getStateFlow(ROOT_TAB_KEY, RootTab.MONEY).collectAsStateWithLifecycle()
+        val moneySelected = remember { derivedStateOf { selectedTabIndex.value == RootTab.MONEY } }
+        val movementsSelected = remember { derivedStateOf { selectedTabIndex.value == RootTab.MOVEMENTS } }
+        BackHandler(enabled = selectedTabIndex.value != RootTab.MONEY) { handle[ROOT_TAB_KEY] = RootTab.MONEY }
+        RetainedRootTabs(selectedTabIndex = selectedTabIndex, pageCount = RootTab.COUNT) {
+            RetainedRootPage(active = moneySelected.value) {
+                AccountsRootContent(navController, backStackEntry, moneySelected)
             }
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(if (movementTabSelected) Modifier else Modifier.clearAndSetSemantics { })
-                    .rootTabInputShield(active = movementTabSelected),
-            ) {
+            RetainedRootPage(active = movementsSelected.value) {
                 MovementHistoryContent(navController, backStackEntry, movementsSelected)
+            }
+            val planningSelected = selectedTabIndex.value == RootTab.PLANNING
+            RetainedRootPage(active = planningSelected) {
+                PlanningRootContent(navController, backStackEntry, active = planningSelected)
+            }
+            RetainedRootPage(active = selectedTabIndex.value == RootTab.ANALYSIS) {
+                AnalysisScreen()
             }
         }
     }
@@ -238,7 +232,7 @@ fun NavGraphBuilder.accountsDestinations(
 }
 
 @Composable
-private fun AccountsRootContent(navController: NavController, backStackEntry: NavBackStackEntry, movementsSelected: State<Boolean>) {
+private fun AccountsRootContent(navController: NavController, backStackEntry: NavBackStackEntry, selected: State<Boolean>) {
         val viewModel: AccountsViewModel = hiltViewModel()
         val netWorthViewModel: HomeNetWorthViewModel = hiltViewModel()
         val netWorthState by netWorthViewModel.state.collectAsStateWithLifecycle()
@@ -264,7 +258,7 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
             unreadNotificationCount = unreadNotificationCount,
             feedbackMessage = feedback,
             onFeedbackConsumed = { backStackEntry.savedStateHandle[ACCOUNT_DASHBOARD_FEEDBACK_KEY] = null },
-            openRegisterMovement = openRegisterMovement && !movementsSelected.value,
+            openRegisterMovement = openRegisterMovement && selected.value,
             onConsumeRegisterMovement = { backStackEntry.savedStateHandle["open_register_movement"] = false },
             onNavigateToGoals = { navController.navigateToPlanning(PlanningTab.GOALS) },
             netWorthState = netWorthState,

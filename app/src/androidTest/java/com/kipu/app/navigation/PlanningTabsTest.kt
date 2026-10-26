@@ -24,30 +24,48 @@ import org.junit.Test
 class PlanningTabsTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun bottomTabsRetainPlanningEntryViewModelsAndSelectionAcrossRepeatedVisits() {
-        compose.runOnUiThread {
-            val nav = TestNavHostController(compose.activity).apply {
-                navigatorProvider.addNavigator(ComposeNavigator())
-                setViewModelStore(ViewModelStore())
-            }
-            nav.graph = nav.createGraph(startDestination = ACCOUNTS_DASHBOARD_ROUTE) {
+    private fun dashboardNav(): TestNavHostController =
+        TestNavHostController(compose.activity).apply {
+            navigatorProvider.addNavigator(ComposeNavigator())
+            setViewModelStore(ViewModelStore())
+            graph = createGraph(startDestination = ACCOUNTS_DASHBOARD_ROUTE) {
                 composable(ACCOUNTS_DASHBOARD_ROUTE) {}
-                composable(PLANNING_ROUTE) {}
-                composable(ANALYSIS_ROUTE) {}
+                composable(GOAL_CREATE_ROUTE) {}
             }
+        }
+
+    @Test fun bottomTabsNeverNavigateAndKeepPlanningViewModelsAndSelection() {
+        compose.runOnUiThread {
+            val nav = dashboardNav()
             nav.navigateToPlanning(PlanningTab.DEBTS)
             val original = nav.currentBackStackEntry!!
+            val depth = nav.currentBackStack.value.size
             val store = original.viewModelStore
             original.savedStateHandle["scroll_marker"] = 7
             repeat(4) {
-                nav.navigateRootTab(ANALYSIS_ROUTE)
-                nav.navigateRootTab(ACCOUNTS_DASHBOARD_ROUTE)
-                nav.navigateRootTab(PLANNING_ROUTE)
-                assertEquals(original.id, nav.currentBackStackEntry!!.id)
+                listOf(RootTab.ANALYSIS, RootTab.MONEY, RootTab.MOVEMENTS, RootTab.PLANNING).forEach { tab ->
+                    nav.selectRootTab(tab)
+                    // Same entry, same depth: the page switch is only an animation inside the dashboard.
+                    assertSame(original, nav.currentBackStackEntry)
+                    assertEquals(depth, nav.currentBackStack.value.size)
+                    assertEquals(tab, original.savedStateHandle.get<Int>(ROOT_TAB_KEY))
+                }
                 assertSame(store, nav.currentBackStackEntry!!.viewModelStore)
-                assertEquals(PlanningTab.DEBTS.ordinal, nav.currentBackStackEntry!!.savedStateHandle.get<Int>(PLANNING_TAB_KEY))
-                assertEquals(7, nav.currentBackStackEntry!!.savedStateHandle.get<Int>("scroll_marker"))
+                assertEquals(PlanningTab.DEBTS.ordinal, original.savedStateHandle.get<Int>(PLANNING_TAB_KEY))
+                assertEquals(7, original.savedStateHandle.get<Int>("scroll_marker"))
             }
+        }
+    }
+
+    @Test fun openingPlanningFromAChildScreenReturnsToTheDashboardPage() {
+        compose.runOnUiThread {
+            val nav = dashboardNav()
+            nav.navigate(GOAL_CREATE_ROUTE)
+            nav.navigateToPlanning(PlanningTab.BUDGETS)
+            assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
+            val handle = nav.currentBackStackEntry!!.savedStateHandle
+            assertEquals(RootTab.PLANNING, handle.get<Int>(ROOT_TAB_KEY))
+            assertEquals(PlanningTab.BUDGETS.ordinal, handle.get<Int>(PLANNING_TAB_KEY))
         }
     }
 
@@ -70,25 +88,15 @@ class PlanningTabsTest {
 
     @Test fun switchingPlanningTabsStaysOnOneDestinationWithoutStackingEntries() {
         compose.runOnUiThread {
-            val nav = TestNavHostController(compose.activity).apply {
-                navigatorProvider.addNavigator(ComposeNavigator())
-                setViewModelStore(ViewModelStore())
-            }
-            nav.graph = nav.createGraph(startDestination = ACCOUNTS_DASHBOARD_ROUTE) {
-                composable(ACCOUNTS_DASHBOARD_ROUTE) {}
-                composable(PLANNING_ROUTE) {}
-            }
-
+            val nav = dashboardNav()
             nav.navigateToPlanning(PlanningTab.GOALS)
             val depth = nav.currentBackStack.value.size
             nav.navigateToPlanning(PlanningTab.BUDGETS)
             nav.navigateToPlanning(PlanningTab.DEBTS)
 
-            assertEquals(PLANNING_ROUTE, nav.currentDestination?.route)
+            assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
             assertEquals(depth, nav.currentBackStack.value.size)
             assertEquals(PlanningTab.DEBTS.ordinal, nav.currentBackStackEntry?.savedStateHandle?.get<Int>(PLANNING_TAB_KEY))
-            nav.popBackStack()
-            assertEquals(ACCOUNTS_DASHBOARD_ROUTE, nav.currentDestination?.route)
         }
     }
 }
