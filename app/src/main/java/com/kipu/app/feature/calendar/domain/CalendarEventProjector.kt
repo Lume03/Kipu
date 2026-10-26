@@ -51,6 +51,7 @@ object CalendarEventProjector {
                 title = title,
                 amount = currencyOrNull(tx.currency)?.let { Money(tx.amountMinor, it) },
                 source = CalendarEventSource.Movement(tx.id),
+                moneyDirection = tx.type,
             )
         }
 
@@ -69,6 +70,7 @@ object CalendarEventProjector {
                     status = CalendarEventStatus.PLANNED,
                     title = "Cierre de tarjeta $label",
                     source = CalendarEventSource.Card(card.id.value),
+                    institution = card.issuer,
                 ),
                 CalendarEvent(
                     id = "card-due:${card.id.value}:$due",
@@ -77,6 +79,7 @@ object CalendarEventProjector {
                     status = CalendarEventStatus.PLANNED,
                     title = "Vencimiento de tarjeta $label",
                     source = CalendarEventSource.Card(card.id.value),
+                    institution = card.issuer,
                 ),
             )
         }
@@ -111,6 +114,7 @@ object CalendarEventProjector {
                         amount = debt?.let { currencyOrNull(it.currencyCode) }?.let { Money(item.principalMinor, it) },
                         source = CalendarEventSource.Debt(debtId),
                         isSourceAvailable = debt != null,
+                        moneyDirection = debt?.let(::debtDirection),
                     )
                 }
         }
@@ -126,6 +130,7 @@ object CalendarEventProjector {
                     title = "${debtVerb(debt)} · ${debt.counterpartyName}",
                     amount = currencyOrNull(debt.currencyCode)?.let { Money(debt.remainingPrincipalMinor, it) },
                     source = CalendarEventSource.Debt(debt.debtId),
+                    moneyDirection = debtDirection(debt),
                 )
             }
         return installmentEvents + dueEvents
@@ -182,6 +187,9 @@ object CalendarEventProjector {
 
     private fun debtVerb(debt: DebtSummary) =
         if (debt.obligationType == DebtObligationType.RECEIVABLE) "Cobrar" else "Pagar"
+
+    private fun debtDirection(debt: DebtSummary) =
+        if (debt.obligationType == DebtObligationType.RECEIVABLE) MovementType.INCOME else MovementType.EXPENSE
 
     private fun currencyOrNull(code: String): Currency? = runCatching { Currency.fromCode(code) }.getOrNull()
 }

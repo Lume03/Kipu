@@ -1,6 +1,7 @@
 package com.kipu.app.feature.calendar.domain
 
 import com.kipu.app.core.finance.domain.model.Money
+import com.kipu.app.feature.movements.domain.model.MovementType
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -32,6 +33,10 @@ data class CalendarEvent(
     val source: CalendarEventSource,
     /** False cuando el objeto fuente ya no existe: se muestra como no disponible y no navega. */
     val isSourceAvailable: Boolean = true,
+    /** Dirección del dinero ya conocida por la fuente (tipo de movimiento, cobrar/pagar); solo presentación. */
+    val moneyDirection: MovementType? = null,
+    /** Emisor de la tarjeta fuente, para mostrar su marca; solo presentación. */
+    val institution: String? = null,
 )
 
 data class CalendarDay(val date: LocalDate, val events: List<CalendarEvent>)

@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 
+internal const val CALENDAR_LOAD_ERROR_MESSAGE = "Tus eventos siguen guardados. Puedes cambiar de mes o reintentar."
+
 /** Estados explícitos de la pantalla de calendario. */
 sealed interface CalendarContent {
     data object Loading : CalendarContent
@@ -86,7 +88,7 @@ class CalendarViewModel @Inject constructor(
         is LocalAccess.Available -> observeCalendarMonth(access.userId, month, zone)
             .map<CalendarMonth, CalendarContent> { if (it.isEmpty) CalendarContent.Empty else CalendarContent.Loaded(it) }
             .onStart { emit(CalendarContent.Loading) }
-            .catch { emit(CalendarContent.Error("No se pudo cargar el calendario.")) }
+            .catch { emit(CalendarContent.Error(CALENDAR_LOAD_ERROR_MESSAGE)) }
         is LocalAccess.Protected -> flowOf(CalendarContent.Loading)
         LocalAccess.NoOwner -> flowOf(CalendarContent.Error("Inicia sesión para ver tu calendario."))
     }
