@@ -1,5 +1,7 @@
 # Verificación de sincronización remota de Planificación — 2026-10-25
 
+**Seguimiento:** los bloqueos de Planificación de este corte se corrigieron en la [activación del 2026-10-26 UTC](activacion-sync-planificacion-2026-10-26.md), con resultados reales y límites documentados. Este informe conserva el diagnóstico previo.
+
 ## Dictamen
 
 **NO APROBADA como sincronización integral.** La persistencia local y una interfaz actualizada no prueban persistencia remota. Se contrastaron el APK instalado, las colas Room del teléfono conectado, el catálogo/ACL/RLS de Supabase y sus logs. No se desplegaron migraciones ni se activaron comandos remotos de Metas.
