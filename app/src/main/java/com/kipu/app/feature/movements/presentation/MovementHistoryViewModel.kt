@@ -153,6 +153,7 @@ class MovementHistoryViewModel @Inject constructor(
     private val billingRepository: com.kipu.app.feature.plans.purchase.BillingPurchaseRepository? = null,
     private val refundTransactionUseCase: RegisterRefundTransaction? = null,
     private val refundRepository: MovementRefundRepository? = null,
+    private val syncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler? = null,
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -464,6 +465,12 @@ class MovementHistoryViewModel @Inject constructor(
     }
 
     fun onRetryHistory() { _readRetry.update { it + 1 } }
+
+    /** Network is back: push pending rows now instead of waiting for a retry backoff. */
+    fun onSyncPending() {
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        syncScheduler?.scheduleSync(owner)
+    }
 
     fun onLoadMore() {
         val history = _history.value

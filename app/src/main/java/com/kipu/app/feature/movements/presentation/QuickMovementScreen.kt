@@ -318,7 +318,7 @@ fun QuickMovementContent(
     var showDestinationAccountPicker by remember { mutableStateOf(false) }
     var sourceAccountPickerCurrency by remember { mutableStateOf<String?>(null) }
     var showOptionalFields by remember { mutableStateOf(false) }
-    val offline = rememberQuickMovementOffline()
+    val offline = rememberNetworkOffline()
     val balanceMasked = LocalBalanceMasked.current
 
     // Separate field validation errors from general transient errors
@@ -1723,7 +1723,7 @@ private fun datePickerMillisToLocalInstant(selectedDateMillis: Long, occurredAt:
 }
 
 @Composable
-private fun rememberQuickMovementOffline(): Boolean {
+internal fun rememberNetworkOffline(): Boolean {
     val context = LocalContext.current
     val connectivity = remember(context) { context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
     fun connected(): Boolean = connectivity.getNetworkCapabilities(connectivity.activeNetwork)

@@ -418,114 +418,17 @@ fun MovementHistoryRoute(
                         )
                     }
 
-                    // Summary Card for Filtered Query (pre-computed in ViewModel)
-                    val totalMovCount = uiState.totalFilteredCount
-                    val netByCurrency = uiState.netByCurrency
+                    MovementAppliedFilters(
+                        uiState,
+                        viewModel::onRemoveFilter,
+                        Modifier.fillMaxWidth(),
+                    )
 
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
-                        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f, fill = false)) {
-                                    Text(
-                                        text = "BALANCE NETO",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.6.sp,
-                                            fontSize = 11.sp,
-                                        ),
-                                        color = emeraldColors.secondaryMuted,
-                                    )
-                                    Text(
-                                        text = "Resultados filtrados",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp,
-                                        ),
-                                        color = emeraldColors.secondaryMuted,
-                                    )
-                                }
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = emeraldColors.pillTrack,
-                                ) {
-                                    Text(
-                                        text = if (totalMovCount == 1L) "1 mov" else "$totalMovCount movs",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
-                                        ),
-                                        color = emeraldColors.secondaryMuted,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            val currenciesToShow = remember(netByCurrency) {
-                                if (netByCurrency.isEmpty()) listOf("PEN")
-                                else {
-                                    val list = mutableListOf<String>()
-                                    if (netByCurrency.containsKey("PEN")) list.add("PEN")
-                                    if (netByCurrency.containsKey("USD")) list.add("USD")
-                                    netByCurrency.keys.filter { it != "PEN" && it != "USD" }.forEach { list.add(it) }
-                                    list
-                                }
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                currenciesToShow.forEach { currency ->
-                                    val netMinor = netByCurrency[currency] ?: BigInteger.ZERO
-                                    val (prefix, formattedAmount) = formatSignedBigIntegerMinor(netMinor)
-                                    val symbol = when (currency) {
-                                        "PEN" -> "S/"
-                                        "USD" -> "$"
-                                        else -> currency
-                                    }
-                                    val netColor = when {
-                                        netMinor > BigInteger.ZERO -> emeraldColors.incomeText
-                                        netMinor < BigInteger.ZERO -> emeraldColors.expenseText
-                                        else -> emeraldColors.primaryText
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        if (currenciesToShow.size > 1) {
-                                            Text(
-                                                text = currency,
-                                                style = MaterialTheme.typography.labelMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.sp,
-                                                ),
-                                                color = emeraldColors.secondaryMuted,
-                                            )
-                                        }
-                                        MoneyText(
-                                            amount = "$prefix$formattedAmount",
-                                            currencySymbol = symbol,
-                                            style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = if (currenciesToShow.size > 1) 20.sp else 24.sp,
-                                                fontFeatureSettings = "tnum",
-                                            ),
-                                            color = netColor,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    MovementBalanceCard(
+                        totalCount = uiState.totalFilteredCount,
+                        netByCurrency = uiState.netByCurrency,
+                        filtered = uiState.searchQuery.isNotBlank() || uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null,
+                    )
 
                     // System / Access cards
                     MovementAccessCard(
