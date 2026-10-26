@@ -42,6 +42,7 @@ class GoalListViewModel @Inject constructor(
     private val sessionCoordinator: SessionCoordinator,
     private val featureAccessCacheDao: FeatureAccessCacheDao,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
+    private val instruments: com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(GoalManagementUiState())
     val state = _state.asStateFlow()
@@ -58,9 +59,10 @@ class GoalListViewModel @Inject constructor(
                 }
                 _state.value = GoalManagementUiState(userId = userId, isLoading = true)
                 val premium = hasVerifiedPremium(userId)
-                combine(repository.observeGoals(userId), repository.observeBackingAccounts(userId)) { goals, accounts ->
-                    goals to accounts
-                }.flatMapLatest { (goals, accounts) ->
+                combine(repository.observeGoals(userId), repository.observeBackingAccounts(userId),
+                    instruments?.observeAccounts(activeOnly = true) ?: flowOf(emptyList())) { goals, accounts, visuals ->
+                    Triple(goals, accounts, visuals)
+                }.flatMapLatest { (goals, accounts, visuals) ->
                     if (goals.isEmpty()) {
                         flowOf(emptyList())
                     } else {
@@ -71,18 +73,19 @@ class GoalListViewModel @Inject constructor(
                         }) { progress ->
                             goals.mapIndexed { index, goal -> GoalListItemState(goal, progress[index]) }
                         }
-                    }.map { entries -> Triple(entries, accounts, premium) }
+                    }.map { entries -> Triple(entries, accounts, visuals) }
                 }.catch {
                     _state.update {
                         it.copy(isLoading = false, isSaving = false, errorMessage = "No se pudieron cargar las metas.")
                     }
-                }.collect { (entries, accounts, hasPremium) ->
+                }.collect { (entries, accounts, visuals) ->
                     _state.value = _state.value.copy(
                         userId = userId,
                         goals = entries,
                         backingAccounts = accounts,
                         isLoading = false,
-                        hasPremiumAccess = hasPremium,
+                        hasPremiumAccess = premium,
+                        accountOptions = visuals,
                     )
                 }
             }

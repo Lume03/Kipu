@@ -76,6 +76,8 @@ fun GoalDetailScreen(
     startWithWithdrawal: Boolean = false,
     onCreateGoal: (() -> Unit)? = null,
     initialAction: String? = null,
+    onReserve: ((Money, String, Boolean, String?) -> Unit)? = null,
+    fundsState: GoalContributionUiState? = null,
 ) {
     val colors = rememberCalmEmeraldColors()
     var optionsExpanded by remember { mutableStateOf(false) }
@@ -100,6 +102,20 @@ fun GoalDetailScreen(
     val releasableAccounts = state.backingAccounts.filter { (goalReservedAccounts[it.id] ?: 0L) > 0L }
     val candidateGoals = state.otherGoals.filter {
         it.currency == goal?.currency && it.status == GoalStatus.ACTIVE
+    }
+
+    if (openDialog == GoalDetailDialog.RELEASE) {
+        GoalContributionSheet(
+            state = fundsState?.copy(
+                isSaving = fundsState.isSaving || state.isSaving,
+                errorMessage = state.errorMessage ?: fundsState.errorMessage,
+                message = state.message ?: fundsState.message,
+            ) ?: GoalContributionUiState(state.userId, goal, state.backingAccounts, state.isLoading, state.isSaving, state.errorMessage, state.message),
+            onNavigateBack = { openDialog = null },
+            onReserve = onReserve ?: { _, _, _, _ -> onContribute() },
+            withdrawalState = state, onRelease = onRelease, initialWithdrawal = true,
+        )
+        return
     }
 
     Scaffold(
@@ -203,9 +219,8 @@ fun GoalDetailScreen(
                             Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                GoalMonthlyContributions(state.events)
+                GoalMonthlyContributions(state.events, goal, progress?.reserved?.minorUnits ?: 0L)
                 GoalEventHistory(state.events)
-                GoalBackingStatus(state.backingAccounts)
                 Spacer(Modifier.height(20.dp))
             }
         }
@@ -228,44 +243,7 @@ fun GoalDetailScreen(
     }
 
     when (openDialog) {
-        GoalDetailDialog.RELEASE -> {
-            var selectedAccount by rememberSaveable(goal?.id) { mutableStateOf(releasableAccounts.firstOrNull()?.id.orEmpty()) }
-            val account = releasableAccounts.firstOrNull { it.id == selectedAccount }
-            val releaseAmount = account?.let { parseAmount(amountText, it.currency) }
-            val maxRelease = account?.let { goalReservedAccounts[it.id] } ?: 0L
-            val needsReplacement = goal != null && progress != null && goal.status == GoalStatus.COMPLETED &&
-                releaseAmount != null && progress.reserved.minus(releaseAmount).let { it < goal.target } &&
-                !state.hasPremiumAccess && state.otherGoals.count { it.status == GoalStatus.ACTIVE } >= 2
-            val canRelease = releaseAmount != null && releaseAmount.minorUnits <= maxRelease &&
-                (!needsReplacement || destinationGoalId in candidateGoals.map { it.id })
-            AlertDialog(
-                onDismissRequest = { openDialog = null },
-                title = { Text("Liberar reserva") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Liberar devuelve disponibilidad a la cuenta; no crea ingreso ni movimiento.")
-                        AccountPicker(releasableAccounts, selectedAccount, { accountMenuExpanded = it }, accountMenuExpanded, "goal_detail_account_picker") { selectedAccount = it }
-                        AmountInput(amountText, { amountText = it })
-                        if (needsReplacement) {
-                            Text("Al liberar, esta meta volverá a estar activa y se alcanzaría el límite Free.")
-                            GoalPicker(candidateGoals.map { it.id to it.name }, destinationGoalId,
-                                { destinationMenuExpanded = it }, destinationMenuExpanded,
-                                testTag = "goal_release_replacement_picker") { destinationGoalId = it }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(enabled = canRelease, onClick = {
-                        if (account != null && releaseAmount != null) {
-                            onRelease(account.id, releaseAmount, destinationGoalId.takeIf { needsReplacement })
-                            openDialog = null
-                            amountText = ""
-                        }
-                    }, modifier = Modifier.testTag("goal_release_confirm")) { Text("Liberar") }
-                },
-                dismissButton = { TextButton(onClick = { openDialog = null; amountText = ""; destinationGoalId = "" }, modifier = Modifier.testTag("goal_release_cancel")) { Text("Cancelar") } },
-            )
-        }
+        GoalDetailDialog.RELEASE -> Unit // The shared funds screen above owns withdrawal.
         GoalDetailDialog.REASSIGN -> {
             var selectedAccount by rememberSaveable(goal?.id) { mutableStateOf(releasableAccounts.firstOrNull()?.id.orEmpty()) }
             val account = releasableAccounts.firstOrNull { it.id == selectedAccount }
@@ -362,7 +340,7 @@ private fun AccountPicker(
 }
 
 @Composable
-private fun GoalPicker(
+internal fun GoalPicker(
     goals: List<Pair<String, String>>,
     selectedId: String,
     onExpandedChange: (Boolean) -> Unit,

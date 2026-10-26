@@ -157,12 +157,17 @@ fun GoalListScreen(
                                 MoneyText(com.kipu.app.core.finance.domain.model.Money(entries.sumOf { it.progress.reserved.minorUnits }, currency),
                                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = colors.onPrimaryDeep)
                             }
-                            Text("Dinero ya apartado: no cuenta como disponible para gastar.", style = MaterialTheme.typography.bodySmall)
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(if (state.hasPremiumAccess) "PRO · metas ilimitadas" else "${state.activeGoalCount.coerceAtMost(2)} de 2 activas",
-                                    style = MaterialTheme.typography.labelMedium)
-                                if (!state.hasPremiumAccess) Text(if (state.freeGoalLimitReached) "Plan Básico: límite alcanzado" else "Plan Básico",
-                                    style = MaterialTheme.typography.labelMedium)
+                            Text("Dinero tuyo apartado: no cuenta como disponible para gastar.", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = 0.16f)) {
+                                    Text(if (state.hasPremiumAccess) "PRO · metas ilimitadas" else "${state.activeGoalCount.coerceAtMost(2)} de 2 activas",
+                                        Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                                }
+                                if (!state.hasPremiumAccess) Surface(shape = RoundedCornerShape(20.dp), color = colors.warningBg) {
+                                    Text(if (state.freeGoalLimitReached) "Plan Básico · límite alcanzado" else "Plan Básico",
+                                        Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+                                        color = colors.warningText)
+                                }
                             }
                         }
                     }
@@ -174,7 +179,7 @@ fun GoalListScreen(
                         atLimit = state.freeGoalLimitReached,
                     )
                 }
-                item {
+                if (!embedded) item {
                     if (state.freeGoalLimitReached) {
                         Button(
                             onClick = { showPlanLimit = true },
@@ -307,7 +312,7 @@ private fun PlanningSelector(onOpenBudgets: (() -> Unit)? = null) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Default.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-            Text("  Metas", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Text("  Metas", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
         }
         Row(
             modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
@@ -324,7 +329,7 @@ private fun PlanningSelector(onOpenBudgets: (() -> Unit)? = null) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Default.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-            Text("  Presupuestos", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("  Presupuestos", color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -407,6 +412,7 @@ private fun GoalSummaryCard(
     onContribute: () -> Unit,
 ) {
     val goal = item.goal
+    val colors = rememberCalmEmeraldColors()
     val progress = item.progress.progressPercent
     val progressFraction = progress.divide(BigDecimal.valueOf(100)).toFloat().coerceIn(0f, 1f)
     Card(
@@ -422,7 +428,7 @@ private fun GoalSummaryCard(
                     Text(goal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(
-                            goal.status.label(),
+                            if (goal.status == GoalStatus.ACTIVE) goal.targetDate?.let { "Meta ${it.format(DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale("es", "PE")))}" } else goal.status.label(),
                             linkedAccountName?.let { "Cuenta $it" } ?: "Meta virtual",
                         ).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
@@ -442,31 +448,42 @@ private fun GoalSummaryCard(
                     } else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MoneyText(item.progress.reserved, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("  de ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                MoneyText(goal.target, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.weight(1f))
-                Text("${progress.stripTrailingZeros().toPlainString()}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Text("Reservado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        MoneyText(item.progress.reserved, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(" / ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        MoneyText(goal.target, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Faltan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MoneyText(
+                        com.kipu.app.core.finance.domain.model.Money(
+                            (goal.target.minorUnits - item.progress.reserved.minorUnits).coerceAtLeast(0L), goal.target.currency,
+                        ),
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    )
+                }
             }
             LinearProgressIndicator(
                 progress = { progressFraction },
                 drawStopIndicator = {},
-                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Reservado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                goal.targetDate?.let { date ->
-                    Text("Fecha estimada · ${date.format(DateTimeFormatter.ofPattern("MMM yyyy"))}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("${progress.stripTrailingZeros().toPlainString()}% reservado", style = MaterialTheme.typography.labelMedium, color = colors.primaryDeep,
+                    modifier = Modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(20.dp)).padding(horizontal = 12.dp, vertical = 6.dp))
             }
-            if (goal.status == GoalStatus.ACTIVE) OutlinedButton(
+            if (goal.status == GoalStatus.ACTIVE) Button(
                 onClick = onContribute,
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = colors.primaryDeep),
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
-                Text("  Aportar a meta")
+                Text("  Aportar", fontWeight = FontWeight.SemiBold)
             }
         }
     }

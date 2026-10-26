@@ -71,9 +71,22 @@ fun GoalContributionSheet(
     onNavigateBack: () -> Unit,
     onReserve: (amount: Money, backingAccountId: String, confirmTransfer: Boolean, sourceAccountId: String?) -> Unit,
     onWithdraw: (() -> Unit)? = null,
+    withdrawalState: GoalDetailUiState? = null,
+    onRelease: ((String, Money, String?) -> Unit)? = null,
+    initialWithdrawal: Boolean = false,
 ) {
     val colors = rememberCalmEmeraldColors()
     val goal = state.goal
+    var withdrawing by rememberSaveable(goal?.id) { mutableStateOf(initialWithdrawal) }
+    var releaseAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
+    var replacementId by rememberSaveable(goal?.id) { mutableStateOf("") }
+    var replacementMenu by remember { mutableStateOf(false) }
+    val reserves = remember(withdrawalState?.events) {
+        withdrawalState?.events.orEmpty().filterNot { it.transactionVoided }.groupBy { it.backingAccountId }
+            .mapValues { (_, entries) -> entries.fold(0L) { sum, event -> Math.addExact(sum, event.delta.minorUnits) } }
+    }
+    val releasable = state.accounts.filter { (reserves[it.id] ?: 0L) > 0L }
+    val releaseAccount = releasable.firstOrNull { it.id == releaseAccountId } ?: releasable.firstOrNull()
     val focusManager = LocalFocusManager.current
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var backingAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
@@ -95,24 +108,37 @@ fun GoalContributionSheet(
             selectedBacking?.available?.let { it >= amount } == true
         }
 
+    val maxRelease = reserves[releaseAccount?.id] ?: 0L
+    val candidates = withdrawalState?.otherGoals.orEmpty().filter { it.currency == goal?.currency && it.status == GoalStatus.ACTIVE }
+    val needsReplacement = goal?.status == GoalStatus.COMPLETED && amount != null &&
+        (withdrawalState?.progress?.reserved?.minorUnits ?: 0L) - amount.minorUnits < goal.target.minorUnits &&
+        withdrawalState?.hasPremiumAccess == false && candidates.size >= 2
+    val canRelease = amount != null && amount.minorUnits <= maxRelease && releaseAccount != null &&
+        (!needsReplacement || candidates.any { it.id == replacementId })
     Scaffold(
         containerColor = colors.background,
         bottomBar = {
             if (goal != null && !state.isLoading) Surface(color = colors.surfaceCard) {
                 Button(
-                    onClick = { focusManager.clearFocus(); amount?.let { onReserve(it, chosenBackingId, effectiveTransfer, sourceAccountId.takeIf(String::isNotBlank)) } },
-                    enabled = !state.isSaving && canReserve,
-                    modifier = Modifier.navigationBarsPadding().imePadding().padding(16.dp).fillMaxWidth().heightIn(min = 52.dp).testTag("goal_contribution_submit"),
+                    onClick = {
+                        focusManager.clearFocus()
+                        amount?.let {
+                            if (withdrawing) releaseAccount?.let { account -> onRelease?.invoke(account.id, it, replacementId.takeIf { needsReplacement }) }
+                            else onReserve(it, chosenBackingId, effectiveTransfer, sourceAccountId.takeIf(String::isNotBlank))
+                        }
+                    },
+                    enabled = !state.isSaving && withdrawalState?.isSaving != true && if (withdrawing) canRelease else canReserve,
+                    modifier = Modifier.navigationBarsPadding().imePadding().padding(16.dp).fillMaxWidth().heightIn(min = 52.dp).testTag(if (withdrawing) "goal_release_confirm" else "goal_contribution_submit"),
                     shape = RoundedCornerShape(16.dp),
                 ) {
-                    Text(if (state.isSaving) "Guardando…" else if (effectiveTransfer) "Trasladar y reservar" else "Aportar", fontWeight = FontWeight.Bold)
-                    if (!state.isSaving && !effectiveTransfer && amount != null) MoneyText(amount, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge)
+                    Text(if (state.isSaving || withdrawalState?.isSaving == true) "Guardando…" else if (withdrawing) "Retirar reserva" else if (effectiveTransfer) "Trasladar y reservar" else "Aportar", fontWeight = FontWeight.Bold)
+                    if (!state.isSaving && !withdrawing && !effectiveTransfer && amount != null) MoneyText(amount, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge)
                 }
             }
         },
         topBar = {
             TopAppBar(
-                title = { Text("Aportar a ${goal?.name.orEmpty()}") },
+                title = { Text("${if (withdrawing) "Retirar de" else "Aportar a"} ${goal?.name.orEmpty()}") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
                 },
@@ -126,10 +152,15 @@ fun GoalContributionSheet(
                 Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                onWithdraw?.let { withdraw ->
+                if (onRelease != null || onWithdraw != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KipuFilterChip(selected = true, onClick = {}, label = { Text("Aportar") }, modifier = Modifier.weight(1f))
-                        KipuFilterChip(selected = false, onClick = withdraw, label = { Text("Retirar") }, modifier = Modifier.weight(1f))
+                        KipuFilterChip(selected = !withdrawing, onClick = { focusManager.clearFocus(); withdrawing = false; amountText = "" },
+                            label = { Text("Aportar") }, enabled = goal.status == GoalStatus.ACTIVE,
+                            modifier = Modifier.weight(1f).testTag("goal_funds_contribute"))
+                        KipuFilterChip(selected = withdrawing, onClick = {
+                            focusManager.clearFocus()
+                            if (onRelease != null) { withdrawing = true; amountText = "" } else onWithdraw?.invoke()
+                        }, label = { Text("Retirar") }, modifier = Modifier.weight(1f).testTag("goal_funds_withdraw"))
                     }
                 }
                 KipuCard(containerColor = colors.surfaceCard, borderColor = null, shape = RoundedCornerShape(24.dp), elevation = 1.dp) {
@@ -147,16 +178,32 @@ fun GoalContributionSheet(
                             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             modifier = Modifier.fillMaxWidth().testTag("goal_contribution_amount"),
                         )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(100, 300, 500).forEach { quick ->
-                                KipuFilterChip(selected = amount?.minorUnits == quick * 100L,
-                                    onClick = { amountText = quick.toString() },
-                                    label = { Text("${goal.currency.symbol()} $quick") })
-                            }
-                        }
                     }
                 }
+                if (withdrawing) {
+                    Text("Liberar de la reserva", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("El dinero vuelve a estar disponible en la misma cuenta. No crea ingreso ni transfiere dinero.", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                    releasable.forEach { account ->
+                        OutlinedButton(onClick = { releaseAccountId = account.id }, modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(if (releaseAccount?.id == account.id) 2.dp else 1.dp, if (releaseAccount?.id == account.id) colors.primaryDeep else colors.borderSubtle)) {
+                            Column(Modifier.weight(1f)) { Text(account.name, fontWeight = FontWeight.Bold); Text("Reservado en esta meta", style = MaterialTheme.typography.bodySmall) }
+                            MoneyText(reserves[account.id] ?: 0L, currency = account.currency, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (releasable.isEmpty()) Text("Esta meta no tiene reservas que puedas retirar.")
+                    if (amount != null && amount.minorUnits > maxRelease) Text("El importe supera lo reservado en esta cuenta para esta meta.", color = MaterialTheme.colorScheme.error)
+                    if (needsReplacement) {
+                        Text("Al retirar, esta meta vuelve a estar activa. Elige qué otra meta se bloqueará por el límite del plan.")
+                        GoalPicker(candidates.map { it.id to it.name }, replacementId, { replacementMenu = it }, replacementMenu,
+                            testTag = "goal_release_replacement_picker") { replacementId = it }
+                    }
+                    withdrawalState?.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    withdrawalState?.message?.let { Text(it, color = colors.primaryDeep) }
+                    androidx.compose.material3.TextButton(onClick = onNavigateBack, modifier = Modifier.testTag("goal_release_cancel")) { Text("Volver a la meta") }
+                } else {
                 Text("Aportar desde", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Disponible = saldo confirmado menos lo reservado en todas tus metas.",
+                    style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
                 Column(Modifier.selectableGroup().testTag("goal_backing_account_picker"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     accounts.forEach { account ->
                         val selected = account.id == chosenBackingId
@@ -211,6 +258,7 @@ fun GoalContributionSheet(
                     selectedSource?.let { Text("Saldo libre en origen: ${it.available.minorUnits.asCurrency()}") }
                 }
                 CardNote(effectiveTransfer)
+                }
                 state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Spacer(Modifier.height(12.dp))

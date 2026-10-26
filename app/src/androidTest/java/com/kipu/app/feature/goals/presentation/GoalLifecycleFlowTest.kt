@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
@@ -53,7 +54,8 @@ class GoalLifecycleFlowTest {
         }
 
         compose.onNodeWithTag("goal_release").performClick()
-        compose.onNodeWithTag("goal_detail_amount").performTextInput("25.00")
+        compose.onNodeWithTag("goal_contribution_amount").performTextInput("25.00")
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
         compose.onNodeWithTag("goal_release_confirm").performClick()
         compose.runOnIdle { assertEquals("account" to Money(2_500L, Currency.PEN), released) }
     }
@@ -72,9 +74,10 @@ class GoalLifecycleFlowTest {
         }
 
         compose.onNodeWithTag("goal_release").performClick()
-        compose.onNodeWithTag("goal_detail_amount").performTextInput("20.00")
-        compose.onNodeWithTag("goal_release_replacement_picker").assertIsDisplayed()
-        compose.onNodeWithTag("goal_release_replacement_picker").performClick()
+        compose.onNodeWithTag("goal_contribution_amount").performTextInput("20.00")
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
+        compose.onNodeWithTag("goal_release_replacement_picker").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("goal_release_replacement_picker").performScrollTo().performClick()
         compose.onNodeWithText("Meta uno").assertIsDisplayed()
         compose.onNodeWithText("Meta dos").assertIsDisplayed()
         compose.onNodeWithText("Meta uno").performClick()
@@ -104,10 +107,11 @@ class GoalLifecycleFlowTest {
         }
 
         compose.onNodeWithTag("goal_release").performClick()
-        compose.onNodeWithTag("goal_detail_amount").performTextInput("20.00")
-        compose.onNodeWithTag("goal_release_replacement_picker").performClick()
+        compose.onNodeWithTag("goal_contribution_amount").performTextInput("20.00")
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
+        compose.onNodeWithTag("goal_release_replacement_picker").performScrollTo().performClick()
         compose.onNodeWithText("Meta uno").performClick()
-        compose.onNodeWithTag("goal_release_cancel").performClick()
+        compose.onNodeWithTag("goal_release_cancel").performScrollTo().performClick()
 
         compose.runOnIdle {
             assertEquals("cancelling replacement selection must not dispatch RELEASE_GOAL", 0, releaseCalls)
@@ -128,8 +132,9 @@ class GoalLifecycleFlowTest {
 
         compose.onNodeWithTag("goal_release").performClick()
         compose.onAllNodesWithTag("goal_release_replacement_picker").assertCountEquals(0)
-        compose.onNodeWithTag("goal_detail_amount").performTextInput("25.00")
-        compose.onNodeWithTag("goal_release_cancel").performClick()
+        compose.onNodeWithTag("goal_contribution_amount").performTextInput("25.00")
+        compose.onNodeWithTag("goal_contribution_amount").performImeAction()
+        compose.onNodeWithTag("goal_release_cancel").performScrollTo().performClick()
         compose.runOnIdle { assertFalse(released) }
     }
 

@@ -97,6 +97,7 @@ fun GoalFormScreen(
     replacementCandidates: List<Goal> = emptyList(),
     currentReserved: Money? = null,
     hasPremiumAccess: Boolean = false,
+    accountOptions: List<com.kipu.app.feature.accounts.domain.model.Account> = emptyList(),
     onSave: (goalId: String?, name: String, target: Money, targetDate: LocalDate?, linkedAccountId: String?, replacementGoalId: String?, iconKey: String) -> Unit,
 ) {
     var iconKey by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.iconKey ?: "savings") }
@@ -203,39 +204,25 @@ fun GoalFormScreen(
                 }
             }
 
-            if (existingGoal == null) {
-                Text("Parte de una idea", style = MaterialTheme.typography.titleSmall)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Fondo de emergencia" to "shield", "Viaje" to "flight", "Laptop" to "laptop", "Hogar" to "home").forEach { (idea, icon) ->
-                        com.kipu.app.ui.component.KipuFilterChip(selected = name == idea, onClick = { name = idea; iconKey = icon }, label = { Text(idea) })
-                    }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { iconSheetVisible = true }, shape = RoundedCornerShape(16.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                    modifier = Modifier.size(56.dp).testTag("goal_icon_picker").semantics { contentDescription = "Cambiar icono de la meta" }) {
+                    Icon(goalIcon(iconKey).image, null, tint = kipuColors.primary)
                 }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FieldLabel("NOMBRE DE LA META", required = true)
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it; nameEdited = true },
-                    placeholder = { Text("Ej. Comprar laptop, Fondo de viaje") },
-                    singleLine = true,
-                    isError = nameError,
-                    modifier = Modifier.fillMaxWidth().testTag("goal_form_name"),
-                    shape = RoundedCornerShape(16.dp),
-                    supportingText = if (nameError) ({ Text("Ingresa un nombre para tu meta de ahorro") }) else null,
-                )
-            }
-
-            OutlinedButton(
-                onClick = { iconSheetVisible = true },
-                modifier = Modifier.fillMaxWidth().testTag("goal_icon_picker"),
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                GoalIconBadge(iconKey)
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text("Icono de la meta", style = MaterialTheme.typography.labelLarge)
-                    Text(goalIcon(iconKey).label, style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FieldLabel("NOMBRE DE LA META", required = true)
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it; nameEdited = true },
+                        placeholder = { Text("Ej. Comprar laptop, Fondo de viaje") },
+                        singleLine = true,
+                        isError = nameError,
+                        modifier = Modifier.fillMaxWidth().testTag("goal_form_name"),
+                        shape = RoundedCornerShape(16.dp),
+                        supportingText = if (nameError) ({ Text("Ingresa un nombre para tu meta de ahorro") }) else null,
+                    )
                 }
-                Text("Cambiar")
             }
 
             Column(
@@ -306,18 +293,13 @@ fun GoalFormScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FieldLabel("FECHA OBJETIVO", suffix = "(opcional)")
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("3 meses" to 3L, "6 meses" to 6L, "1 año" to 12L, "2 años" to 24L, "Sin fecha" to 0L).forEach { (label, months) ->
-                        val date = if (months == 0L) "" else LocalDate.now().plusMonths(months).toString()
-                        com.kipu.app.ui.component.KipuFilterChip(selected = dateText == date, onClick = { dateText = date }, label = { Text(label) })
-                    }
-                }
                 KipuOptionalDateField(
                     value = dateText,
                     onValueChange = { dateText = it.take(10) },
                     label = stringResource(R.string.optional_date_goal_label),
                     calendarContentDescription = stringResource(R.string.optional_date_goal_calendar),
                     tag = "goal_form_date",
+                    calendarOnly = true,
                     enabled = !isSaving,
                     isError = dateError,
                     shape = RoundedCornerShape(16.dp),
@@ -349,7 +331,9 @@ fun GoalFormScreen(
                             modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(kipuColors.surfaceSubtle),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
+                            val visual = accountOptions.firstOrNull { it.id.value == linkedAccount }
+                            if (visual != null) com.kipu.app.feature.movements.presentation.AccountBadge(visual)
+                            else Icon(
                                 if (selectedAccount == null) Icons.Default.Savings else Icons.Default.AccountBalance,
                                 contentDescription = null,
                                 tint = kipuColors.primary,
@@ -376,6 +360,7 @@ fun GoalFormScreen(
                         Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+                if (linkedAccount != null) TextButton(onClick = { linkedAccount = null }) { Text("Quitar cuenta vinculada") }
                 Text(
                     "La cuenta real es solo una referencia; la reserva se elige al aportar.",
                     style = MaterialTheme.typography.bodySmall,
@@ -416,7 +401,20 @@ fun GoalFormScreen(
         }
     }
 
-    if (accountSheetVisible) {
+    if (accountSheetVisible && accountOptions.isNotEmpty()) {
+        val eligibleIds = compatibleAccounts.map { it.id }.toSet()
+        com.kipu.app.feature.movements.presentation.AccountSelectorBottomSheet(
+            onDismissRequest = { accountSheetVisible = false },
+            accounts = accountOptions.filter { it.id.value in eligibleIds },
+            selectedAccountId = linkedAccount,
+            allowCreditCards = false,
+            accountBalances = compatibleAccounts.associate { it.id to it.confirmedBalance },
+            balancesLoaded = true, showNewAccountAction = false,
+            title = "Vincular cuenta de respaldo",
+            subtitle = "Es una referencia para aportar. Vincular no reserva ni mueve dinero.",
+            onAccountSelected = { linkedAccount = it.id.value; accountSheetVisible = false },
+        )
+    } else if (accountSheetVisible) {
         ModalBottomSheet(
             onDismissRequest = { accountSheetVisible = false },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),

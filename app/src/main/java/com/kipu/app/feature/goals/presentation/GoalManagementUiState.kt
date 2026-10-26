@@ -18,6 +18,7 @@ data class GoalManagementUiState(
     val hasPremiumAccess: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
+    val accountOptions: List<com.kipu.app.feature.accounts.domain.model.Account> = emptyList(),
 ) {
     val activeGoalCount: Int get() = goals.count { it.goal.status == com.kipu.app.feature.goals.domain.model.GoalStatus.ACTIVE }
     val freeGoalLimitReached: Boolean get() = !hasPremiumAccess && activeGoalCount >= FREE_GOAL_LIMIT
