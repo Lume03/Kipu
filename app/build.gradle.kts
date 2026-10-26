@@ -87,6 +87,7 @@ android {
             matchingFallbacks += listOf("debug")
             buildConfigField("String", "SUPABASE_URL", "\"\"")
             buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"\"")
+            buildConfigField("boolean", "GOALS_REMOTE_COMMANDS_ENABLED", "false")
             buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", testPlanOverridesEnabled.toString())
         }
         release {
