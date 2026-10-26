@@ -73,8 +73,9 @@ class SyncGoalsWorker @AssistedInject constructor(
         val activeOwner = sessionCoordinator.currentOwner?.verifiedUserId
         val userId = inputData.getString(KEY_USER_ID) ?: activeOwner
         if (userId.isNullOrBlank()) return Result.retry()
-        if (activeOwner != null && activeOwner != userId) return Result.retry()
+        if (activeOwner != userId) return Result.retry()
 
+        localDataSource.repairUnsentLegacyRevisions(userId)
         var failed = false
         for (index in 0 until MAX_COMMANDS_PER_RUN) {
             val now = System.currentTimeMillis()
@@ -84,6 +85,7 @@ class SyncGoalsWorker @AssistedInject constructor(
             }
         }
         if (!pullChanges(userId)) failed = true
+        if (outboxDao.getPendingForUser(userId).isNotEmpty()) failed = true
         return if (failed) Result.retry() else Result.success()
     }
 

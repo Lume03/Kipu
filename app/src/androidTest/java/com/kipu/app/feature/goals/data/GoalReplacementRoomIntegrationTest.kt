@@ -67,6 +67,71 @@ class GoalReplacementRoomIntegrationTest {
     }
 
     @Test
+    fun unsentZeroBasedChainIsRepairedWithOriginalRequestsRetained() = runBlocking {
+        seedLegacyChain()
+        assertEquals(2, local.repairUnsentLegacyRevisions(userId))
+        assertEquals(0, local.repairUnsentLegacyRevisions(userId))
+        val commands = database.goalOutboxDao().getPendingForUser(userId).sortedBy { it.createdAt }
+        assertEquals(listOf("legacy-create", "legacy-update"), commands.map { it.operationId })
+        assertEquals(1L, commands.last().expectedRevision)
+        assertEquals(2L, database.goalDao().getGoalIncludingArchived(userId, "legacy")!!.revision)
+        commands.forEach { command ->
+            val receipt = database.movementDao().getReceipt(userId, command.operationId)!!
+            assertTrue(receipt.responsePayload!!.contains("original_request"))
+            assertEquals(command.requestHash, receipt.requestHash)
+        }
+        val first = database.goalOutboxDao().claimPending(userId, 1000, 1).single()
+        local.finishRemoteCommand(first, "APPLIED", null, 1L)
+        assertGoal("legacy", "ACTIVE", 2L, "PENDING")
+        assertEquals("legacy-update", database.goalOutboxDao().claimPending(userId, 1001, 1).single().operationId)
+    }
+
+    @Test
+    fun attemptedLegacyChainStopsWithoutChangingPayloadOrHash() = runBlocking {
+        seedLegacyChain()
+        val create = database.goalOutboxDao().get(userId, "legacy-create")!!
+        database.goalOutboxDao().update(create.copy(attemptCount = 1))
+        assertEquals(0, local.repairUnsentLegacyRevisions(userId))
+        val stopped = database.goalOutboxDao().get(userId, "legacy-create")!!
+        assertEquals(create.payload, stopped.payload)
+        assertEquals(create.requestHash, stopped.requestHash)
+        assertEquals("CONFLICT", stopped.state)
+        assertTrue(database.goalOutboxDao().claimPending(userId, 1000, 10).isEmpty())
+    }
+
+    @Test
+    fun confirmedNewerGoalSurvivesOldFeedSnapshots() = runBlocking {
+        seedGoal("confirmed", "ACTIVE", revision = 3)
+        val applier = GoalChangeFeedApplier(database, database.goalDao(), database.goalOutboxDao(), database.accountDao(), database.movementDao())
+        val result = applier.applyPage(userId, PullChangesResponseDto(listOf(goalChange("confirmed", 1, 1, "Old")), 1, false))
+        assertTrue(result is GoalChangeApplyResult.Applied)
+        assertGoal("confirmed", "ACTIVE", 3, "SYNCED")
+    }
+
+    private suspend fun seedLegacyChain() {
+        seedGoal("legacy", "ACTIVE", revision = 1)
+        val current = database.goalDao().getGoalIncludingArchived(userId, "legacy")!!
+        database.goalDao().upsertGoal(current.copy(syncState = "PENDING"))
+        listOf("CREATE_GOAL", "UPDATE_GOAL").forEachIndexed { index, type ->
+            val op = if (index == 0) "legacy-create" else "legacy-update"
+            val unsigned = buildJsonObject {
+                put("contract_version", 1); put("command_type", type); put("goal_id", "legacy")
+                if (index > 0) put("expected_revision", 0)
+                put("payload", buildJsonObject { put("name", "Legacy") })
+            }
+            val hash = com.kipu.app.feature.goals.domain.GoalCommandHasher.sha256(unsigned)
+            val wire = kotlinx.serialization.json.JsonObject(unsigned.toMutableMap().apply {
+                put("operation_id", kotlinx.serialization.json.JsonPrimitive(op))
+                put("request_hash", kotlinx.serialization.json.JsonPrimitive(hash))
+            })
+            database.goalOutboxDao().insert(GoalOutboxEntity(userId, op, "legacy", type, hash,
+                expectedRevision = if (index == 0) null else 0, payload = wire.toString(), createdAt = index.toLong(), updatedAt = index.toLong()))
+            database.movementDao().insertOrUpdateReceipt(com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity(
+                userId, op, hash, status = "PENDING", commandType = type, resultingRevision = index.toLong(), responsePayload = "{}"))
+        }
+    }
+
+    @Test
     fun affiliatedWalletDoesNotDuplicateGoalBacking() = runBlocking {
         seedAccountWithLedgerBalance("BBVA", 10000)
         val bank = requireNotNull(database.accountDao().getById(userId, "BBVA"))

@@ -40,7 +40,7 @@ class CreateGoal {
                 iconKey = command.iconKey,
                 colorArgb = command.colorArgb,
                 status = GoalStatus.ACTIVE,
-                revision = 0L,
+                revision = 1L,
                 createdAt = command.now,
                 updatedAt = command.now,
             ),

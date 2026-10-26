@@ -36,7 +36,7 @@ class GoalManagementTest {
         assertEquals("Viaje", goal.name)
         assertNull(goal.linkedAccountId)
         assertEquals(GoalStatus.ACTIVE, goal.status)
-        assertEquals(0L, goal.revision)
+        assertEquals(1L, goal.revision)
         assertEquals(0L, GoalProgressCalculator.calculate(goal, emptyList()).reserved.minorUnits)
     }
 

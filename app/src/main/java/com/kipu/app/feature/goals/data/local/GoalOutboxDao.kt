@@ -23,8 +23,12 @@ interface GoalOutboxDao {
 
     @Query(
         """
-        SELECT * FROM goal_command_outbox
-        WHERE user_id = :userId
+        SELECT c.* FROM goal_command_outbox c
+        WHERE c.user_id = :userId
+          AND NOT EXISTS (SELECT 1 FROM goal_command_outbox prior
+            WHERE prior.user_id=c.user_id AND prior.goal_id=c.goal_id
+              AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND COALESCE(prior.expected_revision,-1)<COALESCE(c.expected_revision,-1)))
+              AND prior.state NOT IN ('APPLIED','DUPLICATE'))
           AND (
               (state IN ('PENDING', 'RETRYABLE') AND (next_attempt_at IS NULL OR next_attempt_at <= :now))
               OR (state = 'LEASED' AND lease_until <= :now)

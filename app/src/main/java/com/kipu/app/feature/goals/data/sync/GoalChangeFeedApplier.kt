@@ -125,6 +125,7 @@ class GoalChangeFeedApplier @Inject constructor(
 
         val existing = goalDao.getGoalIncludingArchived(userId, remote.id)
         if (existing != null && remote.revision < existing.revision) {
+            if (existing.syncState == "SYNCED") return
             throw StaleGoalRevision(remote.id, existing.revision, remote.revision)
         }
         val entity = GoalEntity(

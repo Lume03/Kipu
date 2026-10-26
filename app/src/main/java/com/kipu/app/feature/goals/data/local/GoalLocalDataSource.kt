@@ -61,6 +61,72 @@ class GoalLocalDataSource @Inject constructor(
     suspend fun countLinkedTransfers(userId: String, goalId: String): Int =
         goalDao.countLinkedTransfers(userId, goalId)
 
+    /** Correct the old zero-based revision chain only before its first network attempt.
+     * Original requests remain in local receipts; operation IDs and business payloads do not change.
+     * Attempted, incomplete or composite chains require review instead of guessing a revision.
+     */
+    suspend fun repairUnsentLegacyRevisions(userId: String): Int = database.withTransaction {
+        var repaired = 0
+        for ((goalId, pending) in outboxDao.getPendingForUser(userId).groupBy { it.goalId }) {
+            val create = pending.singleOrNull { it.commandType == "CREATE_GOAL" } ?: continue
+            val createReceipt = movementDao.getReceipt(userId, create.operationId) ?: continue
+            if (createReceipt.resultingRevision != 0L) continue
+            val goal = goalDao.getGoalIncludingArchived(userId, goalId) ?: continue
+            val ordered = listOf(create) + pending.filter { it != create }.sortedBy { it.expectedRevision }
+            val receipts = ordered.map { movementDao.getReceipt(userId, it.operationId) }
+            val payloads = ordered.map { runCatching { kotlinx.serialization.json.Json.parseToJsonElement(it.payload).jsonObject }.getOrNull() }
+            val valid = goal.syncState == "PENDING" && goal.revision == ordered.lastIndex.toLong() && ordered.indices.all { index ->
+                val command = ordered[index]
+                val receipt = receipts[index]
+                val payload = payloads[index]
+                val body = payload?.get("payload") as? JsonObject
+                val unsigned = payload?.let { JsonObject(it.filterKeys { key -> key != "request_hash" && key != "operation_id" }) }
+                command.state == "PENDING" && command.attemptCount == 0 && command.leaseUntil == null &&
+                    command.commandType in setOf("CREATE_GOAL", "UPDATE_GOAL", "RESERVE_GOAL", "RELEASE_GOAL", "ARCHIVE_GOAL") &&
+                    command.expectedRevision == (if (index == 0) null else index - 1L) &&
+                    receipt?.requestHash == command.requestHash && receipt.resultingRevision == index.toLong() &&
+                    receipt.commandType == command.commandType && receipt.status == "PENDING" &&
+                    payload?.get("goal_id")?.jsonPrimitive?.contentOrNull == goalId &&
+                    payload["command_type"]?.jsonPrimitive?.contentOrNull == command.commandType &&
+                    payload["expected_revision"]?.jsonPrimitive?.longOrNull == command.expectedRevision &&
+                    payload?.get("operation_id")?.jsonPrimitive?.contentOrNull == command.operationId &&
+                    payload["request_hash"]?.jsonPrimitive?.contentOrNull == command.requestHash &&
+                    unsigned != null && com.kipu.app.feature.goals.domain.GoalCommandHasher.sha256(unsigned) == command.requestHash &&
+                    body != null && "replacement_goal_id" !in body && "transfer" !in body
+            }
+            if (!valid) {
+                ordered.forEach { outboxDao.updateResult(userId, it.operationId, "CONFLICT", null, "LEGACY_REVISION_REVIEW_REQUIRED", null, clock.millis()) }
+                goalDao.updateSyncState(userId, goalId, "CONFLICT")
+                continue
+            }
+            ordered.forEachIndexed { index, command ->
+                val original = requireNotNull(payloads[index])
+                val revised = JsonObject(original.filterKeys { it != "request_hash" && it != "operation_id" }.toMutableMap().apply {
+                    if (index > 0) put("expected_revision", kotlinx.serialization.json.JsonPrimitive(index.toLong()))
+                })
+                val hash = com.kipu.app.feature.goals.domain.GoalCommandHasher.sha256(revised)
+                val wire = JsonObject(revised.toMutableMap().apply {
+                    put("operation_id", kotlinx.serialization.json.JsonPrimitive(command.operationId))
+                    put("request_hash", kotlinx.serialization.json.JsonPrimitive(hash))
+                })
+                val audit = buildJsonObject {
+                    put("repair", "UNSENT_ZERO_BASED_GOAL_REVISION")
+                    put("original_request", original)
+                    put("original_receipt", requireNotNull(receipts[index]).responsePayload)
+                    put("revision", index + 1L)
+                }.toString()
+                outboxDao.update(command.copy(expectedRevision = if (index == 0) null else index.toLong(), requestHash = hash, payload = wire.toString()))
+                movementDao.insertOrUpdateReceipt(requireNotNull(receipts[index]).copy(
+                    requestHash = hash, expectedRevision = if (index == 0) null else index.toLong(),
+                    resultingRevision = index + 1L, responsePayload = audit,
+                ))
+            }
+            goalDao.upsertGoal(goal.copy(revision = goal.revision + 1L))
+            repaired += ordered.size
+        }
+        repaired
+    }
+
     suspend fun finishRemoteCommand(
         command: GoalOutboxEntity,
         state: String,
@@ -114,6 +180,8 @@ class GoalLocalDataSource @Inject constructor(
                                 throw IllegalStateException("Composite goal receipt does not match local projections")
                             }
                         }
+                    } else if (outboxDao.countPending(command.userId, command.goalId) > 0) {
+                        goalDao.updateSyncState(command.userId, command.goalId, "PENDING")
                     } else if (remoteRevision != null) {
                         goalDao.updateRemoteRevision(command.userId, command.goalId, remoteRevision, "SYNCED")
                     } else {
