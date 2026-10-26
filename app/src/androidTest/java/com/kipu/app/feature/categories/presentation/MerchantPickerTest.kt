@@ -1,6 +1,7 @@
 package com.kipu.app.feature.categories.presentation
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -182,5 +183,80 @@ class MerchantPickerTest {
             "Catálogo sin sincronizar recientemente. Los resultados locales pueden estar desactualizados."
         ).assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Estado del catálogo").assertIsDisplayed()
+    }
+
+    @Test
+    fun typedTextThatIsNotACatalogNameCanBeUsedFromTheTop() {
+        val entry = MerchantCatalogEntry(MerchantId("m1"), "Wong", "wong")
+        var provisional: String? = null
+
+        composeTestRule.setContent {
+            MerchantPicker(
+                state = MerchantPickerState(query = "Won", catalogEntries = listOf(entry)),
+                onQueryChange = {},
+                onSelectMerchant = {},
+                onSetProvisionalText = { provisional = it },
+                onClearSelection = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText("Usar “Won”").assertIsDisplayed().performClick()
+        assertEquals("Won", provisional)
+    }
+
+    @Test
+    fun exactCatalogNameDoesNotOfferFreeText() {
+        val entry = MerchantCatalogEntry(MerchantId("m1"), "Wong", "wong")
+
+        composeTestRule.setContent {
+            MerchantPicker(
+                state = MerchantPickerState(query = "wong", catalogEntries = listOf(entry)),
+                onQueryChange = {},
+                onSelectMerchant = {},
+                onSetProvisionalText = {},
+                onClearSelection = {},
+            )
+        }
+
+        assertTrue(composeTestRule.onAllNodesWithTag("merchant_use_typed").fetchSemanticsNodes().isEmpty())
+        composeTestRule.onNodeWithText("Wong").assertIsDisplayed()
+    }
+
+    @Test
+    fun filterModeHidesFreeTextOption() {
+        val entry = MerchantCatalogEntry(MerchantId("m1"), "Wong", "wong")
+
+        composeTestRule.setContent {
+            MerchantPicker(
+                state = MerchantPickerState(query = "Bodega", catalogEntries = listOf(entry)),
+                onQueryChange = {},
+                onSelectMerchant = {},
+                onSetProvisionalText = {},
+                onClearSelection = {},
+                allowProvisionalText = false,
+                selectedMerchantIds = setOf("m1"),
+            )
+        }
+
+        assertTrue(composeTestRule.onAllNodesWithTag("use_provisional_button").fetchSemanticsNodes().isEmpty())
+        composeTestRule.onNodeWithText("No se encontró \"Bodega\" en el catálogo").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectedMerchantIdsAreExposedAsSelectedRows() {
+        val entry = MerchantCatalogEntry(MerchantId("m1"), "Wong", "wong")
+
+        composeTestRule.setContent {
+            MerchantPicker(
+                state = MerchantPickerState(catalogEntries = listOf(entry)),
+                onQueryChange = {},
+                onSelectMerchant = {},
+                onSetProvisionalText = {},
+                onClearSelection = {},
+                selectedMerchantIds = setOf("m1"),
+            )
+        }
+
+        composeTestRule.onNodeWithTag("merchant_item_m1").assertIsSelected()
     }
 }

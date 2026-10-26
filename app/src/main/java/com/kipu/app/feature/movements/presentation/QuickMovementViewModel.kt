@@ -1,5 +1,19 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.feature.accounts.domain.usecase.PayCreditCard
+import com.kipu.app.feature.movements.domain.MovementRepository
+import com.kipu.app.feature.movements.domain.model.TransactionItem
+import com.kipu.app.feature.movements.domain.model.TransactionStatus
+import com.kipu.app.feature.budgets.domain.BudgetCategoryLookup
+import com.kipu.app.feature.budgets.domain.BudgetConsumption
+import com.kipu.app.feature.budgets.domain.BudgetOutcome
+import com.kipu.app.feature.budgets.domain.BudgetRepository
+import com.kipu.app.feature.budgets.domain.BudgetScope
+import com.kipu.app.feature.budgets.domain.GetBudgetConsumption
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import java.time.ZoneId
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.finance.domain.MoneyInputParser
@@ -67,6 +81,9 @@ data class QuickMovementUiState(
     val selectedSourceAccountId: String? = null,
     val selectedSourceCardId: String? = null,
     val selectedDestinationAccountId: String? = null,
+    val selectedDestinationCardId: String? = null,
+    val recentMovements: List<TransactionItem> = emptyList(),
+    val budgetImpacts: List<QuickMovementBudgetImpact> = emptyList(),
     val selectedCategoryId: String? = null,
     val selectedCategoryName: String? = null,
     val selectedCategoryIcon: String? = null,
@@ -79,6 +96,7 @@ data class QuickMovementUiState(
     val isSaving: Boolean = false,
     val availableAccounts: List<Account> = emptyList(),
     val availableCreditCards: List<CreditCard> = emptyList(),
+    val balancesLoaded: Boolean = false,
     val accountBalances: Map<String, Money> = emptyMap(),
     val creditCardDebts: Map<String, Money> = emptyMap(),
     val creditCardAvailableCredits: Map<String, Money> = emptyMap(),
@@ -92,7 +110,15 @@ data class QuickMovementUiState(
     val destinationAccountError: String? = null,
     val generalError: String? = null,
     val showDuplicateWarning: Boolean = false,
+    val duplicateExistingTransaction: com.kipu.app.feature.movements.domain.model.Transaction? = null,
     val pendingCommandForDuplicate: RegisterTransactionCommand? = null,
+)
+
+data class QuickMovementBudgetImpact(
+    val name: String,
+    val currency: String,
+    val consumption: BudgetConsumption,
+    val projected: BudgetConsumption,
 )
 
 sealed interface QuickMovementUiEvent {
@@ -115,6 +141,11 @@ class QuickMovementViewModel @Inject constructor(
     private val ensureInitialCategoryCatalog: EnsureInitialCategoryCatalog,
     private val categorySyncScheduler: CategorySyncScheduler,
     private val sessionCoordinator: SessionCoordinator,
+    private val payCreditCard: PayCreditCard,
+    private val movementRepository: MovementRepository,
+    private val budgetRepository: BudgetRepository,
+    private val getBudgetConsumption: GetBudgetConsumption,
+    private val budgetCategories: BudgetCategoryLookup,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuickMovementUiState())
@@ -165,6 +196,47 @@ class QuickMovementViewModel @Inject constructor(
     init {
         val ownerId = getUserId()
         if (ownerId != null) {
+            viewModelScope.launch {
+                movementRepository.observeRecentTransactions(ownerId, 20)
+                    .catch { emit(emptyList()) }
+                    .collect { items ->
+                        _uiState.update { it.copy(recentMovements = items.filter { item ->
+                            item.transaction.status == TransactionStatus.ACTIVE
+                        }.take(5)) }
+                    }
+            }
+            viewModelScope.launch {
+                combine(
+                    budgetRepository.observeBudgets(ownerId).catch { emit(emptyList()) },
+                    _uiState.map { listOf(it.type, it.currency, it.selectedCategoryId, it.amountText, it.occurredAt) }
+                        .distinctUntilChanged(),
+                ) { budgets, _ -> budgets }.collectLatest { budgets ->
+                    val state = _uiState.value
+                    val amount = parseAmountMinor(state.amountText)
+                    _uiState.update { it.copy(budgetImpacts = emptyList()) }
+                    if (state.type != MovementType.EXPENSE || amount == null || amount <= 0L) return@collectLatest
+                    val zone = ZoneId.systemDefault()
+                    val date = Instant.ofEpochMilli(state.occurredAt).atZone(zone).toLocalDate()
+                    val impacts = try {
+                        budgets.filter { it.isActive && it.currency == state.currency }.mapNotNull { budget ->
+                            val result = getBudgetConsumption.current(ownerId, budget.id, date, zone)
+                            val value = (result as? BudgetOutcome.Success)?.value ?: return@mapNotNull null
+                            if (date !in value.period.interval) return@mapNotNull null
+                            val scope = value.period.scope
+                            if (scope is BudgetScope.Category && state.selectedCategoryId !in
+                                budgetCategories.idsIncludingDescendants(ownerId, scope.categoryId)) return@mapNotNull null
+                            QuickMovementBudgetImpact(budget.name, budget.currency, value.consumption,
+                                BudgetConsumption(value.period.limitMinor, Math.addExact(value.consumption.consumedMinor, amount)))
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    _uiState.update { it.copy(budgetImpacts = impacts) }
+                }
+            }
+
             viewModelScope.launch {
                 ensureInitialCategoryCatalog(UserId(ownerId))
                 categorySyncScheduler.scheduleSync(ownerId)
@@ -236,6 +308,7 @@ class QuickMovementViewModel @Inject constructor(
             observeFinancialDashboard().collect { dashboard ->
                 _uiState.update { current ->
                     current.copy(
+                        balancesLoaded = true,
                         accountBalances = dashboard.liquidAccounts.associate { item ->
                             item.account.id.value to item.balance
                         },
@@ -279,6 +352,7 @@ class QuickMovementViewModel @Inject constructor(
                 accountError = null,
                 categoryError = null,
                 destinationAccountError = null,
+                selectedDestinationCardId = if (type == MovementType.TRANSFER) current.selectedDestinationCardId else null,
                 selectedSourceCardId = if (type == MovementType.EXPENSE) current.selectedSourceCardId else null,
                 selectedSourceAccountId = if (type == MovementType.EXPENSE && current.selectedSourceCardId != null) {
                     null
@@ -315,6 +389,7 @@ class QuickMovementViewModel @Inject constructor(
                     },
                 accountError = null,
                 destinationAccountError = null,
+                selectedDestinationCardId = null,
             )
         }
     }
@@ -330,12 +405,13 @@ class QuickMovementViewModel @Inject constructor(
                 selectedDestinationAccountId = null,
                 accountError = null,
                 destinationAccountError = null,
+                selectedDestinationCardId = null,
             )
         }
     }
 
     fun onDestinationAccountSelected(accountId: String) {
-        _uiState.update { it.copy(selectedDestinationAccountId = accountId, destinationAccountError = null) }
+        _uiState.update { it.copy(selectedDestinationAccountId = accountId, selectedDestinationCardId = null, destinationAccountError = null) }
     }
 
     fun onCategorySelected(category: CategoryOption) {
@@ -565,6 +641,15 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { it.copy(isMoreDetailsExpanded = !it.isMoreDetailsExpanded) }
     }
 
+    fun onDestinationCardSelected(cardId: String) {
+        _uiState.update { current ->
+            val card = current.availableCreditCards.find { it.id.value == cardId && it.currency.name == current.currency }
+                ?: return@update current
+            current.copy(selectedDestinationCardId = card.id.value, selectedDestinationAccountId = null,
+                destinationAccountError = null, generalError = null)
+        }
+    }
+
     fun onSave() {
         if (_uiState.value.isSaving) return
         if (merchantPreferenceJob?.isActive == true) {
@@ -615,7 +700,7 @@ class QuickMovementViewModel @Inject constructor(
             return
         }
 
-        if (state.type == MovementType.TRANSFER) {
+        if (state.type == MovementType.TRANSFER && state.selectedDestinationCardId == null) {
             if (state.selectedDestinationAccountId == null) {
                 _uiState.update { it.copy(destinationAccountError = "Selecciona la cuenta de destino") }
                 return
@@ -637,6 +722,39 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true, generalError = null) }
         if (state.selectedSourceCardId != null) {
             executeCreditPurchase(state, amountMinor)
+            return
+        }
+
+        if (state.type == MovementType.TRANSFER && state.selectedDestinationCardId != null) {
+            val source = state.availableAccounts.firstOrNull { it.id.value == state.selectedSourceAccountId }
+            if (source == null || source.type !in setOf(
+                    com.kipu.app.feature.accounts.domain.model.AccountType.BANK,
+                    com.kipu.app.feature.accounts.domain.model.AccountType.SAVINGS)) {
+                _uiState.update { it.copy(isSaving = false, accountError = "El pago de tarjeta requiere una cuenta bancaria o de ahorros") }
+                return
+            }
+            viewModelScope.launch {
+                val result = try {
+                    payCreditCard(CardId(state.selectedDestinationCardId), source.id,
+                        Money(amountMinor, Currency.valueOf(state.currency)), Instant.ofEpochMilli(state.occurredAt))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Result.failure(error)
+                }
+                result.fold(onSuccess = {
+                    _uiState.update { it.copy(isSaving = false) }
+                    _events.send(QuickMovementUiEvent.TransactionSaved(
+                        "Pago de tarjeta guardado · Pendiente de sincronización", MovementType.TRANSFER))
+                    resetForm()
+                }, onFailure = { error ->
+                    _uiState.update { it.copy(isSaving = false, generalError = when (error.message) {
+                        "Insufficient funds in source account" -> "Saldo insuficiente en la cuenta de origen"
+                        "Payment amount exceeds current card debt" -> "El pago supera la deuda actual de la tarjeta"
+                        else -> "No se pudo guardar el pago de tarjeta. Revisa la cuenta y el monto e intenta de nuevo."
+                    }) }
+                })
+            }
             return
         }
 
@@ -700,12 +818,12 @@ class QuickMovementViewModel @Inject constructor(
             idempotencyKey = if (receiptDraftId != null) pending.idempotencyKey else UUID.randomUUID().toString(),
             ignoreSimilarityWarning = true,
         )
-        _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null, isSaving = true) }
+        _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null, duplicateExistingTransaction = null, isSaving = true) }
         executeRegister(newCommand)
     }
 
     fun onDismissDuplicate() {
-        _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null) }
+        _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null, duplicateExistingTransaction = null) }
     }
 
     private fun executeRegister(command: RegisterTransactionCommand) {
@@ -738,6 +856,7 @@ class QuickMovementViewModel @Inject constructor(
                             isSaving = false,
                             showDuplicateWarning = true,
                             pendingCommandForDuplicate = command,
+                            duplicateExistingTransaction = result.existingTransaction,
                         )
                     }
                 }
@@ -771,8 +890,10 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { current ->
             QuickMovementUiState(
                 type = MovementType.EXPENSE,
+                recentMovements = current.recentMovements,
                 availableAccounts = current.availableAccounts,
                 availableCreditCards = current.availableCreditCards,
+                balancesLoaded = current.balancesLoaded,
                 accountBalances = current.accountBalances,
                 creditCardDebts = current.creditCardDebts,
                 creditCardAvailableCredits = current.creditCardAvailableCredits,

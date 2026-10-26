@@ -5,6 +5,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -117,7 +119,7 @@ class QuickMovementScreenTest {
 
         val saveBounds = compose.onNodeWithTag("btn_save_transaction")
             .assertHasClickAction()
-            .assertContentDescriptionEquals("✓ Confirmar transferencia")
+            .assertContentDescriptionEquals("Confirmar transferencia")
             .fetchSemanticsNode().boundsInRoot
         with(compose.density) {
             assertTrue("Save action height must meet the 48dp touch target", saveBounds.height.toDp() >= 48.dp)
@@ -238,6 +240,33 @@ class QuickMovementScreenTest {
         compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
     }
 
+    @Test
+    fun exceededBudgetLeavesSaveEnabledAndShowsNonBlockingCopy() {
+        val impact = QuickMovementBudgetImpact("Transporte", "PEN",
+            com.kipu.app.feature.budgets.domain.BudgetConsumption(10000L, 10400L),
+            com.kipu.app.feature.budgets.domain.BudgetConsumption(10000L, 11700L))
+        compose.setContent {
+            KipuTheme {
+                QuickMovementContentForTest(state = QuickMovementUiState(amountText = "13", budgetImpacts = listOf(impact)))
+            }
+        }
+        compose.onNodeWithTag("budget_impact").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Este gasto te pasa del presupuesto").assertIsDisplayed()
+        compose.onNodeWithTag("btn_save_transaction").assertIsEnabled()
+    }
+
+    @Test
+    fun amountShortcutFillsAmountWithoutSaving() {
+        var amount = ""
+        compose.setContent {
+            KipuTheme {
+                QuickMovementContentForTest(state = QuickMovementUiState(), onAmountChanged = { amount = it })
+            }
+        }
+        compose.onNodeWithTag("amount_shortcut_50").performScrollTo().performClick()
+        org.junit.Assert.assertEquals("50", amount)
+    }
+
     private fun account(alias: String, currency: Currency): Account = Account(
         id = AccountId.generate(),
         userId = UserId.generate(),
@@ -252,11 +281,12 @@ class QuickMovementScreenTest {
     private fun QuickMovementContentForTest(
         state: QuickMovementUiState,
         onNavigateToNewAccount: () -> Unit = {},
+        onAmountChanged: (String) -> Unit = {},
     ) {
         QuickMovementContent(
             uiState = state,
             onTypeSelected = {},
-            onAmountChanged = {},
+            onAmountChanged = onAmountChanged,
             onSourceAccountSelected = {},
             onSourceCardSelected = {},
             onDestinationAccountSelected = {},

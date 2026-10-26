@@ -5,8 +5,13 @@ import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
 import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -60,6 +67,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -267,14 +278,30 @@ fun MerchantPickerBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    title: String = "Comercio o pagador",
+    subtitle: String = "Elige uno del catálogo o escribe un nombre",
+    allowProvisionalText: Boolean = true,
+    selectedMerchantIds: Set<String> = emptySet(),
+    dismissOnSelect: Boolean = true,
 ) {
+    val kipuColors = rememberKipuColors()
     ModalBottomSheet(
         properties = kipuBottomSheetProperties(),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        modifier = modifier,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = kipuColors.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(kipuColors.dragHandle),
+            )
+        },
+        modifier = modifier.testTag("merchant_picker_sheet"),
     ) {
         KipuModalSystemBars()
         Column(
@@ -284,28 +311,32 @@ fun MerchantPickerBottomSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Header: Título y botón cerrar
+            // Header: título, subtítulo y botón cerrar (lienzo "Selector de comercio (global)")
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .width(4.dp)
-                            .height(18.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f).padding(top = 4.dp)) {
                     Text(
-                        text = "Seleccionar Comercio o Servicio",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = kipuColors.inkPrimary,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 13.sp,
+                        color = kipuColors.inkSecondary,
                     )
                 }
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp).testTag("merchant_picker_close"),
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = kipuColors.inkSecondary)
                 }
             }
 
@@ -315,13 +346,16 @@ fun MerchantPickerBottomSheet(
                 onQueryChange = onQueryChange,
                 onSelectMerchant = {
                     onSelectMerchant(it)
-                    onDismiss()
+                    if (dismissOnSelect) onDismiss()
                 },
                 onSetProvisionalText = {
                     onSetProvisionalText(it)
-                    onDismiss()
+                    if (dismissOnSelect) onDismiss()
                 },
                 onClearSelection = onClearSelection,
+                allowProvisionalText = allowProvisionalText,
+                selectedMerchantIds = selectedMerchantIds,
+                listHeight = 360.dp,
             )
         }
     }
@@ -335,8 +369,12 @@ fun MerchantPicker(
     onSetProvisionalText: (String) -> Unit,
     onClearSelection: () -> Unit,
     modifier: Modifier = Modifier,
+    allowProvisionalText: Boolean = true,
+    selectedMerchantIds: Set<String> = emptySet(),
+    listHeight: Dp = 280.dp,
 ) {
     var selectedUiGroup by remember { mutableStateOf<UiMerchantGroup?>(null) }
+    val typedName = state.query.trim()
 
     val catalogToDisplay = remember(state.catalogEntries, state.searchResults, state.query) {
         if (state.query.isBlank()) {
@@ -346,7 +384,7 @@ fun MerchantPicker(
             baseList.filter { CategoryRules.matchesNormalized(it.name, state.query) }
         }
     }
-    
+
     val availableGroups = remember(state.catalogEntries, catalogToDisplay) {
         val baseCatalog = state.catalogEntries.ifEmpty { catalogToDisplay }
         UiMerchantGroup.entries.filter { group ->
@@ -386,7 +424,9 @@ fun MerchantPicker(
         OutlinedTextField(
             value = state.query,
             onValueChange = onQueryChange,
-            placeholder = { Text("Buscar comercio o ingresar nuevo...") },
+            placeholder = {
+                Text(if (allowProvisionalText) "Buscar comercio o ingresar nuevo…" else "Buscar comercio…")
+            },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
@@ -419,32 +459,20 @@ fun MerchantPicker(
             modifier = Modifier.fillMaxWidth(),
         ) {
             item {
-                FilterChip(
+                MerchantGroupPill(
+                    label = "Todos",
                     selected = selectedUiGroup == null,
                     onClick = { selectedUiGroup = null },
-                    label = { Text("Todos", fontSize = 12.sp) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
                 )
             }
-            
+
             items(availableGroups, key = { it.name }) { group ->
-                FilterChip(
+                MerchantGroupPill(
+                    label = group.label,
                     selected = selectedUiGroup == group,
                     onClick = {
                         selectedUiGroup = if (selectedUiGroup == group) null else group
                     },
-                    label = { Text(group.label, fontSize = 12.sp) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
                 )
             }
         }
@@ -455,7 +483,17 @@ fun MerchantPicker(
         }
 
         // Category chips filter the local merchant cache immediately.
+        // "Usar “texto”" goes first, as in the reference, unless the text already names a catalog merchant.
+        val typedMatchesCatalog = visibleMerchants.any { CategoryRules.normalizeText(it.name) == CategoryRules.normalizeText(typedName) }
+        val showUseTyped = allowProvisionalText && typedName.isNotEmpty() && visibleMerchants.isNotEmpty() && !typedMatchesCatalog
+
         if (state.query.isNotBlank() || state.catalogEntries.isNotEmpty()) {
+            if (showUseTyped) {
+                FallbackProvisionalRow(
+                    query = typedName,
+                    onUseProvisional = { onSetProvisionalText(state.query) },
+                )
+            }
             Text(
                 text = if (state.query.isBlank()) "Comercios del catálogo:" else "Resultados del catálogo:",
                 style = MaterialTheme.typography.bodySmall,
@@ -467,7 +505,7 @@ fun MerchantPicker(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp)
+                        .heightIn(max = listHeight)
                         .testTag("merchant_results_list"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -475,22 +513,25 @@ fun MerchantPicker(
                         MerchantResultItem(
                             entry = entry,
                             onClick = { onSelectMerchant(entry) },
+                            isSelected = entry.id.value in selectedMerchantIds ||
+                                entry.id == state.selectedMerchant?.id,
                         )
-                    }
-                    if (state.query.isNotBlank()) {
-                        item {
-                            FallbackProvisionalRow(
-                                query = state.query,
-                                onUseProvisional = { onSetProvisionalText(state.query) },
-                            )
-                        }
                     }
                 }
             } else if (state.query.isNotBlank() && !state.isSearching) {
-                EmptyResultWithProvisionalOption(
-                    query = state.query,
-                    onUseProvisional = { onSetProvisionalText(state.query) },
-                )
+                if (allowProvisionalText) {
+                    EmptyResultWithProvisionalOption(
+                        query = state.query,
+                        onUseProvisional = { onSetProvisionalText(state.query) },
+                    )
+                } else {
+                    Text(
+                        text = "No se encontró \"${state.query}\" en el catálogo",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                }
             }
         }
     }
@@ -594,7 +635,7 @@ fun SelectedMerchantCard(
 ) {
     val displayName = selectedMerchant?.name ?: provisionalText ?: ""
     val profile = getMerchantVisualProfile(displayName, selectedMerchant?.brandColor)
-    
+
     val context = LocalContext.current
     val drawableId = remember(selectedMerchant?.logoKey) {
         selectedMerchant?.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
@@ -658,24 +699,34 @@ fun MerchantResultItem(
     entry: MerchantCatalogEntry,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
 ) {
     val profile = getMerchantVisualProfile(entry.name, entry.brandColor)
+    // Subtitle: the visual group the merchant belongs to (e.g. "Supermercados y Tiendas").
+    val groupLabel = remember(entry.id) { UiMerchantGroup.entries.firstOrNull { it.matches(entry) }?.label }
     val context = LocalContext.current
     val drawableId = remember(entry.logoKey) {
         entry.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
     }
     val remoteLogoUrl = entry.logoUrl
 
+    val kipuColors = rememberKipuColors()
+    val shape = RoundedCornerShape(16.dp)
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = shape,
+        color = if (isSelected) kipuColors.selectedSurface else kipuColors.surface,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .heightIn(min = 64.dp)
+            .border(BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) kipuColors.primary else kipuColors.border), shape)
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .semantics { selected = isSelected }
+            .testTag("merchant_item_${entry.id.value}"),
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -683,7 +734,7 @@ fun MerchantResultItem(
                 drawableId = drawableId,
                 remoteLogoUrl = remoteLogoUrl,
                 profile = profile,
-                size = 42.dp,
+                size = 44.dp,
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -692,21 +743,31 @@ fun MerchantResultItem(
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
+                    color = kipuColors.inkPrimary,
                 )
                 Text(
-                    text = profile.subtitle,
+                    text = groupLabel ?: profile.subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = kipuColors.inkSecondary,
                 )
             }
 
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp),
-            )
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Seleccionado",
+                    tint = kipuColors.primary,
+                    modifier = Modifier.size(22.dp),
+                )
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = kipuColors.inkSecondary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }
@@ -717,56 +778,49 @@ fun FallbackProvisionalRow(
     onUseProvisional: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val initial = query.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val kipuColors = rememberKipuColors()
+    val shape = RoundedCornerShape(16.dp)
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        shape = shape,
+        color = kipuColors.selectedSurface,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onUseProvisional),
+            .heightIn(min = 56.dp)
+            .border(BorderStroke(1.5.dp, kipuColors.primary), shape)
+            .clip(shape)
+            .clickable(onClick = onUseProvisional)
+            .testTag("merchant_use_typed"),
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(kipuColors.primary),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = initial,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = kipuColors.onPrimary,
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Añadir comercio personalizado:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = "\"$query\"",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp),
+            Text(
+                text = "Usar \u201C${query.trim()}\u201D",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = kipuColors.primaryText,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -847,5 +901,34 @@ fun CatalogStatusBanner(
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
+    }
+}
+
+/** Merchant group filter pill, same shape and 48dp target as the account selector pills. */
+@Composable
+private fun MerchantGroupPill(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val kipuColors = rememberKipuColors()
+    val shape = RoundedCornerShape(24.dp)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .then(if (selected) Modifier else Modifier.border(BorderStroke(1.5.dp, kipuColors.border), shape))
+            .background(if (selected) kipuColors.primary else kipuColors.surface)
+            .selectable(selected = selected, onClick = onClick, role = Role.Tab)
+            .defaultMinSize(minHeight = 48.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) kipuColors.onPrimary else kipuColors.inkSecondary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            maxLines = 1,
+        )
     }
 }

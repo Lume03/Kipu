@@ -3,6 +3,19 @@ package com.kipu.app.feature.movements.presentation
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.ArrowUpward
+import com.kipu.app.ui.component.BrandLogo
+import com.kipu.app.ui.component.KipuBrand
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.KipuOfflineBanner
+import com.kipu.app.ui.component.KipuPendingSyncTag
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -176,6 +189,7 @@ fun QuickMovementBottomSheet(
             onSourceAccountSelected = viewModel::onSourceAccountSelected,
             onSourceCardSelected = viewModel::onSourceCardSelected,
             onDestinationAccountSelected = viewModel::onDestinationAccountSelected,
+            onDestinationCardSelected = viewModel::onDestinationCardSelected,
             onCategorySelected = viewModel::onCategorySelected,
             onOpenMerchantPicker = { showMerchantPicker = true },
             onClearMerchant = {
@@ -261,6 +275,8 @@ fun QuickMovementBottomSheet(
         DuplicateWarningDialog(
             onConfirm = viewModel::onConfirmDuplicate,
             onDismiss = viewModel::onDismissDuplicate,
+            existing = uiState.duplicateExistingTransaction,
+            proposed = uiState.pendingCommandForDuplicate,
         )
     }
 }
@@ -291,6 +307,7 @@ fun QuickMovementContent(
     isCreatingSubcategory: Boolean,
     categoryCreationError: String?,
     modifier: Modifier = Modifier,
+    onDestinationCardSelected: (String) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -301,6 +318,8 @@ fun QuickMovementContent(
     var showDestinationAccountPicker by remember { mutableStateOf(false) }
     var sourceAccountPickerCurrency by remember { mutableStateOf<String?>(null) }
     var showOptionalFields by remember { mutableStateOf(false) }
+    val offline = rememberQuickMovementOffline()
+    val balanceMasked = LocalBalanceMasked.current
 
     // Separate field validation errors from general transient errors
     val fieldErrors = remember(uiState.amountError, uiState.accountError, uiState.categoryError, uiState.destinationAccountError) {
@@ -420,6 +439,9 @@ fun QuickMovementContent(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (offline) {
+                KipuOfflineBanner(message = "Puedes registrar movimientos. Se sincronizarán al recuperar la conexión.")
+            }
             // 3 Standalone Type Pills
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -621,6 +643,15 @@ fun QuickMovementContent(
                 }
             }
 
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("10", "20", "50", "100").forEach { amount ->
+                    OutlinedButton(onClick = { onAmountChanged(amount) },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("amount_shortcut_$amount")) {
+                        Text("${if (uiState.currency == "PEN") "S/" else "$"} $amount")
+                    }
+                }
+            }
+
             // Selection Rows: Accounts
             val selectedSourceAccount = uiState.availableAccounts.firstOrNull {
                 it.id.value == uiState.selectedSourceAccountId
@@ -651,14 +682,16 @@ fun QuickMovementContent(
                 ?: selectedSourceCard?.let { "${it.issuer} ${it.network.name}" }
                 ?: "Seleccionar cuenta"
             val sourceSubtitle = selectedSourceAccount?.let { account ->
-                val balance = accountBalances[account.id.value]?.let { formatMoneyInline(it) } ?: "S/ 0.00"
+                val balance = accountBalances[account.linkedAccountId?.value ?: account.id.value]?.let { if (balanceMasked) "••••" else formatMoneyInline(it) } ?: "no disponible"
                 if (uiState.accountError != null) "Saldo: $balance · Insuficiente"
                 else "${accountTypeLabel(account.type)} ${account.currency.name} · Saldo $balance"
             } ?: selectedSourceCard?.let { card ->
-                val debt = creditCardDebts[card.id.value]?.let { " · Deuda ${formatMoneyInline(it)}" }.orEmpty()
+                val debt = creditCardDebts[card.id.value]?.let { " · Deuda ${if (balanceMasked) "••••" else formatMoneyInline(it)}" }.orEmpty()
                 "Crédito · •••• ${card.lastFourDigits}$debt"
             } ?: "Elige dónde registrar este movimiento"
 
+            val sourceBrandName = if (selectedSourceAccount?.type == com.kipu.app.feature.accounts.domain.model.AccountType.CASH) null
+                else selectedSourceAccount?.preset?.name ?: selectedSourceCard?.issuer ?: sourceTitle
             // Account selection row (or transfer grouped card)
             if (uiState.type == MovementType.TRANSFER) {
                 // Grouped Transfer Source & Destination
@@ -671,6 +704,7 @@ fun QuickMovementContent(
                     Column(modifier = Modifier.padding(12.dp)) {
                         // Source
                         TransferAccountRow(
+                            brandName = sourceBrandName,
                             label = "Cuenta origen / Desde",
                             value = sourceTitle,
                             supportingText = sourceSubtitle,
@@ -711,16 +745,18 @@ fun QuickMovementContent(
                                 account.id.value != uiState.selectedSourceAccountId && account.currency.name == uiState.currency
                             }
                         }
-                        val hasDestinations = eligibleDestinationAccounts.isNotEmpty()
+                        val destinationCard = uiState.availableCreditCards.firstOrNull { it.id.value == uiState.selectedDestinationCardId }
+                        val hasDestinations = eligibleDestinationAccounts.isNotEmpty() || uiState.availableCreditCards.any { it.currency.name == uiState.currency }
                         val selectedDestination = eligibleDestinationAccounts.firstOrNull {
                             it.id.value == uiState.selectedDestinationAccountId
                         }
 
                         TransferAccountRow(
                             label = "Cuenta destino / Hacia",
-                            value = selectedDestination?.alias
+                            brandName = destinationCard?.issuer ?: selectedDestination?.preset?.name ?: selectedDestination?.alias,
+                            value = destinationCard?.alias ?: destinationCard?.let { "${it.issuer} •••• ${it.lastFourDigits}" } ?: selectedDestination?.alias
                                 ?: if (!hasDestinations) "Sin cuenta destino disponible" else "Seleccionar cuenta destino",
-                            supportingText = selectedDestination?.let { "${accountTypeLabel(it.type)} · ${it.currency.name}" }
+                            supportingText = destinationCard?.let { "Pago de tarjeta · Reduce la deuda" } ?: selectedDestination?.let { "${accountTypeLabel(it.type)} · ${it.currency.name}" }
                                 ?: if (!hasDestinations) "Se requiere otra cuenta distinta en ${uiState.currency}" else "Elige la cuenta que recibirá el monto",
                             icon = Icons.Default.AccountBalanceWallet,
                             iconBg = if (emeraldColors.isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),
@@ -745,53 +781,16 @@ fun QuickMovementContent(
                     }
                 }
 
-                // Transfer Commission / Cost row
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = emeraldColors.surfaceCard,
-                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Text(
-                                text = "Comisión / Costo:",
-                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = emeraldColors.primaryText,
-                            )
-                            Text(
-                                text = "Sin costo (Misma titularidad)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.secondaryMuted,
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = emeraldColors.incomeBg,
-                        ) {
-                            Text(
-                                text = "Gratis",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                ),
-                                color = emeraldColors.incomeText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = if (uiState.selectedDestinationCardId != null)
+                        "Pago de tarjeta: reduce el saldo de origen y la deuda. No es un gasto nuevo."
+                    else "Mueve dinero entre tus cuentas. No cambia tu patrimonio.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = emeraldColors.secondaryMuted,
+                )
             } else {
                 CalmEmeraldSelectionRow(
+                    brandName = sourceBrandName,
                     icon = sourceIcon,
                     iconContainer = sourceIconBg,
                     iconTint = sourceIconTint,
@@ -805,6 +804,32 @@ fun QuickMovementContent(
                     onTrailingActionClick = { showSourceAccountPicker = true },
                     modifier = Modifier.testTag("selector_source_account"),
                 )
+            }
+
+            if (selectedSourceCard != null && uiState.type == MovementType.EXPENSE) {
+                Text("Este gasto suma a la deuda de tu tarjeta. No mueve dinero propio.",
+                    color = emeraldColors.secondaryMuted, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag("credit_purchase_impact"))
+            }
+            uiState.budgetImpacts.forEach { impact ->
+                val exceeded = impact.projected.isExceeded
+                Surface(shape = RoundedCornerShape(14.dp),
+                    color = if (exceeded) emeraldColors.warningBg else emeraldColors.incomeBg,
+                    modifier = Modifier.fillMaxWidth().testTag("budget_impact")) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(if (exceeded) "Este gasto te pasa del presupuesto" else "Impacto en presupuesto",
+                            fontWeight = FontWeight.SemiBold, color = emeraldColors.primaryText)
+                        Text("${impact.name}: ${impact.consumption.percentWhole}% → ${impact.projected.percentWhole}%",
+                            color = emeraldColors.primaryText)
+                        if (exceeded) {
+                            val excess = if (balanceMasked) "••••" else
+                                "${if (impact.currency == "PEN") "S/" else "$"} ${formatMinorUnits(-impact.projected.remainingMinor)}"
+                            Text("Te pasarás en total $excess", color = emeraldColors.warningText)
+                            Text("El gasto se registra igual: un presupuesto es planificación y no bloquea movimientos.",
+                                color = emeraldColors.secondaryMuted, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
 
             // Category Row (for Expense and Income)
@@ -974,57 +999,80 @@ fun QuickMovementContent(
                 }
             }
 
-            // Collapsible Notes Section
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .toggleable(
-                        value = uiState.isMoreDetailsExpanded,
-                        role = Role.Button,
-                        onValueChange = { onToggleMoreDetails() },
-                    )
-                    .semantics {
-                        stateDescription = if (uiState.isMoreDetailsExpanded) "Expandido" else "Contraído"
+            val recent = uiState.recentMovements.filter { it.transaction.type == uiState.type && it.transaction.currency == uiState.currency }.take(3)
+            if (recent.isNotEmpty()) {
+                Text("Recientes", style = MaterialTheme.typography.titleSmall, color = emeraldColors.primaryText)
+                recent.forEach { item ->
+                    val transaction = item.transaction
+                    OutlinedButton(onClick = { onAmountChanged(java.math.BigDecimal.valueOf(transaction.amountMinor, 2).toPlainString()) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(item.merchantName ?: item.categoryName ?: item.sourceAccountAlias ?: "Movimiento reciente")
+                            Text(if (balanceMasked) "••••" else "${if (transaction.currency == "PEN") "S/" else "$"} ${formatMinorUnits(transaction.amountMinor)}")
+                            if (transaction.syncStatus in setOf(
+                                com.kipu.app.feature.movements.domain.model.MovementSyncStatus.PENDING,
+                                com.kipu.app.feature.movements.domain.model.MovementSyncStatus.IN_FLIGHT)) KipuPendingSyncTag()
+                        }
                     }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = if (uiState.type == MovementType.TRANSFER) "+ Nota o motivo (opcional)" else "+ Nota (opcional)",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = emeraldColors.primaryDeep,
-                )
-                Icon(
-                    imageVector = if (uiState.isMoreDetailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = emeraldColors.primaryDeep,
-                    modifier = Modifier.size(20.dp),
-                )
+                }
+                Text("Toca un reciente para usar su monto.", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
             }
 
-            AnimatedVisibility(
-                visible = uiState.isMoreDetailsExpanded,
-                enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
-                exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
-            ) {
-                OutlinedTextField(
-                    value = uiState.note,
-                    onValueChange = onNoteChanged,
-                    placeholder = { Text(stringResource(R.string.movement_note_placeholder), color = emeraldColors.secondaryMuted) },
-                    maxLines = 3,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = emeraldColors.primaryDeep,
-                        unfocusedBorderColor = emeraldColors.borderSubtle,
-                        focusedContainerColor = emeraldColors.surfaceCard,
-                        unfocusedContainerColor = emeraldColors.surfaceCard,
-                    ),
+            if (uiState.selectedDestinationCardId == null) {
+                // Collapsible Notes Section
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("input_note"),
-                )
+                        .heightIn(min = 48.dp)
+                        .toggleable(
+                            value = uiState.isMoreDetailsExpanded,
+                            role = Role.Button,
+                            onValueChange = { onToggleMoreDetails() },
+                        )
+                        .semantics {
+                            stateDescription = if (uiState.isMoreDetailsExpanded) "Expandido" else "Contraído"
+                        }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (uiState.type == MovementType.TRANSFER) "+ Nota o motivo (opcional)" else "+ Nota (opcional)",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = emeraldColors.primaryDeep,
+                    )
+                    Icon(
+                        imageVector = if (uiState.isMoreDetailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = emeraldColors.primaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = uiState.isMoreDetailsExpanded,
+                    enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
+                    exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
+                ) {
+                    OutlinedTextField(
+                        value = uiState.note,
+                        onValueChange = onNoteChanged,
+                        placeholder = { Text(stringResource(R.string.movement_note_placeholder), color = emeraldColors.secondaryMuted) },
+                        maxLines = 3,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = emeraldColors.primaryDeep,
+                            unfocusedBorderColor = emeraldColors.borderSubtle,
+                            focusedContainerColor = emeraldColors.surfaceCard,
+                            unfocusedContainerColor = emeraldColors.surfaceCard,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_note"),
+                    )
+                }
+            } else {
+                Text("El pago de tarjeta no admite notas.", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
             }
         }
 
@@ -1032,9 +1080,9 @@ fun QuickMovementContent(
 
         // Sticky Pinned Footer Save Button
         val saveButtonText = when (uiState.type) {
-            MovementType.EXPENSE -> "✓ Guardar gasto"
-            MovementType.INCOME -> "✓ Guardar ingreso"
-            MovementType.TRANSFER -> "✓ Confirmar transferencia"
+            MovementType.EXPENSE -> "Guardar gasto"
+            MovementType.INCOME -> "Guardar ingreso"
+            MovementType.TRANSFER -> if (uiState.selectedDestinationCardId != null) "Confirmar pago de tarjeta" else "Confirmar transferencia"
         }
 
         if (hasFieldErrors) {
@@ -1128,6 +1176,10 @@ fun QuickMovementContent(
             isCreating = isCreatingSubcategory,
             errorMessage = categoryCreationError,
             directSelectionMode = true,
+            title = "Elegir categoría",
+            subtitle = if (uiState.type == MovementType.INCOME)
+                "Selecciona una categoría o subcategoría para clasificar tu ingreso"
+            else "Selecciona una categoría o subcategoría para clasificar tu gasto",
         )
     }
 
@@ -1151,6 +1203,12 @@ fun QuickMovementContent(
             selectedCardId = uiState.selectedSourceCardId?.takeIf { selectedId ->
                 sourceCards.any { it.id.value == selectedId }
             },
+            purpose = when (uiState.type) {
+                MovementType.EXPENSE -> AccountSelectorPurpose.EXPENSE_SOURCE
+                MovementType.INCOME -> AccountSelectorPurpose.INCOME_DESTINATION
+                MovementType.TRANSFER -> AccountSelectorPurpose.TRANSFER_SOURCE
+            },
+            balancesLoaded = uiState.balancesLoaded,
             allowCreditCards = uiState.type == MovementType.EXPENSE,
             accountBalances = accountBalances,
             cardDebts = creditCardDebts,
@@ -1177,14 +1235,17 @@ fun QuickMovementContent(
             onDismissRequest = { showDestinationAccountPicker = false },
             accounts = eligibleDestinationAccounts,
             selectedAccountId = uiState.selectedDestinationAccountId,
-            allowCreditCards = false,
+            creditCards = uiState.availableCreditCards.filter { it.currency.name == uiState.currency },
+            selectedCardId = uiState.selectedDestinationCardId,
+            onCardIdSelected = onDestinationCardSelected,
+            purpose = AccountSelectorPurpose.TRANSFER_DESTINATION,
+            allowCreditCards = true,
+            balancesLoaded = uiState.balancesLoaded,
+            cardDebts = creditCardDebts,
+            cardAvailableCredits = creditCardAvailableCredits,
             accountBalances = accountBalances,
             title = stringResource(R.string.movement_destination_account),
-            subtitle = if (eligibleDestinationAccounts.isEmpty()) {
-                "Para transferir necesitas otra cuenta distinta en ${uiState.currency}"
-            } else {
-                "Elige la cuenta que recibirá el monto"
-            },
+            subtitle = "Elige una cuenta o una tarjeta para pagar su deuda",
             onAccountIdSelected = onDestinationAccountSelected,
             onNewAccountClick = {
                 showDestinationAccountPicker = false
@@ -1226,9 +1287,9 @@ private fun CalmEmeraldTypeTab(
         label = "tabText",
     )
     val icon = when (type) {
-        MovementType.EXPENSE -> "↗"
-        MovementType.INCOME -> "✓"
-        MovementType.TRANSFER -> "⇄"
+        MovementType.EXPENSE -> Icons.Default.ArrowUpward
+        MovementType.INCOME -> Icons.Default.ArrowDownward
+        MovementType.TRANSFER -> Icons.Default.SwapHoriz
     }
 
     Surface(
@@ -1245,22 +1306,38 @@ private fun CalmEmeraldTypeTab(
             .semantics { this.selected = selected }
             .testTag("tab_${type.name.lowercase()}"),
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-                .heightIn(min = 48.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = "$icon  $label",
-                style = MaterialTheme.typography.labelLarge.copy(
+        if (LocalDensity.current.fontScale > 1.15f) {
+            Column(
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp).heightIn(min = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = animatedText, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.height(4.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 13.sp,
-                ),
-                color = animatedText,
-                textAlign = TextAlign.Center,
-            )
+                    fontSize = 12.sp), color = animatedText, textAlign = TextAlign.Center)
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = animatedText, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp,
+                    ),
+                    color = animatedText,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -1322,6 +1399,7 @@ private fun CalmEmeraldSelectionRow(
     trailingActionText: String? = null,
     onTrailingActionClick: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
+    brandName: String? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val borderColor = if (isError) emeraldColors.expenseText else emeraldColors.borderSubtle
@@ -1352,12 +1430,8 @@ private fun CalmEmeraldSelectionRow(
                         .background(iconContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    if (brandName != null) BrandLogo(KipuBrand.from(brandName), brandName, null, size = 38.dp)
+                    else Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
                 }
 
                 Column(
@@ -1368,7 +1442,6 @@ private fun CalmEmeraldSelectionRow(
                         text = label,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
-                        maxLines = 1,
                     )
                     Text(
                         text = value,
@@ -1377,13 +1450,11 @@ private fun CalmEmeraldSelectionRow(
                             fontSize = 15.sp,
                         ),
                         color = emeraldColors.primaryText,
-                        maxLines = 1,
                     )
                     Text(
                         text = supportingText,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
-                        maxLines = 1,
                     )
                 }
 
@@ -1432,6 +1503,7 @@ private fun TransferAccountRow(
     iconTint: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    brandName: String? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     Row(
@@ -1450,12 +1522,8 @@ private fun TransferAccountRow(
                 .background(iconBg),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(18.dp),
-            )
+            if (brandName != null) BrandLogo(KipuBrand.from(brandName), brandName, null, size = 36.dp)
+            else Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -1545,8 +1613,11 @@ fun DuplicateWarningDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    existing: com.kipu.app.feature.movements.domain.model.Transaction? = null,
+    proposed: com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val masked = LocalBalanceMasked.current
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -1559,17 +1630,24 @@ fun DuplicateWarningDialog(
         },
         title = {
             Text(
-                text = stringResource(R.string.movement_duplicate_title),
+                text = "¿Es una compra distinta?",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center
             )
         },
         text = {
-            Text(
-                text = stringResource(R.string.movement_duplicate_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = emeraldColors.secondaryMuted,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces.",
+                    style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted)
+                existing?.let {
+                    Text("YA REGISTRADO · ${formatTransactionDate(it.occurredAt)}", fontWeight = FontWeight.Bold)
+                    Text(if (masked) "••••" else "${it.currency} ${formatMinorUnits(it.amountMinor)}")
+                }
+                proposed?.let {
+                    Text("LO QUE VAS A GUARDAR", fontWeight = FontWeight.Bold)
+                    Text(if (masked) "••••" else "${it.currency} ${formatMinorUnits(it.amountMinor)}")
+                }
+            }
         },
         confirmButton = {
             Button(
@@ -1581,7 +1659,7 @@ fun DuplicateWarningDialog(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.testTag("btn_confirm_duplicate"),
             ) {
-                Text(stringResource(R.string.movement_duplicate_confirm), color = emeraldColors.onPrimaryDeep)
+                Text("Sí, es otra compra · guardar", color = emeraldColors.onPrimaryDeep)
             }
         },
         dismissButton = {
@@ -1590,7 +1668,7 @@ fun DuplicateWarningDialog(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.testTag("btn_cancel_duplicate"),
             ) {
-                Text(stringResource(R.string.movement_duplicate_cancel), color = emeraldColors.secondaryMuted)
+                Text("No, volver sin guardar", color = emeraldColors.secondaryMuted)
             }
         },
         modifier = modifier.testTag("dialog_duplicate_warning"),
@@ -1642,4 +1720,23 @@ private fun datePickerMillisToLocalInstant(selectedDateMillis: Long, occurredAt:
     val selectedDate = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneOffset.UTC).toLocalDate()
     val existingLocalTime = Instant.ofEpochMilli(occurredAt).atZone(zone).toLocalTime()
     return selectedDate.atTime(existingLocalTime).atZone(zone).toInstant().toEpochMilli()
+}
+
+@Composable
+private fun rememberQuickMovementOffline(): Boolean {
+    val context = LocalContext.current
+    val connectivity = remember(context) { context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
+    fun connected(): Boolean = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+    var offline by remember { mutableStateOf(!connected()) }
+    DisposableEffect(connectivity) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { offline = !connected() }
+            override fun onLost(network: Network) { offline = !connected() }
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { offline = !connected() }
+        }
+        connectivity.registerDefaultNetworkCallback(callback)
+        onDispose { connectivity.unregisterNetworkCallback(callback) }
+    }
+    return offline
 }

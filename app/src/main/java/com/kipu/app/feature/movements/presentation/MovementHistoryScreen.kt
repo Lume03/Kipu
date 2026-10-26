@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
@@ -108,8 +109,14 @@ import com.kipu.app.feature.recurrences.presentation.RecurrenceLifecycleScreen
 import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel
 import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationState
 import com.kipu.app.feature.recurrences.presentation.RecurrenceRegistrationScreen
+import com.kipu.app.ui.component.KipuEmptyState
+import com.kipu.app.ui.component.KipuErrorState
+import com.kipu.app.ui.component.KipuOfflineBanner
+import com.kipu.app.ui.component.KipuPendingSyncTag
+import com.kipu.app.ui.component.KipuSkeletonBlock
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MovementAvatarPresentation
+import com.kipu.app.ui.component.loadingSemantics
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.movementAvatarPresentation
@@ -306,9 +313,19 @@ fun MovementHistoryRoute(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     // Search Bar
+                    // Estado local del campo: conserva el cursor mientras el ViewModel publica el texto de forma asíncrona
+                    var searchField by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(uiState.searchQuery)) }
+                    LaunchedEffect(uiState.searchQuery) {
+                        val published = uiState.searchQuery
+                        val external = if (published.isEmpty()) searchField.text.isNotEmpty() else !isTypingSearch(searchField, published)
+                        if (external) searchField = androidx.compose.ui.text.input.TextFieldValue(published)
+                    }
                     OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = viewModel::onSearchQueryChanged,
+                        value = searchField,
+                        onValueChange = {
+                            searchField = it
+                            viewModel.onSearchQueryChanged(it.text)
+                        },
                         placeholder = {
                             Text(
                                 stringResource(R.string.movements_search_placeholder),
@@ -373,70 +390,20 @@ fun MovementHistoryRoute(
                             .testTag("input_search_movements"),
                     )
 
-                    // Type Filter Chips: Todos, Gastos, Ingresos, Transferencias (Single horizontal row)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                    ) {
-                        CalmEmeraldTypeChip(
-                            label = "Todos",
-                            selected = uiState.selectedFilterType == null,
-                            onClick = { viewModel.onFilterTypeSelected(null) },
-                            hasCheck = true,
-                            modifier = Modifier.testTag("chip_filter_all"),
+                    // Pendientes de sincronizar (datos ya cargados en la lista; sin detector de red)
+                    val pendingSyncCount = uiState.filteredTransactions.values.sumOf { rows ->
+                        rows.count { it.transaction.syncStatus == MovementSyncStatus.PENDING || it.transaction.syncStatus == MovementSyncStatus.IN_FLIGHT }
+                    }
+                    if (pendingSyncCount > 0) {
+                        KipuOfflineBanner(
+                            title = "Sincronización pendiente.",
+                            message = if (pendingSyncCount == 1) {
+                                "1 movimiento pendiente de sincronizar; tus saldos ya están actualizados."
+                            } else {
+                                "$pendingSyncCount movimientos pendientes de sincronizar; tus saldos ya están actualizados."
+                            },
+                            modifier = Modifier.testTag("banner_pending_sync"),
                         )
-                        CalmEmeraldTypeChip(
-                            label = "Gastos",
-                            dotColor = emeraldColors.expenseText,
-                            selected = uiState.selectedFilterType == MovementType.EXPENSE,
-                            onClick = { viewModel.onFilterTypeSelected(MovementType.EXPENSE) },
-                            modifier = Modifier.testTag("chip_filter_expense"),
-                        )
-                        CalmEmeraldTypeChip(
-                            label = "Ingresos",
-                            dotColor = emeraldColors.incomeText,
-                            selected = uiState.selectedFilterType == MovementType.INCOME,
-                            onClick = { viewModel.onFilterTypeSelected(MovementType.INCOME) },
-                            modifier = Modifier.testTag("chip_filter_income"),
-                        )
-                        CalmEmeraldTypeChip(
-                            label = "Transferencias",
-                            dotColor = emeraldColors.transferBlue,
-                            selected = uiState.selectedFilterType == MovementType.TRANSFER,
-                            onClick = { viewModel.onFilterTypeSelected(MovementType.TRANSFER) },
-                            modifier = Modifier.testTag("chip_filter_transfer"),
-                        )
-                        if (uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null || uiState.searchQuery.isNotBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = emeraldColors.surfaceCard,
-                                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable(onClick = viewModel::onClearFilters)
-                                    .testTag("btn_clear_filters")
-                                    .semantics {
-                                        role = Role.Button
-                                        contentDescription = "Limpiar todos los filtros"
-                                    },
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .heightIn(min = 48.dp)
-                                        .padding(horizontal = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.movements_filter_clear),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = emeraldColors.expenseCoral,
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     // Summary Card for Filtered Query (pre-computed in ViewModel)
@@ -566,50 +533,48 @@ fun MovementHistoryRoute(
 
             when {
                 uiState.isLoading -> item(key = "loading") {
-                    Box(
+                    // Skeleton de la lista (sustituye al spinner): mismas filas que el contenido real
+                    Column(
                         Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 240.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 16.dp)
+                            .loadingSemantics("Cargando movimientos"),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        CircularProgressIndicator(color = emeraldColors.primaryDeep)
+                        repeat(4) {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
+                                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    KipuSkeletonBlock(Modifier.size(40.dp), height = 40.dp, cornerRadius = 12.dp)
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        KipuSkeletonBlock(Modifier.fillMaxWidth(0.5f), height = 14.dp)
+                                        KipuSkeletonBlock(Modifier.fillMaxWidth(0.3f), height = 10.dp)
+                                    }
+                                    KipuSkeletonBlock(Modifier.width(64.dp), height = 14.dp)
+                                }
+                            }
+                        }
                     }
                 }
 
                 uiState.queryError -> item(key = "read_error") {
-                    Column(
-                        Modifier
+                    KipuErrorState(
+                        title = stringResource(R.string.history_query_error),
+                        message = stringResource(R.string.history_query_error_body),
+                        onRetry = viewModel::onRetryHistory,
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 240.dp)
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            stringResource(R.string.history_query_error),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = emeraldColors.primaryText,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.history_query_error_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = emeraldColors.secondaryMuted,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = viewModel::onRetryHistory,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = emeraldColors.primaryDeep,
-                                contentColor = emeraldColors.onPrimaryDeep,
-                            ),
-                            modifier = Modifier.heightIn(min = 48.dp),
-                        ) {
-                            Text(stringResource(R.string.history_retry), color = emeraldColors.onPrimaryDeep)
-                        }
-                    }
+                            .padding(horizontal = 16.dp),
+                        retryLabel = stringResource(R.string.history_retry),
+                    )
                 }
 
                 uiState.filteredTransactions.isEmpty() -> item(key = "empty") {
@@ -621,6 +586,7 @@ fun MovementHistoryRoute(
                         onClearSearch = { viewModel.onSearchQueryChanged("") },
                         onClearFilters = viewModel::onClearFilters,
                         onRegister = viewModel::onOpenRegisterSheet,
+                        searchQuery = uiState.searchQuery,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
@@ -866,13 +832,16 @@ fun MovementHistoryRoute(
     }
 
     if (uiState.showAdvancedFilterPanel) {
+        val filterCatalogViewModel: MovementFiltersCatalogViewModel = hiltViewModel()
+        val filterCatalog by filterCatalogViewModel.state.collectAsStateWithLifecycle()
         MovementFiltersSheet(
             uiState,
             onDismiss = { viewModel.onToggleAdvancedFilterPanel(false) },
             onApply = viewModel::onApplyFilterDraft,
             onVerify = viewModel::onRevalidateAccess,
             onViewPlans = onNavigateToPlans,
-            onDismissRecovery = viewModel::onDismissRecovery
+            onDismissRecovery = viewModel::onDismissRecovery,
+            catalog = filterCatalog,
         )
     }
 }
@@ -995,6 +964,8 @@ fun TransactionRow(
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
+                    } else if (tx.syncStatus == MovementSyncStatus.PENDING || tx.syncStatus == MovementSyncStatus.IN_FLIGHT) {
+                        KipuPendingSyncTag(modifier = Modifier.testTag("tx_pending_tag_${tx.id}"))
                     } else if (tx.syncStatus == MovementSyncStatus.CONFLICT) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
@@ -1021,7 +992,20 @@ fun TransactionRow(
                         maxLines = 1,
                         modifier = if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier,
                     )
-                    SyncStatusIcon(status = tx.syncStatus)
+                    if (tx.syncStatus != MovementSyncStatus.PENDING && tx.syncStatus != MovementSyncStatus.IN_FLIGHT) {
+                        SyncStatusIcon(status = tx.syncStatus)
+                    }
+                }
+                if (isVoided) {
+                    // Anulado = borrado lógico: el movimiento deja de contar en los totales
+                    Text(
+                        text = "Anulado · no cuenta en tus gastos",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = emeraldColors.secondaryMuted,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .testTag("tx_voided_note_${tx.id}"),
+                    )
                 }
             }
 
@@ -1091,93 +1075,6 @@ fun TransactionRow(
 }
 
 @Composable
-private fun CalmEmeraldTypeChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    dotColor: Color? = null,
-    hasCheck: Boolean = false,
-) {
-    val emeraldColors = rememberCalmEmeraldColors()
-
-    val container = if (selected) {
-        if (hasCheck) emeraldColors.primaryDeep
-        else when (dotColor) {
-            emeraldColors.expenseText -> emeraldColors.expenseBg
-            emeraldColors.incomeText -> emeraldColors.incomeBg
-            emeraldColors.transferBlue -> emeraldColors.transferBg
-            else -> emeraldColors.incomeBg
-        }
-    } else {
-        emeraldColors.surfaceCard
-    }
-
-    val contentColor = if (selected) {
-        if (hasCheck) emeraldColors.onPrimaryDeep else dotColor ?: emeraldColors.primaryDeep
-    } else {
-        emeraldColors.secondaryMuted
-    }
-
-    val border = if (selected) {
-        if (hasCheck) null
-        else BorderStroke(1.dp, dotColor?.copy(alpha = 0.5f) ?: emeraldColors.primaryDeep)
-    } else {
-        BorderStroke(1.dp, emeraldColors.borderSubtle)
-    }
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = container,
-        border = border,
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                role = Role.Tab,
-                onClick = onClick,
-            )
-            .semantics {
-                this.selected = selected
-                this.role = Role.Tab
-            },
-    ) {
-        Row(
-            modifier = Modifier
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            if (hasCheck && selected) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(14.dp),
-                )
-            } else if (dotColor != null) {
-                Surface(
-                    shape = CircleShape,
-                    color = dotColor,
-                    modifier = Modifier.size(7.dp),
-                ) {}
-            }
-
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 11.5.sp,
-                ),
-                color = contentColor,
-            )
-        }
-    }
-}
-
-@Composable
 fun SyncStatusIcon(
     status: MovementSyncStatus,
     modifier: Modifier = Modifier,
@@ -1223,111 +1120,81 @@ fun CalmEmeraldEmptyMovementsState(
     onClearFilters: (() -> Unit)? = null,
     onRegister: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    searchQuery: String = "",
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val noResults = isSearchActive || hasActiveFilters
 
-    val title = when {
-        isSearchActive -> stringResource(R.string.movements_search_empty_title)
-        hasActiveFilters -> stringResource(R.string.movements_filter_empty_title)
-        else -> stringResource(R.string.movements_empty_title)
-    }
+    val title = if (noResults) "Sin resultados" else "Aún no tienes movimientos"
     val message = when {
-        isSearchActive -> stringResource(R.string.movements_search_empty_desc)
-        hasActiveFilters -> stringResource(R.string.movements_filter_empty_desc)
-        else -> stringResource(R.string.movements_empty_desc)
+        isSearchActive && searchQuery.isNotBlank() ->
+            "No encontramos movimientos con “${searchQuery.trim()}”. Revisa la ortografía o prueba con otro comercio o categoría."
+        isSearchActive -> "No encontramos movimientos que coincidan con tu búsqueda. Revisa la ortografía o prueba con otro comercio o categoría."
+        hasActiveFilters -> "Ningún movimiento coincide con los filtros aplicados. Prueba a cambiar o quitar algún filtro."
+        else -> "Registra tu primer gasto, ingreso o transferencia y aparecerá aquí con tu saldo actualizado."
     }
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+    KipuEmptyState(
+        title = title,
+        message = message,
+        modifier = modifier.fillMaxWidth().padding(top = 32.dp),
+        icon = {
             Surface(
                 shape = CircleShape,
-                color = emeraldColors.incomeBg,
-                border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                modifier = Modifier.size(64.dp),
+                color = if (noResults) emeraldColors.pillTrack else emeraldColors.incomeBg,
+                modifier = Modifier.size(88.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ReceiptLong,
+                        imageVector = if (noResults) Icons.Outlined.SearchOff else Icons.AutoMirrored.Rounded.ReceiptLong,
                         contentDescription = null,
-                        tint = emeraldColors.incomeText,
-                        modifier = Modifier.size(32.dp),
+                        tint = if (noResults) emeraldColors.secondaryMuted else emeraldColors.primaryDeep,
+                        modifier = Modifier.size(40.dp),
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = emeraldColors.primaryText,
-                textAlign = TextAlign.Center,
+        },
+        action = {
+            val actionColors = ButtonDefaults.buttonColors(
+                containerColor = emeraldColors.primaryDeep,
+                contentColor = emeraldColors.onPrimaryDeep,
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = emeraldColors.secondaryMuted,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (!isSearchActive && !hasActiveFilters && onRegister != null) {
                 Button(
                     onClick = onRegister,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = emeraldColors.primaryDeep,
-                        contentColor = emeraldColors.onPrimaryDeep,
-                    ),
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("btn_empty_register"),
+                    colors = actionColors,
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text(
-                        text = "+ Registrar primer movimiento",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = emeraldColors.onPrimaryDeep,
-                    )
+                    Text("Registrar movimiento", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             } else if (isSearchActive && onClearSearch != null) {
-                OutlinedButton(
+                Button(
                     onClick = onClearSearch,
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .testTag("btn_empty_clear_search")
                         .semantics { contentDescription = "Limpiar búsqueda" },
+                    colors = actionColors,
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text(stringResource(R.string.movements_search_clear), color = emeraldColors.primaryDeep)
+                    Text("Limpiar búsqueda", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             } else if (hasActiveFilters && onClearFilters != null) {
-                OutlinedButton(
+                Button(
                     onClick = onClearFilters,
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .testTag("btn_empty_clear_filters")
                         .semantics { contentDescription = "Limpiar filtros" },
+                    colors = actionColors,
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text(stringResource(R.string.movements_filter_clear), color = emeraldColors.primaryDeep)
+                    Text("Limpiar filtros", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 private fun formatSignedBigIntegerMinor(minor: BigInteger): Pair<String, String> {
@@ -1439,3 +1306,7 @@ fun TransactionIconAvatar(
 
 private fun movementReceiptPreferenceKey(item: TransactionItem): String =
     "${item.transaction.userId}:${item.transaction.id}"
+
+/** El campo local va un paso por delante del ViewModel mientras se escribe; solo se resincroniza ante cambios externos. */
+private fun isTypingSearch(field: androidx.compose.ui.text.input.TextFieldValue, published: String): Boolean =
+    field.text.startsWith(published) || published.startsWith(field.text)

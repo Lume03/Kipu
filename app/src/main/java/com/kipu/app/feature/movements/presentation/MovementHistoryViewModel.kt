@@ -448,6 +448,7 @@ class MovementHistoryViewModel @Inject constructor(
 
     fun onRemoveFilter(key: String) {
         val id = key.substringAfter(':', "")
+        if (key == "type") _selectedFilterType.value = null
         _advancedFilters.update { current -> when (key.substringBefore(':')) {
             "account" -> current.copy(accountIds = current.accountIds - id)
             "category" -> current.copy(categoryIds = current.categoryIds - id)

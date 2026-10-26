@@ -64,7 +64,7 @@ fun MovementDetailSheet(
     val specialized = isSpecializedMovement(item)
     val esPeLocale = remember { Locale.forLanguageTag("es-PE") }
     val dateFormat = remember(esPeLocale) {
-        DateTimeFormatter.ofPattern("d 'de' MMM. 'de' yyyy, hh:mm a", esPeLocale).withZone(ZoneId.systemDefault())
+        DateTimeFormatter.ofPattern("d 'de' MMM 'de' yyyy, hh:mm a", esPeLocale).withZone(ZoneId.systemDefault())
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showRevisions by remember { mutableStateOf(false) }

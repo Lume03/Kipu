@@ -493,6 +493,12 @@ fun PastelCategoryPickerBottomSheet(
     isCreating: Boolean = false,
     errorMessage: String? = null,
     directSelectionMode: Boolean = false,
+    title: String = "Elegir categoría",
+    subtitle: String = "Selecciona una categoría o subcategoría para clasificar tu gasto",
+    allowCreate: Boolean = true,
+    multiSelect: Boolean = false,
+    selectedCategoryIds: Set<String> = emptySet(),
+    onConfirmMultiple: ((Set<String>) -> Unit)? = null,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val reducedMotion = rememberReducedMotionEnabled()
@@ -500,13 +506,16 @@ fun PastelCategoryPickerBottomSheet(
 
     var currentScreen by remember { mutableStateOf(PastelFlowScreen.BROWSE_CATEGORIES) }
     var currentSelectedId by remember(selectedCategoryId) { mutableStateOf(selectedCategoryId) }
+    var multiSelectedIds by remember(selectedCategoryIds) { mutableStateOf(selectedCategoryIds) }
+    val effectiveSelectedIds = if (multiSelect) multiSelectedIds else setOfNotNull(currentSelectedId)
 
     // Search state
     var searchQuery by remember { mutableStateOf("") }
     var expandedRootIds by remember {
-        mutableStateOf(
-            if (initialParentCategoryId != null) setOf(initialParentCategoryId) else emptySet()
-        )
+        // Open the accordion that holds the current subcategory so "Actual" is visible on entry.
+        val currentParents = (if (multiSelect) selectedCategoryIds else setOfNotNull(selectedCategoryId))
+            .mapNotNull { id -> categories.firstOrNull { it.id == id }?.parentCategoryId }
+        mutableStateOf(setOfNotNull(initialParentCategoryId) + currentParents)
     }
 
     // New subcategory creation state
@@ -557,7 +566,12 @@ fun PastelCategoryPickerBottomSheet(
                 PastelFlowScreen.BROWSE_CATEGORIES -> {
                     BrowseCategoriesView(
                         categories = categories,
-                        selectedCategoryId = currentSelectedId,
+                        selectedIds = effectiveSelectedIds,
+                        currentIds = if (multiSelect) emptySet() else effectiveSelectedIds,
+                        title = title,
+                        subtitle = subtitle,
+                        allowCreate = allowCreate,
+                        multiSelect = multiSelect,
                         searchQuery = searchQuery,
                         onSearchQueryChange = { searchQuery = it },
                         expandedRootIds = expandedRootIds,
@@ -569,9 +583,22 @@ fun PastelCategoryPickerBottomSheet(
                             }
                         },
                         onSelectCategory = { option ->
-                            currentSelectedId = option.id
+                            if (multiSelect) {
+                                multiSelectedIds = if (option.id in multiSelectedIds) {
+                                    multiSelectedIds - option.id
+                                } else {
+                                    multiSelectedIds + option.id
+                                }
+                            } else {
+                                currentSelectedId = option.id
+                            }
                         },
                         onConfirmSelection = { chosenOption ->
+                            if (multiSelect) {
+                                onConfirmMultiple?.invoke(multiSelectedIds)
+                                onDismiss()
+                                return@BrowseCategoriesView
+                            }
                             val option = chosenOption ?: categories.find { it.id == currentSelectedId }
                             if (option != null) {
                                 onSelect(option)
@@ -585,7 +612,7 @@ fun PastelCategoryPickerBottomSheet(
                         },
                         onDismiss = onDismiss,
                         reducedMotion = reducedMotion,
-                        directSelectionMode = directSelectionMode,
+                        directSelectionMode = directSelectionMode && !multiSelect,
                     )
                 }
 
@@ -685,7 +712,12 @@ fun PastelCategoryPickerFlow(
 @Composable
 private fun BrowseCategoriesView(
     categories: List<CategoryOption>,
-    selectedCategoryId: String?,
+    selectedIds: Set<String>,
+    currentIds: Set<String>,
+    title: String,
+    subtitle: String,
+    allowCreate: Boolean,
+    multiSelect: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     expandedRootIds: Set<String>,
@@ -711,8 +743,12 @@ private fun BrowseCategoriesView(
         }
     }
 
-    val selectedOption = remember(categories, selectedCategoryId) {
-        categories.find { it.id == selectedCategoryId }
+    val selectedOption = remember(categories, selectedIds) {
+        categories.find { it.id in selectedIds }
+    }
+    // Roots whose subcategory is selected keep the teal outline, as in the reference accordion.
+    val rootsWithSelection = remember(categories, selectedIds) {
+        categories.filter { it.id in selectedIds }.mapNotNull { it.parentCategoryId }.toSet()
     }
 
     Column(
@@ -730,7 +766,7 @@ private fun BrowseCategoriesView(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Elegir categoría",
+                    text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = PastelDesignTokens.TextMain,
@@ -766,7 +802,7 @@ private fun BrowseCategoriesView(
         }
 
         Text(
-            text = "Selecciona una categoría o subcategoría para clasificar tu gasto",
+            text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = PastelDesignTokens.TextMuted,
             modifier = Modifier.padding(bottom = 12.dp),
@@ -829,7 +865,11 @@ private fun BrowseCategoriesView(
                     // State 4: Empty search result
                     EmptySearchState(
                         searchQuery = searchQuery,
-                        onCreateSubcategory = { onNavigateToCreate(searchQuery.trim()) },
+                        onCreateSubcategory = if (allowCreate) {
+                            { onNavigateToCreate(searchQuery.trim()) }
+                        } else {
+                            null
+                        },
                     )
                 } else {
                     // State 3: Live search results grouped
@@ -837,7 +877,8 @@ private fun BrowseCategoriesView(
                         searchResults = searchResults,
                         allCategories = categories,
                         searchQuery = searchQuery,
-                        selectedCategoryId = selectedCategoryId,
+                        selectedIds = selectedIds,
+                        currentIds = currentIds,
                         onSelectCategory = { option ->
                             onSelectCategory(option)
                             if (directSelectionMode) onConfirmSelection(option)
@@ -851,7 +892,7 @@ private fun BrowseCategoriesView(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     // Quick "+ Nueva categoría" header row
-                    item {
+                    if (allowCreate) item {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -899,7 +940,9 @@ private fun BrowseCategoriesView(
                     items(roots, key = { it.id }) { root ->
                         val children = categories.filter { it.parentCategoryId == root.id }
                         val isExpanded = root.id in expandedRootIds
-                        val isRootSelected = root.id == selectedCategoryId
+                        val isRootSelected = root.id in selectedIds
+                        val isRootCurrent = root.id in currentIds || (!multiSelect && isRootSelected)
+                        val holdsSelection = root.id in rootsWithSelection
                         val pastel = PastelDesignTokens.resolvePastelToken(root.name, root.icon)
 
                         val rotation by animateFloatAsState(
@@ -916,11 +959,11 @@ private fun BrowseCategoriesView(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .border(
-                                    width = if (isRootSelected) 1.5.dp else 1.dp,
-                                    color = if (isRootSelected) PastelDesignTokens.TealPrimary else PastelDesignTokens.BorderSubtle,
+                                    width = if (isRootSelected || holdsSelection) 2.dp else 1.dp,
+                                    color = if (isRootSelected || holdsSelection) PastelDesignTokens.TealPrimary else PastelDesignTokens.BorderSubtle,
                                     shape = RoundedCornerShape(16.dp),
                                 )
-                                .background(if (isRootSelected) PastelDesignTokens.TealLightBg else PastelDesignTokens.SurfaceWhite),
+                                .background(if (isRootSelected || holdsSelection) PastelDesignTokens.TealLightBg else PastelDesignTokens.SurfaceWhite),
                         ) {
                             // Root Item Row
                             Row(
@@ -931,7 +974,7 @@ private fun BrowseCategoriesView(
                                         onSelectCategory(root)
                                         if (directSelectionMode) {
                                             onConfirmSelection(root)
-                                        } else if (children.isNotEmpty()) {
+                                        } else if (children.isNotEmpty() && !multiSelect) {
                                             onToggleRootExpand(root.id)
                                         }
                                     }
@@ -953,29 +996,18 @@ private fun BrowseCategoriesView(
                                         Text(
                                             text = root.name,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
+                                            fontSize = 16.sp,
                                             color = PastelDesignTokens.TextMain,
+                                            modifier = Modifier.weight(1f, fill = false),
                                         )
-                                        if (isRootSelected) {
+                                        if (isRootCurrent) {
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(PastelDesignTokens.Mint.containerColor)
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                            ) {
-                                                Text(
-                                                    text = "Actual",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = PastelDesignTokens.Mint.contentColor,
-                                                )
-                                            }
+                                            CurrentCategoryTag()
                                         }
                                     }
                                     Text(
                                         text = if (children.isNotEmpty()) {
-                                            children.joinToString(", ") { it.name }.take(42) + "..."
+                                            children.take(2).joinToString(", ") { it.name } + if (children.size > 2) "…" else ""
                                         } else {
                                             "Categoría principal"
                                         },
@@ -1020,7 +1052,8 @@ private fun BrowseCategoriesView(
                                             )
                                         }
                                     }
-                                } else if (isRootSelected) {
+                                }
+                                if (isRootSelected) {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Seleccionado",
@@ -1053,7 +1086,8 @@ private fun BrowseCategoriesView(
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
                                     children.forEach { child ->
-                                        val isChildSelected = child.id == selectedCategoryId
+                                        val isChildSelected = child.id in selectedIds
+                                        val isChildCurrent = child.id in currentIds || (!multiSelect && isChildSelected)
                                         val childPastel = PastelDesignTokens.resolvePastelToken(child.name, child.icon)
 
                                         Row(
@@ -1093,6 +1127,10 @@ private fun BrowseCategoriesView(
                                                 color = PastelDesignTokens.TextMain,
                                                 modifier = Modifier.weight(1f),
                                             )
+                                            if (isChildCurrent) {
+                                                CurrentCategoryTag()
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                            }
 
                                             if (isChildSelected) {
                                                 Icon(
@@ -1121,11 +1159,12 @@ private fun BrowseCategoriesView(
                 color = PastelDesignTokens.SurfaceWhite,
                 tonalElevation = 8.dp,
             ) {
-                val hasSelection = selectedOption != null
-                val buttonLabel = if (selectedOption != null) {
-                    "Confirmar \"${selectedOption.name}\" ✓"
-                } else {
-                    "Confirmar categoría"
+                val hasSelection = multiSelect || selectedOption != null
+                val buttonLabel = when {
+                    multiSelect && selectedIds.isNotEmpty() -> "Listo (${selectedIds.size})"
+                    multiSelect -> "Listo"
+                    selectedOption != null -> "Confirmar \"${selectedOption.name}\""
+                    else -> "Confirmar categoría"
                 }
 
                 Button(
@@ -1164,7 +1203,8 @@ private fun SearchResultsList(
     searchResults: List<CategoryOption>,
     allCategories: List<CategoryOption>,
     searchQuery: String,
-    selectedCategoryId: String?,
+    selectedIds: Set<String>,
+    currentIds: Set<String>,
     onSelectCategory: (CategoryOption) -> Unit,
 ) {
     // Group subcategories by parent
@@ -1235,7 +1275,7 @@ private fun SearchResultsList(
                     HorizontalDivider(color = PastelDesignTokens.BorderSubtle.copy(alpha = 0.5f))
 
                     items.forEach { option ->
-                        val isSelected = option.id == selectedCategoryId
+                        val isSelected = option.id in selectedIds
                         val pastel = PastelDesignTokens.resolvePastelToken(option.name, option.icon)
 
                         Row(
@@ -1272,6 +1312,10 @@ private fun SearchResultsList(
                                 color = PastelDesignTokens.TextMain,
                                 modifier = Modifier.weight(1f),
                             )
+                            if (option.id in currentIds) {
+                                CurrentCategoryTag()
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
 
                             if (isSelected) {
                                 Icon(
@@ -1298,7 +1342,7 @@ private fun SearchResultsList(
 @Composable
 private fun EmptySearchState(
     searchQuery: String,
-    onCreateSubcategory: () -> Unit,
+    onCreateSubcategory: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier
@@ -1324,7 +1368,7 @@ private fun EmptySearchState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No encontramos esa categoría",
+            text = "No encontramos \u201C${searchQuery.trim()}\u201D",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = PastelDesignTokens.TextMain,
@@ -1334,12 +1378,18 @@ private fun EmptySearchState(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "No existe ninguna categoría o subcategoría que coincida con \"$searchQuery\".",
+            text = if (onCreateSubcategory != null) {
+                "Prueba otra palabra o crea una categoría nueva."
+            } else {
+                "Prueba otra palabra o revisa la ortografía."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = PastelDesignTokens.TextMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 20.dp),
         )
+
+        if (onCreateSubcategory == null) return@Column
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -1365,19 +1415,28 @@ private fun EmptySearchState(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "+ Crear categoría personalizada",
+                text = "Crear categoría personalizada",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
             )
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(12.dp))
-
+/** "Actual" tag: text plus mint container, so the state never depends on color alone. */
+@Composable
+private fun CurrentCategoryTag() {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(PastelDesignTokens.Mint.containerColor)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    ) {
         Text(
-            text = "Buscar en otra categoría o revisar la ortografía",
-            fontSize = 12.sp,
-            color = PastelDesignTokens.TextPlaceholder,
-            textAlign = TextAlign.Center,
+            text = "Actual",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = PastelDesignTokens.Mint.contentColor,
         )
     }
 }
@@ -1623,6 +1682,7 @@ internal fun IconCatalogDialog(
     initialIconId: String,
     onConfirmIcon: (String) -> Unit,
     onDismiss: () -> Unit,
+    subtitle: String = "Elige el símbolo gráfico para tu subcategoría",
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf("Todos") }
@@ -1675,7 +1735,7 @@ internal fun IconCatalogDialog(
                             color = PastelDesignTokens.TextMain,
                         )
                         Text(
-                            text = "Elige el símbolo gráfico para tu subcategoría",
+                            text = subtitle,
                             fontSize = 12.sp,
                             color = PastelDesignTokens.TextMuted,
                         )

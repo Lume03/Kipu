@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -82,7 +83,7 @@ class MovementEditorScreenTest {
         // Title and badges
         compose.onNodeWithText("Editar movimiento").assertIsDisplayed()
         compose.onNodeWithTag("badge_movement_type").assertIsDisplayed()
-        compose.onNodeWithText("Gasto").assertIsDisplayed()
+        compose.onNodeWithTag("badge_movement_type").assertTextContains("Gasto", substring = true)
 
         // Amount input
         compose.onNodeWithTag("editor_amount_input").assertIsDisplayed()
@@ -305,8 +306,9 @@ class MovementEditorScreenTest {
         }
 
         compose.onNodeWithTag("dialog_confirm_discard").assertIsDisplayed()
-        compose.onNodeWithText("¿Descartar cambios?").assertIsDisplayed()
-        compose.onNodeWithText("Tienes cambios sin guardar. ¿Deseas descartarlos?").assertIsDisplayed()
+        compose.onNodeWithText("¿Descartar los cambios?").assertIsDisplayed()
+        compose.onNodeWithText("Sí, descartar").assertIsDisplayed()
+        compose.onNodeWithText("Seguir editando").assertIsDisplayed()
 
         compose.onNodeWithTag("btn_cancel_discard").assertIsDisplayed().performClick()
         assertTrue(cancelDiscardClicked)

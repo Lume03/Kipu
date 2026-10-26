@@ -60,6 +60,22 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import io.mockk.mockk
+import io.mockk.coEvery
+import io.mockk.every
+import com.kipu.app.feature.budgets.domain.Budget
+import com.kipu.app.feature.budgets.domain.BudgetCategoryLookup
+import com.kipu.app.feature.budgets.domain.BudgetConsumption
+import com.kipu.app.feature.budgets.domain.BudgetInterval
+import com.kipu.app.feature.budgets.domain.BudgetOutcome
+import com.kipu.app.feature.budgets.domain.BudgetPeriod
+import com.kipu.app.feature.budgets.domain.BudgetPeriodConsumption
+import com.kipu.app.feature.budgets.domain.BudgetPeriodType
+import com.kipu.app.feature.budgets.domain.BudgetRepository
+import com.kipu.app.feature.budgets.domain.BudgetSchedule
+import com.kipu.app.feature.budgets.domain.BudgetScope
+import com.kipu.app.feature.budgets.domain.GetBudgetConsumption
+import com.kipu.app.feature.accounts.domain.usecase.PayCreditCard
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -83,6 +99,9 @@ class QuickMovementViewModelTest {
     private lateinit var fakeMovementRepo: FakeMovementRepo
     private lateinit var fakeInstrumentsRepo: FakeInstrumentsRepo
     private lateinit var fakeSessionCoordinator: FakeSessionCoordinator
+    private val budgets = MutableStateFlow<List<Budget>>(emptyList())
+    private val consumption = mockk<GetBudgetConsumption>()
+    private val budgetCategoryLookup = mockk<BudgetCategoryLookup>()
     private lateinit var viewModel: QuickMovementViewModel
 
     @Before
@@ -111,7 +130,77 @@ class QuickMovementViewModelTest {
                 override fun cancelSync(userId: String) = Unit
             },
             sessionCoordinator = fakeSessionCoordinator,
+            payCreditCard = PayCreditCard(fakeInstrumentsRepo),
+            movementRepository = fakeMovementRepo,
+            budgetRepository = mockk<BudgetRepository> {
+                every { observeBudgets(any()) } returns budgets
+            },
+            getBudgetConsumption = consumption,
+            budgetCategories = budgetCategoryLookup,
         )
+    }
+
+    @Test
+    fun `transfer to card uses existing payment flow and clears selection on type change`() = runTest {
+        advanceUntilIdle()
+        val card = viewModel.uiState.value.availableCreditCards.first()
+        viewModel.onTypeSelected(MovementType.TRANSFER)
+        viewModel.onDestinationCardSelected(card.id.value)
+        assertEquals(card.id.value, viewModel.uiState.value.selectedDestinationCardId)
+        assertNull(viewModel.uiState.value.selectedDestinationAccountId)
+        viewModel.onAmountChanged("10")
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(1, fakeInstrumentsRepo.paymentCalls)
+        assertEquals(MovementType.EXPENSE, viewModel.uiState.value.type)
+        assertNull(viewModel.uiState.value.selectedDestinationCardId)
+    }
+
+    @Test
+    fun `selecting account destination clears card payment target`() = runTest {
+        advanceUntilIdle()
+        viewModel.onTypeSelected(MovementType.TRANSFER)
+        viewModel.onDestinationCardSelected(viewModel.uiState.value.availableCreditCards.first().id.value)
+        viewModel.onDestinationAccountSelected(transferAccountId.value)
+        assertNull(viewModel.uiState.value.selectedDestinationCardId)
+        assertEquals(transferAccountId.value, viewModel.uiState.value.selectedDestinationAccountId)
+    }
+
+    @Test
+    fun `exceeded budget shows impact without blocking expense`() = runTest {
+        advanceUntilIdle()
+        val date = java.time.LocalDate.now()
+        val interval = BudgetInterval(date, date.plusDays(1))
+        val budget = Budget("budget", testUserId.value, "Diario", BudgetScope.Total, 1000L, "PEN",
+            BudgetSchedule.Recurring(BudgetPeriodType.DAILY), createdOn = date)
+        val period = BudgetPeriod("period", budget.id, testUserId.value, interval, 1000L, BudgetScope.Total)
+        coEvery { consumption.current(any(), any(), any(), any()) } returns
+            BudgetOutcome.Success(BudgetPeriodConsumption(period, BudgetConsumption(1000L, 900L)))
+        budgets.value = listOf(budget)
+        viewModel.onAmountChanged("5")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        advanceUntilIdle()
+        assertEquals(140L, viewModel.uiState.value.budgetImpacts.single().projected.percentWhole)
+        assertNull(viewModel.uiState.value.generalError)
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+    }
+
+    @Test
+    fun `budget lookup failure does not block saving`() = runTest {
+        advanceUntilIdle()
+        val date = java.time.LocalDate.now()
+        coEvery { consumption.current(any(), any(), any(), any()) } throws IllegalStateException("unavailable")
+        budgets.value = listOf(Budget("budget", testUserId.value, "Diario", BudgetScope.Total, 1000L, "PEN",
+            BudgetSchedule.Recurring(BudgetPeriodType.DAILY), createdOn = date))
+        viewModel.onAmountChanged("5")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.budgetImpacts.isEmpty())
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
     }
 
     @After
@@ -701,7 +790,8 @@ class QuickMovementViewModelTest {
         override suspend fun registerCreditCard(card: com.kipu.app.feature.accounts.domain.model.CreditCard, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<com.kipu.app.feature.accounts.domain.model.CreditCard> = Result.success(card)
         override suspend fun updateCardAppearance(cardId: CardId, alias: String?, preset: com.kipu.app.feature.accounts.domain.model.CardPreset?, colorToken: String?, iconToken: String?, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> = Result.success(Unit)
         override suspend fun deleteUnusedCard(cardId: CardId, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> = Result.success(Unit)
-        override suspend fun payCreditCard(cardId: CardId, sourceAccountId: AccountId, paymentAmount: Money, effectiveAt: java.time.Instant, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> = Result.success(Unit)
+        var paymentCalls = 0
+        override suspend fun payCreditCard(cardId: CardId, sourceAccountId: AccountId, paymentAmount: Money, effectiveAt: java.time.Instant, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> { paymentCalls++; return Result.success(Unit) }
         override suspend fun confirmCreditPurchase(cardId: CardId, amount: Money, merchant: String, effectiveAt: java.time.Instant, installments: Int, operationId: com.kipu.app.core.finance.domain.model.OperationId, categoryId: String, merchantId: String?, note: String?): Result<Unit> {
             confirmedPurchases += Purchase(cardId, amount, merchant, categoryId)
             return Result.success(Unit)

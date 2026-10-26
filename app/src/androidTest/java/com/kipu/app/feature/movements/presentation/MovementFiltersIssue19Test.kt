@@ -193,6 +193,7 @@ class MovementFiltersIssue19Test {
         val maxBounds = maxAmount.getUnclippedBoundsInRoot()
         val footerBounds = compose.onNodeWithTag("sticky_filter_footer").getUnclippedBoundsInRoot()
         val footerClearance = 8.dp
+        saveCompactEvidence("compact-before-clearance-check.png", hasTestTag("panel_advanced_filters"))
         assertTrue(
             "Maximum amount field must remain clear of the sticky footer (field=$maxBounds footer=$footerBounds)",
             maxBounds.bottom + footerClearance <= footerBounds.top

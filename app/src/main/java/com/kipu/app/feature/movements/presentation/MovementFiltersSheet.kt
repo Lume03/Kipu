@@ -44,6 +44,8 @@ import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.LocalDate
@@ -64,9 +66,10 @@ fun MovementFiltersSheet(
     onVerify: () -> Unit = {},
     onViewPlans: () -> Unit = {},
     onDismissRecovery: () -> Unit = {},
+    catalog: MovementFiltersCatalog? = null,
 ) {
     key(state.ownerId) {
-        MovementFiltersSheetContent(state, onDismiss, onApply, onVerify, onViewPlans, onDismissRecovery)
+        MovementFiltersSheetContent(state, onDismiss, onApply, onVerify, onViewPlans, onDismissRecovery, catalog)
     }
 }
 
@@ -79,6 +82,7 @@ private fun MovementFiltersSheetContent(
     onVerify: () -> Unit = {},
     onViewPlans: () -> Unit = {},
     onDismissRecovery: () -> Unit = {},
+    catalog: MovementFiltersCatalog? = null,
 ) {
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
@@ -107,28 +111,28 @@ private fun MovementFiltersSheetContent(
     }
 
     val rows = state.allTransactions
-    val accounts = remember(rows) {
-        rows.flatMap {
+    val accounts = remember(rows, catalog) {
+        (catalog?.accounts.orEmpty().map { MovementReferenceOption(it.id.value, it.alias) } + rows.flatMap {
             listOfNotNull(
                 it.transaction.sourceAccountId?.let { id -> MovementReferenceOption(id, it.sourceAccountAlias ?: "Cuenta histórica") },
                 it.transaction.destinationAccountId?.let { id -> MovementReferenceOption(id, it.destinationAccountAlias ?: "Cuenta histórica") }
             )
-        }.distinctBy { it.id }
+        }).distinctBy { it.id }
     }
-    val categories = remember(rows) {
-        rows.mapNotNull { row ->
+    val categories = remember(rows, catalog) {
+        (catalog?.categories.orEmpty().map { MovementReferenceOption(it.id, it.displayName) } + rows.mapNotNull { row ->
             row.transaction.categoryId?.let { MovementReferenceOption(it, row.categoryName ?: "Categoría histórica") }
-        }.distinctBy { it.id }
+        }).distinctBy { it.id }
     }
-    val cards = remember(rows) {
-        rows.mapNotNull { row ->
+    val cards = remember(rows, catalog) {
+        (catalog?.cards.orEmpty().map { MovementReferenceOption(it.id.value, it.alias ?: it.issuer) } + rows.mapNotNull { row ->
             row.transaction.cardId?.let { MovementReferenceOption(it, row.cardAlias ?: "Tarjeta histórica") }
-        }.distinctBy { it.id }
+        }).distinctBy { it.id }
     }
-    val merchants = remember(rows) {
-        rows.mapNotNull { row ->
+    val merchants = remember(rows, catalog) {
+        (catalog?.merchants.orEmpty().map { MovementReferenceOption(it.id.value, it.name) } + rows.mapNotNull { row ->
             row.transaction.merchantId?.let { MovementReferenceOption(it, row.merchantName ?: "Comercio histórico") }
-        }.distinctBy { it.id }
+        }).distinctBy { it.id }
     }
 
     val emeraldColors = rememberCalmEmeraldColors()
@@ -233,7 +237,12 @@ private fun MovementFiltersSheetContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             text = "Filtros de movimientos",
                             style = MaterialTheme.typography.titleLarge.copy(
@@ -243,7 +252,6 @@ private fun MovementFiltersSheetContent(
                             color = themeColors.inkPrimary
                         )
                         if (activeFilterCount > 0) {
-                            Spacer(Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = semanticColors.incomeBg,
@@ -262,7 +270,7 @@ private fun MovementFiltersSheetContent(
                     }
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(36.dp).testTag("btn_close_filters")
+                        modifier = Modifier.size(48.dp).testTag("btn_close_filters")
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
@@ -940,7 +948,8 @@ private fun MovementFiltersSheetContent(
                             accounts = accounts,
                             categories = categories,
                             cards = cards,
-                            merchants = merchants
+                            merchants = merchants,
+                            catalog = catalog,
                         )
                     }
                 }
@@ -958,8 +967,6 @@ private fun MovementFiltersSheetContent(
             color = themeColors.surface,
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
                 .testTag("sticky_filter_footer")
         ) {
             FlowRow(
@@ -1360,7 +1367,7 @@ private fun FilterAmountInput(
 }
 
 /** Controls for Unlocked / Pro Plan filters */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun AdvancedFiltersControls(
     draft: MovementFilterDraft,
@@ -1372,6 +1379,7 @@ private fun AdvancedFiltersControls(
     categories: List<MovementReferenceOption>,
     cards: List<MovementReferenceOption>,
     merchants: List<MovementReferenceOption>,
+    catalog: MovementFiltersCatalog? = null,
 ) {
     val themeColors = rememberKipuColors()
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1384,7 +1392,20 @@ private fun AdvancedFiltersControls(
             options = accounts,
             selected = draft.accountIds,
             enabled = allowed,
-            onChange = { onDraftChange(draft.copy(accountIds = it)) }
+            onChange = { onDraftChange(draft.copy(accountIds = it)) },
+            selectorContent = catalog?.let { data -> { dismiss ->
+                AccountSelectorBottomSheet(
+                    accounts = data.accounts, creditCards = data.cards,
+                    purpose = AccountSelectorPurpose.FILTER,
+                    title = AccountSelectorDefaults.title(AccountSelectorPurpose.FILTER),
+                    subtitle = AccountSelectorDefaults.subtitle(AccountSelectorPurpose.FILTER),
+                    selectedAccountIds = draft.accountIds, selectedCardIds = draft.cardIds,
+                    onSelectionConfirmed = { accountIds, cardIds ->
+                        onDraftChange(draft.copy(accountIds = accountIds, cardIds = cardIds))
+                    },
+                    onDismissRequest = dismiss,
+                )
+            } },
         )
 
         Text("Canal de pago", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -1409,7 +1430,16 @@ private fun AdvancedFiltersControls(
             options = categories,
             selected = draft.categoryIds,
             enabled = allowed,
-            onChange = { onDraftChange(draft.copy(categoryIds = it)) }
+            onChange = { onDraftChange(draft.copy(categoryIds = it)) },
+            selectorContent = catalog?.let { data -> { dismiss ->
+                PastelCategoryPickerBottomSheet(
+                    categories = data.categories, selectedCategoryId = null, onSelect = {},
+                    onCreateCategory = { _, _, _, _, _ -> Result.failure(UnsupportedOperationException()) },
+                    onDismiss = dismiss, title = "Filtrar por categoría", subtitle = "Puedes elegir varias",
+                    allowCreate = false, multiSelect = true, selectedCategoryIds = draft.categoryIds,
+                    onConfirmMultiple = { onDraftChange(draft.copy(categoryIds = it)) },
+                )
+            } },
         )
 
         // Importe / Rango Card
@@ -1546,7 +1576,19 @@ private fun AdvancedFiltersControls(
             options = merchants,
             selected = draft.merchantIds,
             enabled = allowed,
-            onChange = { onDraftChange(draft.copy(merchantIds = it)) }
+            onChange = { onDraftChange(draft.copy(merchantIds = it)) },
+            selectorContent = catalog?.let { data -> { dismiss ->
+                var query by remember { mutableStateOf("") }
+                MerchantPickerBottomSheet(
+                    state = MerchantPickerState(query = query, catalogEntries = data.merchants,
+                        searchResults = data.merchants.filter { it.name.contains(query.trim(), ignoreCase = true) }),
+                    onQueryChange = { query = it },
+                    onSelectMerchant = { onDraftChange(draft.copy(merchantIds = draft.merchantIds.toggle(it.id.value))) },
+                    onSetProvisionalText = {}, onClearSelection = { onDraftChange(draft.copy(merchantIds = emptySet())) },
+                    onDismiss = dismiss, title = "Filtrar por comercio", subtitle = "Puedes elegir varios",
+                    allowProvisionalText = false, selectedMerchantIds = draft.merchantIds, dismissOnSelect = false,
+                )
+            } },
         )
 
         // Tarjetas
@@ -1559,7 +1601,16 @@ private fun AdvancedFiltersControls(
                 options = cards,
                 selected = draft.cardIds,
                 enabled = allowed,
-                onChange = { onDraftChange(draft.copy(cardIds = it)) }
+                onChange = { onDraftChange(draft.copy(cardIds = it)) },
+                selectorContent = catalog?.let { data -> { dismiss ->
+                    AccountSelectorBottomSheet(
+                        accounts = emptyList(), creditCards = data.cards,
+                        purpose = AccountSelectorPurpose.FILTER, title = "Filtrar por tarjeta",
+                        subtitle = "Puedes elegir varias", selectedCardIds = draft.cardIds,
+                        onSelectionConfirmed = { _, cardIds -> onDraftChange(draft.copy(cardIds = cardIds)) },
+                        onDismissRequest = dismiss,
+                    )
+                } },
             )
         }
 

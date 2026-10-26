@@ -40,6 +40,7 @@ internal fun ReferenceSelector(
     emptySummary: String? = null,
     onLockedClick: (() -> Unit)? = null,
     onChange: (Set<String>) -> Unit,
+    selectorContent: (@Composable (onDismiss: () -> Unit) -> Unit)? = null,
 ) {
     val themeColors = rememberKipuColors()
     var open by rememberSaveable { mutableStateOf(false) }
@@ -142,6 +143,10 @@ internal fun ReferenceSelector(
 
     LaunchedEffect(enabled) { if (!enabled) open = false }
     if (open && enabled) {
+        if (selectorContent != null) {
+            selectorContent { open = false }
+            return
+        }
         val visible = remember(catalog, search) { catalog.filter { it.label.contains(search.trim(), ignoreCase = true) } }
         AlertDialog(
             onDismissRequest = { open = false },

@@ -491,15 +491,22 @@ class MovementHistoryViewModelTest {
 
     @Test
     fun historyReadFailureIsDistinctFromEmptyAndCanBeRetried() = runTest {
-        val repository = FakeHistoryRepository { throw IllegalStateException("read failed") }
-        val viewModel = viewModel(repository)
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.queryError)
-        repository.page = { MovementHistoryPage(emptyList(), null, false, MovementHistoryAccessDecision.Allowed) }
-        viewModel.onRetryHistory()
-        advanceUntilIdle()
-        assertFalse(viewModel.uiState.value.queryError)
-        assertTrue(viewModel.uiState.value.allTransactions.isEmpty())
+        // The local JVM has no Android logger; keep the read-error path observable.
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.e(any(), any<String>()) } returns 0
+        try {
+            val repository = FakeHistoryRepository { throw IllegalStateException("read failed") }
+            val viewModel = viewModel(repository)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.queryError)
+            repository.page = { MovementHistoryPage(emptyList(), null, false, MovementHistoryAccessDecision.Allowed) }
+            viewModel.onRetryHistory()
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.queryError)
+            assertTrue(viewModel.uiState.value.allTransactions.isEmpty())
+        } finally {
+            unmockkStatic(android.util.Log::class)
+        }
     }
 
     private fun viewModel(

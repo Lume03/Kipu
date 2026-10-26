@@ -2,12 +2,15 @@ package com.kipu.app.feature.movements.presentation
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.MoneyInputParser
@@ -15,6 +18,7 @@ import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -24,10 +28,11 @@ fun MovementChangeSummary(state: MovementEditorUiState, reducedMotion: Boolean =
     AnimatedVisibility(state.hasUnsavedChanges,
         enter = if (reducedMotion) EnterTransition.None else fadeIn(tween(KipuMotionTokens.FastMillis)) + expandVertically(tween(KipuMotionTokens.FastMillis)),
         exit = if (reducedMotion) ExitTransition.None else fadeOut(tween(KipuMotionTokens.QuickMillis)) + shrinkVertically(tween(KipuMotionTokens.QuickMillis))) {
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium,
+        val ec = rememberCalmEmeraldColors()
+        Surface(color = ec.incomeBg, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, ec.incomeBorder),
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).testTag("editor_change_summary")) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.history_changes), style = MaterialTheme.typography.titleSmall)
+                Text("Qué pasará al guardar", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = ec.primaryDeep)
                 if (state.isOnlyNoteChanged) Text(stringResource(R.string.movement_edit_summary_only_note),
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("summary_only_note"))
                 val amount = MoneyInputParser.parseMinorUnits(state.amountText)

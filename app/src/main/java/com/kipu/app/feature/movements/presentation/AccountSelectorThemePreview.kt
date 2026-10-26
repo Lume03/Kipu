@@ -86,3 +86,43 @@ private fun ActualAccountSelectorThemePreview() = KipuTheme {
     )
     AccountSelectorBottomSheet({}, listOf(account), selectedAccountId = account.id.value)
 }
+
+/** Brand logos, an affiliated Yape sharing the BCP balance, a card and a balance not available. */
+@com.kipu.app.ui.theme.KipuThemePreviews
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun BrandAccountSelectorThemePreview() = KipuTheme {
+    val pen = com.kipu.app.core.finance.domain.model.Currency.PEN
+    val user = com.kipu.app.core.finance.domain.model.UserId("e3900000-0000-4000-8000-000000000002")
+    fun account(
+        n: Int,
+        alias: String,
+        type: com.kipu.app.feature.accounts.domain.model.AccountType,
+        preset: com.kipu.app.feature.accounts.domain.model.AccountPreset?,
+        linked: String? = null,
+    ) = com.kipu.app.feature.accounts.domain.model.Account(
+        id = com.kipu.app.core.finance.domain.model.AccountId("e3900000-0000-4000-8000-00000000001$n"),
+        userId = user, alias = alias, type = type, currency = pen, preset = preset,
+        initialBalance = com.kipu.app.core.finance.domain.model.Money(0, pen),
+        openedAt = java.time.Instant.parse("2026-10-01T00:00:00Z"),
+        linkedAccountId = linked?.let { com.kipu.app.core.finance.domain.model.AccountId(it) },
+    )
+    val bcp = account(1, "Cuenta BCP", com.kipu.app.feature.accounts.domain.model.AccountType.SAVINGS, com.kipu.app.feature.accounts.domain.model.AccountPreset.BCP)
+    val yape = account(2, "Yape", com.kipu.app.feature.accounts.domain.model.AccountType.DIGITAL_WALLET, com.kipu.app.feature.accounts.domain.model.AccountPreset.YAPE, bcp.id.value)
+    val bbva = account(3, "BBVA", com.kipu.app.feature.accounts.domain.model.AccountType.SAVINGS, com.kipu.app.feature.accounts.domain.model.AccountPreset.BBVA)
+    val cash = account(4, "Efectivo", com.kipu.app.feature.accounts.domain.model.AccountType.CASH, com.kipu.app.feature.accounts.domain.model.AccountPreset.CASH)
+    AccountSelectorBottomSheet(
+        onDismissRequest = {},
+        accounts = listOf(bcp, yape, bbva, cash),
+        selectedAccountId = bcp.id.value,
+        mostUsedAccountId = bcp.id.value,
+        accountBalances = mapOf(
+            bcp.id.value to com.kipu.app.core.finance.domain.model.Money(99_770, pen),
+            cash.id.value to com.kipu.app.core.finance.domain.model.Money(10_000, pen),
+        ),
+        balancesLoaded = true,
+        purpose = AccountSelectorPurpose.INCOME_DESTINATION,
+        title = AccountSelectorDefaults.title(AccountSelectorPurpose.INCOME_DESTINATION),
+        subtitle = AccountSelectorDefaults.subtitle(AccountSelectorPurpose.INCOME_DESTINATION),
+    )
+}

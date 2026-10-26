@@ -354,7 +354,7 @@ class MovementHistoryScreenTest {
             }
         }
 
-        compose.onNodeWithText("Sin resultados para los filtros").assertIsDisplayed()
+        compose.onNodeWithText("Sin resultados").assertIsDisplayed()
         compose.onNodeWithTag("btn_empty_clear_filters").assertIsDisplayed()
         compose.onNodeWithTag("btn_empty_clear_filters").performClick()
         assertTrue(clearClicked)
@@ -372,7 +372,7 @@ class MovementHistoryScreenTest {
         }
 
         saveEvidence("empty-history.png")
-        compose.onNodeWithText("Sin movimientos registrados").assertIsDisplayed()
+        compose.onNodeWithText("Aún no tienes movimientos").assertIsDisplayed()
         compose.onNodeWithTag("btn_empty_clear_filters").assertDoesNotExist()
     }
 
