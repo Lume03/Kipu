@@ -535,11 +535,6 @@ fun MovementHistoryRoute(
                         viewModel::onDismissRecovery,
                         Modifier.fillMaxWidth(),
                     )
-                    MovementAppliedFilters(
-                        uiState,
-                        viewModel::onRemoveFilter,
-                        Modifier.fillMaxWidth(),
-                    )
                 }
             }
 
@@ -555,7 +550,7 @@ fun MovementHistoryRoute(
                     ) {
                         repeat(4) {
                             Card(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
                                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
                                 modifier = Modifier.fillMaxWidth(),
@@ -565,7 +560,7 @@ fun MovementHistoryRoute(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    KipuSkeletonBlock(Modifier.size(40.dp), height = 40.dp, cornerRadius = 12.dp)
+                                    KipuSkeletonBlock(Modifier.size(44.dp), height = 44.dp, cornerRadius = 14.dp)
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         KipuSkeletonBlock(Modifier.fillMaxWidth(0.5f), height = 14.dp)
                                         KipuSkeletonBlock(Modifier.fillMaxWidth(0.3f), height = 10.dp)
@@ -607,56 +602,23 @@ fun MovementHistoryRoute(
 
                 else -> {
                     uiState.filteredTransactions.forEach { (dateHeader, rows) ->
-                        item(key = "header_$dateHeader") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = dateHeader,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = emeraldColors.primaryText,
-                                )
-                                Text(
-                                    text = if (uiState.hasMorePages) "${rows.size} cargados"
-                                        else if (rows.size == 1) "1 movimiento" else "${rows.size} movimientos",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = emeraldColors.secondaryMuted,
-                                )
-                            }
+                        item(key = "header_$dateHeader", contentType = "day_header") {
+                            MovementDayHeader(label = dateHeader, rows = rows)
                         }
 
-                        itemsIndexed(
+                        items(
                             items = rows,
-                            key = { _, item -> "movement_${item.transaction.id}" },
-                            contentType = { _, _ -> "movement" },
-                        ) { index, item ->
-                            val first = index == 0
-                            val last = index == rows.lastIndex
-                            Card(
-                                shape = RoundedCornerShape(
-                                    topStart = if (first) 16.dp else 0.dp,
-                                    topEnd = if (first) 16.dp else 0.dp,
-                                    bottomStart = if (last) 16.dp else 0.dp,
-                                    bottomEnd = if (last) 16.dp else 0.dp,
-                                ),
-                                colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
-                                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                            key = { item -> "movement_${item.transaction.id}" },
+                            contentType = { "movement" },
+                        ) { item ->
+                            TransactionRow(
+                                item = item,
+                                offline = offline,
+                                onClick = { viewModel.onOpenDetail(item) },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, bottom = if (last) 10.dp else 0.dp),
-                            ) {
-                                TransactionRow(
-                                    item = item,
-                                    onClick = { viewModel.onOpenDetail(item) },
-                                    onEditClick = { onNavigateToEditor(item.transaction.id) },
-                                    onVoidClick = { viewModel.onSelectTransactionForVoid(item) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
+                                    .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                            )
                         }
                     }
                 }
@@ -859,17 +821,140 @@ fun MovementHistoryRoute(
 }
 
 @Composable
+private fun MovementBalanceCard(
+    totalCount: Long,
+    netByCurrency: Map<String, BigInteger>,
+    filtered: Boolean,
+) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    val currenciesToShow = remember(netByCurrency) {
+        if (netByCurrency.isEmpty()) listOf("PEN")
+        else listOfNotNull("PEN".takeIf { it in netByCurrency }, "USD".takeIf { it in netByCurrency }) +
+            netByCurrency.keys.filter { it != "PEN" && it != "USD" }
+    }
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
+        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+        modifier = Modifier.fillMaxWidth().testTag("movement_balance_card"),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = "BALANCE NETO",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp),
+                        color = emeraldColors.secondaryMuted,
+                    )
+                    Text(
+                        text = if (filtered) "Resultados filtrados" else "Historial completo",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = emeraldColors.secondaryMuted,
+                    )
+                }
+                Surface(shape = RoundedCornerShape(10.dp), color = emeraldColors.pillTrack) {
+                    Text(
+                        text = if (totalCount == 1L) "1 mov" else "$totalCount movs",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = emeraldColors.secondaryMuted,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            currenciesToShow.forEach { currency ->
+                val netMinor = netByCurrency[currency] ?: BigInteger.ZERO
+                val (prefix, formattedAmount) = formatSignedBigIntegerMinor(netMinor)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MoneyText(
+                        amount = "${prefix.trim()}$formattedAmount",
+                        currencySymbol = currencySymbol(currency),
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = if (currenciesToShow.size > 1) 24.sp else 32.sp,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = if (netMinor < BigInteger.ZERO) emeraldColors.expenseText else emeraldColors.primaryText,
+                    )
+                    if (currenciesToShow.size > 1) {
+                        Text(
+                            text = currency,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = emeraldColors.secondaryMuted,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Hoy · 24 oct" ——— −S/ 62.50: the day's net of income and expenses (transfers and voided rows excluded). */
+@Composable
+private fun MovementDayHeader(label: String, rows: List<TransactionItem>) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    val dayNet = remember(rows) {
+        rows.filter { it.transaction.status != TransactionStatus.VOIDED && it.transaction.type != MovementType.TRANSFER }
+            .groupBy { it.transaction.currency }
+            .mapValues { (_, items) ->
+                items.sumOf { if (it.transaction.type == MovementType.INCOME) it.transaction.amountMinor else -it.transaction.amountMinor }
+            }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp)
+            .semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            color = emeraldColors.secondaryMuted,
+        )
+        Box(
+            Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(emeraldColors.borderSubtle),
+        )
+        dayNet.entries.sortedBy { if (it.key == "PEN") 0 else 1 }.forEach { (currency, net) ->
+            MoneyText(
+                amount = "${if (net < 0) "−" else if (net > 0) "+" else ""}${formatMinorUnits(kotlin.math.abs(net))}",
+                currencySymbol = currencySymbol(currency),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
+                color = emeraldColors.secondaryMuted,
+            )
+        }
+    }
+}
+
+private fun currencySymbol(currency: String): String = when (currency) {
+    "PEN" -> "S/"
+    "USD" -> "$"
+    else -> currency
+}
+
+@Composable
 fun TransactionRow(
     item: TransactionItem,
     onClick: () -> Unit = {},
-    onVoidClick: () -> Unit = {},
     modifier: Modifier = Modifier,
-    onEditClick: () -> Unit = onClick,
+    offline: Boolean = false,
 ) {
     val tx = item.transaction
     val emeraldColors = rememberCalmEmeraldColors()
     val isVoided = tx.status == TransactionStatus.VOIDED
-    var showMenu by remember { mutableStateOf(false) }
+    val isPending = tx.syncStatus == MovementSyncStatus.PENDING || tx.syncStatus == MovementSyncStatus.IN_FLIGHT
 
     val legacyTitle = when (tx.legacyKind) {
         "OPENING" -> "Saldo inicial"

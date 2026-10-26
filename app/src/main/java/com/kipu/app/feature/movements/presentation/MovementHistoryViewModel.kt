@@ -791,14 +791,18 @@ class MovementHistoryViewModel @Inject constructor(
     private fun groupTransactionsByDate(items: List<TransactionItem>): Map<String, List<TransactionItem>> {
         val zone = java.time.ZoneId.systemDefault()
         val today = java.time.LocalDate.now(zone)
-        val format = java.time.format.DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", Locale.forLanguageTag("es-PE"))
+        val locale = Locale.forLanguageTag("es-PE")
+        val dayMonth = java.time.format.DateTimeFormatter.ofPattern("d MMM", locale)
+        val dayMonthYear = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", locale)
         return items.sortedWith(compareByDescending<TransactionItem> { it.transaction.occurredAt }
             .thenByDescending { it.transaction.id }).groupBy { item ->
             val date = java.time.Instant.ofEpochMilli(item.transaction.occurredAt).atZone(zone).toLocalDate()
+            val short = (if (date.year == today.year) dayMonth else dayMonthYear)
+                .format(date).replace(".", "").lowercase(locale)
             when (date) {
-                today -> "Hoy"
-                today.minusDays(1) -> "Ayer"
-                else -> format.format(date).lowercase(Locale.forLanguageTag("es-PE"))
+                today -> "Hoy · $short"
+                today.minusDays(1) -> "Ayer · $short"
+                else -> short
             }
         }
     }
