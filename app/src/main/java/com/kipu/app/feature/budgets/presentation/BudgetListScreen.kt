@@ -337,6 +337,9 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOption
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
+            item.syncIssue?.let { issue ->
+                Text(issue, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

@@ -28,6 +28,7 @@ data class BudgetListItem(
     val consumption: BudgetConsumption?,
     val hasPendingChange: Boolean,
     val thresholdsBps: List<Int> = Budget.DEFAULT_THRESHOLDS_BPS,
+    val syncIssue: String? = null,
 )
 
 sealed interface BudgetListUiState {

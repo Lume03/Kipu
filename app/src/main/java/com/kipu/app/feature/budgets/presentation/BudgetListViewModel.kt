@@ -56,9 +56,9 @@ class BudgetListViewModel @Inject constructor(
                     if (owner == null) {
                         flowOf<BudgetListUiState>(BudgetListUiState.Error(SESSION_REQUIRED_MESSAGE))
                     } else {
-                        combine(repository.observeBudgets(owner), categories.observe(owner)) { budgets, options ->
-                            budgets to options
-                        }.map<_, BudgetListUiState> { (budgets, options) -> build(owner, budgets, options) }
+                        combine(repository.observeBudgets(owner), categories.observe(owner), repository.observeSyncIssues(owner)) { budgets, options, issues ->
+                            Triple(budgets, options, issues)
+                        }.map<_, BudgetListUiState> { (budgets, options, issues) -> build(owner, budgets, options, issues) }
                             .catch { error ->
                                 if (error is CancellationException) throw error
                                 emit(BudgetListUiState.Error("No se pudieron cargar los presupuestos."))
@@ -83,6 +83,7 @@ class BudgetListViewModel @Inject constructor(
         owner: String,
         budgets: List<Budget>,
         options: List<BudgetCategoryOption>,
+        issues: Map<String, String>,
     ): BudgetListUiState {
         val premium = planAccess.isPremiumVerified(owner)
         val quota = BudgetQuotaState(
@@ -108,6 +109,14 @@ class BudgetListViewModel @Inject constructor(
                 consumption = current?.consumption,
                 hasPendingChange = budget.pendingChange != null,
                 thresholdsBps = budget.thresholdsBps,
+                syncIssue = issues[budget.id]?.let { code ->
+                    when (code) {
+                        "BUDGET_QUOTA_EXCEEDED" -> "Guardado en este teléfono. No se sincronizó porque alcanzaste el límite del plan."
+                        "INVALID_CATEGORY" -> "Guardado en este teléfono. La categoría ya no está disponible en el servidor."
+                        "REVISION_CONFLICT" -> "Hay cambios distintos en otro dispositivo. Este presupuesto necesita revisión."
+                        else -> "Guardado en este teléfono. La sincronización necesita revisión."
+                    }
+                },
             )
         }
         return BudgetListUiState.Content(items, quota)

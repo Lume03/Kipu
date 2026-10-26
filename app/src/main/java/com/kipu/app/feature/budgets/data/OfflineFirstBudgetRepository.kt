@@ -39,6 +39,11 @@ class OfflineFirstBudgetRepository @Inject constructor(
     private val zoneId: ZoneId,
 ) : BudgetRepository {
 
+    override fun observeSyncIssues(ownerId: String): Flow<Map<String, String>> =
+        if (!isCurrentOwner(ownerId)) emptyFlow() else budgetDao.observeFailedCommands(ownerId).map { rows ->
+            rows.groupBy { it.aggregateId }.mapValues { (_, commands) -> commands.first().errorCode ?: "REMOTE_REJECTED" }
+        }
+
     override fun observeBudgets(ownerId: String): Flow<List<Budget>> =
         if (!isCurrentOwner(ownerId)) emptyFlow() else budgetDao.observeBudgets(ownerId).map { rows -> rows.map(BudgetEntity::toDomain) }
 

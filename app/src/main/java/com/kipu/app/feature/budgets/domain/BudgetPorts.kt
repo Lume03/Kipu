@@ -9,6 +9,7 @@ enum class BudgetWriteResult { OK, NOT_FOUND, REVISION_CONFLICT, ALREADY_EXISTS 
  * acotadas al propietario. Las que reciben varias entidades deben ser atomicas.
  */
 interface BudgetRepository {
+    fun observeSyncIssues(ownerId: String): Flow<Map<String, String>> = kotlinx.coroutines.flow.flowOf(emptyMap())
     fun observeBudgets(ownerId: String): Flow<List<Budget>>
     fun observePeriods(ownerId: String, budgetId: String): Flow<List<BudgetPeriod>>
     suspend fun getBudget(ownerId: String, budgetId: String): Budget?

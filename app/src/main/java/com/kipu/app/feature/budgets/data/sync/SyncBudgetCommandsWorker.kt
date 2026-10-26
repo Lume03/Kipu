@@ -33,6 +33,8 @@ import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,7 +51,11 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
     private val zoneId: ZoneId,
 ) : CoroutineWorker(appContext, workerParams) {
 
-    private enum class Outcome { APPLIED, CONFLICT, RETRY }
+    private sealed interface Outcome {
+        data object APPLIED : Outcome
+        data object RETRY : Outcome
+        data class Failure(val code: String) : Outcome
+    }
 
     override suspend fun doWork(): Result {
         val userId = inputData.getString(KEY_USER_ID) ?: return Result.failure()
@@ -65,19 +71,25 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
             is BudgetApiResponse.NetworkFailure -> return Result.retry()
         }
 
+        val blocked = budgetDao.allOutbox(userId).filter { it.state == FAILED }.mapTo(mutableSetOf()) { it.aggregateId }
         for (command in budgetDao.pendingOutbox(userId)) {
+            if (command.aggregateId in blocked && command.commandType != DELETE_BUDGET) {
+                budgetDao.updateOutbox(command.copy(state = FAILED, errorCode = "PARENT_COMMAND_FAILED", updatedAt = clock.millis()))
+                continue
+            }
             val tombstone = budgetDao.getTombstone(userId, command.aggregateId)
             if (tombstone != null && command.commandType != DELETE_BUDGET) {
                 budgetDao.updateOutbox(command.copy(state = COMPLETED, errorCode = "TOMBSTONED", updatedAt = clock.millis()))
                 continue
             }
-            when (process(command)) {
+            when (val outcome = process(command)) {
                 Outcome.APPLIED -> budgetDao.updateOutbox(
                     command.copy(state = COMPLETED, errorCode = null, updatedAt = clock.millis()),
                 )
-                Outcome.CONFLICT -> budgetDao.updateOutbox(
-                    command.copy(state = FAILED, errorCode = "REVISION_CONFLICT", updatedAt = clock.millis()),
-                )
+                is Outcome.Failure -> {
+                    budgetDao.updateOutbox(command.copy(state = FAILED, errorCode = outcome.code, updatedAt = clock.millis()))
+                    blocked += command.aggregateId
+                }
                 Outcome.RETRY -> {
                     budgetDao.updateOutbox(
                         command.copy(
@@ -97,21 +109,21 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
 
     private suspend fun process(command: BudgetSyncOutboxEntity): Outcome {
         val payload = runCatching { json.decodeFromString<BudgetSyncPayload>(command.payloadJson) }.getOrNull()
-            ?: return Outcome.CONFLICT
+            ?: return Outcome.Failure("INVALID_LOCAL_COMMAND")
         return when (command.commandType) {
             UPSERT_BUDGET -> pushBudget(command, payload)
             UPSERT_PERIOD -> pushPeriod(command, payload)
             DELETE_BUDGET -> when (val result = api.deleteBudget(command.userId, payload.budgetId ?: command.aggregateId)) {
-                is BudgetApiResponse.Success -> if (result.data.status == null || result.data.status == "APPLIED") Outcome.APPLIED else Outcome.CONFLICT
-                is BudgetApiResponse.Error -> if (shouldRetry(result.statusCode)) Outcome.RETRY else Outcome.CONFLICT
+                is BudgetApiResponse.Success -> if (result.data.status == null || result.data.status == "APPLIED") Outcome.APPLIED else Outcome.Failure("REMOTE_REJECTED")
+                is BudgetApiResponse.Error -> if (shouldRetry(result.statusCode)) Outcome.RETRY else remoteFailure(result)
                 is BudgetApiResponse.NetworkFailure -> Outcome.RETRY
             }
-            else -> Outcome.CONFLICT
+            else -> Outcome.Failure("INVALID_LOCAL_COMMAND")
         }
     }
 
     private suspend fun pushBudget(command: BudgetSyncOutboxEntity, payload: BudgetSyncPayload): Outcome {
-        val budget = payload.budget ?: return Outcome.CONFLICT
+        val budget = payload.budget ?: return Outcome.Failure("INVALID_LOCAL_COMMAND")
         return when (val result = api.upsertBudget(command.userId, budget, command.expectedRevision)) {
             is BudgetApiResponse.Success -> {
                 if (result.data.any { it.sameBusinessStateAs(budget) }) Outcome.APPLIED
@@ -120,7 +132,7 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
             is BudgetApiResponse.Error -> when {
                 result.statusCode == 409 -> confirmBudget(command.userId, budget)
                 shouldRetry(result.statusCode) -> Outcome.RETRY
-                else -> Outcome.CONFLICT
+                else -> remoteFailure(result)
             }
             is BudgetApiResponse.NetworkFailure -> Outcome.RETRY
         }
@@ -128,19 +140,19 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
 
     private suspend fun confirmBudget(userId: String, expected: BudgetRemoteDto): Outcome =
         when (val current = api.fetchBudget(userId, expected.id)) {
-            is BudgetApiResponse.Success -> if (current.data.any { it.sameBusinessStateAs(expected) }) Outcome.APPLIED else Outcome.CONFLICT
-            is BudgetApiResponse.Error -> if (shouldRetry(current.statusCode)) Outcome.RETRY else Outcome.CONFLICT
+            is BudgetApiResponse.Success -> if (current.data.any { it.sameBusinessStateAs(expected) }) Outcome.APPLIED else Outcome.Failure("REVISION_CONFLICT")
+            is BudgetApiResponse.Error -> if (shouldRetry(current.statusCode)) Outcome.RETRY else remoteFailure(current)
             is BudgetApiResponse.NetworkFailure -> Outcome.RETRY
         }
 
     private suspend fun pushPeriod(command: BudgetSyncOutboxEntity, payload: BudgetSyncPayload): Outcome {
-        val period = payload.period ?: return Outcome.CONFLICT
+        val period = payload.period ?: return Outcome.Failure("INVALID_LOCAL_COMMAND")
         return when (val result = api.upsertPeriod(command.userId, period)) {
             is BudgetApiResponse.Success -> Outcome.APPLIED
             is BudgetApiResponse.Error -> when {
                 result.statusCode == 409 -> confirmPeriod(command.userId, period)
                 shouldRetry(result.statusCode) -> Outcome.RETRY
-                else -> Outcome.CONFLICT
+                else -> remoteFailure(result)
             }
             is BudgetApiResponse.NetworkFailure -> Outcome.RETRY
         }
@@ -148,8 +160,8 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
 
     private suspend fun confirmPeriod(userId: String, expected: BudgetPeriodRemoteDto): Outcome =
         when (val current = api.fetchPeriods(userId)) {
-            is BudgetApiResponse.Success -> if (current.data.any { it.sameBusinessStateAs(expected) }) Outcome.APPLIED else Outcome.CONFLICT
-            is BudgetApiResponse.Error -> if (shouldRetry(current.statusCode)) Outcome.RETRY else Outcome.CONFLICT
+            is BudgetApiResponse.Success -> if (current.data.any { it.sameBusinessStateAs(expected) }) Outcome.APPLIED else Outcome.Failure("REVISION_CONFLICT")
+            is BudgetApiResponse.Error -> if (shouldRetry(current.statusCode)) Outcome.RETRY else remoteFailure(current)
             is BudgetApiResponse.NetworkFailure -> Outcome.RETRY
         }
 
@@ -208,6 +220,20 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
             }
         }
         return Result.success()
+    }
+
+    private fun remoteFailure(error: BudgetApiResponse.Error): Outcome.Failure {
+        val message = runCatching {
+            Json.parseToJsonElement(error.message.orEmpty()).jsonObject["message"]?.jsonPrimitive?.content.orEmpty()
+        }.getOrDefault("")
+        val code = when {
+            message.startsWith("BUDGET_QUOTA_EXCEEDED:") -> "BUDGET_QUOTA_EXCEEDED"
+            message.startsWith("INVALID_CATEGORY:") -> "INVALID_CATEGORY"
+            message.startsWith("BUDGET_DELETED:") -> "BUDGET_DELETED"
+            error.statusCode == 403 -> "REMOTE_FORBIDDEN"
+            else -> "HTTP_${error.statusCode}"
+        }
+        return Outcome.Failure(code)
     }
 
     private fun shouldRetry(statusCode: Int): Boolean = statusCode == 401 || statusCode == 408 || statusCode == 429 || statusCode >= 500

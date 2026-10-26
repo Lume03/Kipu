@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BudgetDao {
+    @Query("SELECT * FROM budget_sync_outbox WHERE user_id=:userId AND state='FAILED' ORDER BY sequence ASC")
+    fun observeFailedCommands(userId: String): Flow<List<BudgetSyncOutboxEntity>>
     @Query("SELECT * FROM budgets WHERE user_id = :userId ORDER BY created_on DESC, id ASC")
     fun observeBudgets(userId: String): Flow<List<BudgetEntity>>
 

@@ -93,6 +93,49 @@ class BudgetTombstoneReplayIntegrationTest {
     }
 
     @Test
+    fun quotaRejectionIsVisibleAndDoesNotSendOrphanPeriod() = runBlocking {
+        val budget = Budget(id = budgetId, ownerId = ownerId, name = "Quota fixture", scope = BudgetScope.Total,
+            limitMinor = 5000, currency = "PEN", schedule = BudgetSchedule.Recurring(BudgetPeriodType.MONTHLY), createdOn = LocalDate.parse("2026-10-01"))
+        val interval = BudgetInterval(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-11-01"))
+        repository.create(budget, BudgetPeriod(BudgetPeriod.idFor(budgetId, interval), budgetId, ownerId, interval, 5000, BudgetScope.Total))
+        val requests = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            requests += "${request.method.value}:${request.url.encodedPath}"
+            if (request.method.value == "POST" && request.url.encodedPath == "/rest/v1/budgets") {
+                respond("""{"code":"P0001","message":"BUDGET_QUOTA_EXCEEDED: Free plan allows at most 2 active budgets"}""",
+                    HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json"))
+            } else {
+                check(request.method.value == "GET") { "A rejected parent must block dependent writes" }
+                jsonResponse("[]")
+            }
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            defaultRequest { url("https://kipu.test/") }
+        }
+        try {
+            val provider = object : AuthenticatedSessionProvider {
+                override suspend fun currentSession() = AuthenticatedSession(UUID.fromString(ownerId), "test-token")
+                override suspend fun refreshSession() = currentSession()
+            }
+            val factory = object : WorkerFactory() {
+                override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker =
+                    SyncBudgetCommandsWorker(appContext, workerParameters, database.budgetDao(), database.budgetAlertLedgerDao(),
+                        transactionRunner, BudgetApi(client, provider), session, clock, zone)
+            }
+            val worker = TestListenableWorkerBuilder<SyncBudgetCommandsWorker>(context)
+                .setInputData(workDataOf(SyncBudgetCommandsWorker.KEY_USER_ID to ownerId)).setWorkerFactory(factory).build()
+            assertTrue(worker.doWork() is ListenableWorker.Result.Success)
+            val commands = database.budgetDao().allOutbox(ownerId)
+            assertEquals("BUDGET_QUOTA_EXCEEDED", commands.single { it.commandType == "UPSERT_BUDGET" }.errorCode)
+            assertEquals("PARENT_COMMAND_FAILED", commands.single { it.commandType == "UPSERT_PERIOD" }.errorCode)
+            assertTrue(commands.all { it.state == "FAILED" })
+            assertEquals(1, requests.count { it.startsWith("POST:") })
+            assertEquals(budget.name, repository.getBudget(ownerId, budgetId)?.name)
+        } finally { client.close() }
+    }
+
+    @Test
     fun staleRemoteBudgetAndPeriodReplayCannotResurrectTombstonedBudget() = runBlocking {
         val budget = Budget(
             id = budgetId,
