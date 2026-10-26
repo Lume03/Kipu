@@ -16,6 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.kipu.app.feature.movements.presentation.MovementEditorRoute
 import com.kipu.app.feature.movements.presentation.MovementHistoryRoute
 import com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel
+import com.kipu.app.feature.settings.presentation.SettingsViewModel
 
 const val MOVEMENTS_HISTORY_ROUTE = "movements/history"
 const val MOVEMENTS_HISTORY_PATTERN = "movements/history?accountId={accountId}&categoryId={categoryId}&query={query}&paymentChannel={paymentChannel}"
@@ -113,9 +114,7 @@ internal fun MovementHistoryContent(navController: NavController, historyEntry: 
             onNavigateToSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
             onNavigateToNewAccount = { navController.navigateToAccountForm() },
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
-            onNavigateToEditor = { transactionId ->
-                navController.navigateToMovementEditor(transactionId)
-            },
+            onToggleMasked = hiltViewModel<SettingsViewModel>()::toggleHideBalances,
             openRegisterMovement = openRegisterMovement && (movementsSelected?.value != false),
             onConsumeRegisterMovement = { historyEntry.savedStateHandle["open_register_movement"] = false },
             prewarmQuickMovement = true,

@@ -27,7 +27,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.rounded.NorthEast
+import androidx.compose.material.icons.rounded.SouthWest
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.heading
+import com.kipu.app.ui.component.BrandLogo
+import com.kipu.app.ui.component.KipuBrand
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,11 +46,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FilterList
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Sync
@@ -48,8 +57,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -136,7 +143,7 @@ fun MovementHistoryRoute(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToNewAccount: () -> Unit = {},
     onNavigateToPlans: () -> Unit = {},
-    onNavigateToEditor: (String) -> Unit = {},
+    onToggleMasked: () -> Unit = {},
     viewModel: MovementHistoryViewModel = hiltViewModel(),
     recurrenceViewModel: RecurrencePresentationViewModel? = null,
     prewarmQuickMovement: Boolean = false,
@@ -221,64 +228,54 @@ fun MovementHistoryRoute(
     }
 
     val mostUsedAccountId = uiState.mostUsedAccountId
+    val masked = LocalBalanceMasked.current
+    val offline = rememberNetworkOffline()
+    val pendingSyncCount = remember(uiState.allTransactions) {
+        uiState.allTransactions.count {
+            it.transaction.syncStatus == MovementSyncStatus.PENDING || it.transaction.syncStatus == MovementSyncStatus.IN_FLIGHT
+        }
+    }
+    // Online sync is immediate; when the network comes back, push what was saved offline right away
+    // (only on that transition, so it never replaces a sync that a save has just started).
+    val hasPending by rememberUpdatedState(pendingSyncCount > 0)
+    var wasOffline by remember { mutableStateOf(offline) }
+    LaunchedEffect(offline) {
+        if (wasOffline && !offline && hasPending) viewModel.onSyncPending()
+        wasOffline = offline
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.movements_title),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 24.sp,
-                            ),
-                            color = emeraldColors.primaryText,
-                        )
-
-                        // Period context pill
-                        val periodLabel = remember(uiState.fromDate, uiState.toDate) {
-                            if (uiState.fromDate != null && uiState.toDate != null) {
-                                val fmt = SimpleDateFormat("MMM", Locale("es", "PE"))
-                                val fromStr = fmt.format(Date(uiState.fromDate!!)).replaceFirstChar { it.uppercase() }
-                                val toStr = fmt.format(Date(uiState.toDate!!)).replaceFirstChar { it.uppercase() }
-                                if (fromStr.equals(toStr, ignoreCase = true)) fromStr else "$fromStr - $toStr"
-                            } else if (uiState.fromDate != null) {
-                                SimpleDateFormat("MMM yyyy", Locale("es", "PE")).format(Date(uiState.fromDate!!)).replaceFirstChar { it.uppercase() }
-                            } else {
-                                "Todos"
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = emeraldColors.surfaceCard,
-                            border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp)),
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .heightIn(min = 36.dp)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    text = periodLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = emeraldColors.secondaryMuted,
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = stringResource(R.string.movements_title),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 26.sp,
+                        ),
+                        color = emeraldColors.primaryText,
+                    )
                 },
                 actions = {
+                    IconButton(
+                        onClick = onToggleMasked,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("btn_toggle_amounts")
+                            .semantics {
+                                role = Role.Switch
+                                contentDescription = if (masked) "Mostrar importes" else "Ocultar importes"
+                            },
+                    ) {
+                        Icon(
+                            imageVector = if (masked) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = null,
+                            tint = emeraldColors.primaryText,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                     IconButton(
                         onClick = onNavigateToSettings,
                         modifier = Modifier
@@ -289,7 +286,7 @@ fun MovementHistoryRoute(
                             imageVector = Icons.Rounded.Settings,
                             contentDescription = null,
                             tint = emeraldColors.secondaryMuted,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                 },
@@ -305,51 +302,54 @@ fun MovementHistoryRoute(
                 .padding(innerPadding)
                 .testTag("list_movements"),
             state = listState,
-            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            item(key = "history_controls") {
+            item(key = "history_controls", contentType = "controls") {
                 Column(
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    // Search Bar
-                    // Estado local del campo: conserva el cursor mientras el ViewModel publica el texto de forma asíncrona
-                    var searchField by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(uiState.searchQuery)) }
-                    LaunchedEffect(uiState.searchQuery) {
-                        val published = uiState.searchQuery
-                        val external = if (published.isEmpty()) searchField.text.isNotEmpty() else !isTypingSearch(searchField, published)
-                        if (external) searchField = androidx.compose.ui.text.input.TextFieldValue(published)
-                    }
-                    OutlinedTextField(
-                        value = searchField,
-                        onValueChange = {
-                            searchField = it
-                            viewModel.onSearchQueryChanged(it.text)
-                        },
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.movements_search_placeholder),
-                                color = emeraldColors.secondaryMuted,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = null,
-                                tint = emeraldColors.secondaryMuted,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (uiState.searchQuery.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        // Estado local del campo: conserva el cursor mientras el ViewModel publica el texto de forma asíncrona
+                        var searchField by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(uiState.searchQuery)) }
+                        LaunchedEffect(uiState.searchQuery) {
+                            val published = uiState.searchQuery
+                            val external = if (published.isEmpty()) searchField.text.isNotEmpty() else !isTypingSearch(searchField, published)
+                            if (external) searchField = androidx.compose.ui.text.input.TextFieldValue(published)
+                        }
+                        OutlinedTextField(
+                            value = searchField,
+                            onValueChange = {
+                                searchField = it
+                                viewModel.onSearchQueryChanged(it.text)
+                            },
+                            placeholder = {
+                                Text(
+                                    stringResource(R.string.movements_search_placeholder),
+                                    color = emeraldColors.secondaryMuted,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    tint = emeraldColors.secondaryMuted,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            },
+                            trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
+                                {
                                     IconButton(
                                         onClick = { viewModel.onSearchQueryChanged("") },
                                         modifier = Modifier
                                             .size(48.dp)
                                             .testTag("btn_clear_search")
-                                            .semantics { contentDescription = "Limpiar búsqueda" }
+                                            .semantics { contentDescription = "Limpiar búsqueda" },
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
@@ -359,44 +359,56 @@ fun MovementHistoryRoute(
                                         )
                                     }
                                 }
-                                IconButton(
-                                    onClick = { viewModel.onToggleAdvancedFilterPanel(true) },
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .testTag("btn_open_filters")
-                                        .semantics { contentDescription = "Abrir filtros" }
-                                ) {
-                                    Icon(
-                                        Icons.Rounded.FilterList,
-                                        contentDescription = null,
-                                        tint = if (uiState.hasActiveAdvancedFilters) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
-                                        modifier = Modifier.size(20.dp),
+                            } else null,
+                            singleLine = true,
+                            shape = RoundedCornerShape(18.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = emeraldColors.surfaceCard,
+                                unfocusedContainerColor = emeraldColors.surfaceCard,
+                                focusedBorderColor = emeraldColors.primaryDeep,
+                                unfocusedBorderColor = emeraldColors.borderSubtle,
+                                cursorColor = emeraldColors.primaryDeep,
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
+                                .testTag("input_search_movements"),
+                        )
+                        val filtersActive = uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null
+                        Surface(
+                            onClick = { viewModel.onToggleAdvancedFilterPanel(true) },
+                            shape = RoundedCornerShape(18.dp),
+                            color = emeraldColors.surfaceCard,
+                            border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                            modifier = Modifier
+                                .size(56.dp)
+                                .testTag("btn_open_filters")
+                                .semantics { contentDescription = if (filtersActive) "Abrir filtros, filtros activos" else "Abrir filtros" },
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.FilterList,
+                                    contentDescription = null,
+                                    tint = emeraldColors.primaryText,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                if (filtersActive) {
+                                    Box(
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 10.dp, end = 10.dp)
+                                            .size(10.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(emeraldColors.primaryDeep),
                                     )
                                 }
                             }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = emeraldColors.surfaceCard,
-                            unfocusedContainerColor = emeraldColors.surfaceCard,
-                            focusedBorderColor = emeraldColors.primaryDeep,
-                            unfocusedBorderColor = emeraldColors.borderSubtle,
-                            cursorColor = emeraldColors.primaryDeep,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .testTag("input_search_movements"),
-                    )
-
-                    // Pendientes de sincronizar (datos ya cargados en la lista; sin detector de red)
-                    val pendingSyncCount = uiState.filteredTransactions.values.sumOf { rows ->
-                        rows.count { it.transaction.syncStatus == MovementSyncStatus.PENDING || it.transaction.syncStatus == MovementSyncStatus.IN_FLIGHT }
+                        }
                     }
-                    if (pendingSyncCount > 0) {
+
+                    // Solo sin red se avisa; con red la sincronización es inmediata y no deja aviso fijo.
+                    if (offline && pendingSyncCount > 0) {
                         KipuOfflineBanner(
-                            title = "Sincronización pendiente.",
                             message = if (pendingSyncCount == 1) {
                                 "1 movimiento pendiente de sincronizar; tus saldos ya están actualizados."
                             } else {
