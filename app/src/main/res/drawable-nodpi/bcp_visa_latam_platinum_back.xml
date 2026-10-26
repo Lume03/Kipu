@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1213dp" android:height="766dp"
+    android:viewportWidth="1213" android:viewportHeight="766">
+  <path android:name="Fondo" android:pathData="M46 0 L1167 0 C1192.4 0 1213 20.6 1213 46 L1213 720 C1213 745.4 1192.4 766 1167 766 L46 766 C20.6 766 0 745.4 0 720 L0 46 C0 20.6 20.6 0 46 0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="766">
+        <item android:offset="0" android:color="#8E8D8E"/>
+        <item android:offset="0.45" android:color="#7A797A"/>
+        <item android:offset="1" android:color="#626162"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Cinta-A-tenue" android:pathData="M-40 420 L-16.9 420.5 L5.4 421.2 L27.1 422.4 L48.3 424 L68.9 426.1 L89.2 428.6 L109 431.4 L128.5 434.6 L147.8 438.1 L166.9 441.8 L185.8 445.8 L204.7 449.9 L223.6 454.3 L242.5 458.7 L261.6 463.3 L280.8 467.9 L300.3 472.5 L320.1 477.2 L340.2 481.8 L360.6 486.3 L381.6 490.7 L403 495 L424.9 499.2 L447.4 503.1 L470.5 506.7 L494.3 510.1 L518.7 513.2 L543.9 516 L569.8 518.3 L596.5 520.2 L624 521.7 L652.5 522.7 L681.8 523.3 L712.1 523.2 L743.4 522.6 L775.7 521.4 L809.1 519.6 L843.6 517.2 L879.3 514 L916.2 510.2 L954.3 505.6 L993.8 500.3 L1034.5 494.1 L1076.7 487.2 L1120.3 479.3 L1165.3 470.6 L1211.9 460.9 L1260 450 L1260 450 L1211 455.7 L1163.8 460.8 L1118.3 465.2 L1074.4 468.9 L1032.1 471.9 L991.2 474.3 L951.9 476 L914 477 L877.4 477.6 L842.2 477.5 L808.3 477 L775.5 476.1 L743.9 474.7 L713.5 472.9 L684.1 470.8 L655.7 468.4 L628.2 465.7 L601.6 462.7 L575.9 459.6 L550.9 456.3 L526.7 452.8 L503.1 449.3 L480.1 445.6 L457.6 441.9 L435.6 438.2 L414.1 434.5 L392.9 430.9 L372.1 427.3 L351.5 423.8 L331.2 420.5 L311 417.3 L291 414.4 L271.1 411.6 L251.3 409.1 L231.4 406.9 L211.6 405.1 L191.7 403.6 L171.7 402.4 L151.6 401.7 L131.3 401.5 L110.9 401.7 L90.2 402.5 L69.3 403.8 L48.1 405.7 L26.7 408.2 L4.8 411.3 L-17.4 415.2 L-40 420 Z" android:fillColor="#FFFFFF" android:fillAlpha="0.06"/>
+  <path android:name="Cinta-B-tenue" android:pathData="M-40 590 L-17.2 593.8 L5.2 596.6 L27.4 598.8 L49.3 600.3 L71 601.2 L92.5 601.6 L113.8 601.4 L135 600.6 L156 599.5 L176.9 597.8 L197.8 595.7 L218.6 593.3 L239.4 590.4 L260.2 587.3 L281 583.8 L302 580.1 L323 576.1 L344.2 571.9 L365.6 567.6 L387.2 563.1 L409 558.5 L431.2 553.8 L453.7 549 L476.5 544.2 L499.8 539.4 L523.6 534.6 L547.9 529.9 L572.8 525.3 L598.2 520.8 L624.4 516.4 L651.2 512.2 L678.8 508.3 L707.2 504.5 L736.4 501.1 L766.6 497.9 L797.6 495.1 L829.7 492.7 L862.8 490.6 L896.9 489.1 L932.2 488 L968.7 487.4 L1006.3 487.3 L1045.2 487.9 L1085.4 489 L1127 490.8 L1169.9 493.3 L1214.2 496.4 L1260 500 L1260 500 L1214.7 491.9 L1170.8 485 L1128.1 478.9 L1086.6 473.7 L1046.4 469.2 L1007.4 465.4 L969.5 462.4 L932.7 460.1 L896.9 458.4 L862.3 457.4 L828.5 456.9 L795.8 457.1 L764 457.8 L733.1 459 L703 460.7 L673.8 462.8 L645.4 465.5 L617.7 468.5 L590.8 471.8 L564.5 475.6 L539 479.6 L514 483.9 L489.7 488.5 L466 493.3 L442.7 498.3 L420 503.4 L397.8 508.6 L375.9 514 L354.5 519.3 L333.4 524.7 L312.6 530.1 L292.1 535.5 L271.8 540.7 L251.7 545.9 L231.7 550.9 L211.7 555.8 L191.8 560.5 L171.9 564.9 L151.9 569.1 L131.8 573 L111.5 576.5 L91 579.7 L70.2 582.5 L49 584.9 L27.5 586.9 L5.5 588.3 L-17 589.3 L-40 590 Z" android:fillColor="#FFFFFF" android:fillAlpha="0.06"/>
+  <path android:name="Banda-magnetica" android:pathData="M0 78 L1213 78 L1213 192 L0 192 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="78" android:endX="0" android:endY="192">
+        <item android:offset="0" android:color="#1A1D22"/>
+        <item android:offset="0.5" android:color="#0B0D10"/>
+        <item android:offset="1" android:color="#1A1D22"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Panel-firma" android:pathData="M78 238 L826 238 C829.3 238 832 240.7 832 244 L832 308 C832 311.3 829.3 314 826 314 L78 314 C74.7 314 72 311.3 72 308 L72 244 C72 240.7 74.7 238 78 238 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="236" android:endX="0" android:endY="316">
+        <item android:offset="0" android:color="#F4F6F8"/>
+        <item android:offset="1" android:color="#E3E7EC"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Panel-firma-trama" android:pathData="M84 316 L122 238 M106 316 L144 238 M128 316 L166 238 M150 316 L188 238 M172 316 L210 238 M194 316 L232 238 M216 316 L254 238 M238 316 L276 238 M260 316 L298 238 M282 316 L320 238 M304 316 L342 238 M326 316 L364 238 M348 316 L386 238 M370 316 L408 238 M392 316 L430 238 M414 316 L452 238 M436 316 L474 238 M458 316 L496 238 M480 316 L518 238 M502 316 L540 238 M524 316 L562 238 M546 316 L584 238 M568 316 L606 238 M590 316 L628 238 M612 316 L650 238 M634 316 L672 238 M656 316 L694 238 M678 316 L716 238 M700 316 L738 238 M722 316 L760 238 M744 316 L782 238 M766 316 L804 238" android:strokeColor="#9BA6B4" android:strokeWidth="1.6" android:strokeLineCap="butt" android:strokeLineJoin="round" android:strokeAlpha="0.55"/>
+  <path android:name="BCP-letras" android:pathData="M112.7 624.8 L107.4 660.8 M112.7 624.8 L123.7 624.8 C134 624.8 131.4 642.8 121 642.8 L110 642.8 M110 642.8 L123.3 642.8 C134.3 642.8 131.6 660.8 120.7 660.8 L107.4 660.8 M168 628.6 C163.9 622.9 156.7 623.7 151.4 630.6 C146.1 637.5 144.5 648.1 147.8 655 C151 661.9 158 662.7 163.9 657 M187.1 624.8 L181.8 660.8 M187.1 624.8 L198.6 624.8 C209 624.8 206.1 644.7 195.7 644.7 L184.2 644.7" android:strokeColor="#FFFFFF" android:strokeWidth="10.85" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-chevron-izq" android:pathData="M80.1 628.5 C88.1 632.3 94.9 637.8 96.8 644 C94.3 650.9 88.1 657.1 79.4 662" android:strokeColor="#EF7814" android:strokeWidth="14.26" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-chevron-der" android:pathData="M230.7 628.5 C238.8 632.3 245.6 637.8 247.5 644 C245 650.9 238.8 657.1 230.1 662" android:strokeColor="#EF7814" android:strokeWidth="14.26" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-medialuna-izq" android:pathData="M76.8 634.1 C77.8 631.3 80.3 629.4 83.1 629.2 C86 628.9 88.8 630.4 90.2 632.9" android:strokeColor="#FFFFFF" android:strokeWidth="4.34" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-medialuna-der" android:pathData="M227.4 634.1 C228.4 631.3 230.9 629.4 233.8 629.2 C236.7 628.9 239.4 630.4 240.9 632.9" android:strokeColor="#FFFFFF" android:strokeWidth="4.34" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="VISA-letras" android:pathData="M942.8 630 L954 630 L959.6 668.9 L978.6 630 L990.8 630 L964.9 682 L950.8 682 Z M994.8 630 L1006.6 630 L997.7 682 L985.8 682 Z M1047.6 631.6 L1045.7 642.6 C1043.4 641.3 1041.1 640.4 1038.8 639.7 C1036.6 639.1 1034.4 638.8 1032.2 638.8 C1029.3 638.8 1027 639.3 1025.3 640.3 C1023.7 641.4 1022.9 642.8 1022.9 644.7 C1022.9 645.9 1023.2 646.8 1024 647.5 C1024.7 648.1 1026.2 648.8 1028.5 649.4 L1033.3 650.8 C1037.4 651.9 1040.3 653.6 1042.2 655.8 C1044.1 658 1045.1 660.8 1045.1 664.3 C1045.1 669.9 1043.2 674.5 1039.4 677.9 C1035.6 681.3 1030.6 683 1024.2 683 C1021.2 683 1018.3 682.7 1015.3 682.1 C1012.4 681.4 1009.5 680.5 1006.7 679.3 L1008.6 668 C1011.3 669.8 1014 671.1 1016.5 672 C1019.1 672.9 1021.6 673.3 1024.1 673.3 C1026.8 673.3 1029 672.7 1030.7 671.4 C1032.4 670.2 1033.3 668.6 1033.3 666.6 C1033.3 665.3 1032.9 664.3 1032.1 663.6 C1031.4 662.9 1029.7 662.2 1027.1 661.5 L1022.3 660.1 C1018.8 659.1 1016.1 657.5 1014.4 655.4 C1012.6 653.2 1011.8 650.4 1011.8 647 C1011.8 641.6 1013.6 637.2 1017.2 634 C1020.9 630.7 1025.8 629.1 1032 629.1 C1034.5 629.1 1037 629.3 1039.6 629.7 C1042.2 630.1 1044.9 630.8 1047.6 631.6 Z M1079.8 672.5 L1061.5 672.5 L1057 682 L1044.8 682 L1070.7 630 L1084.3 630 L1092.4 682 L1081.1 682 Z M1066 663.1 L1078.3 663.1 L1075.5 643.1 Z" android:fillColor="#FFFFFF"/>
+  <path android:name="VISA-bandera-V" android:pathData="M929.6 632.4 L958.3 630 L958.3 642 L942.8 642 Z" android:fillColor="#FFFFFF"/>
+</vector>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1213dp" android:height="766dp"
+    android:viewportWidth="1213" android:viewportHeight="766">
+  <path android:name="Fondo" android:pathData="M46 0 L1167 0 C1192.4 0 1213 20.6 1213 46 L1213 720 C1213 745.4 1192.4 766 1167 766 L46 766 C20.6 766 0 745.4 0 720 L0 46 C0 20.6 20.6 0 46 0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="1213" android:endY="766">
+        <item android:offset="0" android:color="#1A1A1B"/>
+        <item android:offset="0.5" android:color="#0C0C0D"/>
+        <item android:offset="1" android:color="#050506"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Media-luna" android:pathData="M680 383 C680 631.5 478.5 833 230 833 C-18.5 833 -220 631.5 -220 383 C-220 134.5 -18.5 -67 230 -67 C478.5 -67 680 134.5 680 383 Z M520 383 C520 587.3 354.3 753 150 753 C-54.3 753 -220 587.3 -220 383 C-220 178.7 -54.3 13 150 13 C354.3 13 520 178.7 520 383 Z" android:fillType="evenOdd">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="766">
+        <item android:offset="0" android:color="#55C2DC"/>
+        <item android:offset="0.55" android:color="#5EA4DA"/>
+        <item android:offset="1" android:color="#8C93D4"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Pago-sin-contacto" android:pathData="M1104.4 80.1 C1111.9 87.9 1111.9 100.1 1104.4 107.9 M1114.9 70.8 C1127 83.9 1127 104.1 1114.9 117.2 M1126.8 63.1 C1141.7 81 1141.7 107 1126.8 124.9 M1138.9 55.8 C1156.4 78.3 1156.4 109.7 1138.9 132.2" android:strokeColor="#8A8A8A" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="VISA-letras" android:pathData="M901 573 L919.8 573 L929.2 638 L961 573 L981.4 573 L938.1 660 L914.5 660 Z M988 573 L1007.8 573 L992.8 660 L973 660 Z M1076.4 575.7 L1073.2 594.2 C1069.3 592 1065.5 590.4 1061.7 589.3 C1058 588.2 1054.3 587.7 1050.7 587.7 C1045.7 587.7 1041.9 588.6 1039.1 590.3 C1036.4 592.1 1035 594.5 1035 597.6 C1035 599.6 1035.6 601.1 1036.8 602.2 C1038 603.3 1040.6 604.4 1044.4 605.5 L1052.5 607.7 C1059.3 609.7 1064.2 612.5 1067.4 616.2 C1070.6 619.8 1072.1 624.6 1072.1 630.4 C1072.1 639.8 1069 647.4 1062.7 653.1 C1056.3 658.8 1047.9 661.7 1037.2 661.7 C1032.2 661.7 1027.3 661.2 1022.4 660.1 C1017.5 659.1 1012.7 657.5 1008 655.5 L1011.1 636.5 C1015.7 639.5 1020.1 641.7 1024.4 643.2 C1028.7 644.7 1032.9 645.4 1037.1 645.4 C1041.6 645.4 1045.3 644.4 1048.1 642.3 C1051 640.2 1052.4 637.5 1052.4 634.2 C1052.4 632.1 1051.7 630.4 1050.5 629.3 C1049.2 628.1 1046.4 626.9 1042.1 625.6 L1034.1 623.3 C1028.1 621.7 1023.7 619 1020.8 615.4 C1017.9 611.8 1016.4 607.1 1016.4 601.4 C1016.4 592.3 1019.5 585.1 1025.6 579.6 C1031.7 574.2 1039.9 571.4 1050.3 571.4 C1054.4 571.4 1058.7 571.8 1063 572.5 C1067.4 573.2 1071.8 574.3 1076.4 575.7 Z M1130.3 644.1 L1099.6 644.1 L1092 660 L1071.7 660 L1115.1 573 L1137.7 573 L1151.3 660 L1132.5 660 Z M1107.1 628.4 L1127.7 628.4 L1123.1 594.9 Z" android:fillColor="#9A9A9A"/>
+  <path android:name="VISA-bandera-V" android:pathData="M879 577 L927 573 L927 593 L901 593 Z" android:fillColor="#9A9A9A"/>
+  <path android:name="iO-punto" android:pathData="M111 616 C111 623.2 105.2 629 98 629 C90.8 629 85 623.2 85 616 C85 608.8 90.8 603 98 603 C105.2 603 111 608.8 111 616 Z" android:fillColor="#FFFFFF"/>
+  <path android:name="iO-i" android:pathData="M98 654 L98 708" android:strokeColor="#FFFFFF" android:strokeWidth="17" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="iO-o" android:pathData="M234 664 C234 689.4 213.4 710 188 710 C162.6 710 142 689.4 142 664 C142 638.6 162.6 618 188 618 C213.4 618 234 638.6 234 664" android:strokeColor="#9BD8EA" android:strokeWidth="17" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+</vector>

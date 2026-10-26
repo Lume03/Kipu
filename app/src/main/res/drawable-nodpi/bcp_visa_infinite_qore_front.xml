@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1213dp" android:height="766dp"
+    android:viewportWidth="1213" android:viewportHeight="766">
+  <path android:name="Fondo" android:pathData="M46 0 L1167 0 C1192.4 0 1213 20.6 1213 46 L1213 720 C1213 745.4 1192.4 766 1167 766 L46 766 C20.6 766 0 745.4 0 720 L0 46 C0 20.6 20.6 0 46 0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="766">
+        <item android:offset="0" android:color="#000000"/>
+        <item android:offset="1" android:color="#000000"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-base" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="600" android:centerY="375" android:gradientRadius="520">
+        <item android:offset="0" android:color="#0B1F8A"/>
+        <item android:offset="0.45" android:color="#0E2A96"/>
+        <item android:offset="1" android:color="#06103A"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-brillo-arriba" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="690" android:centerY="0" android:gradientRadius="300">
+        <item android:offset="0" android:color="#F2F28A5E"/>
+        <item android:offset="0.6" android:color="#73C0689A"/>
+        <item android:offset="1" android:color="#00C0689A"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-brillo-violeta" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="500" android:centerY="150" android:gradientRadius="260">
+        <item android:offset="0" android:color="#D98D6BD0"/>
+        <item android:offset="1" android:color="#008D6BD0"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-brillo-derecha" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="1120" android:centerY="470" android:gradientRadius="470">
+        <item android:offset="0" android:color="#F235BDEB"/>
+        <item android:offset="0.55" android:color="#802B86D2"/>
+        <item android:offset="1" android:color="#002B86D2"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-brillo-abajo" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="600" android:centerY="800" android:gradientRadius="300">
+        <item android:offset="0" android:color="#E68D64CC"/>
+        <item android:offset="0.7" android:color="#4C6A4AC0"/>
+        <item android:offset="1" android:color="#006A4AC0"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Destello-fade-izquierda" android:pathData="M692 -120 L692 -21 C692 160.5 885.5 309 1122 309 L1340 309 L1340 441 L1122 441 C885.5 441 692 589.5 692 771 L692 900 L508 900 L508 771 C508 589.5 314.5 441 78 441 L-130 441 L-130 309 L78 309 C314.5 309 508 160.5 508 -21 L508 -120 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="430" android:endY="0">
+        <item android:offset="0" android:color="#000000"/>
+        <item android:offset="0.55" android:color="#8C000000"/>
+        <item android:offset="1" android:color="#00000000"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="BCP-letras" android:pathData="M140.6 66 L132.1 124 M140.6 66 L158.3 66 C175.1 66 170.8 95 154 95 L136.4 95 M136.4 95 L157.8 95 C175.4 95 171.2 124 153.5 124 L132.1 124 M229.9 72.1 C223.2 62.9 211.6 64.2 203 75.3 C194.5 86.4 192 103.6 197.2 114.7 C202.5 125.8 213.8 127.1 223.1 117.9 M260.6 66 L252.1 124 M260.6 66 L279.2 66 C296 66 291.2 98 274.5 98 L255.9 98" android:strokeColor="#FFFFFF" android:strokeWidth="17.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-chevron-izq" android:pathData="M88 72 C101 78 112 87 115 97 C111 108 101 118 87 126" android:strokeColor="#FFFFFF" android:strokeWidth="23" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-chevron-der" android:pathData="M331 72 C344 78 355 87 358 97 C354 108 344 118 330 126" android:strokeColor="#FFFFFF" android:strokeWidth="23" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-medialuna-izq" android:pathData="M82.7 80.9 C84.3 76.5 88.3 73.5 93 73 C97.6 72.6 102.1 75 104.4 79" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="BCP-medialuna-der" android:pathData="M325.7 80.9 C327.3 76.5 331.3 73.5 336 73 C340.6 72.6 345.1 75 347.4 79" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="Pago-sin-contacto" android:pathData="M1104.4 80.1 C1111.9 87.9 1111.9 100.1 1104.4 107.9 M1114.9 70.8 C1127 83.9 1127 104.1 1114.9 117.2 M1126.8 63.1 C1141.7 81 1141.7 107 1126.8 124.9 M1138.9 55.8 C1156.4 78.3 1156.4 109.7 1138.9 132.2" android:strokeColor="#E3E3E3" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="Qore-Q" android:pathData="M158 611 C158 633.6 139.6 652 117 652 C94.4 652 76 633.6 76 611 C76 588.4 94.4 570 117 570 C139.6 570 158 588.4 158 611 Z" android:strokeColor="#FFFFFF" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="Qore-destello" android:pathData="M136 636 L139 645 L150 648 L139 651 L136 662 L133 651 L122 648 L133 645 Z" android:fillColor="#FFFFFF"/>
+  <path android:name="Qore-o" android:pathData="M236 626 C236 643.1 222.1 657 205 657 C187.9 657 174 643.1 174 626 C174 608.9 187.9 595 205 595 C222.1 595 236 608.9 236 626 Z" android:strokeColor="#FFFFFF" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="Qore-r" android:pathData="M256 596 L256 656 M256 626 C256 607 268 598 288 600" android:strokeColor="#FFFFFF" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="Qore-e" android:pathData="M293 626 L353 626 M353 626 C353 611.4 342.5 599 328.2 596.5 C313.9 593.9 299.8 602.1 294.8 615.7 C289.8 629.4 295.4 644.7 308 652 C320.6 659.3 336.6 656.4 346 645.3" android:strokeColor="#FFFFFF" android:strokeWidth="6.8" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+  <path android:name="VISA-letras" android:pathData="M901 573 L919.8 573 L929.2 638 L961 573 L981.4 573 L938.1 660 L914.5 660 Z M988 573 L1007.8 573 L992.8 660 L973 660 Z M1076.4 575.7 L1073.2 594.2 C1069.3 592 1065.5 590.4 1061.7 589.3 C1058 588.2 1054.3 587.7 1050.7 587.7 C1045.7 587.7 1041.9 588.6 1039.1 590.3 C1036.4 592.1 1035 594.5 1035 597.6 C1035 599.6 1035.6 601.1 1036.8 602.2 C1038 603.3 1040.6 604.4 1044.4 605.5 L1052.5 607.7 C1059.3 609.7 1064.2 612.5 1067.4 616.2 C1070.6 619.8 1072.1 624.6 1072.1 630.4 C1072.1 639.8 1069 647.4 1062.7 653.1 C1056.3 658.8 1047.9 661.7 1037.2 661.7 C1032.2 661.7 1027.3 661.2 1022.4 660.1 C1017.5 659.1 1012.7 657.5 1008 655.5 L1011.1 636.5 C1015.7 639.5 1020.1 641.7 1024.4 643.2 C1028.7 644.7 1032.9 645.4 1037.1 645.4 C1041.6 645.4 1045.3 644.4 1048.1 642.3 C1051 640.2 1052.4 637.5 1052.4 634.2 C1052.4 632.1 1051.7 630.4 1050.5 629.3 C1049.2 628.1 1046.4 626.9 1042.1 625.6 L1034.1 623.3 C1028.1 621.7 1023.7 619 1020.8 615.4 C1017.9 611.8 1016.4 607.1 1016.4 601.4 C1016.4 592.3 1019.5 585.1 1025.6 579.6 C1031.7 574.2 1039.9 571.4 1050.3 571.4 C1054.4 571.4 1058.7 571.8 1063 572.5 C1067.4 573.2 1071.8 574.3 1076.4 575.7 Z M1130.3 644.1 L1099.6 644.1 L1092 660 L1071.7 660 L1115.1 573 L1137.7 573 L1151.3 660 L1132.5 660 Z M1107.1 628.4 L1127.7 628.4 L1123.1 594.9 Z" android:fillColor="#E3E3E3"/>
+  <path android:name="VISA-bandera-V" android:pathData="M879 577 L927 573 L927 593 L901 593 Z" android:fillColor="#E3E3E3"/>
+  <path android:name="Nivel-texto" android:pathData="M1046.5 691 L1049.8 691 L1049.8 715.5 L1046.5 715.5 Z M1071.5 704.4 L1071.5 715.5 L1068.5 715.5 L1068.5 704.5 C1068.5 702.8 1068.2 701.5 1067.5 700.6 C1066.8 699.8 1065.8 699.3 1064.5 699.3 C1062.8 699.3 1061.5 699.9 1060.6 700.9 C1059.7 701.9 1059.2 703.4 1059.2 705.1 L1059.2 715.5 L1056.2 715.5 L1056.2 697.2 L1059.2 697.2 L1059.2 700 C1059.9 698.9 1060.8 698.1 1061.7 697.5 C1062.7 697 1063.8 696.7 1065.1 696.7 C1067.2 696.7 1068.8 697.4 1069.9 698.7 C1071 700 1071.5 701.9 1071.5 704.4 Z M1086.9 690 L1086.9 692.5 L1084 692.5 C1082.9 692.5 1082.1 692.7 1081.7 693.2 C1081.3 693.6 1081.1 694.4 1081.1 695.5 L1081.1 697.2 L1086.1 697.2 L1086.1 699.5 L1081.1 699.5 L1081.1 715.5 L1078 715.5 L1078 699.5 L1075.2 699.5 L1075.2 697.2 L1078 697.2 L1078 695.9 C1078 693.8 1078.5 692.3 1079.5 691.4 C1080.4 690.5 1081.9 690 1084 690 Z M1089.4 697.2 L1092.4 697.2 L1092.4 715.5 L1089.4 715.5 Z M1089.4 690 L1092.4 690 L1092.4 693.8 L1089.4 693.8 Z M1114 704.4 L1114 715.5 L1111 715.5 L1111 704.5 C1111 702.8 1110.6 701.5 1109.9 700.6 C1109.3 699.8 1108.3 699.3 1106.9 699.3 C1105.3 699.3 1104 699.9 1103 700.9 C1102.1 701.9 1101.6 703.4 1101.6 705.1 L1101.6 715.5 L1098.6 715.5 L1098.6 697.2 L1101.6 697.2 L1101.6 700 C1102.4 698.9 1103.2 698.1 1104.2 697.5 C1105.2 697 1106.3 696.7 1107.6 696.7 C1109.7 696.7 1111.3 697.4 1112.4 698.7 C1113.4 700 1114 701.9 1114 704.4 Z M1120 697.2 L1123 697.2 L1123 715.5 L1120 715.5 Z M1120 690 L1123 690 L1123 693.8 L1120 693.8 Z M1132.3 691.9 L1132.3 697.2 L1138.5 697.2 L1138.5 699.5 L1132.3 699.5 L1132.3 709.5 C1132.3 711 1132.5 711.9 1132.9 712.4 C1133.3 712.8 1134.2 713 1135.4 713 L1138.5 713 L1138.5 715.5 L1135.4 715.5 C1133.1 715.5 1131.5 715.1 1130.6 714.2 C1129.7 713.4 1129.3 711.8 1129.3 709.5 L1129.3 699.5 L1127.1 699.5 L1127.1 697.2 L1129.3 697.2 L1129.3 691.9 Z M1158.2 705.6 L1158.2 707.1 L1144.3 707.1 C1144.5 709.1 1145.1 710.7 1146.2 711.8 C1147.3 712.9 1148.9 713.4 1150.9 713.4 C1152.1 713.4 1153.2 713.3 1154.3 713 C1155.4 712.7 1156.4 712.3 1157.5 711.7 L1157.5 714.6 C1156.4 715.1 1155.3 715.4 1154.2 715.6 C1153 715.9 1151.9 716 1150.7 716 C1147.8 716 1145.5 715.1 1143.8 713.4 C1142 711.7 1141.2 709.4 1141.2 706.5 C1141.2 703.5 1142 701.1 1143.6 699.4 C1145.2 697.6 1147.4 696.7 1150.2 696.7 C1152.7 696.7 1154.6 697.5 1156.1 699.1 C1157.5 700.7 1158.2 702.9 1158.2 705.6 Z M1155.2 704.7 C1155.2 703.1 1154.7 701.7 1153.8 700.7 C1152.9 699.8 1151.7 699.3 1150.2 699.3 C1148.5 699.3 1147.2 699.7 1146.2 700.7 C1145.2 701.7 1144.6 703 1144.4 704.7 Z" android:fillColor="#C9C9C9"/>
+</vector>
