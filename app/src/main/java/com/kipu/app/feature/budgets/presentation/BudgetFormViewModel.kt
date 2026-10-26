@@ -70,6 +70,7 @@ class BudgetFormViewModel @Inject constructor(
     private val editBudget: EditBudget,
     private val categories: BudgetCategoryOptionsSource,
     private val zone: ZoneId,
+    private val appearance: BudgetAppearanceStore? = null,
 ) : ViewModel() {
     /** null = alta; con id = edicion. */
     private val editingId: String? = savedStateHandle.get<String>(ARG_BUDGET_ID)?.takeIf { it.isNotBlank() }
@@ -107,7 +108,7 @@ class BudgetFormViewModel @Inject constructor(
                     budget == null -> BudgetFormUiState.NotFound
                     !budget.isActive -> BudgetFormUiState.Error(BudgetTexts.error(BudgetError.BudgetFinished))
                     else -> {
-                        val input = BudgetFormInput.from(budget)
+                        val input = BudgetFormInput.from(budget).copy(iconId = appearance?.icon(owner, budget.id))
                         BudgetFormUiState.Content(BudgetFormState(true, input, input, options))
                     }
                 }
@@ -163,6 +164,7 @@ class BudgetFormViewModel @Inject constructor(
             }
             when (outcome) {
                 is BudgetOutcome.Success<Budget> -> {
+                    appearance?.saveIcon(outcome.value.ownerId, outcome.value.id, form.input.iconId)
                     updateForm { it.copy(isSaving = false) }
                     _events.send(BudgetFormEvent.Saved(outcome.value.id))
                 }

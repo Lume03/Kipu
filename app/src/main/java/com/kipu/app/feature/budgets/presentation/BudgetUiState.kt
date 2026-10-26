@@ -29,6 +29,7 @@ data class BudgetListItem(
     val hasPendingChange: Boolean,
     val thresholdsBps: List<Int> = Budget.DEFAULT_THRESHOLDS_BPS,
     val syncIssue: String? = null,
+    val iconId: String? = null,
 )
 
 sealed interface BudgetListUiState {
@@ -55,6 +56,7 @@ data class BudgetDetailContent(
     val pendingChangeLabel: String?,
     val isWorking: Boolean = false,
     val actionError: String? = null,
+    val iconId: String? = null,
 ) {
     val isActive: Boolean get() = budget.isActive
 }
@@ -77,9 +79,15 @@ data class BudgetCategoryOption(
     val name: String,
     val parentId: String?,
     val parentName: String?,
+    val iconId: String = "category",
+    val color: String? = null,
 ) {
     val isSubcategory: Boolean get() = parentId != null
     val label: String get() = if (parentName != null) "$parentName > $name" else name
 }
 
 internal fun BudgetScope.categoryIdOrNull(): String? = (this as? BudgetScope.Category)?.categoryId
+
+/** The category owns its visual identity; custom icons apply only to a general budget. */
+internal fun budgetIconId(categoryId: String?, customIconId: String?, categories: List<BudgetCategoryOption>): String? =
+    if (categoryId != null) categories.firstOrNull { it.id == categoryId }?.iconId else customIconId

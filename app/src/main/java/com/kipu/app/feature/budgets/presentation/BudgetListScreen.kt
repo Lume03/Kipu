@@ -24,7 +24,10 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,11 +38,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.budgets.domain.BudgetStatus
@@ -80,8 +86,8 @@ fun BudgetListScreen(
     onDeleteBudget: (String) -> Unit = onOpenBudget,
 ) {
     var optionsId by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedFilter by rememberSaveable { mutableStateOf(0) }
     var showQuotaDialog by rememberSaveable { mutableStateOf(false) }
+    var showArchive by rememberSaveable { mutableStateOf(false) }
     val quota = when (state) {
         is BudgetListUiState.Content -> state.quota
         is BudgetListUiState.Empty -> state.quota
@@ -157,26 +163,33 @@ fun BudgetListScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item { QuotaCard(state.quota) }
-                item { CreateButton(state.quota.isAtLimit, requestCreate) }
+                val visible = state.items.filter { it.status == BudgetStatus.ACTIVE }
+                val finished = state.items.filter { it.status == BudgetStatus.FINISHED }
+                if (visible.isEmpty()) {
+                    item { CreateButton(state.quota.isAtLimit, requestCreate) }
+                    item { EmptyBudgets() }
+                }
+                items(visible, key = { it.id }) { item ->
+                    BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }, onOptions = { optionsId = item.id })
+                }
+                if (visible.isNotEmpty()) item { CreateButton(state.quota.isAtLimit, requestCreate) }
                 item {
-                    val counts = listOf(state.items.size,
-                        state.items.count { it.status == BudgetStatus.ACTIVE && it.consumption?.needsAttention(it.thresholdsBps) == true },
-                        state.items.count { it.status == BudgetStatus.ACTIVE && it.consumption?.isExceeded == true })
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Todos", "Atención", "Excedidos").forEachIndexed { index, label ->
-                            KipuFilterChip(selected = selectedFilter == index, onClick = { selectedFilter = index },
-                                label = { Text("$label ${counts[index]}") }, modifier = Modifier.testTag("budget_filter_$index"))
+                    val colors = rememberCalmEmeraldColors()
+                    Surface(onClick = { showArchive = !showArchive }, color = colors.surfaceCard,
+                        shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().testTag("budget_archived_entry")
+                            .semantics { stateDescription = if (showArchive) "Expandido" else "Contraído" }) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Finalizados (${finished.size})", fontWeight = FontWeight.SemiBold)
+                                Text("Conservan su historial y no ocupan cupo", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                            }
+                            Icon(if (showArchive) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
                         }
                     }
                 }
-                val visible = state.items.filter { item -> when (selectedFilter) {
-                    1 -> item.status == BudgetStatus.ACTIVE && item.consumption?.needsAttention(item.thresholdsBps) == true
-                    2 -> item.status == BudgetStatus.ACTIVE && item.consumption?.isExceeded == true
-                    else -> true
-                } }
-                if (visible.isEmpty()) item { Text("No hay presupuestos en este filtro.", Modifier.padding(16.dp)) }
-                items(visible, key = { it.id }) { item ->
-                    BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }, onOptions = { optionsId = item.id })
+                if (showArchive) {
+                    if (finished.isEmpty()) item { Text("No tienes presupuestos finalizados.", Modifier.padding(16.dp)) }
+                    items(finished, key = { "finished_${it.id}" }) { item -> BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }) }
                 }
                 item { Box(Modifier.height(20.dp)) }
             }
@@ -220,13 +233,16 @@ internal fun BudgetErrorPanel(message: String, onRetry: () -> Unit, modifier: Mo
 
 @Composable
 private fun CreateButton(atLimit: Boolean, onClick: () -> Unit) {
+    val colors = rememberCalmEmeraldColors()
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_create_button"),
         shape = RoundedCornerShape(14.dp),
+        colors = if (atLimit) ButtonDefaults.buttonColors(containerColor = colors.warningBg, contentColor = colors.warningText)
+        else ButtonDefaults.buttonColors(),
     ) {
         Icon(if (atLimit) Icons.Default.Lock else Icons.Default.Add, contentDescription = null)
-        Text(if (atLimit) "  Nuevo presupuesto · Ver planes" else "  Crear presupuesto", fontWeight = FontWeight.SemiBold)
+        Text(if (atLimit) "  Nuevo presupuesto · Mejorar a PRO" else "  Crear presupuesto", fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -234,13 +250,48 @@ private fun CreateButton(atLimit: Boolean, onClick: () -> Unit) {
 private fun QuotaCard(quota: BudgetQuotaState) {
     if (quota.isPremium) return
     val colors = rememberCalmEmeraldColors()
+    val largeText = LocalDensity.current.fontScale >= 1.15f
+    val planBadge: @Composable () -> Unit = {
+        Surface(shape = RoundedCornerShape(20.dp), color = colors.primaryDeep.copy(alpha = 0.12f)) {
+            Text("PLAN BÁSICO", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
+                color = colors.primaryDeep, fontWeight = FontWeight.Bold)
+        }
+    }
+    val limitBadge: @Composable () -> Unit = {
+        if (quota.isAtLimit) Surface(shape = RoundedCornerShape(20.dp), color = colors.warningBg) {
+            Text("Límite alcanzado", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), color = colors.warningText,
+                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        }
+    }
     KipuCard(modifier = Modifier.fillMaxWidth().testTag("budget_quota_card"), shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("PLAN FREE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Text("${quota.activeCount} de ${quota.limit} presupuestos activos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            LinearProgressIndicator(progress = { if (quota.limit > 0) (quota.activeCount.toFloat() / quota.limit).coerceIn(0f, 1f) else 0f },
-                modifier = Modifier.fillMaxWidth().height(8.dp), color = if (quota.isAtLimit) colors.warningAmber else MaterialTheme.colorScheme.primary)
-            if (quota.isAtLimit) Text("Límite alcanzado", color = colors.warningText, style = MaterialTheme.typography.labelMedium)
+            if (largeText) {
+                // El contador necesita una línea propia: las dos píldoras no deben comprimirlo.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    planBadge()
+                    limitBadge()
+                }
+                Text("${quota.activeCount} de ${quota.limit} presupuestos activos", Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    planBadge()
+                    Text("${quota.activeCount} de ${quota.limit} presupuestos activos", Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    limitBadge()
+                }
+            }
+            // Un segmento por presupuesto permitido: los activos se llenan y el tono avisa al llegar al límite.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(quota.limit.coerceAtLeast(1)) { index ->
+                    LinearProgressIndicator(
+                        progress = { if (index < quota.activeCount) 1f else 0f },
+                        modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
+                        color = if (quota.isAtLimit) colors.warningAmber else MaterialTheme.colorScheme.primary,
+                        drawStopIndicator = {},
+                    )
+                }
+            }
         }
     }
 }
@@ -257,22 +308,32 @@ private fun EmptyBudgets() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(64.dp)) {
-                Icon(Icons.Default.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(16.dp))
+            Box(Modifier.size(108.dp).padding(4.dp)) {
+                Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(92.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(progress = { 0.28f }, modifier = Modifier.size(52.dp), strokeWidth = 8.dp,
+                            color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    }
+                }
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.BottomEnd).size(36.dp)) {
+                    Icon(Icons.Default.Add, null, Modifier.padding(6.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                }
             }
-            Text("Todavía no tienes presupuestos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Todavía no tienes presupuestos activos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Text(
                 "Pon un límite de gasto por periodo, para todo o para una categoría, y mira cuánto llevas. " +
                     "Un presupuesto es solo planificación: no mueve dinero.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
     }
 }
 
 @Composable
-private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptions: () -> Unit) {
+internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptions: (() -> Unit)? = null) {
     val finished = item.status == BudgetStatus.FINISHED
     val colors = rememberCalmEmeraldColors()
     KipuCard(
@@ -282,14 +343,14 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOption
         borderColor = null,
         elevation = 1.dp,
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(shape = RoundedCornerShape(16.dp), color = when {
                     item.consumption?.isExceeded == true -> colors.expenseBg
                     item.consumption?.needsAttention(item.thresholdsBps) == true -> colors.warningBg
                     else -> MaterialTheme.colorScheme.secondaryContainer
                 }) {
-                    Icon(Icons.Default.PieChart, null, modifier = Modifier.padding(12.dp).size(24.dp), tint = when {
+                    BudgetIcon(item.iconId, modifier = Modifier.padding(12.dp).size(24.dp), tint = when {
                         item.consumption?.isExceeded == true -> colors.expenseText
                         item.consumption?.needsAttention(item.thresholdsBps) == true -> colors.warningText
                         else -> MaterialTheme.colorScheme.primary
@@ -299,7 +360,6 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOption
                     Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(
-                            item.scopeLabel,
                             BudgetTexts.periodTypeShort(item.periodType),
                             if (finished) "Finalizado" else null,
                         ).joinToString(" · "),
@@ -307,29 +367,24 @@ private fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOption
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onOptions, modifier = Modifier.testTag("budget_options_${item.id}")) {
+                if (onOptions != null) IconButton(onClick = onOptions, modifier = Modifier.testTag("budget_options_${item.id}")) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${item.name}")
                 }
             }
             item.interval?.let {
                 Text(
-                    "Periodo: ${BudgetTexts.interval(it)}",
+                    "${item.scopeLabel} · ${BudgetTexts.compactInterval(it)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             val consumption = item.consumption
             if (consumption != null) {
-                BudgetAmountsRow(consumption, item.currency)
+                BudgetAmountsRow(consumption, item.currency, thresholdsBps = item.thresholdsBps)
                 BudgetProgressBar(consumption, item.currency, thresholdsBps = item.thresholdsBps)
             } else {
                 Text("Sin periodo disponible todavía.", style = MaterialTheme.typography.bodySmall)
             }
-            Text(
-                BudgetTexts.currencyNotice(item.currency),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (item.hasPendingChange) {
                 Text(
                     "Hay un cambio de alcance o calendario programado para el siguiente periodo.",

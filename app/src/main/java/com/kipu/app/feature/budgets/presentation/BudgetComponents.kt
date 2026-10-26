@@ -2,12 +2,14 @@ package com.kipu.app.feature.budgets.presentation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,10 +66,13 @@ internal fun BudgetMoney(
 internal fun BudgetConsumption.needsAttention(thresholdsBps: List<Int>): Boolean =
     !isExceeded && thresholdsBps.any { percentBps >= it }
 
+internal fun BudgetConsumption.nearLimit(thresholdsBps: List<Int>): Boolean =
+    thresholdsBps.filter { it < 10000 }.sorted().getOrNull(1)?.let { percentBps >= it } == true
+
 internal fun BudgetConsumption.statusLabel(thresholdsBps: List<Int> = emptyList()): String = when {
     isExceeded -> "Excedido"
     remainingMinor == 0L -> "Límite alcanzado"
-    percentBps >= 8000 && needsAttention(thresholdsBps) -> "Casi al límite"
+    nearLimit(thresholdsBps) -> "Casi al límite"
     needsAttention(thresholdsBps) -> "Atención"
     else -> "Dentro del límite"
 }
@@ -84,8 +90,8 @@ internal fun BudgetDetailAmounts(consumption: BudgetConsumption, currencyCode: S
         ).forEachIndexed { index, (label, amount, tag) ->
             Column(Modifier.weight(1f).testTag(tag).semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = colors.secondaryMuted)
-                BudgetMoney(amount, currencyCode, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
+                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = colors.secondaryMuted)
+                BudgetMoney(amount, currencyCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                     color = if (index == 1) when {
                         consumption.isExceeded -> colors.expenseText
                         consumption.needsAttention(thresholdsBps) -> colors.warningText
@@ -99,8 +105,8 @@ internal fun BudgetDetailAmounts(consumption: BudgetConsumption, currencyCode: S
 @Composable
 internal fun BudgetInfoLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold,
             textAlign = androidx.compose.ui.text.style.TextAlign.End)
     }
 }
@@ -125,8 +131,8 @@ internal fun BudgetProgressBar(
     val fraction = if (consumption.limitMinor <= 0L) 0f
     else (consumption.consumedMinor.toDouble() / consumption.limitMinor.toDouble()).toFloat().coerceIn(0f, 1f)
     val barColor = when {
-        consumption.isExceeded -> colors.expenseCoral
-        consumption.percentBps >= 8000 && consumption.needsAttention(thresholdsBps) -> colors.nearLimitOrange
+        consumption.percentBps >= 10000 -> colors.expenseCoral
+        consumption.nearLimit(thresholdsBps) -> colors.nearLimitOrange
         consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps) -> colors.warningAmber
         else -> MaterialTheme.colorScheme.primary
     }
@@ -156,40 +162,51 @@ internal fun BudgetProgressBar(
             drawStopIndicator = {},
             modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (consumption.isExceeded || consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps)) {
+        // Estado en píldora con icono y texto (nunca solo color), como la guía de umbrales.
+        val attention = consumption.isExceeded || consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps)
+        val pillBg = when {
+            consumption.isExceeded -> colors.expenseBg
+            attention -> colors.warningBg
+            else -> colors.primaryDeep.copy(alpha = 0.12f)
+        }
+        val pillText = when {
+            consumption.isExceeded -> colors.expenseText
+            attention -> colors.warningText
+            else -> colors.primaryDeep
+        }
+        Surface(shape = RoundedCornerShape(20.dp), color = pillBg) {
+            Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(
-                    Icons.Default.ErrorOutline, contentDescription = null, tint = barColor, modifier = Modifier.size(16.dp),
+                    if (attention) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
+                    contentDescription = null, tint = pillText, modifier = Modifier.size(16.dp),
                 )
-            } else {
-                Icon(
-                    Icons.Default.CheckCircle, contentDescription = null, tint = barColor, modifier = Modifier.size(16.dp),
+                Text(
+                    "${consumption.percentWhole} % · $status",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = pillText,
                 )
             }
-            Text(
-                "${consumption.percentWhole} % · $status",
-                style = MaterialTheme.typography.labelMedium,
-                color = when {
-                    consumption.isExceeded -> colors.expenseText
-                    consumption.remainingMinor == 0L || consumption.needsAttention(thresholdsBps) -> colors.warningText
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
         }
     }
 }
 
 /** Importe principal y dos estadísticas, manteniendo la máscara de privacidad. */
 @Composable
-internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: String, modifier: Modifier = Modifier) {
+internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: String, modifier: Modifier = Modifier,
+    thresholdsBps: List<Int> = com.kipu.app.feature.budgets.domain.Budget.DEFAULT_THRESHOLDS_BPS) {
     val colors = rememberCalmEmeraldColors()
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f).testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
             Text("Consumido", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BudgetMoney(consumption.consumedMinor, currencyCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Row(Modifier.testTag("budget_limit").semantics(mergeDescendants = true) {}) {
-                Text("de ", style = MaterialTheme.typography.labelSmall)
-                BudgetMoney(consumption.limitMinor, currencyCode, style = MaterialTheme.typography.labelSmall)
+            Row(Modifier.testTag("budget_limit").semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Bottom) {
+                Text("/ ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                BudgetMoney(consumption.limitMinor, currencyCode, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             }
         }
         Column(Modifier.weight(1f).testTag("budget_remaining").semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.End) {
@@ -198,7 +215,7 @@ internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: Stri
             BudgetMoney(
                 if (consumption.isExceeded) -consumption.remainingMinor else consumption.remainingMinor,
                 currencyCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                color = if (consumption.isExceeded) colors.expenseText else colors.primaryDeep)
+                color = if (consumption.isExceeded) colors.expenseText else if (consumption.needsAttention(thresholdsBps)) colors.warningText else colors.primaryDeep)
         }
     }
 }

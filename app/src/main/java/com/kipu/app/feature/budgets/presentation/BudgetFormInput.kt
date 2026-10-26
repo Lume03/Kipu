@@ -24,6 +24,7 @@ data class BudgetFormInput(
     val rangeStartText: String = "",
     val rangeEndText: String = "",
     val thresholdsText: String = DEFAULT_THRESHOLDS_TEXT,
+    val iconId: String? = null,
 ) {
     companion object {
         const val DEFAULT_THRESHOLDS_TEXT = "50, 80, 100"

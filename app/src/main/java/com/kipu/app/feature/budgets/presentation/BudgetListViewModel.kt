@@ -41,6 +41,7 @@ class BudgetListViewModel @Inject constructor(
     private val categories: BudgetCategoryOptionsSource,
     private val planAccess: BudgetPlanAccess,
     private val zone: ZoneId,
+    private val appearance: BudgetAppearanceStore? = null,
 ) : ViewModel() {
     internal var todayProvider: () -> LocalDate = { LocalDate.now(zone) }
 
@@ -56,7 +57,8 @@ class BudgetListViewModel @Inject constructor(
                     if (owner == null) {
                         flowOf<BudgetListUiState>(BudgetListUiState.Error(SESSION_REQUIRED_MESSAGE))
                     } else {
-                        combine(repository.observeBudgets(owner), categories.observe(owner), repository.observeSyncIssues(owner)) { budgets, options, issues ->
+                        combine(repository.observeBudgets(owner), categories.observe(owner), repository.observeSyncIssues(owner),
+                            appearance?.changes ?: flowOf(0)) { budgets, options, issues, _ ->
                             Triple(budgets, options, issues)
                         }.map<_, BudgetListUiState> { (budgets, options, issues) -> build(owner, budgets, options, issues) }
                             .catch { error ->
@@ -109,6 +111,7 @@ class BudgetListViewModel @Inject constructor(
                 consumption = current?.consumption,
                 hasPendingChange = budget.pendingChange != null,
                 thresholdsBps = budget.thresholdsBps,
+                iconId = budgetIconId(budget.scope.categoryIdOrNull(), appearance?.icon(owner, budget.id), options),
                 syncIssue = issues[budget.id]?.let { code ->
                     when (code) {
                         "BUDGET_QUOTA_EXCEEDED" -> "Guardado en este teléfono. No se sincronizó porque alcanzaste el límite del plan."

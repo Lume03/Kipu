@@ -8,6 +8,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -96,7 +97,7 @@ class BudgetScreensTest {
     }
 
     @Test
-    fun localFiltersUseConfiguredThresholdsAndKeepExceededSeparate() {
+    fun allActiveBudgetsAreShownWithoutStatusFilters() {
         val warning = item("warning", consumed = 35_000L).copy(thresholdsBps = listOf(7000))
         val below = item("below", consumed = 35_000L).copy(thresholdsBps = listOf(9000))
         val exceeded = item("exceeded", consumed = 60_000L)
@@ -104,24 +105,22 @@ class BudgetScreensTest {
         compose.setContent {
             BudgetListScreen(BudgetListUiState.Content(listOf(warning, below, exceeded, finished), freeQuota), {}, {}, {}, {}, {})
         }
-        compose.onNodeWithTag("budget_filter_1").assertTextContains("Atención 1").performClick()
+        compose.onNodeWithTag("budget_filter_1").assertDoesNotExist()
         compose.onNodeWithTag("budget_card_warning").assertIsDisplayed()
-        compose.onNodeWithTag("budget_card_below").assertDoesNotExist()
-        compose.onNodeWithTag("budget_card_exceeded").assertDoesNotExist()
+        compose.onNodeWithTag("budget_card_below").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("budget_card_exceeded").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("budget_card_finished").assertDoesNotExist()
-        compose.onNodeWithTag("budget_filter_2").performClick()
-        compose.onNodeWithTag("budget_card_warning").assertDoesNotExist()
-        compose.onNodeWithTag("budget_card_exceeded").assertIsDisplayed()
     }
 
     @Test
-    fun quickAmountUpdatesInputAndSaveRemainsVisible() {
+    fun manualLimitHasNoSuggestedAmountsAndSaveRemainsVisible() {
         var input by mutableStateOf(BudgetFormInput())
         var saves = 0
         compose.setContent {
             BudgetFormScreen(formState(input = input), {}, { input = it(input) }, { saves++ }, {}, {}, {})
         }
-        compose.onNodeWithTag("budget_quick_500").performClick()
+        compose.onNodeWithTag("budget_quick_500").assertDoesNotExist()
+        compose.onNodeWithTag("budget_limit_input").performTextInput("500")
         compose.onNodeWithTag("budget_limit_input").assertTextContains("500")
         compose.onNodeWithTag("budget_thresholds").performScrollTo()
         compose.onNodeWithTag("budget_save").assertIsDisplayed().performClick()
@@ -176,7 +175,6 @@ class BudgetScreensTest {
         compose.onNodeWithTag("budget_remaining").assertTextContains("380.00", substring = true)
         compose.onNodeWithTag("budget_remaining").assertTextContains("Restante", substring = true)
         card.assertContentDescriptionContains("Consumido 24 %", substring = true)
-        card.assertTextContains("Solo se cuentan gastos en PEN", substring = true)
     }
 
     @Test
@@ -283,6 +281,64 @@ class BudgetScreensTest {
             fieldErrors = errors, quotaLimitDialog = quotaLimit,
         ),
     )
+
+    @Test fun categoryUsesTheSharedPickerAndUpdatesTheDraft() {
+        var input by mutableStateOf(BudgetFormInput(scopeKind = BudgetScopeKind.CATEGORY))
+        compose.setContent { BudgetFormScreen(formState(input = input), {}, { input = it(input) }, {}, {}, {}, {}) }
+        compose.onNodeWithTag("budget_category_picker").performScrollTo().performClick()
+        compose.onNodeWithTag("pastel_category_picker_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("category_root_cat-food").performClick()
+        compose.runOnIdle { assertEquals("cat-food", input.categoryId) }
+    }
+
+    @Test fun thresholdStepperUpdatesOnlyItsThresholdAndKeepsOneHundredFixed() {
+        var input by mutableStateOf(BudgetFormInput())
+        compose.setContent { BudgetFormScreen(formState(input = input), {}, { input = it(input) }, {}, {}, {}, {}) }
+        compose.onNodeWithTag("budget_threshold_0_plus").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(listOf(5100, 8000, 10000), BudgetFormParser.parseThresholdsBps(input.thresholdsText)) }
+        compose.onNodeWithTag("budget_threshold_2_plus").assertDoesNotExist()
+        compose.onNodeWithText("100 %").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun finishedBudgetsHaveAnExplicitEntryAndKeepTheirDetailAccessible() {
+        var opened: String? = null
+        val finished = item("closed").copy(status = BudgetStatus.FINISHED)
+        compose.setContent { BudgetListScreen(BudgetListUiState.Content(listOf(item(), finished), freeQuota), {}, {}, { opened = it }, {}, {}) }
+        compose.onNodeWithTag("budget_card_closed").assertDoesNotExist()
+        compose.onNodeWithTag("budget_archived_entry").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_card_closed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("budget_archived_entry").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_card_closed").assertDoesNotExist()
+        compose.onNodeWithTag("budget_archived_entry").performClick()
+        compose.onNodeWithTag("budget_card_closed").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("closed", opened) }
+    }
+
+    @Test fun finishedOnlyStillShowsTheInitialEmptyState() {
+        val finished = item("closed").copy(status = BudgetStatus.FINISHED)
+        compose.setContent {
+            BudgetListScreen(BudgetListUiState.Content(listOf(finished), BudgetQuotaState(0, 2, false)), {}, {}, {}, {}, {})
+        }
+        compose.onNodeWithTag("budget_empty").assertIsDisplayed()
+        compose.onNodeWithTag("budget_create_button").assertIsDisplayed()
+        compose.onNodeWithTag("budget_card_closed").assertDoesNotExist()
+        compose.onNodeWithTag("budget_archived_entry").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_card_closed").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun categoryBudgetExplainsItsIconAndDisablesTheManualPicker() {
+        compose.setContent {
+            BudgetFormScreen(formState(input = BudgetFormInput(scopeKind = BudgetScopeKind.CATEGORY, categoryId = "cat-food")), {}, {}, {}, {}, {}, {})
+        }
+        compose.onNodeWithTag("budget_icon_picker").assertIsNotEnabled()
+        compose.onNodeWithText("Se usará el icono de la categoría o subcategoría que elijas.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun formOpensTheExistingIconCatalog() {
+        compose.setContent { BudgetFormScreen(formState(), {}, {}, {}, {}, {}, {}) }
+        compose.onNodeWithTag("budget_icon_picker").performScrollTo().performClick()
+        compose.onNodeWithTag("icon_catalog_search_input").assertIsDisplayed()
+    }
 
     @Test
     fun formCreateCapturesNameLimitAndSaves() {

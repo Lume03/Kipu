@@ -7,6 +7,7 @@ import com.kipu.app.feature.budgets.domain.BudgetSchedule
 import com.kipu.app.feature.budgets.domain.BudgetScope
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Textos en espanol de presupuestos. Sin logica financiera: solo presentacion. */
 internal object BudgetTexts {
@@ -33,6 +34,11 @@ internal object BudgetTexts {
     fun interval(interval: BudgetInterval): String =
         if (interval.lastDay == interval.start) date(interval.start)
         else "${date(interval.start)} al ${date(interval.lastDay)}"
+
+    fun compactInterval(interval: BudgetInterval): String {
+        val format = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-PE"))
+        return "${interval.start.format(format)} – ${interval.lastDay.format(format)}"
+    }
 
     fun schedule(schedule: BudgetSchedule): String = when (schedule) {
         is BudgetSchedule.Recurring -> periodType(schedule.type)

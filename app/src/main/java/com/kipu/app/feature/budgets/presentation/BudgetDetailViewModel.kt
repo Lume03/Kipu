@@ -49,6 +49,7 @@ class BudgetDetailViewModel @Inject constructor(
     private val deleteBudget: DeleteBudget,
     private val categories: BudgetCategoryOptionsSource,
     private val zone: ZoneId,
+    private val appearance: BudgetAppearanceStore? = null,
 ) : ViewModel() {
     private val budgetId: String = savedStateHandle.get<String>(ARG_BUDGET_ID).orEmpty()
 
@@ -72,7 +73,8 @@ class BudgetDetailViewModel @Inject constructor(
                     repository.observeBudgets(owner),
                     repository.observePeriods(owner, budgetId),
                     categories.observe(owner),
-                ) { budgets, periods, options -> Triple(budgets.firstOrNull { it.id == budgetId }, periods, options) }
+                    appearance?.changes ?: flowOf(0),
+                ) { budgets, periods, options, _ -> Triple(budgets.firstOrNull { it.id == budgetId }, periods, options) }
                     .map<_, BudgetDetailUiState> { (budget, periods, options) ->
                         if (budget == null) BudgetDetailUiState.NotFound else build(owner, budget, periods, options)
                     }
@@ -111,6 +113,7 @@ class BudgetDetailViewModel @Inject constructor(
     fun delete() = runAction { owner ->
         when (val outcome = deleteBudget(owner, budgetId)) {
             is BudgetOutcome.Success -> {
+                appearance?.saveIcon(owner, budgetId, null)
                 _events.send(BudgetDetailEvent.Deleted)
                 null
             }
@@ -177,6 +180,7 @@ class BudgetDetailViewModel @Inject constructor(
                 current = current,
                 history = rows.filter { it.periodId != current?.periodId },
                 pendingChangeLabel = pending,
+                iconId = budgetIconId(budget.scope.categoryIdOrNull(), appearance?.icon(owner, budget.id), options),
             ),
         )
     }
