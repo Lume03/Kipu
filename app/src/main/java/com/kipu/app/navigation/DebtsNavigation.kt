@@ -85,7 +85,6 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
         }
         MovementHistoryRoute(
             viewModel = viewModel,
-            onNavigateToEditor = { navController.navigateToMovementEditor(it) },
             onNavigateToSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
             onNavigateToNewAccount = navController::navigateToAccountForm,
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },

@@ -173,6 +173,9 @@ fun MovementHistoryRoute(
     val detailItem = uiState.selectedDetail
     var recurrenceSource by remember { mutableStateOf<TransactionItem?>(null) }
     var showRecurrenceList by remember { mutableStateOf(false) }
+    // The editor opens over the list (same screen) so the history stays visible behind its scrim.
+    var editingTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editorSession by rememberSaveable { mutableStateOf(0) }
     var receiptUriText by remember(detailItem?.transaction?.userId, detailItem?.transaction?.id) {
         mutableStateOf(detailItem?.let { row ->
             receiptPreferences.getString(movementReceiptPreferenceKey(row), null)
@@ -596,7 +599,11 @@ fun MovementHistoryRoute(
             uiState.detailLoading,
             uiState.detailError,
             onDismiss = { viewModel.onCloseDetail(); onDetailDismissed?.invoke() },
-            onEdit = { viewModel.onCloseDetail(); onNavigateToEditor(item.transaction.id) },
+            onEdit = {
+                viewModel.onCloseDetail()
+                editorSession += 1
+                editingTransactionId = item.transaction.id
+            },
             onVoid = { viewModel.onCloseDetail(); viewModel.onSelectTransactionForVoid(item) },
             receiptAttached = !receiptUriText.isNullOrBlank(),
             onAttachReceipt = { receiptPicker.launch(arrayOf("application/pdf")) },
@@ -635,6 +642,20 @@ fun MovementHistoryRoute(
                 }
             },
         )
+    }
+
+    editingTransactionId?.let { transactionId ->
+        key(transactionId, editorSession) {
+            MovementEditorRoute(
+                transactionId = transactionId,
+                onDismiss = { editingTransactionId = null },
+                onSaved = {
+                    editingTransactionId = null
+                    scope.launch { snackbarHostState.showSnackbar(if (offline) savedText else "Cambios guardados") }
+                },
+                viewModel = hiltViewModel(key = "movement_editor_${transactionId}_$editorSession"),
+            )
+        }
     }
 
     uiState.refundFlow.purchaseItem?.takeIf { !uiState.refundFlow.isLoading }?.let { purchase ->
