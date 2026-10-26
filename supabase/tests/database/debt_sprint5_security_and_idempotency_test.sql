@@ -110,13 +110,13 @@ SELECT throws_ok($$
     INSERT INTO public.debt_events (user_id, debt_id, transaction_id, event_type, amount_minor, principal_delta_minor)
     VALUES ((SELECT owner_id FROM debt_security_ids), '66000000-0000-4000-8000-000000000007',
         '66000000-0000-4000-8000-000000000010', 'PAYMENT', 100, -100);
-$$, '23503', NULL, 'a debt event cannot link a transaction owned by another user');
+$$, '42501', NULL, 'direct debt event insertion is denied even with a foreign transaction');
 
 SELECT throws_ok($$
     INSERT INTO public.debt_events (user_id, debt_id, installment_id, event_type, amount_minor, principal_delta_minor)
     VALUES ((SELECT owner_id FROM debt_security_ids), '66000000-0000-4000-8000-000000000007',
         '66000000-0000-4000-8000-000000000009', 'PAYMENT', 100, -100);
-$$, '23503', NULL, 'a debt event cannot link an installment from another debt or owner');
+$$, '42501', NULL, 'direct debt event insertion is denied even with a foreign installment');
 
 SELECT throws_ok($$
     INSERT INTO public.debts (id, user_id, obligation_type, counterparty_name, total_minor, currency_code)
