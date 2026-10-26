@@ -1,5 +1,7 @@
 # Activación de sincronización de Planificación — 2026-10-26 UTC
 
+**Seguimiento del historial:** después de esta validación se detectó y corrigió una incompatibilidad de presentación que no cubrían las comparaciones de persistencia. Ver [incidente, causa y nueva validación real](incidente-historial-post-sync-2026-10-26.md). La migración correctiva adicional lleva el despliegue de esta intervención a 20 migraciones; los conteos de la ejecución inicial siguientes se conservan como corte histórico.
+
 Seguimiento de la [auditoría de sincronización](sincronizacion-planificacion-2026-10-25.md). Trabajo autorizado por el Owner tras conocer los bloqueos. Se conserva la rama/worktree y los cambios de navegación de otro trabajo; no se ejecuta Spec Kit.
 
 ## Requisito previo
@@ -77,3 +79,4 @@ Comando de aceptación: instalar los APK debug y AndroidTest compilados, y ejecu
 | 20261026014356 | [20261026013311_planning_remote_sync_activation.sql](../../supabase/migrations/20261026013311_planning_remote_sync_activation.sql) |
 | 20261026020111 | [20261026015954_planning_sync_feed_aliases.sql](../../supabase/migrations/20261026015954_planning_sync_feed_aliases.sql) |
 | 20261026021203 | [20261026020557_planning_transaction_pull_projection.sql](../../supabase/migrations/20261026020557_planning_transaction_pull_projection.sql) |
+| 20261026031846 | [20261026031551_planning_income_account_contract.sql](../../supabase/migrations/20261026031551_planning_income_account_contract.sql) |

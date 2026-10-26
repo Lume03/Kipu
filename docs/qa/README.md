@@ -2,6 +2,7 @@
 
 ## Auditorías
 
+- [Historial no disponible tras sincronizar (2026-10-26 UTC)](incidente-historial-post-sync-2026-10-26.md): incompatibilidad en la lectura de capital de deuda e ingresos; corrección y pruebas reales de historial/restauración.
 - [Activación remota de Planificación (2026-10-26 UTC)](activacion-sync-planificacion-2026-10-26.md): despliegue seleccionado, recuperación de colas, restauración real, pruebas offline, límites y [dictamen de verificación](verification-report.md).
 - [Sincronización remota de Planificación (2026-10-25)](sincronizacion-planificacion-2026-10-25.md): contraste teléfono/servidor, correcciones de fechas y arranque, bloqueos de Metas y Deudas y matriz pendiente de certificación.
 - [Correcciones de Planificación (2026-10-25)](planificacion-2026-10-25.md): Metas, Presupuestos, Deudas, navegación retenida y validación en teléfono.
