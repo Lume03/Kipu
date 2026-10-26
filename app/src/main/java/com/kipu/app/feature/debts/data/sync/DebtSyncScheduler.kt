@@ -57,7 +57,8 @@ class WorkManagerDebtSyncScheduler @Inject constructor(
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "${SyncDebtChangesWorker.WORK_PREFIX}_$userId",
-            ExistingWorkPolicy.KEEP,
+            // Wake new commands even while an earlier missing endpoint was backing off.
+            ExistingWorkPolicy.REPLACE,
             request,
         )
     }

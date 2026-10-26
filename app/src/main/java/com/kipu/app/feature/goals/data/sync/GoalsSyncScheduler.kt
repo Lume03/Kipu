@@ -47,7 +47,9 @@ class GoalsSyncScheduler @Inject constructor(
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "${SyncGoalsWorker.WORK_PREFIX}_$userId",
-            ExistingWorkPolicy.KEEP,
+            // New offline edits must not wait behind an old RPC failure's backoff.
+            // Stable operation IDs, leases and pending-work retries preserve interrupted sends.
+            ExistingWorkPolicy.REPLACE,
             request,
         )
     }
