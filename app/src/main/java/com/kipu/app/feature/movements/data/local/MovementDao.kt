@@ -23,6 +23,21 @@ interface MovementDao {
     """)
     suspend fun recoverMissingRegistrationEndpoint(userId: String, now: Long): Int
 
+    /** An expired session (401/403) never made a command invalid: send it again once signed in. */
+    @Query("""
+        UPDATE movement_outbox SET state = 'PENDING', next_attempt_at = NULL,
+            lease_until = NULL, last_error_code = NULL, updated_at = :now
+        WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND last_error_code IN ('HTTP_401', 'HTTP_403')
+    """)
+    suspend fun recoverAuthRejectedOutbox(userId: String, now: Long): Int
+
+    @Query("""
+        UPDATE transactions SET sync_status = 'PENDING'
+        WHERE user_id = :userId AND sync_status = 'FAILED_PERMANENT'
+            AND id IN (SELECT aggregate_id FROM movement_outbox WHERE user_id = :userId AND state = 'PENDING')
+    """)
+    suspend fun markOutboxTransactionsPending(userId: String): Int
+
 
     @Query(
         """

@@ -128,6 +128,10 @@ class SyncMovementsWorker @AssistedInject constructor(
             recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
+        if (movementDao.recoverAuthRejectedOutbox(targetUserId, System.currentTimeMillis()) > 0) {
+            movementDao.markOutboxTransactionsPending(targetUserId)
+        }
+
         var anyFailed = false
         // Lease immediately before each network call, rather than leasing a waiting batch.
         for (index in 0 until 10) {
@@ -785,7 +789,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
             }
             is MovementApiResponse.Error -> {
-                val permanent = response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429
+                val permanent = isPermanentHttpFailure(response.statusCode)
                 if (permanent) {
                     finishRefund(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
                 } else {
@@ -859,7 +863,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
             }
             is MovementApiResponse.Error -> {
-                val isPermanent = response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429
+                val isPermanent = isPermanentHttpFailure(response.statusCode)
                 if (isPermanent) {
                     movementDao.completeClaimedOutbox(
                         cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
@@ -962,7 +966,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
             }
             is MovementApiResponse.Error -> {
-                val isPermanent = response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429
+                val isPermanent = isPermanentHttpFailure(response.statusCode)
                 if (isPermanent) {
                     movementDao.completeClaimedOutbox(
                         cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
@@ -986,3 +990,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         movementDao.completeClaimedOutbox(cmd, "RETRY", nextBackoff, errorCode)
     }
 }
+
+/** 401/403 mean the session expired, not that the command is wrong; 408/429 are transient. */
+internal fun isPermanentHttpFailure(statusCode: Int): Boolean =
+    statusCode in 400..499 && statusCode !in setOf(401, 403, 408, 429)
