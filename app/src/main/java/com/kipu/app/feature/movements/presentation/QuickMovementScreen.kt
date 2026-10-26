@@ -25,6 +25,12 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.rounded.ContentCopy
+import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.MoneyText
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -277,6 +283,8 @@ fun QuickMovementBottomSheet(
             onDismiss = viewModel::onDismissDuplicate,
             existing = uiState.duplicateExistingTransaction,
             proposed = uiState.pendingCommandForDuplicate,
+            accountAlias = { id -> uiState.availableAccounts.firstOrNull { it.id.value == id }?.alias },
+            proposedMerchant = uiState.merchantName,
         )
     }
 }
@@ -1608,6 +1616,8 @@ private fun accountTypeLabel(type: com.kipu.app.feature.accounts.domain.model.Ac
     com.kipu.app.feature.accounts.domain.model.AccountType.CREDIT_LIABILITY -> "Pasivo de tarjeta"
 }
 
+/** M28: a bottom sheet over the register sheet, so the form stays visible behind the scrim. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DuplicateWarningDialog(
     onConfirm: () -> Unit,
@@ -1615,64 +1625,149 @@ fun DuplicateWarningDialog(
     modifier: Modifier = Modifier,
     existing: com.kipu.app.feature.movements.domain.model.Transaction? = null,
     proposed: com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand? = null,
+    accountAlias: (String?) -> String? = { null },
+    proposedMerchant: String? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
-    val masked = LocalBalanceMasked.current
-    AlertDialog(
+    KipuBottomSheet(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = emeraldColors.warningText,
-                modifier = Modifier.size(32.dp)
-            )
-        },
-        title = {
-            Text(
-                text = "¿Es una compra distinta?",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces.",
-                    style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted)
-                existing?.let {
-                    Text("YA REGISTRADO · ${formatTransactionDate(it.occurredAt)}", fontWeight = FontWeight.Bold)
-                    Text(if (masked) "••••" else "${it.currency} ${formatMinorUnits(it.amountMinor)}")
+        containerColor = emeraldColors.background,
+        modifier = modifier.testTag("dialog_duplicate_warning"),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(
+                    modifier = Modifier.size(44.dp).clip(CircleShape).background(emeraldColors.warningBg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = emeraldColors.warningText, modifier = Modifier.size(22.dp))
                 }
-                proposed?.let {
-                    Text("LO QUE VAS A GUARDAR", fontWeight = FontWeight.Bold)
-                    Text(if (masked) "••••" else "${it.currency} ${formatMinorUnits(it.amountMinor)}")
-                }
+                Text(
+                    text = "¿Es una compra distinta?",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = emeraldColors.primaryText,
+                )
             }
-        },
-        confirmButton = {
+            Text(
+                "Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = emeraldColors.secondaryMuted,
+            )
+            existing?.let {
+                DuplicateComparisonCard(
+                    label = "YA REGISTRADO · ${formatTransactionDate(it.occurredAt).uppercase(Locale("es", "PE"))}",
+                    title = listOfNotNull(it.merchantProvisionalText?.takeIf(String::isNotBlank), accountAlias(it.sourceAccountId))
+                        .joinToString(" · ").ifBlank { "Gasto" },
+                    amountMinor = it.amountMinor,
+                    currency = it.currency,
+                    highlighted = true,
+                )
+            }
+            proposed?.let {
+                DuplicateComparisonCard(
+                    label = "LO QUE VAS A GUARDAR",
+                    title = listOfNotNull(
+                        (it.merchantProvisionalText ?: proposedMerchant)?.takeIf(String::isNotBlank),
+                        accountAlias(it.sourceAccountId),
+                    ).joinToString(" · ").ifBlank { "Gasto" },
+                    amountMinor = it.amountMinor,
+                    currency = it.currency,
+                    highlighted = false,
+                )
+            }
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = emeraldColors.primaryDeep,
                     contentColor = emeraldColors.onPrimaryDeep,
                 ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.testTag("btn_confirm_duplicate"),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("btn_confirm_duplicate"),
             ) {
-                Text("Sí, es otra compra · guardar", color = emeraldColors.onPrimaryDeep)
+                Text("Sí, es otra compra · guardar", fontWeight = FontWeight.Bold)
             }
-        },
-        dismissButton = {
-            TextButton(
+            OutlinedButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.testTag("btn_cancel_duplicate"),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = emeraldColors.surfaceCard,
+                    contentColor = emeraldColors.primaryText,
+                ),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("btn_cancel_duplicate"),
             ) {
-                Text("No, volver sin guardar", color = emeraldColors.secondaryMuted)
+                Text("No, volver sin guardar", fontWeight = FontWeight.Bold)
             }
-        },
-        modifier = modifier.testTag("dialog_duplicate_warning"),
-    )
+        }
+    }
+}
+
+@Composable
+private fun DuplicateComparisonCard(
+    label: String,
+    title: String,
+    amountMinor: Long,
+    currency: String,
+    highlighted: Boolean,
+) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    val shape = RoundedCornerShape(16.dp)
+    val dashColor = emeraldColors.borderSubtle
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(emeraldColors.surfaceCard)
+            .then(
+                if (highlighted) {
+                    Modifier.border(BorderStroke(1.dp, emeraldColors.warningBorder), shape)
+                } else {
+                    Modifier.drawBehind {
+                        val stroke = 1.dp.toPx()
+                        drawRoundRect(
+                            color = dashColor,
+                            topLeft = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2),
+                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = stroke,
+                                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+                            ),
+                        )
+                    }
+                },
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp),
+                color = if (highlighted) emeraldColors.warningText else emeraldColors.secondaryMuted,
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = emeraldColors.primaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        MoneyText(
+            amount = "−${formatMinorUnits(amountMinor)}",
+            currencySymbol = if (currency == "USD") "$" else "S/",
+            color = emeraldColors.expenseText,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
+        )
+    }
 }
 
 @Composable
