@@ -25,7 +25,7 @@ fun String.asBuildConfigString(): String =
 val goalRemoteCommandsEnabled = providers.gradleProperty("goalRemoteCommandsEnabled")
     .orNull
     ?.toBooleanStrictOrNull()
-    ?: false
+    ?: true // Planning RPCs activated after the documented T040 verification.
 // QA plan overrides are opt-in for local debug/lab APKs and permanently disabled in release.
 val testPlanOverridesEnabled = providers.gradleProperty("testPlanOverridesEnabled")
     .orNull
