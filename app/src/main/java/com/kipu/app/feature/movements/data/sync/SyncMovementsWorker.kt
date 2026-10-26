@@ -138,6 +138,13 @@ class SyncMovementsWorker @AssistedInject constructor(
 
         if (!pullChanges(targetUserId)) anyFailed = true
 
+        // Earlier pulls appended the server's copy of offline-registered entries, posting them twice.
+        // Runs after pushing, so pending user changes never wait behind this one-time pass.
+        val ledgerRepairKey = "ledger-net-20261026-v1:$targetUserId"
+        if (!recovery.getBoolean(ledgerRepairKey, false) && repairDuplicatedLedger(targetUserId)) {
+            recovery.edit().putBoolean(ledgerRepairKey, true).apply()
+        }
+
         return if (anyFailed) Result.retry() else Result.success()
     }
 
@@ -217,6 +224,57 @@ class SyncMovementsWorker @AssistedInject constructor(
             }
         }
         return false
+    }
+
+    /** Replays the already-applied feed only to reconcile ledger nets; never moves the checkpoint. */
+    private suspend fun repairDuplicatedLedger(userId: String): Boolean {
+        val checkpoint = movementDao.getSyncCheckpoint(userId)?.sequence ?: return true
+        var cursor = 0L
+        while (cursor < checkpoint) {
+            val response = try {
+                financialApi.pullChanges(PullChangesRequestDto(afterSequence = cursor))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return false
+            }
+            val page = when (response) {
+                is FinancialApiResponse.Success -> response.data
+                is FinancialApiResponse.Error, is FinancialApiResponse.NetworkFailure -> return false
+            }
+            for (change in page.changes.sortedBy { it.sequence }) {
+                if (change.sequence > checkpoint) return true
+                val entityType = change.entityType.uppercase()
+                if ((entityType != "TRANSACTION" && entityType != "MOVEMENT") || !change.operation.equals("UPSERT", true)) continue
+                val payload = change.payload ?: continue
+                try {
+                    val remote = json.decodeFromJsonElement<SyncTransactionPayload>(payload)
+                    if (remote.status.equals("VOIDED", ignoreCase = true)) continue
+                    database.withTransaction {
+                        val local = movementDao.getTransactionById(userId, remote.id) ?: return@withTransaction
+                        if (local.revision != change.revision || local.status == "VOIDED" ||
+                            movementDao.getPendingOutboxForTransaction(userId, local.id).isNotEmpty()
+                        ) return@withTransaction
+                        if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) return@withTransaction
+                        movementDao.getLedgerEntriesForTransaction(userId, local.id).map { it.accountId }.distinct().forEach { accountId ->
+                            val account = accountDao.getById(userId, accountId) ?: return@forEach
+                            movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
+                                userId = userId, accountId = accountId,
+                                balanceMinor = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L,
+                                currencyCode = account.currency, lastTransactionAt = local.occurredAt,
+                            ))
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    SecureLog.w("SyncMovementsWorker", "Ledger repair skipped change ${change.sequence}: ${e.javaClass.simpleName}")
+                }
+            }
+            if (!page.hasMore || page.nextSequence <= cursor) return true
+            cursor = page.nextSequence
+        }
+        return true
     }
 
     private suspend fun applyPulledAccount(userId: String, remote: SyncAccountPayload, revision: Long): Boolean =

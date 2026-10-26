@@ -17,6 +17,7 @@ import com.kipu.app.feature.accounts.data.remote.FinancialApiResponse
 import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
 import com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto
 import com.kipu.app.feature.accounts.data.remote.SyncChangeItemDto
+import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
 import com.kipu.app.feature.movements.data.remote.MovementApi
 import com.kipu.app.feature.movements.data.local.MovementDao
 import com.kipu.app.feature.movements.data.local.LedgerEntryEntity
@@ -98,6 +99,51 @@ class SyncMovementsWorkerTest {
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals(0L, movementDao.calculateLedgerSumForAccount(userId, accountId))
         assertTrue(movementDao.getLedgerEntriesForTransaction(userId, transactionId).any { it.id == "offline-entry" && it.signedAmountMinor == -100L })
+    }
+
+    private fun standardExpenseChange(transactionId: String, accountId: String) = PullChangesResponseDto(listOf(
+        SyncChangeItemDto(1, "TRANSACTION", transactionId, 1, "UPSERT", Json.parseToJsonElement(
+            """{"id":"$transactionId","type":"EXPENSE","operation_kind":"STANDARD","amount_minor":100,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-25T17:00:00Z","status":"ACTIVE","ledger_entries":[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":-100,"currency_code":"PEN"}]}"""
+        )),
+    ), 1, false)
+
+    private suspend fun insertStandardExpense(transactionId: String, accountId: String, syncStatus: String) {
+        accountDao.insert(AccountEntity(id = accountId, userId = userId, creationOperationId = UUID.randomUUID().toString(),
+            alias = "QA", type = "CASH", currency = "PEN", presetId = null, color = null, icon = null,
+            initialBalanceMinorUnits = 0, openedAt = 1, createdAt = 1, updatedAt = 1))
+        movementDao.insertTransaction(TransactionEntity(id = transactionId, userId = userId, type = "EXPENSE", amountMinor = 100,
+            currencyCode = "PEN", sourceAccountId = accountId, occurredAt = 1, status = "ACTIVE", syncStatus = syncStatus,
+            createdAt = 1, updatedAt = 1))
+        movementDao.insertLedgerEntries(listOf(LedgerEntryEntity(id = "offline-entry", userId = userId, transactionId = transactionId,
+            accountId = accountId, role = "SOURCE", signedAmountMinor = -100, currencyCode = "PEN", createdAt = 1)))
+    }
+
+    @Test
+    fun standardServerEchoWithDifferentEntryIdsDoesNotDuplicateOfflineMoney() = runTest {
+        val accountId = UUID.randomUUID().toString()
+        val transactionId = UUID.randomUUID().toString()
+        insertStandardExpense(transactionId, accountId, syncStatus = "PENDING")
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(standardExpenseChange(transactionId, accountId))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(-100L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+    }
+
+    @Test
+    fun ledgerRepairNeutralizesAnEchoAlreadyPostedTwice() = runTest {
+        val accountId = UUID.randomUUID().toString()
+        val transactionId = UUID.randomUUID().toString()
+        insertStandardExpense(transactionId, accountId, syncStatus = "SYNCED")
+        movementDao.insertPulledLedgerEntries(listOf(LedgerEntryEntity(id = "server-entry", userId = userId, transactionId = transactionId,
+            accountId = accountId, role = "PRIMARY", signedAmountMinor = -100, currencyCode = "PEN", createdAt = 2)))
+        movementDao.saveSyncCheckpoint(MovementSyncCheckpointEntity(userId, 1))
+        coEvery { financialApi.pullChanges(match { it.afterSequence == 0L }) } returns
+            FinancialApiResponse.Success(standardExpenseChange(transactionId, accountId))
+        coEvery { financialApi.pullChanges(match { it.afterSequence == 1L }) } returns
+            FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 1, false))
+        assertEquals(-200L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(-100L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        assertEquals(1L, movementDao.getSyncCheckpoint(userId)?.sequence)
     }
 
     @Test
