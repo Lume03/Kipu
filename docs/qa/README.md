@@ -2,6 +2,9 @@
 
 ## Auditorías
 
+- [Revisión visual de Metas (2026-10-26)](metas-visual-2026-10-26.md): formulario, gráfico temporal, selector compartido y Aportar/Retirar; cálculo de fondos conservado y explicado.
+- [Ajuste visual de Presupuestos (2026-10-26)](presupuestos-visual-2026-10-26.md): formularios, lista, detalle, creación, eliminación y finalizados; validación focalizada en S24+ físico.
+- [Rediseño visual Android/Compose (2026-10-26)](rediseno-visual-2026-10-26/README.md): primera tanda B0–B7, 850 unitarias sin fallos y 88 instrumentadas correctas; limpieza QA y cierre financiero bloqueados por errores del ledger.
 - [Historial no disponible tras sincronizar (2026-10-26 UTC)](incidente-historial-post-sync-2026-10-26.md): incompatibilidad en la lectura de capital de deuda e ingresos; corrección y pruebas reales de historial/restauración.
 - [Activación remota de Planificación (2026-10-26 UTC)](activacion-sync-planificacion-2026-10-26.md): despliegue seleccionado, recuperación de colas, restauración real, pruebas offline, límites y [dictamen de verificación](verification-report.md).
 - [Sincronización remota de Planificación (2026-10-25)](sincronizacion-planificacion-2026-10-25.md): contraste teléfono/servidor, correcciones de fechas y arranque, bloqueos de Metas y Deudas y matriz pendiente de certificación.
