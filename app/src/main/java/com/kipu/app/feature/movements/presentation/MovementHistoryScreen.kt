@@ -963,9 +963,12 @@ fun TransactionRow(
         "CARD_PAYMENT_CASH" -> "Pago de tarjeta"
         else -> null
     }
+    val cardLabel = item.cardAlias ?: item.cardLastFourDigits?.let { "•••• $it" } ?: "Tarjeta"
+    val isCardPayment = tx.operationKind.equals("CARD_PAYMENT", ignoreCase = true)
     val title = when {
-        tx.operationKind.equals("CARD_PAYMENT", ignoreCase = true) -> "Pago de tarjeta"
+        isCardPayment -> "Pago de tarjeta"
         legacyTitle != null -> legacyTitle
+        tx.type == MovementType.TRANSFER -> "${item.sourceAccountAlias ?: "Origen"} → ${item.destinationAccountAlias ?: "Destino"}"
         else -> item.merchantName?.takeIf { it.isNotBlank() }
             ?: item.categoryName?.takeIf { it.isNotBlank() }
             ?: when (tx.type) {
@@ -975,22 +978,24 @@ fun TransactionRow(
             }
     }
 
-    val cardLabel = item.cardAlias ?: item.cardLastFourDigits?.let { "•••• $it" } ?: "Tarjeta"
-    val accountSubtitle = when {
-        tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) -> cardLabel
-        tx.operationKind.equals("CARD_PAYMENT", ignoreCase = true) -> "${item.sourceAccountAlias ?: "Cuenta"} → $cardLabel"
-        tx.type == MovementType.TRANSFER -> "${item.sourceAccountAlias ?: "Origen"} → ${item.destinationAccountAlias ?: "Destino"}"
-        else -> item.sourceAccountAlias ?: "Cuenta"
-    }
     val paymentChannel = WalletPaymentChannel.entries.firstOrNull { it.name == tx.paymentChannel }
-    val subtitle = paymentChannel?.let { "${it.label} · $accountSubtitle" } ?: accountSubtitle
+    val subtitle = when {
+        tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) ->
+            listOfNotNull(item.categoryName?.takeIf { it.isNotBlank() && it != title }, cardLabel).joinToString(" · ")
+        isCardPayment -> "${item.sourceAccountAlias ?: "Cuenta"} → $cardLabel"
+        tx.type == MovementType.TRANSFER -> "Transferencia"
+        else -> listOfNotNull(
+            item.categoryName?.takeIf { it.isNotBlank() && it != title },
+            paymentChannel?.label,
+            item.sourceAccountAlias ?: "Cuenta",
+        ).joinToString(" · ")
+    }
 
     val (iconBg, iconTint) = when {
         isVoided -> emeraldColors.pillTrack to emeraldColors.secondaryMuted
         tx.type == MovementType.INCOME -> emeraldColors.incomeBg to emeraldColors.incomeText
         tx.type == MovementType.EXPENSE -> emeraldColors.expenseBg to emeraldColors.expenseText
-        tx.type == MovementType.TRANSFER -> emeraldColors.transferBg to emeraldColors.transferBlue
-        else -> emeraldColors.pillTrack to emeraldColors.primaryDeep
+        else -> emeraldColors.transferBg to emeraldColors.transferBlue
     }
 
     val amountColor = if (isVoided) {
@@ -1000,27 +1005,25 @@ fun TransactionRow(
         MovementType.EXPENSE -> emeraldColors.expenseText
         MovementType.TRANSFER -> emeraldColors.transferBlue
     }
-
     val amountPrefix = when (tx.type) {
         MovementType.INCOME -> "+"
         MovementType.EXPENSE -> "−"
         MovementType.TRANSFER -> ""
     }
 
-    val currencySymbol = if (tx.currency == "PEN") "S/" else "$"
-    val formattedAmount = formatMinorUnits(tx.amountMinor)
-
     Surface(
-        color = Color.Transparent,
-        modifier = modifier
-            .testTag("tx_row_${tx.id}")
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = emeraldColors.surfaceCard,
+        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+        modifier = modifier.testTag("tx_row_${tx.id}"),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             TransactionIconAvatar(
                 item = item,
@@ -1029,146 +1032,88 @@ fun TransactionRow(
                 iconTint = iconTint,
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-            // Title & Subtitle + Badges
             Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
+                    ),
+                    color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
-                        ),
-                        color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (isVoided) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = emeraldColors.expenseBg,
-                            modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.movement_void_status_badge),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                                color = emeraldColors.expenseText,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                            )
-                        }
-                    } else if (tx.syncStatus == MovementSyncStatus.PENDING || tx.syncStatus == MovementSyncStatus.IN_FLIGHT) {
-                        KipuPendingSyncTag(modifier = Modifier.testTag("tx_pending_tag_${tx.id}"))
-                    } else if (tx.syncStatus == MovementSyncStatus.CONFLICT) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = emeraldColors.warningBg,
-                        ) {
-                            Text(
-                                text = "Requiere revisión",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                                color = emeraldColors.warningText,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                         color = emeraldColors.secondaryMuted,
                         maxLines = 1,
-                        modifier = if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .then(if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier),
                     )
-                    if (tx.syncStatus != MovementSyncStatus.PENDING && tx.syncStatus != MovementSyncStatus.IN_FLIGHT) {
-                        SyncStatusIcon(status = tx.syncStatus)
-                    }
+                    if (!isVoided && !isPending) SyncStatusIcon(status = tx.syncStatus)
                 }
-                if (isVoided) {
+                when {
                     // Anulado = borrado lógico: el movimiento deja de contar en los totales
-                    Text(
+                    isVoided -> RowStatusPill(
                         text = "Anulado · no cuenta en tus gastos",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = emeraldColors.secondaryMuted,
+                        background = emeraldColors.pillTrack,
+                        content = emeraldColors.secondaryMuted,
+                        modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
+                    )
+                    isPending -> KipuPendingSyncTag(
+                        label = if (offline) "Pendiente de sincronizar" else "Sincronizando",
                         modifier = Modifier
                             .padding(top = 4.dp)
-                            .testTag("tx_voided_note_${tx.id}"),
+                            .testTag("tx_pending_tag_${tx.id}"),
+                    )
+                    tx.syncStatus == MovementSyncStatus.CONFLICT -> RowStatusPill(
+                        text = "Requiere revisión",
+                        background = emeraldColors.warningBg,
+                        content = emeraldColors.warningText,
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // Amount
             MoneyText(
-                amount = "$amountPrefix$formattedAmount",
-                currencySymbol = currencySymbol,
+                amount = "$amountPrefix${formatMinorUnits(tx.amountMinor)}",
+                currencySymbol = currencySymbol(tx.currency),
                 color = amountColor,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontFeatureSettings = "tnum",
                     textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
                 ),
                 modifier = Modifier.testTag("tx_amount_${tx.id}"),
             )
-
-            // Options menu (Editar / Anular)
-            if (!isVoided) {
-                Box {
-                    IconButton(
-                        onClick = { showMenu = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .testTag("tx_menu_${tx.id}")
-                            .semantics { contentDescription = "Opciones del movimiento" }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = null,
-                            tint = emeraldColors.secondaryMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.testTag("tx_dropdown_menu_${tx.id}")
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.movement_action_edit)) },
-                            onClick = {
-                                showMenu = false
-                                onEditClick()
-                            },
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .testTag("action_edit_${tx.id}")
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.movement_action_void)) },
-                            onClick = {
-                                showMenu = false
-                                onVoidClick()
-                            },
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .testTag("action_void_${tx.id}")
-                        )
-                    }
-                }
-            }
         }
     }
+}
+
+@Composable
+private fun RowStatusPill(text: String, background: Color, content: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+        color = content,
+        modifier = modifier
+            .padding(top = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(background)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
 }
 
 @Composable
@@ -1178,16 +1123,17 @@ fun SyncStatusIcon(
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     when (status) {
+        // Sincronizado es el estado normal: apenas una marca tenue, sin competir con el contenido.
         MovementSyncStatus.SYNCED, MovementSyncStatus.MIGRATED_LOCAL -> {
             Icon(
-                imageVector = Icons.Rounded.CheckCircle,
+                imageVector = Icons.Rounded.Check,
                 contentDescription = if (status == MovementSyncStatus.MIGRATED_LOCAL) {
                     "Movimiento histórico conservado localmente"
                 } else {
                     stringResource(R.string.movements_sync_synced)
                 },
-                tint = emeraldColors.secondaryMuted,
-                modifier = modifier.size(13.dp)
+                tint = emeraldColors.secondaryMuted.copy(alpha = 0.45f),
+                modifier = modifier.size(12.dp),
             )
         }
         MovementSyncStatus.PENDING, MovementSyncStatus.IN_FLIGHT -> {
@@ -1195,7 +1141,7 @@ fun SyncStatusIcon(
                 imageVector = Icons.Rounded.Sync,
                 contentDescription = stringResource(R.string.movements_sync_pending),
                 tint = emeraldColors.primaryDeep,
-                modifier = modifier.size(13.dp)
+                modifier = modifier.size(13.dp),
             )
         }
         MovementSyncStatus.CONFLICT, MovementSyncStatus.FAILED_PERMANENT -> {
@@ -1203,7 +1149,7 @@ fun SyncStatusIcon(
                 imageVector = Icons.Rounded.ErrorOutline,
                 contentDescription = stringResource(R.string.movements_sync_error),
                 tint = emeraldColors.expenseText,
-                modifier = modifier.size(13.dp)
+                modifier = modifier.size(13.dp),
             )
         }
     }

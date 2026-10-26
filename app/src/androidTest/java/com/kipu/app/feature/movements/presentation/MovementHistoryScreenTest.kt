@@ -127,7 +127,7 @@ class MovementHistoryScreenTest {
     }
 
     @Test
-    fun activeTransactionShowsEditAndVoidActionsAndNeverShowsDelete() {
+    fun activeTransactionRowHasNoOverflowMenuAndOpensDetail() {
         val item = TransactionItem(
             transaction = Transaction(
                 id = "tx-active-1",
@@ -144,33 +144,22 @@ class MovementHistoryScreenTest {
             categoryName = "Alimentación",
         )
 
-        var editClicked = false
-        var voidClicked = false
+        var rowClicked = false
 
         compose.setContent {
             TestViewport {
                 TransactionRow(
                     item = item,
-                    onClick = { editClicked = true },
-                    onVoidClick = { voidClicked = true },
+                    onClick = { rowClicked = true },
                 )
             }
         }
 
-        // Open options menu
-        compose.onNodeWithTag("tx_menu_tx-active-1").performClick()
-
-        // "Editar" and "Anular" must be present
-        compose.onNodeWithTag("action_edit_tx-active-1").assertIsDisplayed()
-        compose.onNodeWithTag("action_void_tx-active-1").assertIsDisplayed()
-
-        // "Eliminar" must NEVER be shown on financial movements
+        // Editar/Anular viven en el detalle; la fila no repite un menú de opciones.
+        compose.onNodeWithTag("tx_menu_tx-active-1").assertDoesNotExist()
         compose.onNodeWithText("Eliminar").assertDoesNotExist()
-
-        // Clicking "Anular" triggers callback
-        compose.onNodeWithTag("action_void_tx-active-1").performClick()
-        assertTrue(voidClicked)
-        assertFalse(editClicked)
+        compose.onNodeWithTag("tx_row_tx-active-1").performClick()
+        assertTrue(rowClicked)
     }
 
     @Test
@@ -198,7 +187,6 @@ class MovementHistoryScreenTest {
                 TransactionRow(
                     item = item,
                     onClick = { rowClicked = true },
-                    onVoidClick = {},
                 )
             }
         }
@@ -206,7 +194,7 @@ class MovementHistoryScreenTest {
         saveEvidence("voided-row.png")
         // Must display "Anulado" badge
         compose.onNodeWithTag("tx_voided_badge_tx-voided-1", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Anulado").assertIsDisplayed()
+        compose.onNodeWithText("Anulado", substring = true).assertIsDisplayed()
 
         // Options menu should not be available for voided transaction
         compose.onNodeWithTag("tx_menu_tx-voided-1").assertDoesNotExist()

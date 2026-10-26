@@ -150,7 +150,7 @@ class MovementUxRefinementTest {
             }
         } }
         compose.onNodeWithTag("tx_amount_ux-movement", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Anulado").assertIsDisplayed()
+        compose.onNodeWithText("Anulado", substring = true).assertIsDisplayed()
         saveScreenshot("history-large-font.png")
     }
 
