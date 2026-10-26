@@ -29,6 +29,7 @@ import com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult
 import com.kipu.app.feature.goals.data.sync.GoalChangeFeedApplier
 import com.kipu.app.feature.goals.data.sync.SyncGoalsWorker
 import com.kipu.app.feature.movements.data.sync.SyncMovementsWorker
+import com.kipu.app.feature.movements.data.local.toDomain as movementToDomain
 import com.kipu.app.qa.PlanningSyncVerificationAccess
 import dagger.hilt.android.EntryPointAccessors
 import java.security.MessageDigest
@@ -55,6 +56,24 @@ import org.junit.runner.RunWith
 class PlanningRemoteAcceptanceTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     private val app get() = context.applicationContext as KipuApplication
+
+    @Test
+    fun connectedAccountHistoryLoadsThroughThePresentationUseCase() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("planningRemoteAcceptance") == "true")
+        ActivityScenario.launch(MainActivity::class.java).use {
+            val access = EntryPointAccessors.fromApplication(app, PlanningSyncVerificationAccess::class.java)
+            val owner = withTimeout(30_000) {
+                while (access.session().currentOwner?.verifiedUserId == null) delay(100)
+                requireNotNull(access.session().currentOwner?.verifiedUserId)
+            }
+            val query = com.kipu.app.feature.movements.domain.model.MovementHistoryQuery()
+            val page = access.historyQuery()(owner, query)
+            val summary = access.historyQuery().getHistorySummary(owner, query)
+            assertTrue("History should include the synced account's movements", page.items.isNotEmpty())
+            assertTrue("History summary failed", summary != null && summary.totalCount >= page.items.size)
+            assertTrue("History should include synced debt principal", page.items.any { it.transaction.operationKind == "DEBT_PAYMENT" })
+        }
+    }
 
     @Test
     fun demoDebtMetadataEditIsIdempotentAndHistoryDeletionIsDenied() = runBlocking {
@@ -195,6 +214,11 @@ class PlanningRemoteAcceptanceTest {
                     assertTrue("Feed did not converge", pages <= 20)
                 } while (page.hasMore)
                 assertTrue("Budget restore failed", liveWorker<SyncBudgetCommandsWorker>(owner, factory).doWork() is ListenableWorker.Result.Success)
+                val restoredRows = restored.movementDao().queryTransactions(com.kipu.app.feature.movements.data.local.MovementQuerySqlBuilder.build(
+                    owner, com.kipu.app.feature.movements.domain.model.MovementHistoryQuery(),
+                ))
+                assertTrue("Restored history is empty", restoredRows.isNotEmpty())
+                restoredRows.forEach { it.movementToDomain() }
                 val queries = mapOf(
                     "goals" to "SELECT id,name,target_minor,currency_code,status,revision,linked_account_id FROM goals WHERE user_id=? ORDER BY id",
                     "goal events" to "SELECT id,goal_id,delta_minor,currency_code,backing_account_id,operation_id,transaction_id FROM goal_events WHERE user_id=? ORDER BY id",

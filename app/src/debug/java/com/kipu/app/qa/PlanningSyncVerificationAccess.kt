@@ -20,4 +20,5 @@ interface PlanningSyncVerificationAccess {
     fun movementApi(): MovementApi
     fun budgetApi(): BudgetApi
     fun debtApi(): DebtApi
+    fun historyQuery(): com.kipu.app.feature.movements.domain.QueryMovementHistory
 }
