@@ -653,6 +653,18 @@ fun MovementDetailSheet(
                         )
                     }
                 }
+                if (specialized) {
+                    Text(
+                        text = if (debtSettlement) {
+                            "Este movimiento pertenece a una deuda: corrígelo desde la deuda o anúlalo aquí."
+                        } else {
+                            "Este movimiento tiene cuotas o una tarjeta asociada: se corrige desde su gestión específica."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = emeraldColors.secondaryMuted,
+                        modifier = Modifier.fillMaxWidth().testTag("detail_edit_unavailable_reason"),
+                    )
+                }
             } else if (voided) {
                 Button(
                     onClick = onDismiss,
