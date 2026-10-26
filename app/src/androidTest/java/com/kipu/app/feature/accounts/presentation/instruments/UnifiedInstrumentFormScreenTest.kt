@@ -46,7 +46,7 @@ class UnifiedInstrumentFormScreenTest {
         }
 
         compose.onNodeWithText("Cuenta bancaria").performClick()
-        compose.onNodeWithText("Últimos 4 dígitos · Opcional").assertIsDisplayed()
+        compose.onNodeWithText("Últimos 4 dígitos").assertIsDisplayed()
         compose.onNodeWithText("Guardar cuenta").performClick()
 
         verify(timeout = 5_000) {
@@ -106,11 +106,11 @@ class UnifiedInstrumentFormScreenTest {
         }
 
         compose.onNodeWithText("Billetera digital").performClick()
-        compose.onNodeWithText("Afiliada a cuenta").performClick()
+        compose.onNodeWithText("Afiliada a una cuenta").performClick()
 
-        compose.onNodeWithText("Cuenta BCP").assertIsDisplayed()
-        compose.onNodeWithText("Ahorro principal · •••• 4321").assertIsDisplayed()
-        compose.onNodeWithText("Saldo propio de la billetera").assertIsDisplayed()
+        compose.onNodeWithText("¿A qué cuenta está afiliada?").assertIsDisplayed()
+        compose.onNodeWithText("BCP · Ahorros · •••• 4321").assertIsDisplayed()
+        compose.onNodeWithText("Saldo propio").assertIsDisplayed()
         compose.onNodeWithText("Saldo propio (DNI)").assertDoesNotExist()
     }
 }

@@ -31,6 +31,7 @@ import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
@@ -39,6 +40,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -213,24 +216,36 @@ class AccountsViewModel @Inject constructor(
         }
     }
 
-    val dashboardUiState: StateFlow<DashboardUiState> = combine(
-        observeFinancialDashboard(),
-        _isMasked,
-    ) { dashboardData, masked ->
-        DashboardUiState(
-            isLoading = false,
-            dashboardData = dashboardData,
-            activeAlerts = emptyList(),
-            isMasked = masked,
-            errorMessage = null,
-        )
-    }.catch { e ->
-        emit(DashboardUiState(isLoading = false, errorMessage = e.message ?: "Error al cargar el dashboard"))
+    // Each retry re-subscribes to the same dashboard source; a failed attempt ends only its own flow.
+    private val dashboardRetry = MutableStateFlow(0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val dashboardUiState: StateFlow<DashboardUiState> = dashboardRetry.flatMapLatest { attempt ->
+        combine(
+            observeFinancialDashboard(),
+            _isMasked,
+        ) { dashboardData, masked ->
+            DashboardUiState(
+                isLoading = false,
+                dashboardData = dashboardData,
+                activeAlerts = emptyList(),
+                isMasked = masked,
+                errorMessage = null,
+            )
+        }.onStart {
+            if (attempt > 0) emit(DashboardUiState(isLoading = true))
+        }.catch { e ->
+            emit(DashboardUiState(isLoading = false, errorMessage = e.message ?: "Error al cargar el dashboard"))
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
         initialValue = DashboardUiState(isLoading = true),
     )
+
+    fun retryDashboard() {
+        dashboardRetry.value += 1
+    }
 
     val instrumentsUiState: StateFlow<InstrumentsUiState> = combine(
         observeInstruments.observeAccounts(activeOnly = false),

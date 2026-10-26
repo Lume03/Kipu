@@ -2,10 +2,10 @@ package com.kipu.app.feature.calendar.presentation
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertHasClickAction
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -66,7 +66,7 @@ class CalendarAndHomeAccessibilityTest {
     }
 
     @Test
-    fun availableEventNavigatesAndUnavailableDoesNot() {
+    fun eventOpensDetailSheetAndOnlyAvailableSourceNavigates() {
         val clicked = mutableListOf<String>()
         show(
             loaded(event("ok", CalendarEventStatus.PLANNED), event("gone", CalendarEventStatus.PLANNED, available = false)),
@@ -74,10 +74,37 @@ class CalendarAndHomeAccessibilityTest {
         )
 
         compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "ok").assertHasClickAction().performClick()
+        compose.onNodeWithText("Tarjeta · vencimiento").assertExists()
+        compose.onNodeWithTag(CALENDAR_OPEN_SOURCE_TAG).assertTextContains("Abrir tarjeta").performClick()
+        compose.waitForIdle()
+
         compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "gone").assertTextContains("No disponible", substring = true)
-        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "gone").assertIsNotEnabled()
+        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "gone").performClick()
+        compose.onNodeWithText("Objeto no disponible", substring = true).assertExists()
+        compose.onNodeWithTag(CALENDAR_OPEN_SOURCE_TAG).assertDoesNotExist()
 
         assertEquals(listOf("ok"), clicked)
+    }
+
+    @Test
+    fun maskToggleHidesEventAmounts() {
+        show(loaded(event("a", CalendarEventStatus.PLANNED)))
+        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "a").assertTextContains("123.45", substring = true)
+
+        compose.onNodeWithTag(CALENDAR_MASK_TOGGLE_TAG).performClick()
+
+        assertTrue(compose.onAllNodesWithTextCount("123.45") == 0)
+        compose.onNodeWithContentDescription("Mostrar importes").assertExists()
+    }
+
+    @Test
+    fun plannedFilterHidesRealizedEvents() {
+        show(loaded(event("a", CalendarEventStatus.REALIZED), event("b", CalendarEventStatus.PLANNED)))
+
+        compose.onNodeWithText("Previstos").performClick()
+
+        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "a").assertDoesNotExist()
+        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "b").assertExists()
     }
 
     @Test
@@ -94,7 +121,8 @@ class CalendarAndHomeAccessibilityTest {
     fun emptyMonthShowsEmptyState() {
         show(CalendarUiState(YearMonth.of(2026, 10), day, CalendarContent.Empty))
 
-        compose.onNodeWithText("Sin eventos en Octubre 2026").assertTextContains("Sin eventos", substring = true)
+        compose.onNodeWithText("Sin eventos este mes").assertExists()
+        compose.onNodeWithTag(CALENDAR_DAY_TAG_PREFIX + "2026-10-31").assertExists()
     }
 
     @Test

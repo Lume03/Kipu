@@ -140,6 +140,7 @@ import com.kipu.app.feature.accounts.presentation.components.CardStylePreset
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
 import com.kipu.app.feature.accounts.presentation.components.InstrumentCardPreview
+import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -164,6 +165,7 @@ private enum class InstrumentKind(val label: String) {
 
 enum class InstrumentFlowStep {
     INTRO,
+    CREDIT_SELECT_BANK,
     CREDIT_SELECT_PRODUCT,
     CREDIT_CONFIGURE,
     FORM_OTHER,
@@ -261,7 +263,7 @@ fun UnifiedInstrumentFormScreen(
     val calmColors = rememberCalmEmeraldColors()
 
     var currentStep by rememberSaveable {
-        mutableStateOf(if (initialCreditCard) InstrumentFlowStep.CREDIT_SELECT_PRODUCT else if (initialBankAccount) InstrumentFlowStep.FORM_OTHER else InstrumentFlowStep.INTRO)
+        mutableStateOf(if (initialCreditCard) InstrumentFlowStep.CREDIT_SELECT_BANK else if (initialBankAccount) InstrumentFlowStep.FORM_OTHER else InstrumentFlowStep.INTRO)
     }
 
     var kind by rememberSaveable {
@@ -279,13 +281,13 @@ fun UnifiedInstrumentFormScreen(
         mutableStateOf(if (initialCreditCard) null else initialDebitPreset?.id)
     }
     var alias by rememberSaveable {
-        mutableStateOf(if (initialCreditCard) "" else "Mi Cuenta de Ahorros")
+        mutableStateOf(if (initialCreditCard) "" else "Cuenta ${bankChoices.first().name}")
     }
     var lastFourDigits by rememberSaveable { mutableStateOf("") }
     var network by rememberSaveable { mutableStateOf(CardNetwork.VISA) }
     var accountType by rememberSaveable { mutableStateOf(AccountType.SAVINGS) }
     var currency by rememberSaveable { mutableStateOf(Currency.PEN) }
-    var balanceInput by rememberSaveable { mutableStateOf("0.00") }
+    var balanceInput by rememberSaveable { mutableStateOf("") }
     var creditLimitInput by rememberSaveable { mutableStateOf("") }
     var billingDayInput by rememberSaveable { mutableStateOf("") }
     var dueDayInput by rememberSaveable { mutableStateOf("") }
@@ -298,7 +300,8 @@ fun UnifiedInstrumentFormScreen(
     var hasAliasBeenEdited by rememberSaveable { mutableStateOf(false) }
 
     // Step 2 & Step 3 specific states
-    var isBankSheetVisible by rememberSaveable { mutableStateOf(initialCreditCard) }
+    var isBankSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var step1BankCode by rememberSaveable { mutableStateOf<String?>(null) }
     var creditSearchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFamilyFilter by rememberSaveable { mutableStateOf("Todas") }
     var teaInput by rememberSaveable { mutableStateOf("") }
@@ -313,6 +316,9 @@ fun UnifiedInstrumentFormScreen(
                 currentStep = InstrumentFlowStep.CREDIT_SELECT_PRODUCT
             }
             InstrumentFlowStep.CREDIT_SELECT_PRODUCT -> {
+                currentStep = InstrumentFlowStep.CREDIT_SELECT_BANK
+            }
+            InstrumentFlowStep.CREDIT_SELECT_BANK -> {
                 if (initialCreditCard) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
             }
             InstrumentFlowStep.FORM_OTHER -> {
@@ -403,7 +409,7 @@ fun UnifiedInstrumentFormScreen(
         }
         if (!hasAliasBeenEdited) {
             alias = when (next) {
-                InstrumentKind.SAVINGS_DEBIT -> "Cuenta ${bank.name}"
+                InstrumentKind.SAVINGS_DEBIT -> "Cuenta ${accountBankLabel(bank)}"
                 InstrumentKind.CREDIT_CARD -> "Tarjeta ${bank.name}"
                 InstrumentKind.WALLET -> if (walletProvider == AccountPreset.PLIN) "Billetera Plin" else "Billetera Yape"
                 InstrumentKind.CASH -> "Efectivo"
@@ -449,7 +455,7 @@ fun UnifiedInstrumentFormScreen(
         account.type in setOf(AccountType.SAVINGS, AccountType.BANK) && account.preset == expectedWalletBank && account.currency == currency
     }
     val amountForValidation = if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput
-        else if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput
+        else if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput.ifBlank { "0" }
     val parsedAmountForValidation = MoneyInputParser.parseMinorUnits(amountForValidation)
     val cycleIsValid = billingDayInput.toIntOrNull() in 1..31 && dueDayInput.toIntOrNull() in 1..31
     val lastFourIsValid = when (kind) {
@@ -500,7 +506,7 @@ fun UnifiedInstrumentFormScreen(
 
         val parsedBalance = MoneyInputParser.parseMinorUnits(creditLimitInput)
         if (parsedBalance == null || parsedBalance <= 0L) {
-            limitError = "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida mayor a ${currencySymbol(currency)} 0.00"
+            limitError = "Ingresa una línea mayor a ${currencySymbol(currency)} 0.00"
             hasError = true
         } else {
             limitError = null
@@ -508,7 +514,7 @@ fun UnifiedInstrumentFormScreen(
 
         val bDay = billingDayInput.toIntOrNull()
         if (bDay == null || bDay !in 1..31) {
-            billingError = "Ingresa un día entre 1 y 31."
+            billingError = "Elige un día entre 1 y 31"
             hasError = true
         } else {
             billingError = null
@@ -516,17 +522,18 @@ fun UnifiedInstrumentFormScreen(
 
         val dDay = dueDayInput.toIntOrNull()
         if (dDay == null || dDay !in 1..31) {
-            dueError = "Ingresa un día entre 1 y 31."
+            dueError = "Elige un día entre 1 y 31"
             hasError = true
         } else if (bDay != null && bDay == dDay) {
-            dueError = "El día de pago debe ser posterior al cierre."
+            dueError = "Elige días distintos para cierre y pago"
+            billingError = "Elige días distintos para cierre y pago"
             hasError = true
         } else {
             dueError = null
         }
 
         if (lastFourDigits.length != 4) {
-            cardError = "Ingresa exactamente 4 números."
+            cardError = "Deben ser exactamente 4 números"
             hasError = true
         } else {
             cardError = null
@@ -579,7 +586,7 @@ fun UnifiedInstrumentFormScreen(
         var firstInvalidRequester: BringIntoViewRequester? = null
 
         if (alias.isBlank()) {
-            aliasError = "Escribe un alias para identificarlo."
+            aliasError = "Escribe un nombre para reconocerla"
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = aliasBringIntoViewRequester
         } else if (Card.isForbiddenSensitiveCardInput(alias)) {
@@ -593,18 +600,18 @@ fun UnifiedInstrumentFormScreen(
         )
         if (parsedBalance == null || parsedBalance < 0L) {
             if (kind == InstrumentKind.CREDIT_CARD) limitError = "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida."
-            else balanceError = "Ingresa un saldo válido."
+            else balanceError = "Ingresa un monto válido (0 o más)"
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = amountBringIntoViewRequester
         }
 
         if (kind == InstrumentKind.CREDIT_CARD && !Card.isValidLastFourDigits(lastFourDigits)) {
-            cardError = "Ingresa exactamente cuatro dígitos numéricos."
+            cardError = "Deben ser exactamente 4 números"
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
         } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
             !Card.isValidLastFourDigits(lastFourDigits)) {
-            cardError = "Ingresa exactamente cuatro dígitos numéricos."
+            cardError = "Deben ser exactamente 4 números"
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
         }
@@ -752,8 +759,7 @@ fun UnifiedInstrumentFormScreen(
                     },
                     onSelectCreditCard = {
                         setKind(InstrumentKind.CREDIT_CARD)
-                        isBankSheetVisible = true
-                        currentStep = InstrumentFlowStep.CREDIT_SELECT_PRODUCT
+                        currentStep = InstrumentFlowStep.CREDIT_SELECT_BANK
                     },
                     onSelectWallet = {
                         setKind(InstrumentKind.WALLET)
@@ -763,6 +769,76 @@ fun UnifiedInstrumentFormScreen(
                         setKind(InstrumentKind.CASH)
                         currentStep = InstrumentFlowStep.FORM_OTHER
                     },
+                    onCancel = onNavigateBack,
+                    modifier = Modifier.padding(insets),
+                )
+            }
+        }
+
+        InstrumentFlowStep.CREDIT_SELECT_BANK -> {
+            Scaffold(
+                topBar = {
+                    CalmEmeraldStepTopBar(
+                        title = "",
+                        stepBadge = "Paso 1 de 3",
+                        onNavigateBack = {
+                            if (initialCreditCard) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
+                        },
+                    )
+                },
+                bottomBar = {
+                    val chosen = bankChoices.firstOrNull { it.code == step1BankCode }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding(),
+                        color = calmColors.surfaceCard,
+                        border = BorderStroke(1.dp, calmColors.borderSubtle),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Button(
+                                enabled = chosen != null,
+                                onClick = {
+                                    chosen?.let {
+                                        bankCode = it.code
+                                        selectedProductName = null
+                                        selectedStylePresetId = null
+                                        currentStep = InstrumentFlowStep.CREDIT_SELECT_PRODUCT
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = calmColors.primaryDeep,
+                                    contentColor = calmColors.onPrimaryDeep,
+                                ),
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                            ) {
+                                Text(
+                                    text = if (chosen != null) "Continuar con ${chosen.name}" else "Continuar",
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = calmColors.secondaryMuted, modifier = Modifier.size(13.dp))
+                                Text(
+                                    "Tus datos se resguardan de forma segura y confidencial",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = calmColors.secondaryMuted,
+                                )
+                            }
+                        }
+                    }
+                },
+                containerColor = calmColors.background,
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                modifier = modifier,
+            ) { insets ->
+                CalmEmeraldCreditBankStepView(
+                    bankChoices = bankChoices,
+                    selectedCode = step1BankCode,
+                    onSelect = { step1BankCode = it.code },
                     modifier = Modifier.padding(insets),
                 )
             }
@@ -774,9 +850,7 @@ fun UnifiedInstrumentFormScreen(
                     CalmEmeraldStepTopBar(
                         title = "",
                         stepBadge = "Paso 2 de 3",
-                        onNavigateBack = {
-                            if (initialCreditCard) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
-                        },
+                        onNavigateBack = { currentStep = InstrumentFlowStep.CREDIT_SELECT_BANK },
                     )
                 },
                 bottomBar = {
@@ -900,7 +974,7 @@ fun UnifiedInstrumentFormScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             if (showStep3ErrorBanner) {
-                                CalmEmeraldErrorBanner(message = "Revisa los campos con error para continuar")
+                                CalmEmeraldErrorBanner(message = "Revisa los campos marcados en rojo")
                             }
                             Button(
                                 onClick = ::handleSaveCreditCard,
@@ -1016,8 +1090,20 @@ fun UnifiedInstrumentFormScreen(
                     Surface(color = calmColors.pillTrack, shape = RoundedCornerShape(16.dp)) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Alertas de utilización", style = MaterialTheme.typography.titleSmall)
-                            Text("Avisos automáticos al alcanzar 50%, 80% y 100% de tu línea total de crédito.",
+                            Text("Avisos automáticos al alcanzar 50%, 80% y 100% de tu línea.",
                                 style = MaterialTheme.typography.bodyMedium)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(
+                                    Triple("50% atención", Color(0xFFFEF3C7), Color(0xFF5A3200)),
+                                    Triple("80% casi al límite", Color(0xFFFFE8D6), Color(0xFF5C2500)),
+                                    Triple("100% agotada", Color(0xFFFDECEC), Color(0xFF8B1F1F)),
+                                ).forEach { (label, bg, fg) ->
+                                    Surface(color = bg, shape = RoundedCornerShape(10.dp)) {
+                                        Text(label, color = fg, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -1037,111 +1123,155 @@ fun UnifiedInstrumentFormScreen(
                 InstrumentKind.CASH -> "Guardar efectivo"
                 else -> "Guardar cuenta"
             }
+            val hasFormErrors = aliasError != null || balanceError != null || cardError != null
             Scaffold(
                 containerColor = calmColors.background,
                 topBar = {
-                    TopAppBar(title = { Text(formTitle) }, navigationIcon = {
-                        IconButton(onClick = {
-                            if (initialBankAccount) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
-                        }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
-                    })
+                    AddFormTopBar(formTitle) {
+                        if (initialBankAccount) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
+                    }
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
-                    Surface(color = calmColors.surfaceCard) {
-                        Button(onClick = ::handleSubmit, enabled = !isSubmitting, shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
-                                .padding(16.dp).heightIn(min = 52.dp).testTag("btn_save_instrument")) {
-                            Text(if (isSubmitting) "Guardando…" else saveTitle)
-                        }
-                    }
+                    AddFormBottomBar(
+                        label = if (isSubmitting) "Guardando…" else saveTitle,
+                        onClick = ::handleSubmit,
+                        enabled = !isSubmitting,
+                        hasErrors = hasFormErrors,
+                    )
                 },
             ) { insets ->
                 Column(Modifier.fillMaxSize().padding(insets).verticalScroll(scrollState).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     if (kind == InstrumentKind.SAVINGS_DEBIT) {
-                        Text("Banco", style = MaterialTheme.typography.labelLarge)
-                        OutlinedButton(onClick = { isBankSheetVisible = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                            Text(bank.name, modifier = Modifier.weight(1f))
-                            Text("Cambiar")
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AddFormLabel("Banco")
+                            AddFormBankField(bank) { isBankSheetVisible = true }
                         }
-                        Text("Tipo de cuenta", style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(AccountType.SAVINGS to "Ahorros", AccountType.BANK to "Cuenta sueldo").forEach { (type, label) ->
-                                FilterChip(selected = accountType == type, onClick = { accountType = type },
-                                    label = { Text(label) }, modifier = Modifier.heightIn(min = 48.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AddFormLabel("Tipo de cuenta")
+                            AddFormChoiceRow {
+                                listOf(AccountType.SAVINGS to "Ahorros", AccountType.BANK to "Cuenta sueldo").forEach { (type, label) ->
+                                    AddFormChoiceChip(label, accountType == type, { accountType = type })
+                                }
                             }
                         }
                     }
                     if (kind == InstrumentKind.WALLET) {
-                        Text("Billetera digital", style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(AccountPreset.YAPE, AccountPreset.PLIN).forEach { provider ->
-                                FilterChip(selected = walletProvider == provider, onClick = {
-                                    walletProvider = provider
-                                    if (!hasAliasBeenEdited) alias = provider.defaultName
-                                    selectedWalletAccountId = null
-                                }, label = { Text(provider.defaultName) }, modifier = Modifier.heightIn(min = 48.dp))
-                            }
-                        }
-                        Text("Modalidad", style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = !walletAffiliated, onClick = { walletAffiliated = false }, label = { Text("Saldo propio de la billetera") })
-                            FilterChip(selected = walletAffiliated, onClick = { walletAffiliated = true }, label = { Text("Afiliada a cuenta") })
-                        }
-                        if (walletAffiliated) {
-                            cardError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            if (eligibleWalletAccounts.isEmpty()) {
-                                Text("Aún no tienes una cuenta ${expectedWalletBank.defaultName} en ${currency.name}. Crea primero una cuenta de ese banco.", color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("Cuenta ${expectedWalletBank.defaultName}", style = MaterialTheme.typography.labelLarge)
-                                eligibleWalletAccounts.forEach { candidate ->
-                                    val debitCard = activeDebitCards.firstOrNull { it.linkedAccountId == candidate.id }
-                                    FilterChip(
-                                        selected = selectedWalletAccountId == candidate.id.value,
-                                        onClick = { selectedWalletAccountId = candidate.id.value },
-                                        label = { Text(candidate.alias + (debitCard?.let { " · •••• ${it.lastFourDigits}" } ?: "")) },
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AddFormLabel("¿Qué billetera usas?")
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                listOf(AccountPreset.YAPE to KipuBrand.YAPE, AccountPreset.PLIN to KipuBrand.PLIN).forEach { (provider, brand) ->
+                                    AddFormWalletProviderCard(
+                                        brand = brand,
+                                        label = provider.defaultName,
+                                        selected = walletProvider == provider,
+                                        onClick = {
+                                            walletProvider = provider
+                                            if (!hasAliasBeenEdited) alias = "Billetera ${provider.defaultName}"
+                                            selectedWalletAccountId = null
+                                        },
+                                        modifier = Modifier.weight(1f),
                                     )
                                 }
                             }
                         }
-                    }
-                    OutlinedTextField(value = alias, onValueChange = {
-                        alias = it; hasAliasBeenEdited = true; aliasError = null
-                    }, label = { Text("Nombre / alias") }, shape = RoundedCornerShape(12.dp), singleLine = true, isError = aliasError != null,
-                        supportingText = { aliasError?.let { Text(it) } },
-                        modifier = Modifier.fillMaxWidth().bringIntoViewRequester(aliasBringIntoViewRequester))
-                    Text("Moneda", style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Currency.entries.forEach { option ->
-                            FilterChip(selected = currency == option, onClick = { currency = option },
-                                label = { Text(option.name) }, modifier = Modifier.heightIn(min = 48.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            AddFormLabel("¿Cómo maneja el saldo?")
+                            AddFormBalanceModeCard(
+                                isLink = false,
+                                title = "Saldo propio",
+                                description = "La billetera tiene su propio saldo y se suma a tu dinero real.",
+                                selected = !walletAffiliated,
+                                onClick = { walletAffiliated = false },
+                            )
+                            AddFormBalanceModeCard(
+                                isLink = true,
+                                title = "Afiliada a una cuenta",
+                                description = "No suma saldo aparte: sus movimientos se descuentan de tu cuenta bancaria.",
+                                selected = walletAffiliated,
+                                onClick = { walletAffiliated = true },
+                            )
                         }
-                    }
-                    if (kind != InstrumentKind.WALLET || !walletAffiliated) OutlinedTextField(value = balanceInput, onValueChange = { balanceInput = it; balanceError = null },
-                        label = { Text("Saldo inicial") }, shape = RoundedCornerShape(12.dp), prefix = { Text(currencySymbol(currency)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
-                        isError = balanceError != null, supportingText = { balanceError?.let { Text(it) } },
-                        modifier = Modifier.fillMaxWidth().bringIntoViewRequester(amountBringIntoViewRequester))
-                    else Text("El saldo se obtiene de la cuenta bancaria afiliada; no se registrará un saldo propio.")
-                    if (kind == InstrumentKind.SAVINGS_DEBIT) {
-                        OutlinedTextField(value = lastFourDigits, onValueChange = {
-                            lastFourDigits = it.filter { char -> Card.isAsciiDigit(char) }.take(4); cardError = null
-                        }, label = { Text("Últimos 4 dígitos · Opcional") },
-                            supportingText = { Text(cardError ?: "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true,
-                            isError = cardError != null,
-                            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(lastFourBringIntoViewRequester))
-                        AnimatedVisibility(visible = lastFourDigits.isNotEmpty()) {
-                            Column {
-                                Text("Red de tu tarjeta de débito", style = MaterialTheme.typography.labelLarge)
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    networkOptions.forEach { option ->
-                                        FilterChip(selected = network == option, onClick = { network = option },
-                                            label = { Text(networkLabel(option)) }, modifier = Modifier.heightIn(min = 48.dp))
+                        if (walletAffiliated) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                AddFormLabel("¿A qué cuenta está afiliada?", isError = cardError != null)
+                                cardError?.let {
+                                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                                }
+                                if (eligibleWalletAccounts.isEmpty()) {
+                                    Text("Aún no tienes una cuenta ${expectedWalletBank.defaultName} en ${currency.name}. Crea primero una cuenta de ese banco.", color = MaterialTheme.colorScheme.error)
+                                } else {
+                                    eligibleWalletAccounts.forEach { candidate ->
+                                        val debitCard = activeDebitCards.firstOrNull { it.linkedAccountId == candidate.id }
+                                        val candidateBank = bankChoices.firstOrNull { it.accountPreset == candidate.preset }
+                                        val typeLabel = if (candidate.type == AccountType.BANK) "Cuenta sueldo" else "Ahorros"
+                                        AddFormLinkedAccountRow(
+                                            bank = candidateBank,
+                                            title = candidate.alias,
+                                            subtitle = "${expectedWalletBank.defaultName} · $typeLabel" + (debitCard?.let { " · •••• ${it.lastFourDigits}" } ?: ""),
+                                            selected = selectedWalletAccountId == candidate.id.value,
+                                            onClick = { selectedWalletAccountId = candidate.id.value; cardError = null },
+                                        )
                                     }
                                 }
+                            }
+                        }
+                    }
+                    Column(Modifier.bringIntoViewRequester(aliasBringIntoViewRequester), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AddFormLabel("Nombre / alias", "Obligatorio", isError = aliasError != null)
+                        AddFormTextField(
+                            value = alias,
+                            onValueChange = { alias = it; hasAliasBeenEdited = true; aliasError = null },
+                            placeholder = "Ej. ${if (kind == InstrumentKind.SAVINGS_DEBIT) "Cuenta ${accountBankLabel(bank)}" else if (kind == InstrumentKind.WALLET) "Billetera ${walletProvider.defaultName}" else "Efectivo"}",
+                            errorMessage = aliasError,
+                        )
+                    }
+                    if (kind != InstrumentKind.WALLET || !walletAffiliated) {
+                        Column(Modifier.bringIntoViewRequester(amountBringIntoViewRequester), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AddFormLabel("Saldo inicial", "Opcional · por defecto 0", isError = balanceError != null)
+                            AddFormTextField(
+                                value = balanceInput,
+                                onValueChange = { balanceInput = it; balanceError = null },
+                                placeholder = "0.00",
+                                prefix = currencySymbol(currency),
+                                keyboardType = KeyboardType.Decimal,
+                                errorMessage = balanceError,
+                                hint = "Es el dinero que tienes hoy en esta cuenta. Podrás corregirlo luego.",
+                            )
+                        }
+                    } else {
+                        Text("El saldo se obtiene de la cuenta bancaria afiliada; no se registrará un saldo propio.",
+                            style = MaterialTheme.typography.bodyMedium, color = calmColors.secondaryMuted)
+                    }
+                    if (kind == InstrumentKind.SAVINGS_DEBIT) {
+                        Column(Modifier.bringIntoViewRequester(lastFourBringIntoViewRequester), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AddFormLabel("Últimos 4 dígitos", "Opcional", isError = cardError != null)
+                            AddFormTextField(
+                                value = lastFourDigits,
+                                onValueChange = { lastFourDigits = it.filter { char -> Card.isAsciiDigit(char) }.take(4); cardError = null },
+                                placeholder = "Si tienes una tarjeta asociada",
+                                keyboardType = KeyboardType.Number,
+                                errorMessage = cardError,
+                                hint = "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.",
+                            )
+                        }
+                        AnimatedVisibility(visible = lastFourDigits.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AddFormLabel("Red de tu tarjeta de débito")
+                                AddFormChoiceRow {
+                                    networkOptions.forEach { option ->
+                                        AddFormChoiceChip(networkLabel(option), network == option, { network = option })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AddFormLabel("Moneda")
+                        AddFormChoiceRow {
+                            Currency.entries.forEach { option ->
+                                AddFormChoiceChip(option.name, currency == option, { currency = option })
                             }
                         }
                     }
@@ -1152,23 +1282,34 @@ fun UnifiedInstrumentFormScreen(
 
     }
 
-    // Modal Sheet 1: Issuer Bank Picker
-    CalmEmeraldBankSelectionSheet(
-        visible = isBankSheetVisible,
-        currentBankCode = bank.code,
-        bankChoices = if (kind == InstrumentKind.SAVINGS_DEBIT) {
-            bankChoices.filter { it.code in setOf("BCP", "BBVA", "INTERBANK", "SCOTIABANK", "BANCO_NACION", "OTHER") }
-        } else {
-            bankChoices
-        },
-        onConfirm = { chosenBank ->
-            bankCode = chosenBank.code
-            isBankSheetVisible = false
-            selectedProductName = null
-            selectedStylePresetId = null
-        },
-        onDismiss = { isBankSheetVisible = false },
-    )
+    // Modal Sheet 1: Issuer Bank Picker (accounts use the "Elegir banco" list, cards the issuer grid)
+    if (kind == InstrumentKind.SAVINGS_DEBIT) {
+        AddFormBankPickerSheet(
+            visible = isBankSheetVisible,
+            currentBankCode = bank.code,
+            banks = listOf("BCP", "BBVA", "INTERBANK", "SCOTIABANK", "BANCO_NACION", "BANBIF", "OTHER")
+                .mapNotNull { code -> bankChoices.firstOrNull { it.code == code } },
+            onConfirm = { chosenBank ->
+                bankCode = chosenBank.code
+                isBankSheetVisible = false
+                if (!hasAliasBeenEdited) alias = "Cuenta ${accountBankLabel(chosenBank)}"
+            },
+            onDismiss = { isBankSheetVisible = false },
+        )
+    } else {
+        CalmEmeraldBankSelectionSheet(
+            visible = isBankSheetVisible,
+            currentBankCode = bank.code,
+            bankChoices = bankChoices,
+            onConfirm = { chosenBank ->
+                bankCode = chosenBank.code
+                isBankSheetVisible = false
+                selectedProductName = null
+                selectedStylePresetId = null
+            },
+            onDismiss = { isBankSheetVisible = false },
+        )
+    }
 
     // Modal Sheet 2: Success Bottom Sheet
     if (showSuccessSheet && registeredCreditCard != null) {

@@ -141,10 +141,12 @@ import com.kipu.app.feature.accounts.presentation.components.CardStyleType
 import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorScreen
 import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDialog
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
+import com.kipu.app.ui.component.KipuErrorState
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.movementAvatarPresentation
 import com.kipu.app.ui.component.symbol
 import java.time.Instant
@@ -186,6 +188,12 @@ fun AccountDetailScreen(
     } else {
         null
     }
+    val linkedAccount = account?.linkedAccountId?.let { parentId ->
+        (instruments.activeAccounts + instruments.archivedAccounts).firstOrNull { it.id == parentId }
+    }
+    val affiliatedWallets = account?.let { parent ->
+        instruments.activeAccounts.filter { it.linkedAccountId == parent.id && it.type == AccountType.DIGITAL_WALLET }
+    }.orEmpty()
     val accountBalanceFlow = remember(account?.id) {
         account?.let { target ->
             viewModel.observeAccountBalance(target.id).map { it as Money? }
@@ -328,6 +336,9 @@ fun AccountDetailScreen(
         onStartCreditPurchase = { showPurchaseDraft = true },
         onEditCreditCardTerms = { showCardTermsEditor = true },
         isSubmitting = isSubmitting,
+        linkedAccount = linkedAccount,
+        affiliatedWallets = affiliatedWallets,
+        onRetry = viewModel::retryDashboard,
     )
 
     if (showCardTermsEditor && card is CreditCard) {
@@ -355,7 +366,8 @@ fun AccountDetailScreen(
 
     if (showPurchaseDraft && card is CreditCard) {
         val availableMinor = creditCardSummary?.availableCredit?.minorUnits ?: card.creditLimitMinorUnits
-        val availableMoneyStr = "${card.currency.symbol()} ${formatMinorUnits(availableMinor)}"
+        val availableMoneyStr = if (LocalBalanceMasked.current) "••••"
+            else "${card.currency.symbol()} ${formatMinorUnits(availableMinor)}"
         val emeraldColors = rememberCalmEmeraldColors()
         val parsedMinor = remember(purchaseAmount) { MoneyInputParser.parseMinorUnits(purchaseAmount) }
         val canSimulate = isValidCreditPurchaseDraft(parsedMinor, purchaseMerchant, selectedPurchaseCategory?.id)
@@ -859,6 +871,11 @@ fun AccountDetailContent(
     cardMovements: List<CardMovementDisplay> = emptyList(),
     isSubmitting: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    linkedAccount: Account? = null,
+    affiliatedWallets: List<Account> = emptyList(),
+    onRetry: () -> Unit = {},
+    onNavigateToSpend: ((Account) -> Unit)? = null,
+    onNavigateToTransfer: ((Account) -> Unit)? = null,
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -962,21 +979,24 @@ fun AccountDetailContent(
         modifier = modifier,
     ) { innerPadding ->
         when {
-            isLoading -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+            isLoading -> AccountDetailSkeleton(
+                isCard = card != null,
+                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
+            )
             account == null && card == null -> Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(24.dp),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("No encontramos este instrumento.", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onNavigateBack) { Text("Volver") }
+                KipuErrorState(
+                    title = "No pudimos cargar el detalle",
+                    message = "Tu información está a salvo. No mostramos cifras para no confundirte con ceros.",
+                    onRetry = onRetry,
+                    modifier = Modifier.testTag("account_detail_error"),
+                )
+                TextButton(onClick = onNavigateBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver") }
             }
             else -> Column(
                 modifier = Modifier
@@ -1041,24 +1061,14 @@ fun AccountDetailContent(
                         movements = cardMovements,
                     )
                 } else {
-                    // Liquid Account or Debit Card view (preserved in full)
-                    InstrumentSummary(
-                        account = account,
-                        card = card,
-                        currentBalance = currentBalance,
-                        creditCardSummary = creditCardSummary,
-                    )
-
-                    creditNotifications.forEach { notification ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(notification.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Text(notification.body, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                    // Liquid account (C1-C9) or debit card view
+                    if (account == null) {
+                        InstrumentSummary(
+                            account = null,
+                            card = card,
+                            currentBalance = currentBalance,
+                            creditCardSummary = creditCardSummary,
+                        )
                     }
 
                     if (archived) {
@@ -1076,136 +1086,96 @@ fun AccountDetailContent(
                     }
 
                     account?.let { target ->
+                        AccountSummaryCard(
+                            account = target,
+                            currentBalance = currentBalance,
+                            linkedAccount = linkedAccount,
+                            affiliatedWallets = affiliatedWallets,
+                        )
+
+                        creditNotifications.forEach { notification ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(notification.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text(notification.body, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+
                         val canOpenMovementHistory = when (target.type) {
                             AccountType.DIGITAL_WALLET -> target.preset == AccountPreset.YAPE || target.preset == AccountPreset.PLIN
                             AccountType.CREDIT_LIABILITY -> false
                             else -> true
                         }
-                        if (canOpenMovementHistory) {
-                            OutlinedButton(
-                                onClick = { onNavigateToMovements(target) },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("account_view_movements"),
-                            ) {
-                                Icon(Icons.AutoMirrored.Rounded.ReceiptLong, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Ver movimientos")
-                            }
-                        }
+                        AccountQuickActions(
+                            onSpend = onNavigateToSpend?.takeIf { !archived }?.let { spend -> { spend(target) } },
+                            onTransfer = onNavigateToTransfer?.takeIf { !archived }?.let { transfer -> { transfer(target) } },
+                            onMovements = if (canOpenMovementHistory) ({ onNavigateToMovements(target) }) else null,
+                        )
 
-                        val selectablePresets = AccountPreset.selectableFor(target.type)
-                        Text("Presentación", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        OutlinedTextField(
-                            value = alias,
-                            onValueChange = { value ->
+                        AccountSectionTitle("Presentación")
+                        AccountPresentationCard(
+                            account = target,
+                            alias = alias,
+                            aliasError = aliasError,
+                            onAliasChange = { value ->
                                 alias = value.take(80)
                                 aliasError = if (value.isBlank()) "Escribe un alias para identificar la cuenta." else null
                             },
-                            label = { Text("Alias de la cuenta") },
-                            singleLine = true,
-                            isError = aliasError != null,
-                            supportingText = aliasError?.let { { Text(it) } },
-                            shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier.fillMaxWidth().testTag("account_alias"),
-                        )
-                        if (target.type == AccountType.CASH) {
-                            Surface(
-                                color = emeraldColors.incomeBg,
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier.fillMaxWidth().testTag("cash_presentation"),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(Icons.Rounded.Payments, contentDescription = null, tint = emeraldColors.incomeText)
-                                    Text(
-                                        text = "Cuenta de efectivo",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = emeraldColors.incomeText,
-                                    )
-                                }
-                            }
-                        } else if (selectablePresets.isNotEmpty()) {
-                            ExposedDropdownMenuBox(
-                                expanded = isInstitutionMenuExpanded,
-                                onExpandedChange = { isInstitutionMenuExpanded = it },
-                                modifier = Modifier.fillMaxWidth().testTag("account_preset_selector"),
-                            ) {
-                                OutlinedTextField(
-                                    value = selectablePresets.firstOrNull { it == selectedPreset }?.defaultName.orEmpty(),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Institución") },
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isInstitutionMenuExpanded)
-                                    },
-                                    shape = MaterialTheme.shapes.medium,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true)
-                                        .testTag("account_institution_selector"),
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = isInstitutionMenuExpanded,
-                                    onDismissRequest = { isInstitutionMenuExpanded = false },
-                                ) {
-                                    selectablePresets.forEach { preset ->
-                                        DropdownMenuItem(
-                                            text = { Text(preset.defaultName) },
-                                            onClick = {
-                                                selectedPreset = preset
-                                                isInstitutionMenuExpanded = false
-                                            },
-                                            modifier = Modifier.testTag("account_preset_${preset.name.lowercase()}"),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Button(
-                            onClick = {
+                            selectedPreset = selectedPreset,
+                            onPresetSelected = { preset ->
+                                selectedPreset = preset
+                                isInstitutionMenuExpanded = false
+                            },
+                            isInstitutionMenuExpanded = isInstitutionMenuExpanded,
+                            onInstitutionMenuExpandedChange = { isInstitutionMenuExpanded = it },
+                            isSubmitting = isSubmitting,
+                            onSave = {
                                 if (alias.isBlank()) {
                                     aliasError = "Escribe un alias para identificar la cuenta."
                                 } else {
                                     onSaveAppearance(alias.trim(), selectedPreset)
                                 }
                             },
-                            enabled = !isSubmitting && alias.isNotBlank(),
-                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("save_account_presentation"),
-                        ) {
-                            Text(if (isSubmitting) "Guardando..." else "Guardar presentación")
-                        }
+                        )
 
-                        Text("Saldo inicial", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        AccountSectionTitle("Saldo inicial")
                         Text(
                             text = "Corregir solo si el saldo con el que abriste la cuenta fue registrado incorrectamente. La corrección conserva el historial original mediante un reverso y un nuevo ajuste auditado.",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         OutlinedButton(
                             onClick = { showOpeningCorrection = true },
                             enabled = !isSubmitting,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("correct_opening_balance"),
                         ) {
-                            Text("Corregir saldo inicial")
+                            Text("Corregir saldo inicial", fontWeight = FontWeight.SemiBold)
                         }
 
                         if (!archived) {
                             OutlinedButton(
                                 onClick = { showArchiveConfirmation = true },
                                 enabled = !isSubmitting,
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, emeraldColors.expenseBorder),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             ) {
-                                Text("Archivar cuenta", color = MaterialTheme.colorScheme.error)
+                                Text("Archivar cuenta", color = emeraldColors.expenseText, fontWeight = FontWeight.SemiBold)
                             }
                         } else {
                             Button(
                                 onClick = { showReactivateConfirmation = true },
                                 enabled = !isSubmitting,
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep, contentColor = emeraldColors.onPrimaryDeep),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             ) {
-                                Text("Reactivar cuenta")
+                                Text("Reactivar cuenta", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1241,7 +1211,15 @@ fun AccountDetailContent(
             onDismissRequest = { showArchiveConfirmation = false },
             title = { Text("¿Archivar ${if (card == null) "la cuenta" else "la tarjeta"}?") },
             text = {
-                Text("No se eliminarán los movimientos ni el historial. Podrás encontrar el instrumento en Archivados y reactivarlo después.")
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("No se eliminarán los movimientos ni el historial. Podrás encontrar el instrumento en Archivados y reactivarlo después.")
+                    if (account != null) {
+                        ArchiveAccountNotes(
+                            affiliatedWallets = affiliatedWallets,
+                            remainingBalance = currentBalance,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -1275,44 +1253,33 @@ fun AccountDetailContent(
     }
 
     if (showOpeningCorrection && account != null) {
-        AlertDialog(
-            onDismissRequest = { showOpeningCorrection = false },
-            title = { Text("Corrección auditada del saldo inicial") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Se conserva el movimiento de apertura original y se registra su reverso junto con el importe corregido.")
-                    OutlinedTextField(
-                        value = openingAmount,
-                        onValueChange = { value ->
-                            openingAmount = value
-                            openingAmountError = null
-                        },
-                        label = { Text("Nuevo saldo inicial (${account.currency.name})") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        isError = openingAmountError != null,
-                        supportingText = openingAmountError?.let { { Text(it) } },
-                        shape = MaterialTheme.shapes.medium,
-                    )
+        OpeningBalanceCorrectionSheet(
+            account = account,
+            currentBalance = currentBalance,
+            amountText = openingAmount,
+            amountError = openingAmountError,
+            parsedMinorUnits = MoneyInputParser.parseMinorUnits(openingAmount),
+            onAmountChange = { value ->
+                openingAmount = value
+                openingAmountError = null
+            },
+            onDismiss = { showOpeningCorrection = false },
+            onConfirm = {
+                val amount = MoneyInputParser.parseMinorUnits(openingAmount)
+                if (amount == null) {
+                    openingAmountError = "Ingresa un importe válido con hasta dos decimales."
+                } else {
+                    showOpeningCorrection = false
+                    onCorrectOpeningBalance(amount)
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val amount = MoneyInputParser.parseMinorUnits(openingAmount)
-                    if (amount == null) {
-                        openingAmountError = "Ingresa un importe válido con hasta dos decimales."
-                    } else {
-                        showOpeningCorrection = false
-                        onCorrectOpeningBalance(amount)
-                    }
-                }) { Text("Registrar corrección") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showOpeningCorrection = false }) { Text("Cancelar") }
             },
         )
     }
 }
+
+@Composable
+private fun displayCreditLimit(card: CreditCard): String =
+    if (LocalBalanceMasked.current) "••••" else formatMinorUnits(card.creditLimitMinorUnits)
 
 @Composable
 private fun Kibo3DCreditCard(
@@ -1356,7 +1323,7 @@ private fun Kibo3DCreditCard(
     val shape = RoundedCornerShape(16.dp)
 
     val accessibleDescription = if (!isFlipped) {
-        "Tarjeta de crédito ${card.alias ?: card.issuer} ${card.network}, últimos dígitos ${card.lastFourDigits}, ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}. Toca para ver el reverso financiero."
+        "Tarjeta de crédito ${card.alias ?: card.issuer} ${card.network}, últimos dígitos ${card.lastFourDigits}, ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} ${card.currency.name} ${displayCreditLimit(card)}. Toca para ver el reverso financiero."
     } else {
         "Reverso de tarjeta de crédito, día de corte ${card.billingDay}, día de pago ${card.dueDay}. Toca para volver al frente."
     }
@@ -1547,7 +1514,7 @@ private fun CreditCardFrontContent(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${FinancialTerminology.TOTAL_CREDIT_LINE.uppercase()}: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                text = "${FinancialTerminology.TOTAL_CREDIT_LINE.uppercase()}: ${card.currency.name} ${displayCreditLimit(card)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = cardForeground.copy(alpha = 0.75f),
             )
@@ -1684,7 +1651,7 @@ private fun CreditCardBackContent(
                 color = cardForeground.copy(alpha = 0.70f),
             )
             Text(
-                text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${displayCreditLimit(card)}",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = cardForeground.copy(alpha = 0.85f),
@@ -2142,7 +2109,7 @@ private fun CreditCardPeriodPanel(
                 }
 
                 Text(
-                    text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                    text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${displayCreditLimit(card)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

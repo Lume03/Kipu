@@ -102,7 +102,7 @@ class UnifiedInstrumentWalletAffiliationTest {
         }
 
         compose.onNodeWithText("Billetera digital").performClick()
-        compose.onNodeWithText("Afiliada a cuenta").performClick()
+        compose.onNodeWithText("Afiliada a una cuenta").performClick()
         compose.onNodeWithText("Ahorros BCP", substring = true).performClick()
         compose.onNodeWithTag("btn_save_instrument").performClick()
         compose.waitForIdle()

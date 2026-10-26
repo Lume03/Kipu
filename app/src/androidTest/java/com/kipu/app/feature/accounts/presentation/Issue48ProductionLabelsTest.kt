@@ -100,10 +100,7 @@ class Issue48ProductionLabelsTest {
         compose.onNodeWithText(
             "Dinero propio en cuentas y efectivo \u00B7 No incluye cr\u00E9dito",
         ).assertIsDisplayed()
-        compose.onNodeWithText("Cupo Free de instrumentos \u00B7 2 de 4")
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose.onNodeWithText("2 espacios para cuentas y tarjetas")
+        compose.onNodeWithText("Plan Básico · 2 de 4 cuentas y tarjetas")
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNodeWithText("Tarjetas de cr\u00E9dito")

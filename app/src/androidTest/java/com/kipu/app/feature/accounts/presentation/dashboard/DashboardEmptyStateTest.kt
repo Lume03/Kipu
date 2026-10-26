@@ -13,7 +13,11 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -37,7 +41,7 @@ class DashboardEmptyStateTest {
         var navigatedToAccountCreation = false
         setEmptyDashboard(onNavigateToNewAccount = { navigatedToAccountCreation = true })
 
-        compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Agregar mi primera cuenta").performScrollTo().assertIsDisplayed().performClick()
 
         compose.runOnIdle { assertTrue(navigatedToAccountCreation) }
     }
@@ -47,8 +51,8 @@ class DashboardEmptyStateTest {
         var navigatedToCardCreation = false
         setEmptyDashboard(onNavigateToNewCard = { navigatedToCardCreation = true })
 
-        compose.onNodeWithText("Agregar tarjeta de crédito").assertIsDisplayed()
         compose.onNodeWithTag("dashboard_empty_add_card")
+            .performScrollTo()
             .assertIsDisplayed()
             .performClick()
 
@@ -56,22 +60,20 @@ class DashboardEmptyStateTest {
     }
 
     @Test
-    fun emptyDashboardShowsSingleBalanceAndOneFirstStep() {
+    fun emptyDashboardShowsZeroOwnMoneyAndOneFirstStep() {
         setEmptyDashboard()
 
+        // H5: with no instruments the own money is a real zero, not a missing figure.
         compose.onNodeWithTag("dashboard_empty_balance").assertIsDisplayed()
         compose.onNodeWithText(FinancialTerminology.REAL_MONEY_AVAILABLE).assertIsDisplayed()
-        compose.onAllNodesWithText("S/ 0.00").assertCountEquals(1)
-        compose.onNodeWithText("Agregar primera cuenta").assertIsDisplayed()
-        compose.onNodeWithText(
-            "Registra una cuenta bancaria, billetera o efectivo. Después podrás anotar tus gastos e ingresos.",
-        ).assertIsDisplayed()
-        compose.onAllNodesWithText("Aún no tienes cuentas registradas").assertCountEquals(0)
-        compose.onNodeWithText("Agrega una cuenta o efectivo para ver tu saldo aquí.").assertDoesNotExist()
-        compose.onNodeWithText("Cupo Free").assertDoesNotExist()
-        compose.onNodeWithText("Ver planes").assertDoesNotExist()
-        compose.onNodeWithText("En cuentas").assertDoesNotExist()
-        compose.onNodeWithText("En efectivo").assertDoesNotExist()
+        compose.onNodeWithText("Plan Básico · 0 de 4 cuentas y tarjetas").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("0 activas")[0].assertExists()
+        compose.onNodeWithText("Aún no tienes cuentas").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Agregar mi primera cuenta").assertIsDisplayed()
+        compose.onNodeWithText("Gestionar").assertDoesNotExist()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Sin tarjetas de crédito", substring = true))
+        compose.onNodeWithText("Sin tarjetas de crédito", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Cuentas y tarjetas archivadas").assertDoesNotExist()
         compose.onNodeWithText("Tus datos permanecen privados y protegidos", substring = true).assertDoesNotExist()
     }
 
@@ -126,8 +128,9 @@ class DashboardEmptyStateTest {
             }
         }
 
-        compose.onNodeWithTag("dashboard_empty_add_account").assertIsDisplayed()
-        compose.onNodeWithTag("dashboard_empty_add_card").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("dashboard_empty_add_account").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("dashboard_empty_add_card"))
+        compose.onNodeWithTag("dashboard_empty_add_card").assertIsDisplayed()
     }
 
     @Test

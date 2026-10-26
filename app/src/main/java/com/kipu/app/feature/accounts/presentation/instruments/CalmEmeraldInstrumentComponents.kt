@@ -88,6 +88,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -102,6 +103,8 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
+import com.kipu.app.feature.accounts.presentation.components.colorFromHex
+import com.kipu.app.ui.component.CardArtThumbnail
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -156,6 +159,8 @@ fun CalmEmeraldIntroCard(
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tileColor: Color? = null,
+    iconColor: Color? = null,
 ) {
     val calmColors = rememberCalmEmeraldColors()
     Surface(
@@ -180,15 +185,15 @@ fun CalmEmeraldIntroCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(calmColors.incomeBg),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tileColor ?: calmColors.incomeBg),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = calmColors.primaryDeep,
+                    tint = iconColor ?: calmColors.primaryDeep,
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -350,25 +355,13 @@ fun CalmEmeraldIssuerCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(bank.color),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = bank.name.take(3).uppercase(),
-                    color = bank.textColor,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                )
-            }
+            BankLogoTile(bank, 48.dp)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "ENTIDAD BANCARIA",
+                    text = "ENTIDAD EMISORA",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
@@ -377,7 +370,7 @@ fun CalmEmeraldIssuerCard(
                     color = calmColors.secondaryMuted,
                 )
                 Text(
-                    text = "Banco de Crédito ${bank.name}".takeIf { bank.code == "BCP" } ?: bank.name,
+                    text = if (bank.code == "BCP") "Banco de Crédito" else bank.name,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = calmColors.primaryText,
                     maxLines = 1,
@@ -635,7 +628,7 @@ fun CalmEmeraldBankSelectionSheet(
 }
 
 @Composable
-private fun MainBankGridItem(
+internal fun MainBankGridItem(
     bank: BankChoice,
     isSelected: Boolean,
     onSelect: () -> Unit,
@@ -668,19 +661,7 @@ private fun MainBankGridItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(bank.color),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = bank.logoAcronym,
-                        color = bank.textColor,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                    )
-                }
+                BankLogoTile(bank, 44.dp)
                 if (isSelected) {
                     Box(
                         modifier = Modifier
@@ -728,7 +709,7 @@ private fun MainBankGridItem(
 }
 
 @Composable
-private fun RetailBankRowItem(
+internal fun RetailBankRowItem(
     bank: BankChoice,
     isSelected: Boolean,
     currentBankCode: String,
@@ -758,19 +739,7 @@ private fun RetailBankRowItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                .background(bank.color),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = bank.logoAcronym,
-                    color = bank.textColor,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                )
-            }
+            BankLogoTile(bank, 44.dp)
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -872,36 +841,14 @@ fun CalmEmeraldCreditProductCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Mini visual representation
-            Box(
-                modifier = Modifier
-                    .size(width = 44.dp, height = 30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .then(
-                        if (stylePreset != null) Modifier.background(stylePreset.gradientBrush)
-                        else Modifier.background(if (isSelected) calmColors.navSelectedPill else calmColors.pillTrack)
-                    )
-                    .border(1.dp, if (isSelected) calmColors.primaryDeep else calmColors.borderSubtle, RoundedCornerShape(6.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (stylePreset != null) {
-                    Text(
-                        text = stylePreset.tier.take(4).uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = stylePreset.textColor,
-                        )
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.CreditCard,
-                        contentDescription = null,
-                        tint = if (isSelected) calmColors.primaryDeep else calmColors.secondaryMuted,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
+            CardArtThumbnail(
+                presetId = stylePreset?.id,
+                tierLabel = stylePreset?.tierLabel ?: "Crédito",
+                startColor = stylePreset?.let { colorFromHex(it.gradientStartHex) } ?: calmColors.primaryDeep,
+                endColor = stylePreset?.let { colorFromHex(it.gradientEndHex) } ?: calmColors.primaryDeep,
+                contentDescription = "Tarjeta $name",
+                width = 68.dp,
+            )
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -1129,19 +1076,7 @@ fun CalmEmeraldStep3SummaryCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 44.dp, height = 30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(bank.color),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = bank.name.take(3).uppercase(),
-                    color = bank.textColor,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                )
-            }
+            BankLogoTile(bank, 56.dp)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -1327,7 +1262,7 @@ fun CalmEmeraldReferencialTeaCollapsible(
 }
 
 /**
- * Visual introduction screen for "Agregar a Mi dinero" (Image 1).
+ * "¿Qué quieres agregar?": one card per instrument type, in the order of the reference (A1).
  */
 @Composable
 fun CalmEmeraldIntroView(
@@ -1338,6 +1273,7 @@ fun CalmEmeraldIntroView(
     onSelectCreditCard: () -> Unit,
     onSelectWallet: () -> Unit,
     onSelectCash: () -> Unit,
+    onCancel: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val calmColors = rememberCalmEmeraldColors()
@@ -1352,45 +1288,64 @@ fun CalmEmeraldIntroView(
             Text(
                 text = "¿Qué quieres agregar?",
                 style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 26.sp,
                 ),
                 color = calmColors.primaryText,
             )
             Text(
-                text = "Elige dónde guardas tu dinero o la tarjeta que quieres registrar.",
+                text = "Elige el tipo para pedirte solo los datos necesarios.",
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
                 ),
                 color = calmColors.secondaryMuted,
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CalmEmeraldIntroCard(
                 icon = Icons.Default.AccountBalance,
                 title = "Cuenta bancaria",
-                description = "Ahorros, sueldo o cuenta corriente en una entidad financiera",
+                description = "Ahorros o cuenta sueldo, en soles o dólares",
                 onClick = onSelectSavingsDebit,
-            )
-            CalmEmeraldIntroCard(
-                icon = Icons.Default.CreditCard,
-                title = "Tarjeta de crédito",
-                description = "Línea total de crédito, ciclos de corte, pago y control de consumos",
-                onClick = onSelectCreditCard,
+                tileColor = Color(0xFFDCE8F7),
+                iconColor = Color(0xFF1E4FA8),
             )
             CalmEmeraldIntroCard(
                 icon = Icons.Default.Wallet,
                 title = "Billetera digital",
-                description = "Yape o Plin con saldo propio o afiliadas a una cuenta bancaria",
+                description = "Yape o Plin, con saldo propio o afiliada",
                 onClick = onSelectWallet,
+                tileColor = Color(0xFFEBDDF5),
+                iconColor = Color(0xFF6B2FA0),
             )
             CalmEmeraldIntroCard(
                 icon = Icons.Default.Payments,
                 title = "Efectivo",
-                description = "Dinero en efectivo disponible para gastos cotidianos",
+                description = "Dinero en bolsillo o en casa",
                 onClick = onSelectCash,
+                tileColor = Color(0xFFDDF3E6),
+                iconColor = Color(0xFF1B6B3A),
+            )
+            CalmEmeraldIntroCard(
+                icon = Icons.Default.CreditCard,
+                title = "Tarjeta de crédito",
+                description = "Línea, fecha de corte y de pago. No es dinero propio.",
+                onClick = onSelectCreditCard,
+                tileColor = Color(0xFF0F172A),
+                iconColor = Color(0xFFFBBF24),
+            )
+        }
+
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        ) {
+            Text(
+                text = "Cancelar",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                color = calmColors.primaryDeep,
             )
         }
 
@@ -1400,9 +1355,229 @@ fun CalmEmeraldIntroView(
             onNavigateToPlans = onNavigateToPlans,
         )
 
-        CalmEmeraldPrivacyFooter()
-
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Step 1 of 3 for credit cards: "¿Quién emite tu tarjeta?" with search, main banks grid and retail rows.
+ */
+@Composable
+fun CalmEmeraldCreditBankStepView(
+    bankChoices: List<BankChoice>,
+    selectedCode: String?,
+    onSelect: (BankChoice) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val calmColors = rememberCalmEmeraldColors()
+    var query by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(bankChoices, query) {
+        if (query.isBlank()) bankChoices
+        else bankChoices.filter {
+            it.name.contains(query.trim(), ignoreCase = true) || (it.subtitle?.contains(query.trim(), ignoreCase = true) == true)
+        }
+    }
+    val mainBanks = filtered.filter { !it.isRetail }
+    val retailBanks = filtered.filter { it.isRetail }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "¿Quién emite tu tarjeta?",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 26.sp),
+                color = calmColors.primaryText,
+            )
+            Text(
+                text = "Elige el banco o la entidad para mostrarte sus tarjetas y completar tus datos automáticamente.",
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                color = calmColors.secondaryMuted,
+            )
+        }
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("Buscar banco o entidad…", fontSize = 15.sp) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = calmColors.secondaryMuted) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = "" }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Borrar búsqueda", tint = calmColors.secondaryMuted, modifier = Modifier.size(16.dp))
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = calmColors.surfaceCard,
+                unfocusedContainerColor = calmColors.surfaceCard,
+                focusedIndicatorColor = calmColors.primaryDeep,
+                unfocusedIndicatorColor = calmColors.borderSubtle,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (mainBanks.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    "BANCOS PRINCIPALES EN PERÚ",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.5.sp),
+                    color = calmColors.secondaryMuted,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("${mainBanks.size} disponibles", style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp), color = calmColors.secondaryMuted)
+            }
+            mainBanks.chunked(2).forEach { rowBanks ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    rowBanks.forEach { bank ->
+                        MainBankGridItem(bank, selectedCode == bank.code, { onSelect(bank) }, Modifier.weight(1f))
+                    }
+                    if (rowBanks.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        if (retailBanks.isNotEmpty()) {
+            Text(
+                "TARJETAS DEPARTAMENTALES Y RETAIL",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.5.sp),
+                color = calmColors.secondaryMuted,
+            )
+            retailBanks.forEach { bank -> RetailBankRowItem(bank, selectedCode == bank.code, selectedCode.orEmpty(), { onSelect(bank) }) }
+        }
+        if (filtered.isEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("No encontramos “$query”", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), color = calmColors.primaryText)
+                Text(
+                    "Prueba con otro nombre o elige “Otra entidad” para ingresar tu tarjeta manualmente.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = calmColors.secondaryMuted,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * "Por red y nivel": products grouped by card network and then by tier, each group collapsible.
+ * Groups that contain the selected product start expanded.
+ */
+@Composable
+internal fun CalmEmeraldCreditProductTree(
+    products: List<CatalogProductChoice>,
+    bankName: String,
+    selectedProductName: String?,
+    onSelectProduct: (CatalogProductChoice) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val calmColors = rememberCalmEmeraldColors()
+    val byNetwork = remember(products) { products.groupBy { it.network } }
+    val expanded = remember { mutableStateOf(setOf<String>()) }
+    fun toggle(key: String) {
+        expanded.value = if (key in expanded.value) expanded.value - key else expanded.value + key
+    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "POR RED Y NIVEL",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.5.sp),
+            color = calmColors.secondaryMuted,
+        )
+        byNetwork.forEach { (network, networkProducts) ->
+            val netKey = "n:${network.name}"
+            val hasSelection = networkProducts.any { it.name == selectedProductName }
+            val netOpen = netKey in expanded.value || hasSelection || byNetwork.size == 1
+            val byTier = networkProducts.groupBy { it.stylePreset?.tierLabel ?: "Otros" }
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = calmColors.surfaceCard,
+                border = BorderStroke(1.5.dp, if (hasSelection) calmColors.primaryDeep else calmColors.borderSubtle),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 68.dp)
+                            .clickable(role = Role.Button) { toggle(netKey) }
+                            .semantics { stateDescription = if (netOpen) "Expandido" else "Contraído" }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = when (network) {
+                                    CardNetwork.VISA -> "Visa"
+                                    CardNetwork.MASTERCARD -> "Mastercard"
+                                    CardNetwork.AMEX -> "American Express"
+                                    else -> "Otra red"
+                                },
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                color = calmColors.primaryText,
+                            )
+                            Text("$bankName · ${byTier.size} " + if (byTier.size == 1) "nivel" else "niveles",
+                                style = MaterialTheme.typography.bodySmall, color = calmColors.secondaryMuted)
+                        }
+                        if (hasSelection) CalmEmeraldPillBadge("1 elegida", calmColors.incomeBg, calmColors.incomeText)
+                        CalmEmeraldPillBadge("${networkProducts.size}", calmColors.pillTrack, calmColors.primaryText)
+                        Icon(
+                            if (netOpen) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = calmColors.secondaryMuted,
+                        )
+                    }
+                    if (netOpen) {
+                        Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            byTier.forEach { (tier, tierProducts) ->
+                                val tierKey = "t:${network.name}:$tier"
+                                val tierHasSelection = tierProducts.any { it.name == selectedProductName }
+                                val tierOpen = tierKey in expanded.value || tierHasSelection || byTier.size == 1
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = calmColors.pillTrack,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 52.dp)
+                                        .clickable(role = Role.Button) { toggle(tierKey) }
+                                        .semantics { stateDescription = if (tierOpen) "Expandido" else "Contraído" },
+                                ) {
+                                    Row(
+                                        Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    ) {
+                                        Text(tier, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = calmColors.primaryText, modifier = Modifier.weight(1f))
+                                        Text("${tierProducts.size}", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = calmColors.secondaryMuted)
+                                        Icon(
+                                            if (tierOpen) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = null,
+                                            tint = calmColors.secondaryMuted,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                }
+                                if (tierOpen) {
+                                    tierProducts.forEach { product ->
+                                        CalmEmeraldCreditProductCard(
+                                            name = product.name,
+                                            bankName = bankName,
+                                            network = product.network,
+                                            tierLabel = product.stylePreset?.tierLabel,
+                                            isSelected = selectedProductName == product.name,
+                                            onClick = { onSelectProduct(product) },
+                                            stylePreset = product.stylePreset,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1428,13 +1603,9 @@ fun CalmEmeraldCreditSelectView(
 ) {
     val calmColors = rememberCalmEmeraldColors()
 
-    val filterCategories = remember(productsForBank) {
-        listOf("Todas") + productsForBank.map { it.network.name }.distinct()
-    }
-    val filteredProducts = remember(productsForBank, creditSearchQuery, selectedFamilyFilter) {
+    val filteredProducts = remember(productsForBank, creditSearchQuery) {
         productsForBank.filter { product ->
-            (creditSearchQuery.isBlank() || product.name.contains(creditSearchQuery.trim(), ignoreCase = true)) &&
-                (selectedFamilyFilter == "Todas" || product.network.name == selectedFamilyFilter)
+            creditSearchQuery.isBlank() || product.name.contains(creditSearchQuery.trim(), ignoreCase = true)
         }
     }
 
@@ -1503,39 +1674,6 @@ fun CalmEmeraldCreditSelectView(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            filterCategories.forEach { family ->
-                val isSelected = selectedFamilyFilter == family
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onFamilyFilterChange(family) },
-                    label = {
-                        Text(
-                            text = family,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            fontSize = 13.sp,
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = calmColors.primaryDeep,
-                        selectedLabelColor = calmColors.onPrimaryDeep,
-                        containerColor = calmColors.surfaceCard,
-                        labelColor = calmColors.primaryText,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = isSelected,
-                        borderColor = if (isSelected) calmColors.primaryDeep else calmColors.borderSubtle,
-                        selectedBorderColor = calmColors.primaryDeep,
-                    ),
-                    modifier = Modifier.heightIn(min = 48.dp),
-                )
-            }
-        }
-
         if (filteredProducts.isEmpty()) {
             CalmEmeraldCreditSearchEmptyState(
                 searchQuery = creditSearchQuery,
@@ -1544,17 +1682,31 @@ fun CalmEmeraldCreditSelectView(
                 onChangeBank = onOpenBankPicker,
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                filteredProducts.forEach { product ->
-                    CalmEmeraldCreditProductCard(
-                        name = product.name,
-                        bankName = bank.name,
-                        network = product.network,
-                        tierLabel = product.stylePreset?.tierLabel,
-                        isSelected = selectedProductName == product.name,
-                        onClick = { onSelectProduct(product) },
-                        stylePreset = product.stylePreset,
-                    )
+            if (creditSearchQuery.isBlank()) {
+                CalmEmeraldCreditProductTree(
+                    products = filteredProducts,
+                    bankName = bank.name,
+                    selectedProductName = selectedProductName,
+                    onSelectProduct = onSelectProduct,
+                )
+            } else {
+                Text(
+                    text = "${filteredProducts.size} " + if (filteredProducts.size == 1) "RESULTADO" else "RESULTADOS",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 0.5.sp),
+                    color = calmColors.secondaryMuted,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    filteredProducts.forEach { product ->
+                        CalmEmeraldCreditProductCard(
+                            name = product.name,
+                            bankName = bank.name,
+                            network = product.network,
+                            tierLabel = product.stylePreset?.tierLabel,
+                            isSelected = selectedProductName == product.name,
+                            onClick = { onSelectProduct(product) },
+                            stylePreset = product.stylePreset,
+                        )
+                    }
                 }
             }
 
@@ -1634,8 +1786,7 @@ fun CalmEmeraldTeaConfigCard(
                     OutlinedTextField(
                         value = teaInput,
                         onValueChange = onTeaInputChange,
-                        label = { Text("TEA Anual (%)") },
-                        placeholder = { Text("84.50") },
+                        placeholder = { Text("Ej. 42.00") },
                         suffix = { Text("%", fontWeight = FontWeight.Bold) },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
                         singleLine = true,
@@ -1643,7 +1794,9 @@ fun CalmEmeraldTeaConfigCard(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Text("Ingresa la tasa de tu contrato. La TEA del catálogo no reemplaza tu tasa personal.",
+                    Text("Si la conoces, Kipu la usará para simular cuotas e intereses. Puedes cambiarla luego en “Tasas y TEA”.",
+                        style = MaterialTheme.typography.bodyMedium, color = calmColors.secondaryMuted)
+                    Text("Déjala vacía si no la conoces.",
                         style = MaterialTheme.typography.bodySmall, color = calmColors.secondaryMuted)
 
                 }
@@ -1914,7 +2067,7 @@ fun CalmEmeraldCreditLimitInputCard(
         }
 
         Text(
-            text = if (isError) "ⓘ ${errorMessage ?: "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida mayor a S/ 0.00"}"
+            text = if (isError) "ⓘ ${errorMessage ?: "Ingresa una línea mayor a S/ 0.00"}"
             else "El monto total que tu banco te permite utilizar.",
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
             color = if (isError) calmColors.expenseText else calmColors.secondaryMuted,
@@ -2141,7 +2294,7 @@ fun CalmEmeraldLastFourDigitsCard(
 
         if (isError) {
             Text(
-                text = "ⓘ ${errorMessage ?: "Ingresa exactamente 4 números."}",
+                text = "ⓘ ${errorMessage ?: "Deben ser exactamente 4 números"}",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = calmColors.expenseText,
             )
@@ -2296,19 +2449,7 @@ fun CalmEmeraldSuccessBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(bankChoice.color),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = bankChoice.logoAcronym,
-                            color = bankChoice.textColor,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                        )
-                    }
+                    BankLogoTile(bankChoice, 40.dp)
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             text = card.alias ?: "Tarjeta ${bankChoice.name}",
@@ -2346,7 +2487,8 @@ fun CalmEmeraldSuccessBottomSheet(
                                 color = calmColors.secondaryMuted,
                             )
                             Text(
-                                text = "${if (card.currency == Currency.PEN) "S/" else "$"} ${com.kipu.app.ui.component.formatMinorUnits(card.creditLimitMinorUnits)}",
+                                text = if (com.kipu.app.ui.component.LocalBalanceMasked.current) "••••"
+                                    else "${if (card.currency == Currency.PEN) "S/" else "$"} ${com.kipu.app.ui.component.formatMinorUnits(card.creditLimitMinorUnits)}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = calmColors.primaryText,
                             )

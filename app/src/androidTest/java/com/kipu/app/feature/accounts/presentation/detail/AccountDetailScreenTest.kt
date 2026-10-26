@@ -1,6 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kipu.app.ui.component.LocalBalanceMasked
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -13,6 +15,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.AnnotatedString
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
@@ -45,6 +50,26 @@ import androidx.test.espresso.Espresso.pressBack
 class AccountDetailScreenTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun maskedCreditCardDoesNotExposeItsLimitInTextOrAccessibility() {
+        setCardScreen(creditCard(), masked = true)
+        compose.onAllNodesWithText("1,000.00", substring = true).assertCountEquals(0)
+        compose.onNodeWithContentDescription("1,000.00", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun maskedOpeningCorrectionKeepsTheStoredAmountPrivateAndAcceptsExplicitInput() {
+        var correctedAmount: Long? = null
+        setScreen(account(), masked = true, onCorrectOpeningBalance = { correctedAmount = it })
+        compose.onNodeWithText("Corregir saldo inicial").performScrollTo().performClick()
+        compose.onAllNodesWithText("100.00", substring = true).assertCountEquals(0)
+        compose.onNodeWithContentDescription("Saldo inicial oculto").performSemanticsAction(SemanticsActions.SetText) {
+            it(AnnotatedString("12.50"))
+        }
+        compose.onNodeWithText("Aplicar corrección").performClick()
+        compose.runOnIdle { assertEquals(1_250L, correctedAmount) }
+    }
 
     @Test
     fun savesAliasAndPresentationWithoutChangingOpeningBalance() {
@@ -122,10 +147,10 @@ class AccountDetailScreenTest {
 
         compose.onNodeWithText("Corregir saldo inicial").performScrollTo().performClick()
         compose.onNodeWithText("Se conserva el movimiento de apertura original", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Nuevo saldo inicial (PEN)").performTextReplacement("12.50")
+        compose.onNodeWithText("Saldo inicial correcto (PEN)").performTextReplacement("12.50")
         compose.runOnIdle { assertEquals(null, correctedAmount) }
 
-        compose.onNodeWithText("Registrar corrección").performClick()
+        compose.onNodeWithText("Aplicar corrección").performClick()
 
         compose.runOnIdle { assertEquals(1_250L, correctedAmount) }
     }
@@ -326,9 +351,11 @@ class AccountDetailScreenTest {
         onArchive: () -> Unit = {},
         onReactivate: () -> Unit = {},
         onNavigateToMovements: (Account) -> Unit = {},
+        masked: Boolean = false,
     ) {
         compose.setContent {
-            MaterialTheme {
+            CompositionLocalProvider(LocalBalanceMasked provides masked) {
+              MaterialTheme {
                 AccountDetailContent(
                     account = account,
                     card = null,
@@ -342,6 +369,7 @@ class AccountDetailScreenTest {
                     onReactivate = onReactivate,
                     onNavigateToMovements = onNavigateToMovements,
                 )
+              }
             }
         }
     }
@@ -351,9 +379,11 @@ class AccountDetailScreenTest {
         onPayCreditCard: () -> Unit = {},
         onEditCreditCardTerms: () -> Unit = {},
         onReactivate: () -> Unit = {},
+        masked: Boolean = false,
     ) {
         compose.setContent {
-            MaterialTheme {
+            CompositionLocalProvider(LocalBalanceMasked provides masked) {
+              MaterialTheme {
                 AccountDetailContent(
                     account = null,
                     card = card,
@@ -368,6 +398,7 @@ class AccountDetailScreenTest {
                     onPayCreditCard = onPayCreditCard,
                     onEditCreditCardTerms = onEditCreditCardTerms,
                 )
+              }
             }
         }
     }
