@@ -31,10 +31,9 @@ BEGIN
 
   SELECT id INTO opening_movement FROM public.financial_movements
     WHERE user_id=u AND opening_account_id=a AND kind='OPENING';
-  UPDATE public.financial_movements SET amount_minor_units=10000 WHERE id=opening_movement;
   INSERT INTO public.financial_movements(id,operation_id,user_id,kind,amount_minor_units,
     currency,account_id,reverses_movement_id,adjusts_movement_id)
-  VALUES(reversal_movement,correction_reversal,u,'REVERSAL',-10000,'PEN',a,opening_movement,NULL),
+  VALUES(reversal_movement,correction_reversal,u,'REVERSAL',-100000,'PEN',a,opening_movement,NULL),
     (adjustment_movement,correction_adjustment,u,'ADJUSTMENT',9000,'PEN',a,NULL,opening_movement),
     (spend_movement,extensions.gen_random_uuid(),u,'ADJUSTMENT',-2500,'PEN',a,NULL,NULL);
 

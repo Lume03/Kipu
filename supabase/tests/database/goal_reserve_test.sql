@@ -1,7 +1,7 @@
 BEGIN;
 
 \ir _goal_test_fixture.sql
-SELECT internal.reconcile_opening_ledger();
+-- New opening facts must already be posted by the activation trigger.
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE

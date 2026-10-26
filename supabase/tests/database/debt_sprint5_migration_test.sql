@@ -7,8 +7,8 @@ INSERT INTO auth.users (id, email)
 VALUES ('55000000-0000-4000-8000-000000000001', 'debt-migration@kipu.test')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-VALUES ('55000000-0000-4000-8000-000000000002', '55000000-0000-4000-8000-000000000001', 'Migration account', 'SAVINGS', 'PEN')
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+VALUES ('55000000-0000-4000-8000-000000000002', '55000000-0000-4000-8000-000000000001', 'Migration account', 'SAVINGS', 'PEN', 'GENERIC')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.debts (id, user_id, obligation_type, counterparty_name, total_minor, currency_code, status)

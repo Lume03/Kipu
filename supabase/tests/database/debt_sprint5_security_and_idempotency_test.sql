@@ -43,10 +43,10 @@ INSERT INTO auth.users (id, email)
 SELECT owner_id, owner_id::text || '@debt-security.kipu.test' FROM debt_security_ids
 UNION ALL
 SELECT other_id, other_id::text || '@debt-security.kipu.test' FROM debt_security_ids;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-SELECT owner_account, owner_id, 'Owner cash', 'SAVINGS'::public.account_type, 'PEN' FROM debt_security_ids
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+SELECT owner_account, owner_id, 'Owner cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM debt_security_ids
 UNION ALL
-SELECT other_account, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN' FROM debt_security_ids;
+SELECT other_account, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM debt_security_ids;
 INSERT INTO public.debts (id, user_id, obligation_type, counterparty_name, total_minor, currency_code)
 SELECT '66000000-0000-4000-8000-000000000007'::uuid, owner_id, 'PAYABLE'::public.obligation_type, 'Existing obligation', 10000, 'PEN' FROM debt_security_ids
 UNION ALL

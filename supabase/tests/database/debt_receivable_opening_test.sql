@@ -27,12 +27,12 @@ INSERT INTO auth.users (id, email)
 SELECT owner_id, owner_id::text || '@receivable.kipu.test' FROM receivable_opening_ids
 UNION ALL
 SELECT other_id, other_id::text || '@receivable.kipu.test' FROM receivable_opening_ids;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-SELECT owner_account, owner_id, 'PEN cash', 'SAVINGS'::public.account_type, 'PEN' FROM receivable_opening_ids
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+SELECT owner_account, owner_id, 'PEN cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM receivable_opening_ids
 UNION ALL
-SELECT owner_usd_account, owner_id, 'USD cash', 'SAVINGS'::public.account_type, 'USD' FROM receivable_opening_ids
+SELECT owner_usd_account, owner_id, 'USD cash', 'SAVINGS'::public.account_type, 'USD', 'GENERIC' FROM receivable_opening_ids
 UNION ALL
-SELECT other_account, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN' FROM receivable_opening_ids;
+SELECT other_account, other_id, 'Other cash', 'SAVINGS'::public.account_type, 'PEN', 'GENERIC' FROM receivable_opening_ids;
 GRANT SELECT ON receivable_opening_ids TO authenticated;
 
 SELECT has_function('private', 'open_receivable_debt_v1', ARRAY['jsonb'], 'receivable opening handler is installed');
