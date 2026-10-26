@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1213dp" android:height="766dp"
+    android:viewportWidth="1213" android:viewportHeight="766">
+  <path android:name="Fondo" android:pathData="M46 0 L1167 0 C1192.4 0 1213 20.6 1213 46 L1213 720 C1213 745.4 1192.4 766 1167 766 L46 766 C20.6 766 0 745.4 0 720 L0 46 C0 20.6 20.6 0 46 0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="1213" android:endY="766">
+        <item android:offset="0" android:color="#F1F2F1"/>
+        <item android:offset="1" android:color="#E6E8E6"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Chevron-reverso" android:pathData="M570 475 L710 255 L1044 766 L999 766 L710 320 L609 475 Z" android:strokeColor="#104984" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.09"/>
+  <path android:name="Banda-magnetica" android:pathData="M0 82 L1213 82 L1213 198 L0 198 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="82" android:endX="0" android:endY="198">
+        <item android:offset="0" android:color="#1B1C1F"/>
+        <item android:offset="0.55" android:color="#090B0D"/>
+        <item android:offset="1" android:color="#191B1E"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Panel-firma" android:pathData="M78 224 L826 224 C829.3 224 832 226.7 832 230 L832 362 C832 365.3 829.3 368 826 368 L78 368 C74.7 368 72 365.3 72 362 L72 230 C72 226.7 74.7 224 78 224 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="linear" android:startX="0" android:startY="224" android:endX="0" android:endY="368">
+        <item android:offset="0" android:color="#F5F6F5"/>
+        <item android:offset="1" android:color="#DFE4E6"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+  <path android:name="Panel-trama" android:pathData="M82 367 L118 225 M105 367 L141 225 M128 367 L164 225 M151 367 L187 225 M174 367 L210 225 M197 367 L233 225 M220 367 L256 225 M243 367 L279 225 M266 367 L302 225 M289 367 L325 225 M312 367 L348 225 M335 367 L371 225 M358 367 L394 225 M381 367 L417 225 M404 367 L440 225 M427 367 L463 225 M450 367 L486 225 M473 367 L509 225 M496 367 L532 225 M519 367 L555 225 M542 367 L578 225 M565 367 L601 225 M588 367 L624 225 M611 367 L647 225 M634 367 L670 225 M657 367 L693 225 M680 367 L716 225 M703 367 L739 225 M726 367 L762 225 M749 367 L785 225 M772 367 L808 225" android:strokeColor="#8397A6" android:strokeWidth="1.4" android:strokeLineCap="butt" android:strokeLineJoin="round" android:strokeAlpha="0.36"/>
+  <path android:name="BBVA-aproximacion" android:pathData="M72 633 L91.4 633 C108.1 633 109.5 653.1 98.1 655.8 C113.5 658.4 110.1 678.5 92.1 678.5 L72 678.5 Z M80 640.4 L80 651.7 L90.7 651.7 C102.1 651.7 101.4 640.4 90.7 640.4 Z M80 659.1 L80 671.1 L92.1 671.1 C104.1 671.1 104.8 659.1 92.1 659.1 Z M115.5 633 L134.9 633 C151.6 633 153 653.1 141.6 655.8 C157 658.4 153.6 678.5 135.6 678.5 L115.5 678.5 Z M123.5 640.4 L123.5 651.7 L134.2 651.7 C145.6 651.7 144.9 640.4 134.2 640.4 Z M123.5 659.1 L123.5 671.1 L135.6 671.1 C147.6 671.1 148.3 659.1 135.6 659.1 Z M156.3 633 L165.7 633 L181.7 663.8 L197.8 633 L207.2 633 L181.7 680.5 Z M199.1 678.5 L224.6 631 L250 678.5 L240.6 678.5 L224.6 647.7 L208.5 678.5 Z" android:fillColor="#104984"/>
+  <path android:name="Mastercard-circulo-izquierdo" android:pathData="M1082 645 C1082 663.8 1066.8 679 1048 679 C1029.2 679 1014 663.8 1014 645 C1014 626.2 1029.2 611 1048 611 C1066.8 611 1082 626.2 1082 645 Z" android:fillColor="#EB001B"/>
+  <path android:name="Mastercard-circulo-derecho" android:pathData="M1122.1 645 C1122.1 663.8 1106.9 679 1088.1 679 C1069.3 679 1054.1 663.8 1054.1 645 C1054.1 626.2 1069.3 611 1088.1 611 C1106.9 611 1122.1 626.2 1122.1 645 Z" android:fillColor="#F79E1B"/>
+  <path android:name="Mastercard-interseccion" android:pathData="M1068.1 617.5 C1076.8 624 1082 634.1 1082 645 C1082 655.9 1076.8 666 1068.1 672.5 L1068.1 672.5 C1059.3 666 1054.1 655.9 1054.1 645 C1054.1 634.1 1059.3 624 1068.1 617.5 Z" android:fillColor="#FF5F00"/>
+</vector>
