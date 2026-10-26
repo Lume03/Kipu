@@ -215,8 +215,10 @@ class GoalChangeFeedApplier @Inject constructor(
         val existing = goalDao.getEvent(userId, remote.id)
         if (existing != null && !sameEventContent(existing, event)) {
             val receipt = existing.operationId?.let { movementDao.getReceipt(userId, it) }
-            val isTransferReconciliation = existing.transactionId == null && event.transactionId != null &&
+            val isTransferReconciliation = (existing.transactionId == event.transactionId ||
+                (existing.transactionId == null && event.transactionId != null)) &&
                 existing.operationId != null && receipt != null && receipt.idempotencyKey == existing.operationId &&
+                receipt.status == "SYNCED" &&
                 receipt.commandType in setOf("RESERVE_GOAL", "RELEASE_GOAL", "REASSIGN_GOAL_RESERVE") &&
                 sameEventExceptTransaction(existing, event)
             if (!isTransferReconciliation) {
@@ -251,7 +253,7 @@ class GoalChangeFeedApplier @Inject constructor(
         left.id == right.id && left.userId == right.userId && left.goalId == right.goalId &&
             left.eventType == right.eventType && left.deltaMinor == right.deltaMinor &&
             left.currencyCode == right.currencyCode && left.backingAccountId == right.backingAccountId &&
-            left.operationId == right.operationId && left.occurredAt == right.occurredAt
+            left.operationId == right.operationId
 
     private fun parseInstantMillis(value: String): Long =
         runCatching { parseFeedInstant(value).toEpochMilli() }.getOrElse {

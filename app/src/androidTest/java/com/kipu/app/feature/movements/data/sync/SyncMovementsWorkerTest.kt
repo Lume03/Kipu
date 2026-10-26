@@ -72,6 +72,35 @@ class SyncMovementsWorkerTest {
     fun tearDown() = database.close()
 
     @Test
+    fun debtServerEchoWithDifferentEntryIdsDoesNotDuplicateOfflineMoney() = runTest {
+        val accountId = UUID.randomUUID().toString()
+        val transactionId = UUID.randomUUID().toString()
+        accountDao.insert(AccountEntity(id = accountId, userId = userId, creationOperationId = UUID.randomUUID().toString(),
+            alias = "QA", type = "CASH", currency = "PEN", presetId = null, color = null, icon = null,
+            initialBalanceMinorUnits = 0, openedAt = 1, createdAt = 1, updatedAt = 1))
+        movementDao.insertTransaction(TransactionEntity(id = transactionId, userId = userId, type = "EXPENSE", amountMinor = 100,
+            currencyCode = "PEN", sourceAccountId = accountId, occurredAt = 1, status = "ACTIVE", syncStatus = "PENDING",
+            operationKind = "DEBT_PAYMENT", createdAt = 1, updatedAt = 1))
+        movementDao.insertLedgerEntries(listOf(LedgerEntryEntity(id = "offline-entry", userId = userId, transactionId = transactionId,
+            accountId = accountId, role = "PRIMARY", signedAmountMinor = -100, currencyCode = "PEN", createdAt = 1)))
+        fun page(sequence: Long, revision: Long, status: String = "ACTIVE", amount: Long = 100) = PullChangesResponseDto(listOf(
+            SyncChangeItemDto(sequence, "TRANSACTION", transactionId, revision, "UPSERT", Json.parseToJsonElement(
+                """{"id":"$transactionId","type":"EXPENSE","operation_kind":"DEBT_PAYMENT","amount_minor":$amount,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-25T17:00:00Z","status":"$status","ledger_entries":${if (status == "VOIDED") "[]" else """[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":${-amount},"currency_code":"PEN"}]"""}}"""
+            )),
+        ), sequence, false)
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(1,1))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(-100L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(2,2,amount = 80))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(-80L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(3,3,status = "VOIDED",amount = 80))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals(0L, movementDao.calculateLedgerSumForAccount(userId, accountId))
+        assertTrue(movementDao.getLedgerEntriesForTransaction(userId, transactionId).any { it.id == "offline-entry" && it.signedAmountMinor == -100L })
+    }
+
+    @Test
     fun pullsAccountThenTransactionAndBuildsOneLedgerProjection() = runTest {
         val accountId = UUID.randomUUID().toString()
         val transactionId = UUID.randomUUID().toString()
@@ -369,6 +398,8 @@ class SyncMovementsWorkerTest {
                 sequence = 30, entityType = "BUDGET", entityId = UUID.randomUUID().toString(), revision = 1,
                 operation = "UPSERT", payload = Json.parseToJsonElement("{}"),
             ),
+            SyncChangeItemDto(31, "SAVINGS_GOAL", UUID.randomUUID().toString(), 1, "UPSERT", Json.parseToJsonElement("{}")),
+            SyncChangeItemDto(32, "OBLIGATION", UUID.randomUUID().toString(), 1, "UPSERT", Json.parseToJsonElement("{}")),
             SyncChangeItemDto(
                 sequence = 41, entityType = "ACCOUNT", entityId = cashId, revision = 1, operation = "UPSERT",
                 payload = Json.parseToJsonElement(

@@ -103,6 +103,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         private val json = Json { ignoreUnknownKeys = true }
         private val FOREIGN_FEED_ENTITY_TYPES = setOf(
             "CATEGORY", "BUDGET", "GOAL", "GOAL_EVENT", "DEBT", "DEBT_EVENT", "DEBT_INSTALLMENT",
+            "SAVINGS_GOAL", "OBLIGATION", // Historical trigger names retained in the shared feed.
         )
     }
 
@@ -439,7 +440,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             val occurredAt = runCatching { parseFeedInstant(remote.occurredAt).toEpochMilli() }.getOrNull() ?: existing.occurredAt
             if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
             if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false
-            if (!reconcilePulledLedgerEntries(userId, remote, occurredAt)) return@withTransaction false
+            if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@withTransaction false
 
             movementDao.updateTransactionFromRemote(
                 userId = userId,
@@ -487,7 +488,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         ))
         if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
         if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false
-        if (!reconcilePulledLedgerEntries(userId, remote, occurredAt)) return@withTransaction false
+        if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@withTransaction false
         accountIds.forEach { accountId ->
             val account = accountDao.getById(userId, accountId) ?: return@withTransaction false
             val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
@@ -503,6 +504,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         userId: String,
         remote: SyncTransactionPayload,
         occurredAt: Long,
+        revision: Long,
     ): Boolean {
         val existingEntries = movementDao.getLedgerEntriesForTransaction(userId, remote.id)
         val existingIds = existingEntries.map { it.id }.toSet()
@@ -543,6 +545,27 @@ class SyncMovementsWorker @AssistedInject constructor(
                     createdAt = entry.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
                 )
             })
+            return true
+        }
+
+        if (remote.operationKind in setOf("DEBT_DISBURSEMENT", "DEBT_PAYMENT", "DEBT_AMORTIZATION", "GOAL_FUNDING")) {
+            // Offline debt/goal entries and server entries can have different UUIDs for the
+            // same financial effect. Reconcile the authoritative net; never post it twice.
+            if (remote.ledgerEntries.isEmpty()) return false
+            val before = existingEntries.groupBy { it.accountId to it.currencyCode }
+                .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
+            val after = remote.ledgerEntries.groupBy { it.accountId to it.currencyCode }
+                .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
+            val corrections = (before.keys + after.keys).mapNotNull { (accountId, currency) ->
+                val delta = Math.subtractExact(after[accountId to currency] ?: 0L, before[accountId to currency] ?: 0L)
+                if (delta == 0L) return@mapNotNull null
+                val role = remote.ledgerEntries.firstOrNull { it.accountId == accountId }?.role
+                    ?: existingEntries.first { it.accountId == accountId }.role
+                LedgerEntryEntity(id = "remote:planning:$revision:${remote.id}:$accountId:$currency", userId = userId,
+                    transactionId = remote.id, accountId = accountId, role = role, signedAmountMinor = delta,
+                    currencyCode = currency, createdAt = occurredAt)
+            }
+            if (corrections.isNotEmpty()) movementDao.insertPulledLedgerEntries(corrections)
             return true
         }
 
