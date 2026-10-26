@@ -121,6 +121,19 @@ class NotificationsViewModel @Inject constructor(
         mutate { repository.dismiss(it, notificationId) }
     }
 
+    /**
+     * Dismisses every already-read notice in the current filter through the same synced logical delete as the
+     * per-row X. Unread notices are never removed here; they must be marked read first.
+     */
+    fun dismissRead() {
+        val readIds = state.value.visibleNotifications.filter { it.isRead }.map { it.id }
+        if (readIds.isEmpty()) return
+        mutate { userId ->
+            val failures = readIds.map { id -> repository.dismiss(userId, id) }.filter { it.isFailure }
+            failures.firstOrNull() ?: Result.success(Unit)
+        }
+    }
+
     fun openNotification(notification: AppNotification) {
         val userId = currentUserId() ?: return
         viewModelScope.launch {
