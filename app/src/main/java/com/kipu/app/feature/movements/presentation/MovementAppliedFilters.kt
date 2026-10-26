@@ -7,7 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -43,24 +47,51 @@ fun MovementAppliedFilters(state: MovementHistoryUiState, onRemove: (String) -> 
         filters.syncStatuses.forEach { add("sync:${it.name}" to it.uiLabel()) }
     }
     if (chips.isEmpty()) return
-    // Cabecera de filtros activos: "Filtrando por …" + un chip quitable por criterio
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val colors = rememberCalmEmeraldColors()
+    // Cabecera de filtros activos: "Filtrando por …" + un chip quitable por criterio, del color del tipo filtrado
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "Filtrando por",
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.secondaryMuted,
         )
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(chips, key = { it.first }) { (key, label) ->
-            InputChip(selected = true, onClick = { onRemove(key) }, label = {
-                Column {
-                    Text(if (parked && key != "dates") stringResource(R.string.history_filter_saved, label) else label)
-                    if (key == "amount") MoneyText("${filters.minAmountMinor?.let(::formatMinorUnits) ?: "…"} — ${filters.maxAmountMinor?.let(::formatMinorUnits) ?: "…"}",
-                        currencySymbol = filters.currency, style = MaterialTheme.typography.labelMedium)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(chips, key = { it.first }) { (key, label) ->
+                val (container, content, border) = when (state.selectedFilterType.takeIf { key == "type" }) {
+                    MovementType.TRANSFER -> Triple(colors.transferBg, colors.transferBlue, colors.transferBorder)
+                    MovementType.INCOME -> Triple(colors.incomeBg, colors.incomeText, colors.incomeBorder)
+                    MovementType.EXPENSE -> Triple(colors.expenseBg, colors.expenseText, colors.expenseBorder)
+                    null -> Triple(colors.pillTrack, colors.primaryDeep, colors.borderSubtle)
                 }
-            }, trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.history_filter_remove, label), Modifier.size(18.dp)) },
-                modifier = Modifier.heightIn(min = 48.dp))
+                InputChip(
+                    selected = true,
+                    onClick = { onRemove(key) },
+                    label = {
+                        Column {
+                            Text(
+                                if (parked && key != "dates") stringResource(R.string.history_filter_saved, label) else label,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            if (key == "amount") MoneyText("${filters.minAmountMinor?.let(::formatMinorUnits) ?: "…"} — ${filters.maxAmountMinor?.let(::formatMinorUnits) ?: "…"}",
+                                currencySymbol = filters.currency, style = MaterialTheme.typography.labelMedium)
+                        }
+                    },
+                    trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.history_filter_remove, label), Modifier.size(18.dp)) },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = InputChipDefaults.inputChipColors(
+                        selectedContainerColor = container,
+                        selectedLabelColor = content,
+                        selectedTrailingIconColor = content,
+                    ),
+                    border = InputChipDefaults.inputChipBorder(
+                        enabled = true,
+                        selected = true,
+                        selectedBorderColor = border,
+                        selectedBorderWidth = 1.dp,
+                    ),
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("applied_filter_$key"),
+                )
+            }
         }
-    }
     }
 }
