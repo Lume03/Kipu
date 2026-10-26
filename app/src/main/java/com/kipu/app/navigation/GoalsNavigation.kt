@@ -41,6 +41,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         GoalFormScreen(
             existingGoal = null,
             accounts = state.backingAccounts,
+                accountOptions = state.accountOptions,
             isSaving = state.isSaving,
             errorMessage = state.errorMessage,
             onNavigateBack = { navController.popBackStack() },
@@ -70,6 +71,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             GoalFormScreen(
                 existingGoal = goal,
                 accounts = state.backingAccounts,
+                accountOptions = state.accountOptions,
                 currentReserved = state.goals.firstOrNull { it.goal.id == goal.id }?.progress?.reserved,
                 hasPremiumAccess = state.hasPremiumAccess,
                 replacementCandidates = state.goals.map { it.goal }.filter { it.status == com.kipu.app.feature.goals.domain.model.GoalStatus.ACTIVE },
@@ -91,11 +93,16 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
     ) { backStackEntry ->
         val viewModel: GoalDetailViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
+        val fundsViewModel: GoalContributionViewModel = hiltViewModel()
+        val fundsState by fundsViewModel.state.collectAsStateWithLifecycle()
+        LaunchedEffect(fundsViewModel) { fundsViewModel.events.collect { if (it == GoalContributionEvent.Saved) navController.popBackStack() } }
         GoalDetailScreen(
             state = state,
             onNavigateBack = { navController.popBackStack() },
             onContribute = { state.goal?.id?.let { navController.navigate("goals/$it/contribute") } },
             onRelease = viewModel::release,
+            onReserve = fundsViewModel::reserve,
+            fundsState = fundsState,
             onReassign = viewModel::reassign,
             onArchive = viewModel::archive,
             onEdit = { state.goal?.id?.let { navController.navigate("goals/$it/edit") } },
@@ -116,11 +123,14 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
                 if (event == GoalContributionEvent.Saved) navController.popBackStack()
             }
         }
+        val detailViewModel: GoalDetailViewModel = hiltViewModel()
+        val withdrawalState by detailViewModel.state.collectAsStateWithLifecycle()
         GoalContributionSheet(
             state = state,
             onNavigateBack = { navController.popBackStack() },
             onReserve = viewModel::reserve,
-            onWithdraw = { state.goal?.id?.let { navController.navigate("goals/$it?withdraw=true") } },
+            withdrawalState = withdrawalState,
+            onRelease = detailViewModel::release,
         )
     }
 }

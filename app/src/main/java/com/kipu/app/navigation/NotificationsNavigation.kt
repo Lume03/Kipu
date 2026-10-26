@@ -42,6 +42,7 @@ fun NavGraphBuilder.notificationDestinations(navController: NavController) {
             onMarkAllRead = viewModel::markAllRead,
             onMarkRead = viewModel::markRead,
             onDismiss = viewModel::dismiss,
+            onDismissRead = viewModel::dismissRead,
             onOpenNotification = viewModel::openNotification,
             onNavigateBack = { navController.popBackStack() },
             snackbarHostState = snackbarHostState,

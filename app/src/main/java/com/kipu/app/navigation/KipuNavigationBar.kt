@@ -30,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -232,17 +234,19 @@ private fun KipuRootNavigationItem(
             )
         }
         run {
-            Text(
+            // One line that shrinks instead of clipping or splitting a word with large system text.
+            BasicText(
                 text = label,
-                color = contentColor,
-                textAlign = TextAlign.Center,
-                maxLines = if (largeText) 2 else 1,
-                softWrap = largeText,
+                color = { contentColor },
+                maxLines = 1,
+                softWrap = false,
+                autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 10.sp),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
                 ),
-                modifier = Modifier.testTag("nav_label_${tag.removePrefix("nav_item_")}"),
+                modifier = Modifier.fillMaxWidth().testTag("nav_label_${tag.removePrefix("nav_item_")}"),
             )
         }
     }

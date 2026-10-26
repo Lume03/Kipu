@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Flag
@@ -297,13 +299,18 @@ fun PlanningSegmentedTabs(
                         Icon(tab.icon(), contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                     }
-                    Text(
+                    // Labels are single words: shrink to fit rather than breaking "Presupuestos" mid-word.
+                    BasicText(
                         tab.label,
-                        color = contentColor,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                        maxLines = if (largeText) 2 else 1,
+                        color = { contentColor },
+                        maxLines = 1,
+                        softWrap = false,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                        ),
                     )
                 }
             }
