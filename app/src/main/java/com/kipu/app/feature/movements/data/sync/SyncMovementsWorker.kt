@@ -507,7 +507,6 @@ class SyncMovementsWorker @AssistedInject constructor(
         revision: Long,
     ): Boolean {
         val existingEntries = movementDao.getLedgerEntriesForTransaction(userId, remote.id)
-        val existingIds = existingEntries.map { it.id }.toSet()
 
         // A remote void carries ledger_effects instead of ledger_entries: neutralize what is still
         // net on each account, like a local void does. Deterministic ids keep it idempotent.
@@ -548,44 +547,24 @@ class SyncMovementsWorker @AssistedInject constructor(
             return true
         }
 
-        if (remote.operationKind in setOf("DEBT_DISBURSEMENT", "DEBT_PAYMENT", "DEBT_AMORTIZATION", "GOAL_FUNDING")) {
-            // Offline debt/goal entries and server entries can have different UUIDs for the
-            // same financial effect. Reconcile the authoritative net; never post it twice.
-            if (remote.ledgerEntries.isEmpty()) return false
-            val before = existingEntries.groupBy { it.accountId to it.currencyCode }
-                .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
-            val after = remote.ledgerEntries.groupBy { it.accountId to it.currencyCode }
-                .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
-            val corrections = (before.keys + after.keys).mapNotNull { (accountId, currency) ->
-                val delta = Math.subtractExact(after[accountId to currency] ?: 0L, before[accountId to currency] ?: 0L)
-                if (delta == 0L) return@mapNotNull null
-                val role = remote.ledgerEntries.firstOrNull { it.accountId == accountId }?.role
-                    ?: existingEntries.first { it.accountId == accountId }.role
-                LedgerEntryEntity(id = "remote:planning:$revision:${remote.id}:$accountId:$currency", userId = userId,
-                    transactionId = remote.id, accountId = accountId, role = role, signedAmountMinor = delta,
-                    currencyCode = currency, createdAt = occurredAt)
-            }
-            if (corrections.isNotEmpty()) movementDao.insertPulledLedgerEntries(corrections)
-            return true
+        // Offline entries and server entries carry different UUIDs for the same financial effect
+        // (the server also names them PRIMARY). The feed lists every entry of the movement, so
+        // reconcile the authoritative net per account; never post an effect twice.
+        if (remote.ledgerEntries.isEmpty()) return false
+        val before = existingEntries.groupBy { it.accountId to it.currencyCode }
+            .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
+        val after = remote.ledgerEntries.groupBy { it.accountId to it.currencyCode }
+            .mapValues { (_, entries) -> entries.sumOf { it.signedAmountMinor } }
+        val corrections = (before.keys + after.keys).mapNotNull { (accountId, currency) ->
+            val delta = Math.subtractExact(after[accountId to currency] ?: 0L, before[accountId to currency] ?: 0L)
+            if (delta == 0L) return@mapNotNull null
+            val role = remote.ledgerEntries.firstOrNull { it.accountId == accountId }?.role
+                ?: existingEntries.first { it.accountId == accountId }.role
+            LedgerEntryEntity(id = "remote:net:$revision:${remote.id}:$accountId:$currency:$delta", userId = userId,
+                transactionId = remote.id, accountId = accountId, role = role, signedAmountMinor = delta,
+                currencyCode = currency, createdAt = occurredAt)
         }
-
-        val newEntries = remote.ledgerEntries.filter { entry ->
-            entry.id == null || !existingIds.contains(entry.id)
-        }
-        if (newEntries.isNotEmpty()) {
-            movementDao.insertPulledLedgerEntries(newEntries.mapIndexed { index, entry ->
-                LedgerEntryEntity(
-                    id = entry.id ?: "remote:${remote.id}:ledger:revised:${System.currentTimeMillis()}:$index",
-                    userId = userId,
-                    transactionId = remote.id,
-                    accountId = entry.accountId,
-                    role = entry.role,
-                    signedAmountMinor = entry.signedAmountMinor,
-                    currencyCode = entry.currencyCode,
-                    createdAt = entry.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() } ?: occurredAt,
-                )
-            })
-        }
+        if (corrections.isNotEmpty()) movementDao.insertPulledLedgerEntries(corrections)
         return true
     }
 
