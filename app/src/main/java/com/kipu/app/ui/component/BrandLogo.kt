@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.R
+import com.kipu.app.feature.accounts.presentation.components.CardArtCatalog
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.text.Normalizer
 import java.util.Locale
@@ -140,37 +142,10 @@ internal fun fallbackInitials(name: String): String {
     }
 }
 
-/** Card artwork published by the issuer, keyed by [com.kipu.app.feature.accounts.presentation.components.CardStylePreset.id]. */
-object CardArtwork {
-    private val byPresetId = mapOf(
-        "bcp-amex-latam-black" to R.drawable.img_card_bcp_amex_latam_black,
-        "bcp-amex-latam-classic" to R.drawable.img_card_bcp_amex_latam_classic,
-        "bcp-amex-latam-gold" to R.drawable.img_card_bcp_amex_latam_gold,
-        "bcp-amex-latam-platinum" to R.drawable.img_card_bcp_amex_latam_platinum,
-        "bcp-visa-classic" to R.drawable.img_card_bcp_visa_classic,
-        "bcp-visa-latam-classic" to R.drawable.img_card_bcp_visa_latam_classic,
-        "bcp-visa-qore-classic" to R.drawable.img_card_bcp_visa_qore_classic,
-        "bcp-visa-latam-iridium" to R.drawable.img_card_bcp_visa_latam_iridium,
-        "bcp-visa-qore-infinite" to R.drawable.img_card_bcp_visa_qore_infinite,
-        "bcp-visa-latam-sapphire" to R.drawable.img_card_bcp_visa_latam_sapphire,
-        "bcp-visa-light" to R.drawable.img_card_bcp_visa_light,
-        "bcp-visa-latam-gold" to R.drawable.img_card_bcp_visa_latam_gold,
-        "bcp-visa-qore-gold" to R.drawable.img_card_bcp_visa_qore_gold,
-        "bcp-visa-latam-platinum" to R.drawable.img_card_bcp_visa_latam_platinum,
-        "bcp-visa-qore-platinum" to R.drawable.img_card_bcp_visa_qore_platinum,
-        "bcp-visa-latam-signature" to R.drawable.img_card_bcp_visa_latam_signature,
-        "bcp-visa-qore-signature" to R.drawable.img_card_bcp_visa_qore_signature,
-    )
-
-    @DrawableRes
-    fun forPreset(presetId: String?): Int? = presetId?.let(byPresetId::get)
-
-    val presetIds: Set<String> get() = byPresetId.keys
-}
-
 /**
- * Card thumbnail: the issuer's artwork when bundled, otherwise a gradient tile in the preset
- * colors with the tier label, so every card in a list keeps the same shape.
+ * Card thumbnail: the vector card art of the catalog ([CardArtCatalog], front side, no digits) when the
+ * preset has one, otherwise a gradient tile in the preset colors with the tier label, so every card in
+ * a list keeps the same shape.
  */
 @Composable
 fun CardArtThumbnail(
@@ -188,11 +163,11 @@ fun CardArtThumbnail(
     } else {
         Modifier
     }
-    val art = CardArtwork.forPreset(presetId)
-    val base = modifier.width(width).aspectRatio(1.586f).clip(shape).then(semantics)
+    val art = remember(presetId) { CardArtCatalog.forPreset(presetId) }
+    val base = modifier.width(width).aspectRatio(art?.aspectRatio ?: 1.586f).clip(shape).then(semantics)
     if (art != null) {
         Image(
-            painter = painterResource(art),
+            painter = painterResource(art.front),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = base,

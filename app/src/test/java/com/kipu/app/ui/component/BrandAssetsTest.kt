@@ -43,18 +43,6 @@ class BrandAssetsTest {
     }
 
     @Test
-    fun cardArtworkOnlyCoversExistingBcpPresets() {
-        assertEquals(17, CardArtwork.presetIds.size)
-        CardArtwork.presetIds.forEach { id ->
-            val preset = CardStylePresets.byId(id)
-            assertNotNull(id, preset)
-            assertEquals("BCP", preset!!.institutionCode)
-        }
-        assertNull(CardArtwork.forPreset("bcp-visa-io"))
-        assertNull(CardArtwork.forPreset(null))
-    }
-
-    @Test
     fun usageLevelsFollowThe50_80_100Scale() {
         assertEquals(UsageLevel.NORMAL, UsageLevel.forPercent(49.9))
         assertEquals(UsageLevel.ATTENTION, UsageLevel.forPercent(50.0))

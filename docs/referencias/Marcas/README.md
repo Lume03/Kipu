@@ -13,8 +13,8 @@ Estado: **solo referencia visual**. Son marcas y diseños de sus respectivos tit
 Copias optimizadas en `app/src/main/res/drawable-nodpi/` (WebP, sin dependencia de red):
 
 - `ic_brand_*` (≤ 192 px): BCP, BBVA, Interbank, Scotiabank, Banco de la Nación, BanBif, Banco Falabella, Cencosud, Banco Ripley, Yape y Plin.
-- `img_card_bcp_*` (≤ 480 px): las 17 artes de `Tarjetas-BCP/`, enlazadas a los `CardStylePresets` de BCP. Visa iO no tiene arte.
+- Las miniaturas de tarjeta ya **no** usan WebP: se dibujan con los vectores propios de `docs/design/cards/` (`CardArtCatalog`). `Tarjetas-BCP/` queda solo como referencia con la que se midió ese arte (los `img_card_bcp_*.webp` se eliminaron).
 
-Mapa y respaldo: `com.kipu.app.ui.component.BrandLogo` (`KipuBrand`, iniciales + color de marca cuando no hay imagen) y `CardArtwork` / `CardArtThumbnail` (degradado del preset + nivel cuando no hay arte).
+Mapa y respaldo: `com.kipu.app.ui.component.BrandLogo` (`KipuBrand`, iniciales + color de marca cuando no hay imagen) y `CardArtThumbnail` (vector del catálogo `CardArtCatalog`; degradado del preset + nivel cuando no hay arte).
 
-**Pendiente legal:** son marcas de terceros. Antes de publicar una versión con estos recursos hay que confirmar el permiso de uso o el kit de marca de cada titular; si no se obtiene, basta con eliminar los WebP y la app usará el respaldo.
+**Pendiente legal:** son marcas de terceros. Antes de publicar una versión con estos recursos hay que confirmar el permiso de uso o el kit de marca de cada titular; si no se obtiene, basta con eliminar los WebP de logos y la app usará el respaldo.
