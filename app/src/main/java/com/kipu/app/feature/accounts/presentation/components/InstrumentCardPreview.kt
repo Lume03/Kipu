@@ -75,6 +75,7 @@ fun InstrumentCardPreview(
     var size by remember { mutableStateOf(IntSize.Zero) }
     var glarePosition by remember { mutableStateOf(Offset(0.5f, 0.5f)) }
     val shape = RoundedCornerShape(16.dp)
+    val art = remember(stylePreset?.id) { CardArtCatalog.forPreset(stylePreset?.id) }
     val cardForeground = stylePreset?.textColor ?: foregroundColor
     val cardBrush = stylePreset?.gradientBrush ?: Brush.linearGradient(listOf(backgroundColor, backgroundColor))
     LaunchedEffect(reducedMotion) {
@@ -86,6 +87,7 @@ fun InstrumentCardPreview(
     }
     val accessibleDescription = buildString {
         append("Vista previa de instrumento. ")
+        if (art != null) append("${art.productName}. ")
         append(title.ifBlank { "Mi instrumento" })
         append(". $instrumentType. $subtitle.")
         if (showCardHardware) append(" Chip EMV y pago sin contacto.")
@@ -152,6 +154,9 @@ fun InstrumentCardPreview(
                 .testTag("instrument_card_preview")
                 .semantics(mergeDescendants = true) { contentDescription = accessibleDescription },
         ) {
+            if (art != null) {
+                CardArtFace(art = art, back = false, lastFourDigits = lastFourDigits?.takeIf { Card.isValidLastFourDigits(it) })
+            } else {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -265,6 +270,7 @@ fun InstrumentCardPreview(
                         }
                     }
                 }
+            }
             }
         }
     }

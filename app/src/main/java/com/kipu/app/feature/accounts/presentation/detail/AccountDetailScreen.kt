@@ -136,6 +136,8 @@ import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
 import com.kipu.app.feature.accounts.domain.usecase.SimulateInstallments
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
+import com.kipu.app.feature.accounts.presentation.components.CardArtCatalog
+import com.kipu.app.feature.accounts.presentation.components.CardArtFace
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
 import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorScreen
@@ -1282,7 +1284,7 @@ private fun displayCreditLimit(card: CreditCard): String =
     if (LocalBalanceMasked.current) "••••" else formatMinorUnits(card.creditLimitMinorUnits)
 
 @Composable
-private fun Kibo3DCreditCard(
+internal fun Kibo3DCreditCard(
     card: CreditCard,
     modifier: Modifier = Modifier,
 ) {
@@ -1320,7 +1322,8 @@ private fun Kibo3DCreditCard(
     } else {
         card.network.name
     }
-    val shape = RoundedCornerShape(16.dp)
+    val art = remember(stylePreset.id) { CardArtCatalog.forPreset(stylePreset.id) }
+    val shape = RoundedCornerShape(if (art != null) 14.dp else 16.dp)
 
     val accessibleDescription = if (!isFlipped) {
         "Tarjeta de crédito ${card.alias ?: card.issuer} ${card.network}, últimos dígitos ${card.lastFourDigits}, ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} ${card.currency.name} ${displayCreditLimit(card)}. Toca para ver el reverso financiero."
@@ -1339,7 +1342,7 @@ private fun Kibo3DCreditCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(204.dp)
+                .then(if (art != null) Modifier else Modifier.height(204.dp))
                 .graphicsLayer {
                     this.rotationY = rotation
                     this.cameraDistance = 12f * density
@@ -1350,6 +1353,20 @@ private fun Kibo3DCreditCard(
                     contentDescription = accessibleDescription
                 },
         ) {
+            if (art != null) {
+                if (rotation <= 90f) {
+                    CardArtFace(art = art, back = false, lastFourDigits = card.lastFourDigits)
+                } else {
+                    Box(Modifier.graphicsLayer { rotationY = 180f }) {
+                        CardArtFace(
+                            art = art,
+                            back = true,
+                            lastFourDigits = card.lastFourDigits,
+                            backInfo = { CardArtBillingCycleInfo(card = card) },
+                        )
+                    }
+                }
+            } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1391,6 +1408,7 @@ private fun Kibo3DCreditCard(
                     }
                 }
             }
+            }
         }
 
         // Toca la tarjeta para voltear
@@ -1412,6 +1430,47 @@ private fun Kibo3DCreditCard(
                 text = if (isFlipped) "Toca la tarjeta para ver el frente" else "Toca la tarjeta para voltear",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Billing-cycle info drawn over the illustrated reverse; the plastic itself stays free of financial data. */
+@Composable
+private fun CardArtBillingCycleInfo(card: CreditCard) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.38f),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = "CICLO DE FACTURACIÓN",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFFBBF24),
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = "Día de corte: Día ${card.billingDay} de cada mes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.92f),
+                )
+                Text(
+                    text = "Pago: Día ${card.dueDay}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White.copy(alpha = 0.92f),
+                )
+            }
+            Text(
+                text = "Ajuste automático al último día en meses cortos.",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.7f),
             )
         }
     }
