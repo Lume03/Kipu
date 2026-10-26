@@ -15,4 +15,16 @@ class MovementAvatarPolicyTest {
 
         assertEquals(MovementAvatarPresentation.CATEGORY_ICON, presentation)
     }
+
+    @Test
+    fun walletLogoWinsOverCategoryButNotOverMerchantLogo() {
+        assertEquals(
+            MovementAvatarPresentation.WALLET_LOGO,
+            movementAvatarPresentation(true, "Edy Hua*", false, "restaurant", paidWithWallet = true),
+        )
+        assertEquals(
+            MovementAvatarPresentation.MERCHANT_AVATAR,
+            movementAvatarPresentation(true, "Wong", true, "restaurant", paidWithWallet = true),
+        )
+    }
 }

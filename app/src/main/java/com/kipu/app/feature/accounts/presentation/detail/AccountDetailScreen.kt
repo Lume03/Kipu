@@ -2941,6 +2941,8 @@ private fun CreditCardMovementRow(
                         size = 42.dp,
                         iconSize = 22.dp,
                     )
+                    // Card movements never carry a wallet channel here.
+                    MovementAvatarPresentation.WALLET_LOGO,
                     MovementAvatarPresentation.TYPE_ICON -> Icon(
                         imageVector = icon,
                         contentDescription = null,

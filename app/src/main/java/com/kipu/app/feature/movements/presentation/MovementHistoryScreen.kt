@@ -1253,6 +1253,7 @@ private fun formatSignedBigIntegerMinor(minor: BigInteger): Pair<String, String>
 }
 
 private val merchantLogoCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+private val movementAvatarShape = RoundedCornerShape(14.dp)
 
 @Composable
 fun TransactionIconAvatar(
@@ -1263,9 +1264,9 @@ fun TransactionIconAvatar(
     modifier: Modifier = Modifier,
 ) {
     val tx = item.transaction
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
-    val drawableId = androidx.compose.runtime.remember(item.merchantLogoKey) {
+    val drawableId = remember(item.merchantLogoKey) {
         val key = item.merchantLogoKey
         if (key != null) {
             merchantLogoCache.getOrPut(key) {
@@ -1277,11 +1278,17 @@ fun TransactionIconAvatar(
 
     val remoteLogoUrl = item.merchantLogoUrl
     val categoryIcon = item.categoryIcon?.takeIf(String::isNotBlank)
+    val walletBrand = when (tx.paymentChannel) {
+        WalletPaymentChannel.YAPE.name -> KipuBrand.YAPE
+        WalletPaymentChannel.PLIN.name -> KipuBrand.PLIN
+        else -> null
+    }
     val avatarPresentation = movementAvatarPresentation(
-        merchantAvatarAllowed = !isVoided,
+        merchantAvatarAllowed = !isVoided && tx.type != MovementType.TRANSFER,
         merchantName = item.merchantName,
         hasUsableMerchantLogo = drawableId != 0 || remoteLogoUrl != null,
-        categoryIcon = categoryIcon,
+        categoryIcon = categoryIcon.takeIf { tx.type != MovementType.TRANSFER },
+        paidWithWallet = walletBrand != null,
     )
 
     when (avatarPresentation) {
@@ -1292,7 +1299,7 @@ fun TransactionIconAvatar(
                 item.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
                 item.merchantBrandColor,
             ),
-            size = 40.dp,
+            size = 44.dp,
             modifier = modifier,
             fallbackContent = categoryIcon?.let { iconKey ->
                 {
@@ -1300,48 +1307,55 @@ fun TransactionIconAvatar(
                         iconKey = iconKey,
                         background = iconBg,
                         tint = iconTint,
-                        shape = CircleShape,
-                        size = 40.dp,
-                        iconSize = 20.dp,
+                        shape = movementAvatarShape,
+                        size = 44.dp,
+                        iconSize = 22.dp,
                     )
                 }
             },
+        )
+        MovementAvatarPresentation.WALLET_LOGO -> BrandLogo(
+            brand = walletBrand,
+            fallbackName = walletBrand?.displayName.orEmpty(),
+            contentDescription = null,
+            size = 44.dp,
+            modifier = modifier,
         )
         MovementAvatarPresentation.MERCHANT_INITIALS -> MerchantAvatar(
             drawableId = 0,
             remoteLogoUrl = null,
             profile = getMerchantVisualProfile(item.merchantName.orEmpty(), item.merchantBrandColor),
-            size = 40.dp,
+            size = 44.dp,
             modifier = modifier,
         )
         MovementAvatarPresentation.CATEGORY_ICON -> MovementCategoryIconAvatar(
             iconKey = categoryIcon.orEmpty(),
             background = iconBg,
             tint = iconTint,
-            shape = CircleShape,
-            size = 40.dp,
-            iconSize = 20.dp,
+            shape = movementAvatarShape,
+            size = 44.dp,
+            iconSize = 22.dp,
             modifier = modifier,
         )
         MovementAvatarPresentation.TYPE_ICON -> {
             val fallbackIcon = when (tx.type) {
-                MovementType.INCOME -> androidx.compose.material.icons.Icons.Rounded.Check
-                MovementType.EXPENSE -> androidx.compose.material.icons.Icons.Rounded.Close
-                MovementType.TRANSFER -> androidx.compose.material.icons.Icons.Rounded.Sync
+                MovementType.INCOME -> Icons.Rounded.SouthWest
+                MovementType.EXPENSE -> Icons.Rounded.NorthEast
+                MovementType.TRANSFER -> Icons.Rounded.SwapHoriz
             }
-            Surface(
-                shape = CircleShape,
-                color = iconBg,
-                modifier = modifier.size(40.dp),
+            Box(
+                modifier = modifier
+                    .size(44.dp)
+                    .clip(movementAvatarShape)
+                    .background(iconBg),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = fallbackIcon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                Icon(
+                    imageVector = fallbackIcon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
     }
