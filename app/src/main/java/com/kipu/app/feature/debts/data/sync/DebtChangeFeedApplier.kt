@@ -103,6 +103,7 @@ class DebtChangeFeedApplier @Inject constructor(
 
         val existing = debtDao.getDebtIncludingDeleted(userId, remote.id)
         if (existing != null && remote.revision < existing.revision) {
+            if (existing.syncState == "SYNCED") return
             throw StaleDebtRevision(remote.id, existing.revision, remote.revision)
         }
         val entity = DebtEntity(
@@ -221,6 +222,7 @@ class DebtChangeFeedApplier @Inject constructor(
             ?: throw InvalidDebtChangePage("INVALID_DEBT_INSTALLMENT_DATE")
         val existing = debtDao.getInstallment(userId, remote.debtId, remote.id)
         if (existing != null && change.revision < existing.revision) {
+            if (debtDao.getDebtIncludingDeleted(userId, remote.debtId)?.syncState == "SYNCED") return
             throw StaleDebtRevision(remote.debtId, existing.revision, change.revision)
         }
         val installment = DebtInstallmentEntity(
@@ -236,7 +238,8 @@ class DebtChangeFeedApplier @Inject constructor(
             createdAt = remote.createdAt?.let(::parseInstantMillis) ?: existing?.createdAt ?: clock.millis(),
             updatedAt = remote.updatedAt?.let(::parseInstantMillis) ?: clock.millis(),
         )
-        if (existing != null && change.revision == existing.revision && existing != installment) {
+        if (existing != null && change.revision == existing.revision &&
+            existing.copy(createdAt = installment.createdAt, updatedAt = installment.updatedAt) != installment) {
             throw InvalidDebtChangePage("DEBT_INSTALLMENT_REVISION_REUSED")
         }
         debtDao.upsertInstallment(installment)

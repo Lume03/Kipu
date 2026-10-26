@@ -100,6 +100,17 @@ class DebtChangeFeedTest {
     }
 
     @Test
+    fun confirmedNewerRevisionIgnoresOlderSnapshotAndAdvances() = runBlocking {
+        database.debtDao().insertDebt(DebtEntity(id = DEBT_ID, userId = "owner", obligationType = "PAYABLE",
+            counterpartyName = "Confirmed", totalMinor = 5000, currencyCode = "PEN", openedOn = "2026-10-01",
+            revision = 3, syncState = "SYNCED"))
+        val result = applier.applyPage("owner", page(change(1, "DEBT", DEBT_ID, debtPayload(2), revision = 2), nextSequence = 1))
+        assertTrue(result is DebtChangeApplyResult.Applied)
+        assertEquals("Confirmed", database.debtDao().getDebt("owner", DEBT_ID)?.counterpartyName)
+        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
+    }
+
+    @Test
     fun olderRemoteRevisionSurfacesConflictAndPreservesLocalValue() = runBlocking {
         database.debtDao().insertDebt(
             DebtEntity(

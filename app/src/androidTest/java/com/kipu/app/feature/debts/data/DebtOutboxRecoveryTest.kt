@@ -49,6 +49,19 @@ class DebtOutboxRecoveryTest {
         assertEquals(listOf("op-404"), outbox.claimPending("owner", now = 5_000L).map { it.operationId })
     }
 
+    @Test
+    fun pendingChildWaitsForItsDeferredParent() = runBlocking {
+        database.debtDao().insertDebt(debt(MISSING_RPC_DEBT))
+        val outbox = database.debtOutboxDao()
+        outbox.insert(command("parent", MISSING_RPC_DEBT, "HTTP_404").copy(state = "RETRY", nextAttemptAt = 5000))
+        outbox.insert(command("child", MISSING_RPC_DEBT, "").copy(state = "PENDING", createdAt = 2))
+        assertEquals(emptyList<String>(), outbox.claimPending("owner", 1000).map { it.operationId })
+        assertEquals(1, outbox.requeueMissingEndpoint("owner", 1000))
+        assertEquals(listOf("parent"), outbox.claimPending("owner", 1000).map { it.operationId })
+        outbox.updateResult("owner", "parent", "SYNCED", 0, null, null, 1001)
+        assertEquals(listOf("child"), outbox.claimPending("owner", 1001).map { it.operationId })
+    }
+
     private fun debt(id: String) = DebtEntity(
         id = id,
         userId = "owner",

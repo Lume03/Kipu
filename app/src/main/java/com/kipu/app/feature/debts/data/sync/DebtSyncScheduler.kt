@@ -94,6 +94,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         }
 
         if (!pullChanges(targetOwner)) needsRetry = true
+        if (outboxDao.countPending(targetOwner) > 0) needsRetry = true
         reminderReconciler.reconcile(targetOwner)
         return if (needsRetry) Result.retry() else Result.success()
     }
@@ -172,7 +173,9 @@ class SyncDebtChangesWorker @AssistedInject constructor(
                 "FAILED_PERMANENT" -> "FAILED"
                 else -> "PENDING"
             }
-            if (remoteRevision != null) {
+            if (state == "SYNCED" && outboxDao.countPendingForDebt(command.userId, command.debtId) > 0) {
+                debtDao.updateSyncState(command.userId, command.debtId, "PENDING")
+            } else if (remoteRevision != null) {
                 debtDao.updateRemoteRevision(command.userId, command.debtId, remoteRevision, debtSyncState)
             } else {
                 debtDao.updateSyncState(command.userId, command.debtId, debtSyncState)

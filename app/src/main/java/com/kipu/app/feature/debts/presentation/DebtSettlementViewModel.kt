@@ -167,7 +167,7 @@ class DebtSettlementViewModel @Inject constructor(
             _state.update { it.copy(errorMessage = "Elige una cuenta activa en ${debt.currencyCode}.") }
             return
         }
-        val categoryId = current.selectedInterestCategoryId
+        val categoryId = current.selectedInterestCategoryId.takeIf { interest > 0L }
         if (interest > 0L && debt.obligationType == DebtObligationType.PAYABLE && categoryId == null) {
             _state.update { it.copy(errorMessage = "Elige la categoría del interés para registrar el gasto.") }
             return

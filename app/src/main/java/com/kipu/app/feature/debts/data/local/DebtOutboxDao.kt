@@ -11,7 +11,7 @@ interface DebtOutboxDao {
     @Query("SELECT * FROM debt_command_outbox WHERE user_id = :userId AND operation_id = :operationId LIMIT 1")
     suspend fun get(userId: String, operationId: String): DebtOutboxEntity?
 
-    @Query("SELECT * FROM debt_command_outbox WHERE user_id = :userId AND (state IN ('PENDING','RETRY') OR (state='IN_FLIGHT' AND lease_until <= :now)) AND (next_attempt_at IS NULL OR next_attempt_at <= :now) AND (lease_until IS NULL OR lease_until <= :now) ORDER BY created_at ASC, operation_id ASC LIMIT :limit")
+    @Query("SELECT c.* FROM debt_command_outbox c WHERE user_id = :userId AND (state IN ('PENDING','RETRY') OR (state='IN_FLIGHT' AND lease_until <= :now)) AND (next_attempt_at IS NULL OR next_attempt_at <= :now) AND (lease_until IS NULL OR lease_until <= :now) AND NOT EXISTS (SELECT 1 FROM debt_command_outbox prior WHERE prior.user_id=c.user_id AND prior.debt_id=c.debt_id AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND prior.operation_id<c.operation_id)) AND prior.state <> 'SYNCED') ORDER BY created_at ASC, operation_id ASC LIMIT :limit")
     suspend fun getClaimable(userId: String, now: Long, limit: Int): List<DebtOutboxEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -27,7 +27,7 @@ interface DebtOutboxDao {
      * A missing debt RPC answers 404 until its migration is deployed. Older builds parked those
      * commands as permanent failures; put them back in the queue so they replay once it exists.
      */
-    @Query("UPDATE debt_command_outbox SET state = 'RETRY', next_attempt_at = :now, lease_until = NULL, updated_at = :now WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND last_error_code = 'HTTP_404'")
+    @Query("UPDATE debt_command_outbox SET state = 'RETRY', next_attempt_at = :now, lease_until = NULL, updated_at = :now WHERE user_id = :userId AND last_error_code = 'HTTP_404' AND (state = 'FAILED_PERMANENT' OR (state = 'RETRY' AND next_attempt_at > :now))")
     suspend fun requeueMissingEndpointFailures(userId: String, now: Long): Int
 
     @Query("UPDATE debts SET sync_state = 'PENDING' WHERE user_id = :userId AND sync_state = 'FAILED' AND id IN (SELECT debt_id FROM debt_command_outbox WHERE user_id = :userId AND state = 'RETRY' AND last_error_code = 'HTTP_404')")
@@ -82,4 +82,7 @@ interface DebtOutboxDao {
 
     @Query("SELECT COUNT(*) FROM debt_command_outbox WHERE user_id = :userId AND state IN ('PENDING','IN_FLIGHT','RETRY')")
     suspend fun countPending(userId: String): Int
+
+    @Query("SELECT COUNT(*) FROM debt_command_outbox WHERE user_id=:userId AND debt_id=:debtId AND state IN ('PENDING','IN_FLIGHT','RETRY')")
+    suspend fun countPendingForDebt(userId: String, debtId: String): Int
 }
