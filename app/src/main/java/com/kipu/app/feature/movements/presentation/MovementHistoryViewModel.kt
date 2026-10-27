@@ -156,6 +156,8 @@ class MovementHistoryViewModel @Inject constructor(
     private val syncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler? = null,
 ) : ViewModel() {
 
+    val remoteSession = sessionCoordinator.remoteSession
+
     private val _searchQuery = MutableStateFlow("")
     private val _selectedFilterType = MutableStateFlow<MovementType?>(null)
     private val _showRegisterSheet = MutableStateFlow(false)

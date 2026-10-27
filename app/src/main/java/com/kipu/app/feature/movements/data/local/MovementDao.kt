@@ -31,6 +31,20 @@ interface MovementDao {
     """)
     suspend fun recoverAuthRejectedOutbox(userId: String, now: Long): Int
 
+    /** A renewed session makes the old authentication backoff obsolete. Active leases stay untouched. */
+    @Query("""
+        UPDATE movement_outbox SET next_attempt_at = NULL, last_error_code = NULL, updated_at = :now
+        WHERE user_id = :userId AND state = 'RETRY' AND last_error_code IN ('HTTP_401', 'HTTP_403')
+            AND (lease_until IS NULL OR lease_until <= :now)
+    """)
+    suspend fun clearAuthRetryBackoff(userId: String, now: Long): Int
+
+    @Query("""
+        SELECT EXISTS(SELECT 1 FROM movement_outbox
+            WHERE user_id = :userId AND state IN ('PENDING', 'RETRY', 'IN_FLIGHT'))
+    """)
+    suspend fun hasUnfinishedOutbox(userId: String): Boolean
+
     @Query("""
         UPDATE transactions SET sync_status = 'PENDING'
         WHERE user_id = :userId AND sync_status = 'FAILED_PERMANENT'

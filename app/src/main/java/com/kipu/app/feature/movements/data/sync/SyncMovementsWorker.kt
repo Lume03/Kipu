@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.local.AccountEntity
@@ -132,6 +133,12 @@ class SyncMovementsWorker @AssistedInject constructor(
             movementDao.markOutboxTransactionsPending(targetUserId)
         }
 
+        val remoteSession = sessionCoordinator.remoteSession.value
+        if (remoteSession is RemoteSession.Valid && remoteSession.userId == targetUserId &&
+            remoteSession.expiresAt.isAfter(Instant.now())) {
+            movementDao.clearAuthRetryBackoff(targetUserId, System.currentTimeMillis())
+        }
+
         var anyFailed = false
         // Lease immediately before each network call, rather than leasing a waiting batch.
         for (index in 0 until 10) {
@@ -149,7 +156,8 @@ class SyncMovementsWorker @AssistedInject constructor(
             recovery.edit().putBoolean(ledgerRepairKey, true).apply()
         }
 
-        return if (anyFailed) Result.retry() else Result.success()
+        // Delayed retries, an unexpired lease or the batch limit must keep the worker scheduled.
+        return if (anyFailed || movementDao.hasUnfinishedOutbox(targetUserId)) Result.retry() else Result.success()
     }
 
     private suspend fun pullChanges(userId: String): Boolean {

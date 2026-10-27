@@ -153,8 +153,11 @@ fun MovementHistoryRoute(
     openRegisterMovement: Boolean = false,
     onConsumeRegisterMovement: () -> Unit = {},
     onDetailDismissed: (() -> Unit)? = null,
+    onReauthenticate: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val remoteSession by viewModel.remoteSession.collectAsStateWithLifecycle()
+    val needsReauthentication = remoteSession is com.kipu.app.core.session.RemoteSession.ReauthenticationRequired
     val recurrenceState by recurrenceViewModel?.state?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf(RecurrencePresentationState()) }
     val voidBalances by viewModel.voidBalanceState.collectAsStateWithLifecycle()
@@ -410,7 +413,9 @@ fun MovementHistoryRoute(
                     }
 
                     // Solo sin red se avisa; con red la sincronización es inmediata y no deja aviso fijo.
-                    if (offline && pendingSyncCount > 0) {
+                    if (needsReauthentication && pendingSyncCount > 0) {
+                        MovementReauthenticationBanner(onReauthenticate)
+                    } else if (offline && pendingSyncCount > 0) {
                         KipuOfflineBanner(
                             message = if (pendingSyncCount == 1) {
                                 "1 movimiento pendiente de sincronizar; tus saldos ya están actualizados."
@@ -519,7 +524,7 @@ fun MovementHistoryRoute(
                         ) { item ->
                             TransactionRow(
                                 item = item,
-                                offline = offline,
+                                offline = offline || needsReauthentication,
                                 onClick = { viewModel.onOpenDetail(item) },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1291,3 +1296,17 @@ private fun movementReceiptPreferenceKey(item: TransactionItem): String =
 /** El campo local va un paso por delante del ViewModel mientras se escribe; solo se resincroniza ante cambios externos. */
 private fun isTypingSearch(field: androidx.compose.ui.text.input.TextFieldValue, published: String): Boolean =
     field.text.startsWith(published) || published.startsWith(field.text)
+
+@Composable
+internal fun MovementReauthenticationBanner(onReauthenticate: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().testTag("banner_sync_reauthentication")) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Vuelve a iniciar sesi\u00f3n para sincronizar", style = MaterialTheme.typography.titleSmall)
+            Text("Tus movimientos est\u00e1n guardados en este tel\u00e9fono. Reconecta tu misma cuenta para enviarlos.",
+                style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = onReauthenticate, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("Reconectar cuenta")
+            }
+        }
+    }
+}

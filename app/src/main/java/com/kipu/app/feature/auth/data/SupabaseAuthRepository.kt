@@ -1,6 +1,8 @@
 package com.kipu.app.feature.auth.data
 
 import com.kipu.app.core.logging.SecureLog
+import com.kipu.app.core.network.requiresReauthentication
+import kotlinx.coroutines.CancellationException
 import com.kipu.app.core.security.KeystoreEncryptedSessionStorage
 import com.kipu.app.core.security.StoredAuthSession
 import com.kipu.app.core.session.PendingChangesRepository
@@ -195,7 +197,15 @@ class SupabaseAuthRepository @Inject constructor(
                 }
             }
 
-            val refreshed = runCatching { supabaseClient.auth.refreshSession(stored.refreshToken) }.getOrNull()
+            var refreshError: Exception? = null
+            val refreshed = try {
+                supabaseClient.auth.refreshSession(stored.refreshToken)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                refreshError = error
+                null
+            }
             if (refreshed != null && refreshed.user?.id != userId) {
                 sessionCoordinator.clearActiveOwner(explicit = false)
                 sessionCoordinator.updateRemoteSession(RemoteSession.ReauthenticationRequired(userId))
@@ -208,7 +218,10 @@ class SupabaseAuthRepository @Inject constructor(
                 sessionStorage.save(StoredAuthSession.encode(updated))
                 sessionCoordinator.updateRemoteSession(RemoteSession.Valid(userId, now.plusSeconds(updated.expiresIn)))
             } else {
-                sessionCoordinator.updateRemoteSession(RemoteSession.RefreshRequired(userId))
+                sessionCoordinator.updateRemoteSession(
+                    if (refreshError?.let(::requiresReauthentication) == true) RemoteSession.ReauthenticationRequired(userId)
+                    else RemoteSession.RefreshRequired(userId)
+                )
             }
             Result.success(AuthResult.Success(userId))
         } catch (e: Exception) {

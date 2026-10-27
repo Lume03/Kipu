@@ -112,6 +112,7 @@ internal fun MovementHistoryContent(navController: NavController, historyEntry: 
             savedMessage = saved,
             onSavedMessageConsumed = { historyEntry.savedStateHandle["movement_saved"] = false },
             onNavigateToSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
+            onReauthenticate = { navController.navigate(AUTH_LOGIN_ROUTE) { launchSingleTop = true } },
             onNavigateToNewAccount = { navController.navigateToAccountForm() },
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
             onToggleMasked = hiltViewModel<SettingsViewModel>()::toggleHideBalances,

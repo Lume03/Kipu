@@ -717,6 +717,44 @@ class SyncMovementsWorkerTest {
         assertTrue(editResult is MovementMutationResult.Conflict || editResult is MovementMutationResult.Rejected)
     }
 
+    @Test
+    fun renewedSessionSendsCommandsWaitingOnOldAuthBackoff() = runTest {
+        val command = seedPendingIncome()
+        movementDao.updateOutboxResult(userId, command.id, "RETRY", System.currentTimeMillis() + 300_000L, "HTTP_401")
+        every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
+        coEvery { movementApi.registerTransaction(any()) } returns MovementApiResponse.Success(
+            RegisterTransactionResponseDto(status = "APPLIED"))
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        assertEquals("SYNCED", movementDao.getOutboxById(userId, command.id)?.state)
+        assertEquals("SYNCED", movementDao.getTransactionById(userId, command.aggregateId)?.syncStatus)
+    }
+
+    @Test
+    fun futureNetworkBackoffKeepsWorkerScheduledWithoutSendingEarly() = runTest {
+        val command = seedPendingIncome()
+        val retryAt = System.currentTimeMillis() + 300_000L
+        movementDao.updateOutboxResult(userId, command.id, "RETRY", retryAt, "NETWORK_ERROR")
+        every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
+        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Retry"))
+        assertEquals(retryAt, movementDao.getOutboxById(userId, command.id)?.nextAttemptAt)
+        coVerify(exactly = 0) { movementApi.registerTransaction(any()) }
+    }
+
+    @Test
+    fun authRecoveryDoesNotStealAnActiveLease() = runTest {
+        val command = seedPendingIncome()
+        movementDao.updateOutboxResult(userId, command.id, "RETRY", null, "HTTP_401")
+        val leaseUntil = System.currentTimeMillis() + 60_000L
+        movementDao.setOutboxLease(userId, command.id, "IN_FLIGHT", leaseUntil)
+        assertEquals(0, movementDao.clearAuthRetryBackoff(userId, System.currentTimeMillis()))
+        assertEquals(leaseUntil, movementDao.getOutboxById(userId, command.id)?.leaseUntil)
+        assertTrue(movementDao.hasUnfinishedOutbox(userId))
+    }
+
     private suspend fun seedPendingIncome(): com.kipu.app.feature.movements.data.local.MovementOutboxEntity {
         val accountId = UUID.randomUUID().toString()
         accountDao.insert(AccountEntity(
