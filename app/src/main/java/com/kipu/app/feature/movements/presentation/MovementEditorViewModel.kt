@@ -9,6 +9,9 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
+import com.kipu.app.feature.categories.domain.CategoriesRepository
+import com.kipu.app.feature.categories.domain.model.MerchantId
+import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity
@@ -49,6 +52,7 @@ data class MovementEditorUiState(
     val initialCategoryId: String? = null,
     val initialCategoryName: String? = null,
     val initialMerchantName: String? = null,
+    val initialMerchantId: String? = null,
     val initialOccurredAt: Long = 0L,
     val initialNote: String? = null,
 
@@ -59,6 +63,7 @@ data class MovementEditorUiState(
     val selectedCategoryId: String? = null,
     val selectedCategoryName: String? = null,
     val merchantName: String = "",
+    val selectedMerchantId: String? = null,
     val occurredAt: Long = 0L,
     val note: String = "",
 
@@ -94,7 +99,7 @@ data class MovementEditorUiState(
             val sourceChanged = selectedSourceAccountId != initialSourceAccountId
             val destChanged = selectedDestinationAccountId != initialDestinationAccountId
             val catChanged = selectedCategoryId != initialCategoryId
-            val merchantChanged = merchantName.trim() != (initialMerchantName ?: "").trim()
+            val merchantChanged = merchantName.trim() != (initialMerchantName ?: "").trim() || selectedMerchantId != initialMerchantId
             val dateChanged = occurredAt != initialOccurredAt
             val noteChanged = note.trim() != (initialNote ?: "").trim()
             return amountChanged || sourceChanged || destChanged || catChanged || merchantChanged || dateChanged || noteChanged
@@ -109,7 +114,7 @@ data class MovementEditorUiState(
             val sourceSame = selectedSourceAccountId == initialSourceAccountId
             val destSame = selectedDestinationAccountId == initialDestinationAccountId
             val catSame = selectedCategoryId == initialCategoryId
-            val merchantSame = merchantName.trim() == (initialMerchantName ?: "").trim()
+            val merchantSame = merchantName.trim() == (initialMerchantName ?: "").trim() && selectedMerchantId == initialMerchantId
             val dateSame = occurredAt == initialOccurredAt
             return noteChanged && amountSame && sourceSame && destSame && catSame && merchantSame && dateSame
         }
@@ -130,6 +135,7 @@ class MovementEditorViewModel @Inject constructor(
     private val movementRepository: MovementRepository,
     private val observeInstruments: ObserveInstruments,
     private val observeCategories: ObserveCategories,
+    private val categoriesRepository: CategoriesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MovementEditorUiState())
@@ -202,6 +208,9 @@ class MovementEditorViewModel @Inject constructor(
                 "Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica"
             } else null
 
+            val merchantName = head.payload.merchantId?.let {
+                categoriesRepository.getMerchantById(MerchantId(it))?.name
+            } ?: head.payload.merchantProvisionalText.orEmpty()
             val formattedAmount = formatMinorUnits(head.payload.amountMinor)
 
             val proposals = maintenanceRepository.getConflictProposals(userId, txId)
@@ -225,7 +234,8 @@ class MovementEditorViewModel @Inject constructor(
                     initialDestinationAccountId = head.payload.destinationAccountId,
                     initialCategoryId = head.payload.categoryId,
                     initialCategoryName = matchingCat?.displayName,
-                    initialMerchantName = head.payload.merchantProvisionalText,
+                    initialMerchantName = merchantName,
+                    initialMerchantId = head.payload.merchantId,
                     initialOccurredAt = head.payload.occurredAt,
                     initialNote = head.payload.note,
                     amountText = formattedAmount,
@@ -233,7 +243,8 @@ class MovementEditorViewModel @Inject constructor(
                     selectedDestinationAccountId = head.payload.destinationAccountId,
                     selectedCategoryId = head.payload.categoryId,
                     selectedCategoryName = matchingCat?.displayName,
-                    merchantName = head.payload.merchantProvisionalText ?: "",
+                    merchantName = merchantName,
+                    selectedMerchantId = head.payload.merchantId,
                     occurredAt = head.payload.occurredAt,
                     note = head.payload.note ?: "",
                     hasConflict = activeProposal != null,
@@ -269,8 +280,12 @@ class MovementEditorViewModel @Inject constructor(
         }
     }
 
+    fun onMerchantSelected(merchant: MerchantCatalogEntry) {
+        _uiState.update { it.copy(merchantName = merchant.name, selectedMerchantId = merchant.id.value) }
+    }
+
     fun onMerchantChanged(merchant: String) {
-        _uiState.update { it.copy(merchantName = merchant) }
+        _uiState.update { it.copy(merchantName = merchant, selectedMerchantId = null) }
     }
 
     fun onDateChanged(epochMilli: Long) {
@@ -343,8 +358,8 @@ class MovementEditorViewModel @Inject constructor(
                 sourceAccountId = currentState.selectedSourceAccountId,
                 destinationAccountId = if (currentState.movementType == MovementType.TRANSFER) currentState.selectedDestinationAccountId else null,
                 categoryId = if (currentState.movementType != MovementType.TRANSFER) currentState.selectedCategoryId else null,
-                merchantId = null,
-                merchantProvisionalText = currentState.merchantName.trim().takeIf { it.isNotBlank() },
+                merchantId = currentState.selectedMerchantId,
+                merchantProvisionalText = currentState.merchantName.trim().takeIf { it.isNotBlank() && currentState.selectedMerchantId == null },
                 occurredAt = currentState.occurredAt,
                 note = currentState.note.trim().takeIf { it.isNotBlank() },
             )

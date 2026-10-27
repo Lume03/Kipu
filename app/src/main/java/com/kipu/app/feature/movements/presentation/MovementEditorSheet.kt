@@ -86,6 +86,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerViewModel
+import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.Currency
@@ -116,6 +120,8 @@ fun MovementEditorRoute(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val merchantPickerViewModel: MerchantPickerViewModel = hiltViewModel()
+    val merchantPickerState by merchantPickerViewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(transactionId) {
         viewModel.loadTransaction(transactionId)
@@ -138,6 +144,9 @@ fun MovementEditorRoute(
         onDestinationAccountSelected = viewModel::onDestinationAccountSelected,
         onCategorySelected = viewModel::onCategorySelected,
         onMerchantChanged = viewModel::onMerchantChanged,
+        merchantPickerState = merchantPickerState,
+        onMerchantQueryChanged = merchantPickerViewModel::onQueryChanged,
+        onMerchantSelected = viewModel::onMerchantSelected,
         onDateChanged = viewModel::onDateChanged,
         onNoteChanged = viewModel::onNoteChanged,
         onSave = viewModel::onSave,
@@ -168,6 +177,9 @@ fun MovementEditorSheet(
     onDiscardConflict: () -> Unit,
     onRedoConflict: () -> Unit,
     modifier: Modifier = Modifier,
+    merchantPickerState: MerchantPickerState = MerchantPickerState(),
+    onMerchantQueryChanged: (String) -> Unit = {},
+    onMerchantSelected: (MerchantCatalogEntry) -> Unit = { onMerchantChanged(it.name) },
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -187,6 +199,9 @@ fun MovementEditorSheet(
             onDestinationAccountSelected = onDestinationAccountSelected,
             onCategorySelected = onCategorySelected,
             onMerchantChanged = onMerchantChanged,
+            merchantPickerState = merchantPickerState,
+            onMerchantQueryChanged = onMerchantQueryChanged,
+            onMerchantSelected = onMerchantSelected,
             onDateChanged = onDateChanged,
             onNoteChanged = onNoteChanged,
             onSave = onSave,
@@ -219,6 +234,9 @@ fun MovementEditorContent(
     onDiscardConflict: () -> Unit,
     onRedoConflict: () -> Unit,
     modifier: Modifier = Modifier,
+    merchantPickerState: MerchantPickerState = MerchantPickerState(),
+    onMerchantQueryChanged: (String) -> Unit = {},
+    onMerchantSelected: (MerchantCatalogEntry) -> Unit = { onMerchantChanged(it.name) },
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val ec = rememberCalmEmeraldColors()
@@ -518,7 +536,7 @@ fun MovementEditorContent(
                             )
                         }
                         EditorRowDivider(ec)
-                        val merchantChanged = uiState.merchantName.trim() != uiState.initialMerchantName.orEmpty().trim()
+                        val merchantChanged = uiState.merchantName.trim() != uiState.initialMerchantName.orEmpty().trim() || uiState.selectedMerchantId != uiState.initialMerchantId
                         EditorRow(
                             icon = Icons.Outlined.Storefront,
                             iconBg = colorScheme.tertiaryContainer,
@@ -656,15 +674,16 @@ fun MovementEditorContent(
             onSelect = { onCategorySelected(it); picker = null },
             onDismiss = { picker = null },
         )
-        EditorPicker.MERCHANT -> TextEditSheet(
-            title = "Editar comercio",
-            value = uiState.merchantName,
-            onValueChange = onMerchantChanged,
-            singleLine = true,
-            hint = "Puedes dejarlo vacío.",
-            inputTag = "editor_merchant_input",
-            onDismiss = { picker = null },
-            ec = ec,
+        EditorPicker.MERCHANT -> MerchantPickerBottomSheet(
+            state = merchantPickerState.copy(
+                selectedMerchant = merchantPickerState.catalogEntries.firstOrNull { it.id.value == uiState.selectedMerchantId },
+                provisionalText = uiState.merchantName.takeIf { uiState.selectedMerchantId == null && it.isNotBlank() },
+            ),
+            onQueryChange = onMerchantQueryChanged,
+            onSelectMerchant = onMerchantSelected,
+            onSetProvisionalText = onMerchantChanged,
+            onClearSelection = { onMerchantChanged("") },
+            onDismiss = { onMerchantQueryChanged(""); picker = null },
         )
         EditorPicker.NOTE -> TextEditSheet(
             title = "Editar nota",
@@ -1139,7 +1158,7 @@ private fun editorChangeCount(s: MovementEditorUiState): Int {
         s.selectedSourceAccountId != s.initialSourceAccountId,
         s.selectedDestinationAccountId != s.initialDestinationAccountId,
         s.selectedCategoryId != s.initialCategoryId,
-        s.merchantName.trim() != s.initialMerchantName.orEmpty().trim(),
+        s.merchantName.trim() != s.initialMerchantName.orEmpty().trim() || s.selectedMerchantId != s.initialMerchantId,
         s.note.trim() != s.initialNote.orEmpty().trim(),
     ).count { it }
 }

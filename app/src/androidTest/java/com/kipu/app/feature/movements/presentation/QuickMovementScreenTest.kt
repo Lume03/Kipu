@@ -236,7 +236,7 @@ class QuickMovementScreenTest {
         compose.onNodeWithText("Más detalles (opcional)").performClick()
         compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction()
         compose.onNodeWithText("Comercio o pagador (opcional)").assertIsDisplayed()
-        compose.onNodeWithText("Agregar comercio (opcional)").assertIsDisplayed()
+        compose.onNodeWithText("Agregar comercio").assertIsDisplayed()
         compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
     }
 
@@ -256,15 +256,16 @@ class QuickMovementScreenTest {
     }
 
     @Test
-    fun amountShortcutFillsAmountWithoutSaving() {
-        var amount = ""
+    fun registrationDoesNotShowAmountShortcutsOrRecentSection() {
         compose.setContent {
             KipuTheme {
-                QuickMovementContentForTest(state = QuickMovementUiState(), onAmountChanged = { amount = it })
+                QuickMovementContentForTest(state = QuickMovementUiState())
             }
         }
-        compose.onNodeWithTag("amount_shortcut_50").performScrollTo().performClick()
-        org.junit.Assert.assertEquals("50", amount)
+        listOf("10", "20", "50", "100").forEach {
+            compose.onNodeWithTag("amount_shortcut_$it").assertDoesNotExist()
+        }
+        compose.onNodeWithText("Recientes").assertDoesNotExist()
     }
 
     private fun account(alias: String, currency: Currency): Account = Account(

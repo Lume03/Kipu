@@ -131,7 +131,6 @@ class QuickMovementViewModelTest {
             },
             sessionCoordinator = fakeSessionCoordinator,
             payCreditCard = PayCreditCard(fakeInstrumentsRepo),
-            movementRepository = fakeMovementRepo,
             budgetRepository = mockk<BudgetRepository> {
                 every { observeBudgets(any()) } returns budgets
             },
@@ -455,6 +454,21 @@ class QuickMovementViewModelTest {
         val command = fakeMovementRepo.registeredCommands.single()
         assertEquals(null, command.merchantId)
         assertEquals("Bodega del barrio", command.merchantProvisionalText)
+    }
+
+    @Test
+    fun `automatic occurrence follows current time until a date is selected`() = runTest {
+        advanceUntilIdle()
+        viewModel.refreshAutomaticTime(1_000L)
+        assertEquals(1_000L, viewModel.uiState.value.occurredAt)
+        viewModel.refreshAutomaticTime(61_000L)
+        assertEquals(61_000L, viewModel.uiState.value.occurredAt)
+        viewModel.onOccurredAtChanged(5_000L)
+        viewModel.refreshAutomaticTime(121_000L)
+        assertEquals(5_000L, viewModel.uiState.value.occurredAt)
+        viewModel.resetForm()
+        viewModel.refreshAutomaticTime(181_000L)
+        assertEquals(181_000L, viewModel.uiState.value.occurredAt)
     }
 
     @Test

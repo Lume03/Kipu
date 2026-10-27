@@ -1,9 +1,6 @@
 package com.kipu.app.feature.movements.presentation
 
 import com.kipu.app.feature.accounts.domain.usecase.PayCreditCard
-import com.kipu.app.feature.movements.domain.MovementRepository
-import com.kipu.app.feature.movements.domain.model.TransactionItem
-import com.kipu.app.feature.movements.domain.model.TransactionStatus
 import com.kipu.app.feature.budgets.domain.BudgetCategoryLookup
 import com.kipu.app.feature.budgets.domain.BudgetConsumption
 import com.kipu.app.feature.budgets.domain.BudgetOutcome
@@ -82,7 +79,6 @@ data class QuickMovementUiState(
     val selectedSourceCardId: String? = null,
     val selectedDestinationAccountId: String? = null,
     val selectedDestinationCardId: String? = null,
-    val recentMovements: List<TransactionItem> = emptyList(),
     val budgetImpacts: List<QuickMovementBudgetImpact> = emptyList(),
     val selectedCategoryId: String? = null,
     val selectedCategoryName: String? = null,
@@ -91,6 +87,7 @@ data class QuickMovementUiState(
     val selectedMerchantId: String? = null,
     val merchantProvisionalText: String? = null,
     val occurredAt: Long = System.currentTimeMillis(),
+    val isDateManuallySelected: Boolean = false,
     val note: String = "",
     val isMoreDetailsExpanded: Boolean = false,
     val isSaving: Boolean = false,
@@ -142,7 +139,6 @@ class QuickMovementViewModel @Inject constructor(
     private val categorySyncScheduler: CategorySyncScheduler,
     private val sessionCoordinator: SessionCoordinator,
     private val payCreditCard: PayCreditCard,
-    private val movementRepository: MovementRepository,
     private val budgetRepository: BudgetRepository,
     private val getBudgetConsumption: GetBudgetConsumption,
     private val budgetCategories: BudgetCategoryLookup,
@@ -179,6 +175,7 @@ class QuickMovementViewModel @Inject constructor(
             current.copy(
                 amountText = amountMinor?.let { java.math.BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty(),
                 occurredAt = occurredAt ?: current.occurredAt,
+                isDateManuallySelected = occurredAt != null,
                 merchantName = recipient.orEmpty(),
                 merchantProvisionalText = recipient?.takeIf(String::isNotBlank),
                 selectedSourceAccountId = (penAccounts.firstOrNull { it.preset?.name == "YAPE" }
@@ -196,15 +193,6 @@ class QuickMovementViewModel @Inject constructor(
     init {
         val ownerId = getUserId()
         if (ownerId != null) {
-            viewModelScope.launch {
-                movementRepository.observeRecentTransactions(ownerId, 20)
-                    .catch { emit(emptyList()) }
-                    .collect { items ->
-                        _uiState.update { it.copy(recentMovements = items.filter { item ->
-                            item.transaction.status == TransactionStatus.ACTIVE
-                        }.take(5)) }
-                    }
-            }
             viewModelScope.launch {
                 combine(
                     budgetRepository.observeBudgets(ownerId).catch { emit(emptyList()) },
@@ -629,8 +617,15 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { it.copy(merchantName = "", selectedMerchantId = null, merchantProvisionalText = null) }
     }
 
+    fun refreshAutomaticTime(now: Long = System.currentTimeMillis()) {
+        _uiState.update { current ->
+            if (current.isDateManuallySelected || current.isSaving) current
+            else current.copy(occurredAt = now)
+        }
+    }
+
     fun onOccurredAtChanged(occurredAt: Long) {
-        _uiState.update { it.copy(occurredAt = occurredAt) }
+        _uiState.update { it.copy(occurredAt = occurredAt, isDateManuallySelected = true) }
     }
 
     fun onNoteChanged(note: String) {
@@ -673,6 +668,7 @@ class QuickMovementViewModel @Inject constructor(
     }
 
     private fun saveCurrentMovement() {
+        refreshAutomaticTime()
         val state = _uiState.value
         if (state.isSaving) return
         if (receiptDraftId != null && (state.selectedSourceCardId != null ||
@@ -890,7 +886,6 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { current ->
             QuickMovementUiState(
                 type = MovementType.EXPENSE,
-                recentMovements = current.recentMovements,
                 availableAccounts = current.availableAccounts,
                 availableCreditCards = current.availableCreditCards,
                 balancesLoaded = current.balancesLoaded,

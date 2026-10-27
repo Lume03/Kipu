@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.categories.domain.model.CategoryType
@@ -21,6 +22,51 @@ import org.junit.Test
 class MovementEditorScreenTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun merchantRowOpensCatalogAndKeepsSelection() {
+        val merchant = com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry(
+            id = com.kipu.app.feature.categories.domain.model.MerchantId("00000000-0000-4000-8000-000000000013"),
+            name = "Cinemark",
+            normalizedName = "cinemark",
+        )
+        compose.setContent {
+            KipuTheme {
+                MovementEditorContent(
+                    uiState = MovementEditorUiState(
+                        isLoading = false,
+                        amountText = "5.00",
+                        initialAmountMinor = 500L,
+                        merchantName = merchant.name,
+                        selectedMerchantId = merchant.id.value,
+                        initialMerchantName = merchant.name,
+                        initialMerchantId = merchant.id.value,
+                    ),
+                    onAmountChanged = {},
+                    onSourceAccountSelected = {},
+                    onDestinationAccountSelected = {},
+                    onCategorySelected = {},
+                    onMerchantChanged = {},
+                    onDateChanged = {},
+                    onNoteChanged = {},
+                    onSave = {},
+                    onClose = {},
+                    onConfirmDiscard = {},
+                    onDismissDiscardDialog = {},
+                    onDiscardConflict = {},
+                    onRedoConflict = {},
+                    merchantPickerState = com.kipu.app.feature.categories.presentation.components.MerchantPickerState(
+                        catalogEntries = listOf(merchant),
+                    ),
+                )
+            }
+        }
+        compose.onNodeWithTag("editor_merchant_row").performScrollTo().performClick()
+        compose.onNodeWithTag("merchant_picker_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Comercio o pagador").assertIsDisplayed()
+        compose.onNodeWithText("Comercio del cat\u00e1logo").assertIsDisplayed()
+        compose.onNodeWithTag("editor_merchant_input").assertDoesNotExist()
+    }
 
     @Test
     fun editorDisplaysStandardFieldsAndChangeSummary() {

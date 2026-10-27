@@ -15,7 +15,6 @@ import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.KipuOfflineBanner
-import com.kipu.app.ui.component.KipuPendingSyncTag
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -118,6 +117,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
@@ -155,6 +155,16 @@ fun QuickMovementBottomSheet(
     var showMerchantPicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     val emeraldColors = rememberCalmEmeraldColors()
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                viewModel.refreshAutomaticTime()
+                kotlinx.coroutines.delay(60_000L - System.currentTimeMillis() % 60_000L)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -651,15 +661,6 @@ fun QuickMovementContent(
                 }
             }
 
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("10", "20", "50", "100").forEach { amount ->
-                    OutlinedButton(onClick = { onAmountChanged(amount) },
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("amount_shortcut_$amount")) {
-                        Text("${if (uiState.currency == "PEN") "S/" else "$"} $amount")
-                    }
-                }
-            }
-
             // Selection Rows: Accounts
             val selectedSourceAccount = uiState.availableAccounts.firstOrNull {
                 it.id.value == uiState.selectedSourceAccountId
@@ -956,7 +957,7 @@ fun QuickMovementContent(
                             iconContainer = merchantBg,
                             iconTint = merchantTint,
                             label = "Comercio o pagador (opcional)",
-                            value = if (hasMerchant) uiState.merchantName else "Agregar comercio (opcional)",
+                            value = if (hasMerchant) uiState.merchantName else "Agregar comercio",
                             supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
                             onClick = onOpenMerchantPicker,
                             modifier = Modifier.testTag("input_merchant"),
@@ -1005,25 +1006,6 @@ fun QuickMovementContent(
                         )
                     }
                 }
-            }
-
-            val recent = uiState.recentMovements.filter { it.transaction.type == uiState.type && it.transaction.currency == uiState.currency }.take(3)
-            if (recent.isNotEmpty()) {
-                Text("Recientes", style = MaterialTheme.typography.titleSmall, color = emeraldColors.primaryText)
-                recent.forEach { item ->
-                    val transaction = item.transaction
-                    OutlinedButton(onClick = { onAmountChanged(java.math.BigDecimal.valueOf(transaction.amountMinor, 2).toPlainString()) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Column(Modifier.fillMaxWidth()) {
-                            Text(item.merchantName ?: item.categoryName ?: item.sourceAccountAlias ?: "Movimiento reciente")
-                            Text(if (balanceMasked) "••••" else "${if (transaction.currency == "PEN") "S/" else "$"} ${formatMinorUnits(transaction.amountMinor)}")
-                            if (transaction.syncStatus in setOf(
-                                com.kipu.app.feature.movements.domain.model.MovementSyncStatus.PENDING,
-                                com.kipu.app.feature.movements.domain.model.MovementSyncStatus.IN_FLIGHT)) KipuPendingSyncTag()
-                        }
-                    }
-                }
-                Text("Toca un reciente para usar su monto.", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
             }
 
             if (uiState.selectedDestinationCardId == null) {
