@@ -70,7 +70,6 @@ import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
 import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
-import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.home.presentation.NetWorthCard
 import com.kipu.app.feature.home.presentation.NetWorthUiState
@@ -396,7 +395,23 @@ private fun DashboardContent(
     val liquidAccounts = data?.liquidAccounts.orEmpty()
     val activeCreditCards = data?.creditCards.orEmpty().filter { !it.card.isArchived }
     val groups = remember(liquidAccounts) { groupAccountsWithWallets(liquidAccounts) }
-    val hasWallets = groups.any { it.wallets.isNotEmpty() }
+
+    // The plan quota is shown before any add flow starts, never as a permanent banner.
+    var showQuotaLimit by remember { mutableStateOf(false) }
+    val quotaFull = maxQuota > 0 && computableCount >= maxQuota
+    val addAccount = { if (quotaFull) showQuotaLimit = true else onNavigateToNewAccount() }
+    val addCard = { if (quotaFull) showQuotaLimit = true else onNavigateToNewCard() }
+    if (showQuotaLimit) {
+        AlertDialog(
+            onDismissRequest = { showQuotaLimit = false },
+            title = { Text("Llegaste al límite del Plan Free") },
+            text = { Text("Tienes $computableCount de $maxQuota cuentas y tarjetas activas. Archiva una o revisa los planes para agregar otra.") },
+            confirmButton = {
+                TextButton(onClick = { showQuotaLimit = false; onNavigateToPlans() }) { Text("Ver planes") }
+            },
+            dismissButton = { TextButton(onClick = { showQuotaLimit = false }) { Text("Entendido") } },
+        )
+    }
 
     // Affiliated wallets share their account's balance, so they never add to these figures.
     val bankByCurrency = remember(liquidAccounts) {
@@ -466,13 +481,6 @@ private fun DashboardContent(
             item(key = "calendar_entry") { DashboardCalendarEntryCard(onClick = onNavigateToCalendar) }
         }
 
-        // Quota reference is secondary to money; effective entitlement is validated on save.
-        if (maxQuota > 0) {
-            item(key = "quota_strip") {
-                DashboardPlanCard(used = computableCount, max = maxQuota, onClick = onNavigateToPlans)
-            }
-        }
-
         if (creditNotifications.isNotEmpty()) {
             items(creditNotifications, key = { it.id }) { notification ->
                 Card(
@@ -501,43 +509,33 @@ private fun DashboardContent(
         item(key = "accounts_section_header") {
             DashboardSectionHeader(
                 title = "Cuentas y efectivo",
-                count = accountsCountLabel(groups),
-                addLabel = "+ Cuenta",
-                onAdd = onNavigateToNewAccount,
-                manageLabel = "Gestionar",
+                addLabel = "Agregar",
+                onAdd = addAccount,
+                manageLabel = "Gestionar cupos",
                 onManage = onManageQuota,
-                showManage = !isFirstUse,
+                // Only after a downgrade leaves more active instruments than the plan allows.
+                showManage = maxQuota > 0 && computableCount > maxQuota,
             )
         }
         if (groups.isEmpty()) {
-            item(key = "accounts_empty") { DashboardNoAccountsCard(onAddAccount = onNavigateToNewAccount) }
+            item(key = "accounts_empty") { DashboardNoAccountsCard(onAddAccount = addAccount) }
         } else {
             items(groups, key = { it.account.account.id.value }) { group ->
                 DashboardAccountGroupCard(group = group, isMasked = isMasked, onAccountClick = onAccountClick)
             }
-            if (hasWallets) {
-                item(key = "wallets_footnote") { DashboardWalletFootnote() }
-            }
         }
 
         item(key = "cards_section_header") {
-            Column {
-                DashboardSectionHeader(
-                    title = "Tarjetas de crédito",
-                    count = "${activeCreditCards.size} ${if (activeCreditCards.size == 1) "activa" else "activas"}",
-                    addLabel = "+ Tarjeta",
-                    onAdd = onNavigateToNewCard,
-                    manageLabel = "Ver detalle",
-                    onManage = { activeCreditCards.firstOrNull()?.let { onCardClick(it.card.id.value) } },
-                    showManage = activeCreditCards.isNotEmpty(),
-                    addTag = if (isFirstUse) "dashboard_empty_add_card" else null,
-                )
-                Text(
-                    text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = emeraldColors.secondaryMuted,
-                )
-            }
+            // Each card opens its own detail, so the header only adds cards.
+            DashboardSectionHeader(
+                title = "Tarjetas de crédito",
+                addLabel = "Agregar",
+                onAdd = addCard,
+                manageLabel = "",
+                onManage = {},
+                showManage = false,
+                addTag = if (isFirstUse) "dashboard_empty_add_card" else null,
+            )
         }
         if (activeCreditCards.isEmpty()) {
             item(key = "cards_empty") { DashboardNoCardsNotice() }

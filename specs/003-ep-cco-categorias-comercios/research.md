@@ -71,3 +71,7 @@
 **Local implementation evidence (2026-10-08)**: Sprint 5 adds dedicated `merchant_alias_rules` and `merchant_category_preferences` relations, owner-scoped read policies, command RPCs, idempotent receipts, and the immutable `financial_movements.merchant_raw_text` field. A clean local Supabase reset applied the migrations and `merchant_rules_s5.test.sql` passed 39 pgTAP checks. The Android unit suite passed 471 tests; targeted Room, worker, end-to-end, and Compose checks passed on the connected Samsung SM-A165M running Android 16. This evidence applies only to the local feature worktree and device; it does not certify the live Supabase project or full release readiness.
 
 **Release gate**: Live Supabase migrations lag local S4/October migrations. Before S5 integration or release, reconcile migration history, inspect effective RLS/grants and apply the approved versioned migration through the normal release process. No remote database change is authorized by this refinement.
+
+## Nota 2026-10-28: logos remotos de comercios (Logo.dev)
+
+Los logos de comercios del catálogo se alojan en el bucket `merchant-logos` mediante la Edge Function `merchant-logo-sync` (Logo.dev solo se llama desde servidor). La app lee únicamente Storage propio y conserva los drawables empaquetados como respaldo offline. Migración local `20261028150000_merchant_logo_dev_sync_foundation.sql` (aún no aplicada en remoto); no modifica reglas de clasificación ni preferencias. Detalle operativo y atribución obligatoria del plan gratuito: `docs/ux-ui/references/merchant-logo-assets.md`.

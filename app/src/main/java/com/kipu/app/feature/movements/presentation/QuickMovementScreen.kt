@@ -867,12 +867,8 @@ fun QuickMovementContent(
                     iconTint = catTint,
                     label = if (uiState.type == MovementType.EXPENSE) "Categoría *" else "Categoría (opcional)",
                     value = uiState.selectedCategoryName ?: "Sin categoría seleccionada",
-                    supportingText = when {
-                        uiState.categoryError != null -> "Este campo es obligatorio"
-                        uiState.selectedCategoryName != null -> "Toca para cambiar"
-                        uiState.type == MovementType.INCOME -> "Opcional"
-                        else -> "Selecciona una categoría requerida"
-                    },
+                    // The label already says whether it is required; only an error needs a second line.
+                    supportingText = if (uiState.categoryError != null) "Este campo es obligatorio" else null,
                     onClick = { showCategoryPicker = true },
                     isError = uiState.categoryError != null,
                     errorMessage = uiState.categoryError,
@@ -898,7 +894,7 @@ fun QuickMovementContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Más detalles (opcional)",
+                        text = "Más detalles",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = emeraldColors.secondaryMuted,
                     )
@@ -939,7 +935,7 @@ fun QuickMovementContent(
                         iconTint = dateTint,
                         label = "Fecha y hora",
                         value = formattedDate,
-                        supportingText = "Toca para cambiar la fecha",
+                        supportingText = null,
                         onClick = onOpenDatePicker,
                         modifier = Modifier.testTag("selector_occurred_at"),
                     )
@@ -956,9 +952,9 @@ fun QuickMovementContent(
                             icon = Icons.Default.Storefront,
                             iconContainer = merchantBg,
                             iconTint = merchantTint,
-                            label = "Comercio o pagador (opcional)",
+                            label = "Comercio",
                             value = if (hasMerchant) uiState.merchantName else "Agregar comercio",
-                            supportingText = if (uiState.selectedMerchantId != null) "Comercio del catálogo" else "Puedes escribir un nombre libre",
+                            supportingText = null,
                             onClick = onOpenMerchantPicker,
                             modifier = Modifier.testTag("input_merchant"),
                             trailingContent = if (hasMerchant) {
@@ -1005,65 +1001,28 @@ fun QuickMovementContent(
                             },
                         )
                     }
-                }
-            }
-
-            if (uiState.selectedDestinationCardId == null) {
-                // Collapsible Notes Section
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .toggleable(
-                            value = uiState.isMoreDetailsExpanded,
-                            role = Role.Button,
-                            onValueChange = { onToggleMoreDetails() },
+                    // The note lives in the same optional section; card payments do not take notes.
+                    if (uiState.selectedDestinationCardId == null) {
+                        OutlinedTextField(
+                            value = uiState.note,
+                            onValueChange = onNoteChanged,
+                            placeholder = { Text(stringResource(R.string.movement_note_placeholder), color = emeraldColors.secondaryMuted) },
+                            maxLines = 3,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = emeraldColors.primaryDeep,
+                                unfocusedBorderColor = emeraldColors.borderSubtle,
+                                focusedContainerColor = emeraldColors.surfaceCard,
+                                unfocusedContainerColor = emeraldColors.surfaceCard,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("input_note"),
                         )
-                        .semantics {
-                            stateDescription = if (uiState.isMoreDetailsExpanded) "Expandido" else "Contraído"
-                        }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (uiState.type == MovementType.TRANSFER) "+ Nota o motivo (opcional)" else "+ Nota (opcional)",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = emeraldColors.primaryDeep,
-                    )
-                    Icon(
-                        imageVector = if (uiState.isMoreDetailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = emeraldColors.primaryDeep,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    }
                 }
-
-                AnimatedVisibility(
-                    visible = uiState.isMoreDetailsExpanded,
-                    enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
-                    exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
-                ) {
-                    OutlinedTextField(
-                        value = uiState.note,
-                        onValueChange = onNoteChanged,
-                        placeholder = { Text(stringResource(R.string.movement_note_placeholder), color = emeraldColors.secondaryMuted) },
-                        maxLines = 3,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = emeraldColors.primaryDeep,
-                            unfocusedBorderColor = emeraldColors.borderSubtle,
-                            focusedContainerColor = emeraldColors.surfaceCard,
-                            unfocusedContainerColor = emeraldColors.surfaceCard,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_note"),
-                    )
-                }
-            } else {
-                Text("El pago de tarjeta no admite notas.", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
             }
+
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -1380,7 +1339,7 @@ private fun CalmEmeraldSelectionRow(
     iconTint: Color,
     label: String,
     value: String,
-    supportingText: String,
+    supportingText: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     trailingIcon: ImageVector = Icons.Default.ChevronRight,
@@ -1400,7 +1359,7 @@ private fun CalmEmeraldSelectionRow(
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .semantics {
-                contentDescription = "$label. $value. $supportingText"
+                contentDescription = listOfNotNull(label, value, supportingText).joinToString(". ")
                 role = Role.Button
             },
         shape = RoundedCornerShape(16.dp),
@@ -1441,11 +1400,13 @@ private fun CalmEmeraldSelectionRow(
                         ),
                         color = emeraldColors.primaryText,
                     )
-                    Text(
-                        text = supportingText,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
-                    )
+                    if (supportingText != null) {
+                        Text(
+                            text = supportingText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
+                        )
+                    }
                 }
 
                 if (trailingContent != null) {

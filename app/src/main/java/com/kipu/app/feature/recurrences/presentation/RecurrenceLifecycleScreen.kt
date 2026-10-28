@@ -54,7 +54,7 @@ fun RecurrenceLifecycleScreen(
             Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(rule.templateTransaction["concept"]?.toString()?.trim('"') ?: "Obligación", style = MaterialTheme.typography.titleMedium)
-                    Text("Estado: ${rule.status} · Próxima fecha: ${rule.nextDueDate} · Revisión ${rule.revision}", modifier = Modifier.testTag("recurrence_state_${rule.id}"))
+                    Text(recurrenceStateLabel(rule.status, rule.nextDueDate), modifier = Modifier.testTag("recurrence_state_${rule.id}"))
                     when (rule.syncState) {
                         RecurrenceSyncState.PENDING -> Text("Pendiente de sincronización local", modifier = Modifier.testTag("recurrence_offline_${rule.id}"))
                         RecurrenceSyncState.CONFLICT -> Text("Conflicto de sincronización · requiere revisión", color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_conflict_${rule.id}"))
@@ -85,4 +85,19 @@ fun RecurrenceLifecycleScreen(
         confirmButton = { TextButton(onClick = { cancelTarget = null; onCancel(rule) }, modifier = Modifier.testTag("recurrence_cancel_confirm")) { Text("Confirmar cancelación") } },
         dismissButton = { TextButton(onClick = { cancelTarget = null }, modifier = Modifier.testTag("recurrence_cancel_back")) { Text("Volver") } },
     ) }
+}
+
+/** "Activa · próximo 3 nov": user-facing state and next date, without internal enums or revisions. */
+internal fun recurrenceStateLabel(
+    status: com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus,
+    nextDueDate: java.time.LocalDate,
+): String {
+    val label = when (status) {
+        com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.ACTIVE -> "Activa"
+        com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.PAUSED -> "Pausada"
+        com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.CANCELLED -> "Cancelada"
+    }
+    val pattern = if (nextDueDate.year == java.time.LocalDate.now().year) "d MMM" else "d MMM yyyy"
+    val date = nextDueDate.format(java.time.format.DateTimeFormatter.ofPattern(pattern, java.util.Locale.forLanguageTag("es-PE")))
+    return if (status == com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.CANCELLED) label else "$label · próximo $date"
 }

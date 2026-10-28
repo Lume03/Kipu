@@ -620,7 +620,6 @@ private fun AccountItemRow(
         append(account.alias)
         append(". ")
         append(subtitle)
-        if (isMostUsed) append(". Más usada.")
         if (balance != null) {
             append(if (isAffiliated) ". Saldo compartido con la cuenta afiliada: " else ". Saldo disponible: ")
             if (masked) {
@@ -669,24 +668,6 @@ private fun AccountItemRow(
                     modifier = Modifier.weight(1f, fill = false),
                 )
 
-                if (isMostUsed) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MintBadgeContainer)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                            .testTag("badge_most_used_${account.id.value}"),
-                    ) {
-                        Text(
-                            text = "Más usada",
-                            color = MintBadgeContent,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                            ),
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -867,7 +848,7 @@ private fun CreditCardItemRow(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Créd. disp.: ",
+                    text = "Crédito disponible: ",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = TextSecondarySlate,
                         fontSize = 11.sp,
@@ -889,7 +870,7 @@ private fun CreditCardItemRow(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Usado: ",
+                    text = "Deuda: ",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = CoralDebtText,
                         fontSize = 11.sp,

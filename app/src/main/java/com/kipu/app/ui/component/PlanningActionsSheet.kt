@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 enum class PlanningActionTone { PRIMARY, NEUTRAL, WARNING, DESTRUCTIVE }
 
@@ -50,7 +50,7 @@ fun PlanningActionsSheet(
     modifier: Modifier = Modifier,
     summary: @Composable () -> Unit = {},
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     KipuBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,

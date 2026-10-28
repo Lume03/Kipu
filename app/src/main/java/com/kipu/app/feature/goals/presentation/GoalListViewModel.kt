@@ -43,6 +43,7 @@ class GoalListViewModel @Inject constructor(
     private val featureAccessCacheDao: FeatureAccessCacheDao,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
     private val instruments: com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository? = null,
+    private val displayPreferences: com.kipu.app.feature.goals.data.GoalDisplayPreferences? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(GoalManagementUiState())
     val state = _state.asStateFlow()
@@ -50,6 +51,14 @@ class GoalListViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     init {
+        if (displayPreferences != null) viewModelScope.launch {
+            sessionCoordinator.localAccess.collectLatest { access ->
+                val owner = (access as? LocalAccess.Available)?.userId ?: return@collectLatest
+                displayPreferences.observe(owner).collect { display ->
+                    _state.value = _state.value.copy(pausedGoalIds = display.paused, removedGoalIds = display.removed)
+                }
+            }
+        }
         viewModelScope.launch {
             sessionCoordinator.localAccess.collectLatest { access ->
                 val userId = (access as? LocalAccess.Available)?.userId
@@ -57,7 +66,9 @@ class GoalListViewModel @Inject constructor(
                     _state.value = GoalManagementUiState(isLoading = false)
                     return@collectLatest
                 }
-                _state.value = GoalManagementUiState(userId = userId, isLoading = true)
+                val display = displayPreferences?.snapshot(userId)
+                _state.value = GoalManagementUiState(userId = userId, isLoading = true,
+                    pausedGoalIds = display?.paused.orEmpty(), removedGoalIds = display?.removed.orEmpty())
                 val premium = hasVerifiedPremium(userId)
                 combine(repository.observeGoals(userId), repository.observeBackingAccounts(userId),
                     instruments?.observeAccounts(activeOnly = true) ?: flowOf(emptyList())) { goals, accounts, visuals ->
@@ -86,6 +97,8 @@ class GoalListViewModel @Inject constructor(
                         isLoading = false,
                         hasPremiumAccess = premium,
                         accountOptions = visuals,
+                        pausedGoalIds = _state.value.pausedGoalIds,
+                        removedGoalIds = _state.value.removedGoalIds,
                     )
                 }
             }

@@ -27,22 +27,22 @@ class AccountPresetScreenshotTest {
 
     @Test
     fun capturesCashPresentationInLightTheme() {
-        capture(type = AccountType.CASH, preset = AccountPreset.BCP, dark = false, name = "cash-detail-light")
+        capture(type = AccountType.CASH, preset = AccountPreset.CASH, dark = false, name = "cash-detail-light")
     }
 
     @Test
     fun capturesCashPresentationInDarkTheme() {
-        capture(type = AccountType.CASH, preset = AccountPreset.BCP, dark = true, name = "cash-detail-dark")
+        capture(type = AccountType.CASH, preset = AccountPreset.CASH, dark = true, name = "cash-detail-dark")
     }
 
     @Test
     fun capturesSavingsPresentationInLightTheme() {
-        capture(type = AccountType.SAVINGS, preset = AccountPreset.YAPE, dark = false, name = "savings-detail-light")
+        capture(type = AccountType.SAVINGS, preset = AccountPreset.BCP, dark = false, name = "savings-detail-light")
     }
 
     @Test
     fun capturesSavingsPresentationInDarkTheme() {
-        capture(type = AccountType.SAVINGS, preset = AccountPreset.YAPE, dark = true, name = "savings-detail-dark")
+        capture(type = AccountType.SAVINGS, preset = AccountPreset.BCP, dark = true, name = "savings-detail-dark")
     }
 
     @Test
@@ -67,18 +67,57 @@ class AccountPresetScreenshotTest {
         )
     }
 
+    @Test
+    fun capturesYapeDetailInLightTheme() {
+        capture(AccountType.DIGITAL_WALLET, AccountPreset.YAPE, false, "yape-detail-light")
+    }
+
+    @Test
+    fun capturesYapeDetailInDarkTheme() {
+        capture(AccountType.DIGITAL_WALLET, AccountPreset.YAPE, true, "yape-detail-dark")
+    }
+
+    @Test
+    fun capturesPlinDetailInLightTheme() {
+        capture(AccountType.DIGITAL_WALLET, AccountPreset.PLIN, false, "plin-detail-light")
+    }
+
+    @Test
+    fun capturesPlinDetailInDarkTheme() {
+        capture(AccountType.DIGITAL_WALLET, AccountPreset.PLIN, true, "plin-detail-dark")
+    }
+
+    @Test
+    fun capturesDebitDetailInLightTheme() {
+        capture(AccountType.SAVINGS, AccountPreset.BCP, false, "debit-detail-light", debit = true)
+    }
+
+    @Test
+    fun capturesDebitDetailInDarkTheme() {
+        capture(AccountType.SAVINGS, AccountPreset.BCP, true, "debit-detail-dark", debit = true)
+    }
+
     private fun capture(
         type: AccountType,
         preset: AccountPreset,
         dark: Boolean,
         name: String,
         openInstitutionMenu: Boolean = false,
+        debit: Boolean = false,
     ) {
         compose.setContent {
             KipuTheme(darkTheme = dark) {
                 AccountDetailContent(
-                    account = account(type, preset),
-                    card = null,
+                    account = if (debit) null else account(type, preset),
+                    card = if (debit) com.kipu.app.feature.accounts.domain.model.DebitCard(
+                        id = com.kipu.app.core.finance.domain.model.CardId("e1000000-0000-4000-8000-000000000003"),
+                        userId = account(type, preset).userId,
+                        alias = "Débito BCP", issuer = "BCP",
+                        network = com.kipu.app.feature.accounts.domain.model.CardNetwork.VISA,
+                        lastFourDigits = "1234", currency = Currency.PEN,
+                        linkedAccountId = account(type, preset).id, stylePresetId = "bcp-debit-classic",
+                    ) else null,
+                    debitAccount = if (debit) account(type, preset) else null,
                     currentBalance = Money(25_000L, Currency.PEN),
                     creditCardSummary = null,
                     isLoading = false,
@@ -91,9 +130,10 @@ class AccountPresetScreenshotTest {
             }
         }
 
-        val targetTag = if (type == AccountType.CASH) "cash_presentation" else "account_institution_selector"
-        compose.onNodeWithTag(targetTag).performScrollTo()
-        if (openInstitutionMenu) compose.onNodeWithTag(targetTag).performClick()
+        if (openInstitutionMenu) {
+            compose.onNodeWithTag("edit_account").performClick()
+            compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
+        }
         compose.waitForIdle()
 
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext

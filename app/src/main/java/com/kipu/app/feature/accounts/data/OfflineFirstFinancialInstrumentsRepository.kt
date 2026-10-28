@@ -1819,7 +1819,13 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                                         ),
                                         merchantName = merchantName,
                                         merchantLogoKey = merchant?.logoKey,
-                                        merchantLogoUrl = merchant?.logoKey?.let {
+                                        merchantLogoUrl = merchant?.logoPath?.let {
+                                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                                                com.kipu.app.BuildConfig.SUPABASE_URL,
+                                                it,
+                                            )
+                                        },
+                                        merchantLogoDarkUrl = merchant?.logoDarkPath?.let {
                                             com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
                                                 com.kipu.app.BuildConfig.SUPABASE_URL,
                                                 it,

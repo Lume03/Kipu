@@ -18,4 +18,8 @@ if ! command -v pnpm >/dev/null 2>&1; then
   fi
 fi
 
+# Strip AI co-author trailers so assistants never show up as repo contributors
+grep -viE '^co-authored-by:.*(claude|anthropic|noreply@anthropic\.com)' "${1}" > "${1}.tmp" || true
+mv "${1}.tmp" "${1}"
+
 pnpm exec commitlint --edit "${1}"

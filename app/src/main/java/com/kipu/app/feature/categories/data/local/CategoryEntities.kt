@@ -94,6 +94,12 @@ data class MerchantCatalogEntity(
     val logoKey: String? = null,
     @ColumnInfo(name = "brand_color")
     val brandColor: String? = null,
+    @ColumnInfo(name = "logo_path")
+    val logoPath: String? = null,
+    @ColumnInfo(name = "logo_dark_path")
+    val logoDarkPath: String? = null,
+    @ColumnInfo(name = "logo_source", defaultValue = "'BUNDLED'")
+    val logoSource: String = "BUNDLED",
 )
 
 @Entity(

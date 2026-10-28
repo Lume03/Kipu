@@ -57,6 +57,7 @@ data class BudgetDetailContent(
     val isWorking: Boolean = false,
     val actionError: String? = null,
     val iconId: String? = null,
+    val isParentCategory: Boolean = false,
 ) {
     val isActive: Boolean get() = budget.isActive
 }
@@ -83,7 +84,7 @@ data class BudgetCategoryOption(
     val color: String? = null,
 ) {
     val isSubcategory: Boolean get() = parentId != null
-    val label: String get() = if (parentName != null) "$parentName > $name" else name
+    val label: String get() = if (parentName != null) "$parentName › $name" else name
 }
 
 internal fun BudgetScope.categoryIdOrNull(): String? = (this as? BudgetScope.Category)?.categoryId

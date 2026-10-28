@@ -94,6 +94,7 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         val viewModel: GoalDetailViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
         val fundsViewModel: GoalContributionViewModel = hiltViewModel()
+        LaunchedEffect(state.isDeleted) { if (state.isDeleted) navController.popBackStack() }
         val fundsState by fundsViewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(fundsViewModel) { fundsViewModel.events.collect { if (it == GoalContributionEvent.Saved) navController.popBackStack() } }
         GoalDetailScreen(
@@ -105,6 +106,10 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             fundsState = fundsState,
             onReassign = viewModel::reassign,
             onArchive = viewModel::archive,
+            onComplete = viewModel::complete,
+            onDelete = viewModel::delete,
+            onDeleteWithReplacement = { viewModel.delete(it) },
+            onPause = viewModel::pause,
             onEdit = { state.goal?.id?.let { navController.navigate("goals/$it/edit") } },
             startWithWithdrawal = backStackEntry.arguments?.getBoolean("withdraw") == true,
             initialAction = backStackEntry.arguments?.getString("action"),
@@ -119,9 +124,8 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         val viewModel: GoalContributionViewModel = hiltViewModel()
         val state by viewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(viewModel) {
-            viewModel.events.collect { event ->
-                if (event == GoalContributionEvent.Saved) navController.popBackStack()
-            }
+            // The funds screen displays the saved result before returning to the goal.
+            viewModel.events.collect { }
         }
         val detailViewModel: GoalDetailViewModel = hiltViewModel()
         val withdrawalState by detailViewModel.state.collectAsStateWithLifecycle()
@@ -131,6 +135,10 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             onReserve = viewModel::reserve,
             withdrawalState = withdrawalState,
             onRelease = detailViewModel::release,
+            onReleaseAchieved = { state.goal?.id?.let { navController.navigate("goals/$it?withdraw=true") {
+                popUpTo(GOAL_CONTRIBUTION_ROUTE) { inclusive = true }
+            } } },
+            onCreateGoal = { navController.navigate(GOAL_CREATE_ROUTE) },
         )
     }
 }

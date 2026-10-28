@@ -23,7 +23,7 @@ import com.kipu.app.feature.budgets.domain.BudgetPeriodType
 import com.kipu.app.feature.movements.presentation.resolveCatalogIcon
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.KipuOptionalDateField
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @Composable
 internal fun BudgetIcon(iconId: String?, modifier: Modifier = Modifier, tint: Color = MaterialTheme.colorScheme.primary) {
@@ -55,7 +55,7 @@ internal fun BudgetFormError(message: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun BudgetChoiceCard(title: String, subtitle: String?, selected: Boolean, tag: String,
     modifier: Modifier = Modifier, enabled: Boolean = true, onSelect: () -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Surface(shape = RoundedCornerShape(16.dp), color = if (selected) colors.primaryDeep.copy(alpha = 0.08f) else colors.surfaceCard,
         border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.primaryDeep else colors.borderSubtle),
         modifier = modifier.heightIn(min = if (subtitle == null) 48.dp else 64.dp).testTag(tag).selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = onSelect)) {
@@ -75,7 +75,7 @@ internal fun BudgetChoiceCard(title: String, subtitle: String?, selected: Boolea
 @Composable
 internal fun BudgetPeriodSection(form: BudgetFormState, onChange: ((BudgetFormInput) -> BudgetFormInput) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(true) }
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val input = form.input
     Surface(shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, colors.primaryDeep.copy(alpha = 0.25f)), color = colors.surfaceCard) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -136,7 +136,7 @@ internal fun BudgetPeriodSection(form: BudgetFormState, onChange: ((BudgetFormIn
 
 @Composable
 internal fun BudgetThresholdEditor(raw: String, error: String?, onChange: (String) -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val thresholds = (BudgetFormParser.parseThresholdsBps(raw) ?: Budget.DEFAULT_THRESHOLDS_BPS).sorted()
     val editable = thresholds.filter { it < 10000 }
     Surface(shape = RoundedCornerShape(20.dp), color = colors.surfaceCard, border = BorderStroke(1.dp, colors.borderSubtle), modifier = Modifier.testTag("budget_thresholds")) {

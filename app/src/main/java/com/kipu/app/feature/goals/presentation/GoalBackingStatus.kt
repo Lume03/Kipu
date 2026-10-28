@@ -10,7 +10,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,7 +24,7 @@ fun GoalBackingStatus(
     accounts: List<GoalBackingAccount>,
     modifier: Modifier = Modifier,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Respaldo real", style = MaterialTheme.typography.titleMedium)
         if (accounts.isEmpty()) {

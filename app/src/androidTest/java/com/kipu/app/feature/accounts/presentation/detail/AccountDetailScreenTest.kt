@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kipu.app.ui.component.LocalBalanceMasked
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.activity.ComponentActivity
@@ -51,6 +52,39 @@ class AccountDetailScreenTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @org.junit.Before
+    fun grantNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            instrumentation.uiAutomation.executeShellCommand(
+                "pm grant ${instrumentation.targetContext.packageName} android.permission.POST_NOTIFICATIONS",
+            ).close()
+        }
+    }
+
+    @Test
+    fun detailShowsSummaryAndRequiresExplicitEditing() {
+        setScreen(account())
+        compose.onNodeWithTag("account_summary_card").assertIsDisplayed()
+        compose.onNodeWithTag("account_alias").assertDoesNotExist()
+        compose.onNodeWithTag("edit_account").performClick()
+        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+    }
+
+    @Test
+    fun cancellingWalletEditsDoesNotSaveAndReopeningRestoresStoredName() {
+        var saves = 0
+        val wallet = account().copy(type = AccountType.DIGITAL_WALLET, preset = AccountPreset.PLIN)
+        setScreen(wallet, onSaveAppearance = { _, _ -> saves++ })
+        compose.onNodeWithTag("edit_account").performClick()
+        compose.onNodeWithTag("account_alias").performTextReplacement("Borrador")
+        compose.onNodeWithContentDescription("Cerrar edición").performClick()
+        compose.onNodeWithTag("account_alias").assertDoesNotExist()
+        compose.onNodeWithTag("edit_account").performClick()
+        compose.onNodeWithTag("account_alias").assertTextContains(wallet.alias)
+        compose.runOnIdle { assertEquals(0, saves) }
+    }
+
     @Test
     fun maskedCreditCardDoesNotExposeItsLimitInTextOrAccessibility() {
         setCardScreen(creditCard(), masked = true)
@@ -62,7 +96,7 @@ class AccountDetailScreenTest {
     fun maskedOpeningCorrectionKeepsTheStoredAmountPrivateAndAcceptsExplicitInput() {
         var correctedAmount: Long? = null
         setScreen(account(), masked = true, onCorrectOpeningBalance = { correctedAmount = it })
-        compose.onNodeWithText("Corregir saldo inicial").performScrollTo().performClick()
+        compose.onNodeWithTag("correct_opening_balance").performScrollTo().performClick()
         compose.onAllNodesWithText("100.00", substring = true).assertCountEquals(0)
         compose.onNodeWithContentDescription("Saldo inicial oculto").performSemanticsAction(SemanticsActions.SetText) {
             it(AnnotatedString("12.50"))
@@ -85,6 +119,7 @@ class AccountDetailScreenTest {
             onCorrectOpeningBalance = { correctedAmount = it },
         )
 
+        compose.onNodeWithTag("edit_account").performClick()
         compose.onNodeWithTag("account_alias").performScrollTo().performTextReplacement("Ahorro de viaje")
         compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
         compose.onNodeWithTag("account_preset_bbva").performClick()
@@ -105,6 +140,7 @@ class AccountDetailScreenTest {
             onSaveAppearance = { _, preset -> savedPreset = preset },
         )
 
+        compose.onNodeWithTag("edit_account").performClick()
         compose.onAllNodesWithTag("account_preset_selector").assertCountEquals(0)
         compose.onNodeWithTag("cash_presentation").assertIsDisplayed()
         compose.onNodeWithTag("account_alias").assertIsDisplayed()
@@ -117,6 +153,7 @@ class AccountDetailScreenTest {
     fun savingsAccountShowsOnlyBankPresets() {
         setScreen(account())
 
+        compose.onNodeWithTag("edit_account").performClick()
         compose.onNodeWithTag("account_institution_selector").performScrollTo().performClick()
         compose.onNodeWithTag("account_preset_bcp").assertIsDisplayed()
         compose.onNodeWithTag("account_preset_banco_nacion").assertIsDisplayed()
@@ -133,6 +170,7 @@ class AccountDetailScreenTest {
             onSaveAppearance = { _, preset -> savedPreset = preset },
         )
 
+        compose.onNodeWithTag("edit_account").performClick()
         compose.onNodeWithTag("account_institution_selector").assertIsDisplayed()
         compose.onNodeWithText("Otro").assertIsDisplayed()
         compose.onNodeWithTag("save_account_presentation").performScrollTo().performClick()
@@ -145,7 +183,7 @@ class AccountDetailScreenTest {
         var correctedAmount: Long? = null
         setScreen(account = account(), onCorrectOpeningBalance = { correctedAmount = it })
 
-        compose.onNodeWithText("Corregir saldo inicial").performScrollTo().performClick()
+        compose.onNodeWithTag("correct_opening_balance").performScrollTo().performClick()
         compose.onNodeWithText("Se conserva el movimiento de apertura original", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Saldo inicial correcto (PEN)").performTextReplacement("12.50")
         compose.runOnIdle { assertEquals(null, correctedAmount) }
@@ -182,7 +220,7 @@ class AccountDetailScreenTest {
         compose.onNodeWithText("Archivar cuenta").performScrollTo().performClick()
         compose.onNodeWithText("Cancelar").performClick()
 
-        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onNodeWithTag("account_summary_card").assertIsDisplayed()
         compose.onAllNodesWithText("¿Archivar la cuenta?").assertCountEquals(0)
         compose.runOnIdle {
             assertFalse(archived)
@@ -203,7 +241,7 @@ class AccountDetailScreenTest {
         compose.onNodeWithText("Archivar cuenta").performScrollTo().performClick()
         pressBack()
 
-        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onNodeWithTag("account_summary_card").assertIsDisplayed()
         compose.onAllNodesWithText("¿Archivar la cuenta?").assertCountEquals(0)
         compose.runOnIdle {
             assertFalse(archived)
@@ -339,8 +377,40 @@ class AccountDetailScreenTest {
             compose.onAllNodesWithText("No se pudo archivar").fetchSemanticsNodes().isNotEmpty()
         }
 
-        compose.onNodeWithTag("account_alias").assertIsDisplayed()
+        compose.onNodeWithTag("account_summary_card").assertIsDisplayed()
         compose.runOnIdle { assertFalse(returned) }
+    }
+
+    @Test
+    fun debitDetailUsesLinkedAccountForEditingAndMovements() {
+        val linked = account()
+        var openedId: String? = null
+        var movementAccount: Account? = null
+        val debit = com.kipu.app.feature.accounts.domain.model.DebitCard(
+            id = CardId("e1000000-0000-4000-8000-000000000003"),
+            userId = linked.userId, issuer = "BCP", network = CardNetwork.VISA,
+            lastFourDigits = "1234", currency = Currency.PEN,
+            linkedAccountId = linked.id, stylePresetId = "bcp-debit-classic",
+        )
+        compose.setContent {
+            MaterialTheme {
+                AccountDetailContent(
+                    account = null, card = debit, debitAccount = linked,
+                    currentBalance = Money(25_000L, Currency.PEN), creditCardSummary = null,
+                    isLoading = false, onNavigateBack = {}, onSaveAppearance = { _, _ -> },
+                    onCorrectOpeningBalance = {}, onArchive = {}, onReactivate = {},
+                    onNavigateToLinkedAccount = { openedId = it },
+                    onNavigateToMovements = { movementAccount = it },
+                )
+            }
+        }
+        compose.onNodeWithText("Saldo de cuenta vinculada").assertIsDisplayed()
+        compose.onNodeWithText("Ver y editar cuenta").performClick()
+        compose.onNodeWithTag("account_view_movements").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(linked.id.value, openedId)
+            assertEquals(linked, movementAccount)
+        }
     }
 
     private fun setScreen(

@@ -139,6 +139,9 @@ data class MerchantCatalogItemDto(
     @SerialName("priority") val priority: String = "B",
     @SerialName("logo_key") val logoKey: String? = null,
     @SerialName("brand_color") val brandColor: String? = null,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("logo_dark_path") val logoDarkPath: String? = null,
+    @SerialName("logo_source") val logoSource: String = "BUNDLED",
 )
 
 @Serializable

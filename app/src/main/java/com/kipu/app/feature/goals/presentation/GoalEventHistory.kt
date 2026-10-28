@@ -17,7 +17,7 @@ import com.kipu.app.feature.goals.domain.model.GoalEvent
 import com.kipu.app.feature.goals.domain.model.GoalEventType
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.KipuCard
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -26,7 +26,7 @@ fun GoalEventHistory(
     events: List<GoalEvent>,
     modifier: Modifier = Modifier,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     KipuCard(modifier = modifier.fillMaxWidth(), containerColor = colors.surfaceCard,
         shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
@@ -67,7 +69,7 @@ import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.budgets.domain.BudgetStatus
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.KipuFilterChip
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +116,6 @@ fun BudgetListScreen(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Organización", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("Planificación", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
                         }
                     },
@@ -162,26 +163,26 @@ fun BudgetListScreen(
                 Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).testTag("budget_items"),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { QuotaCard(state.quota) }
                 val visible = state.items.filter { it.status == BudgetStatus.ACTIVE }
                 val finished = state.items.filter { it.status == BudgetStatus.FINISHED }
+                item { BudgetTotalsCard(visible) }
+                item { QuotaCard(state.quota) }
                 if (visible.isEmpty()) {
-                    item { CreateButton(state.quota.isAtLimit, requestCreate) }
+                    if (state.items.isEmpty()) item { CreateButton(state.quota.isAtLimit, requestCreate) }
                     item { EmptyBudgets() }
                 }
                 items(visible, key = { it.id }) { item ->
                     BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }, onOptions = { optionsId = item.id })
                 }
-                if (visible.isNotEmpty()) item { CreateButton(state.quota.isAtLimit, requestCreate) }
                 item {
-                    val colors = rememberCalmEmeraldColors()
+                    val colors = rememberPlanningColors()
                     Surface(onClick = { showArchive = !showArchive }, color = colors.surfaceCard,
                         shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().testTag("budget_archived_entry")
                             .semantics { stateDescription = if (showArchive) "Expandido" else "Contraído" }) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Archive, null, Modifier.size(24.dp), tint = colors.secondaryMuted)
                             Column(Modifier.weight(1f)) {
                                 Text("Finalizados (${finished.size})", fontWeight = FontWeight.SemiBold)
-                                Text("Conservan su historial y no ocupan cupo", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
                             }
                             Icon(if (showArchive) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
                         }
@@ -233,7 +234,7 @@ internal fun BudgetErrorPanel(message: String, onRetry: () -> Unit, modifier: Mo
 
 @Composable
 private fun CreateButton(atLimit: Boolean, onClick: () -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_create_button"),
@@ -242,58 +243,21 @@ private fun CreateButton(atLimit: Boolean, onClick: () -> Unit) {
         else ButtonDefaults.buttonColors(),
     ) {
         Icon(if (atLimit) Icons.Default.Lock else Icons.Default.Add, contentDescription = null)
-        Text(if (atLimit) "  Nuevo presupuesto · Mejorar a PRO" else "  Crear presupuesto", fontWeight = FontWeight.SemiBold)
+        Text("  Crear presupuesto", fontWeight = FontWeight.SemiBold)
     }
 }
 
+/** The free-plan quota as one quiet line; the create button handles the limit. */
 @Composable
 private fun QuotaCard(quota: BudgetQuotaState) {
     if (quota.isPremium) return
-    val colors = rememberCalmEmeraldColors()
-    val largeText = LocalDensity.current.fontScale >= 1.15f
-    val planBadge: @Composable () -> Unit = {
-        Surface(shape = RoundedCornerShape(20.dp), color = colors.primaryDeep.copy(alpha = 0.12f)) {
-            Text("PLAN BÁSICO", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
-                color = colors.primaryDeep, fontWeight = FontWeight.Bold)
-        }
-    }
-    val limitBadge: @Composable () -> Unit = {
-        if (quota.isAtLimit) Surface(shape = RoundedCornerShape(20.dp), color = colors.warningBg) {
-            Text("Límite alcanzado", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), color = colors.warningText,
-                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-        }
-    }
-    KipuCard(modifier = Modifier.fillMaxWidth().testTag("budget_quota_card"), shape = RoundedCornerShape(24.dp), borderColor = null, elevation = 1.dp) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (largeText) {
-                // El contador necesita una línea propia: las dos píldoras no deben comprimirlo.
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    planBadge()
-                    limitBadge()
-                }
-                Text("${quota.activeCount} de ${quota.limit} presupuestos activos", Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    planBadge()
-                    Text("${quota.activeCount} de ${quota.limit} presupuestos activos", Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    limitBadge()
-                }
-            }
-            // Un segmento por presupuesto permitido: los activos se llenan y el tono avisa al llegar al límite.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                repeat(quota.limit.coerceAtLeast(1)) { index ->
-                    LinearProgressIndicator(
-                        progress = { if (index < quota.activeCount) 1f else 0f },
-                        modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
-                        color = if (quota.isAtLimit) colors.warningAmber else MaterialTheme.colorScheme.primary,
-                        drawStopIndicator = {},
-                    )
-                }
-            }
-        }
-    }
+    val colors = rememberPlanningColors()
+    Text(
+        "Presupuestos activos: ${quota.activeCount} de ${quota.limit} · Plan Free",
+        style = MaterialTheme.typography.bodySmall,
+        color = if (quota.isAtLimit) colors.warningText else colors.secondaryMuted,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).testTag("budget_quota_card"),
+    )
 }
 
 @Composable
@@ -309,7 +273,7 @@ private fun EmptyBudgets() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(Modifier.size(108.dp).padding(4.dp)) {
-                Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(92.dp)) {
+                Surface(shape = RoundedCornerShape(26.dp), color = com.kipu.app.ui.theme.rememberPlanningColors().incomeBg, modifier = Modifier.size(92.dp)) {
                     Box(contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(progress = { 0.28f }, modifier = Modifier.size(52.dp), strokeWidth = 8.dp,
                             color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
@@ -335,7 +299,7 @@ private fun EmptyBudgets() {
 @Composable
 internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptions: (() -> Unit)? = null) {
     val finished = item.status == BudgetStatus.FINISHED
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     KipuCard(
         modifier = Modifier.fillMaxWidth().testTag("budget_card_${item.id}")
             .clickable(role = Role.Button, onClickLabel = "Abrir detalle de ${item.name}", onClick = onOpen),
@@ -348,7 +312,7 @@ internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptio
                 Surface(shape = RoundedCornerShape(16.dp), color = when {
                     item.consumption?.isExceeded == true -> colors.expenseBg
                     item.consumption?.needsAttention(item.thresholdsBps) == true -> colors.warningBg
-                    else -> MaterialTheme.colorScheme.secondaryContainer
+                    else -> com.kipu.app.ui.theme.rememberPlanningColors().incomeBg
                 }) {
                     BudgetIcon(item.iconId, modifier = Modifier.padding(12.dp).size(24.dp), tint = when {
                         item.consumption?.isExceeded == true -> colors.expenseText
@@ -357,43 +321,71 @@ internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptio
                     })
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        listOfNotNull(
-                            BudgetTexts.periodTypeShort(item.periodType),
-                            if (finished) "Finalizado" else null,
-                        ).joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // Name with the period as a quiet tag; scope and dates on one short line below.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false), maxLines = 1)
+                        Surface(shape = RoundedCornerShape(8.dp), color = colors.pillTrack) {
+                            Text(BudgetTexts.periodTypeShort(item.periodType), Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colors.secondaryMuted)
+                        }
+                    }
+                    val category = item.scopeLabel.substringAfterLast(" › ")
+                    if (category != BudgetTexts.scopeTotal() && !category.equals(item.name, ignoreCase = true)) {
+                        Text(category, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
                 }
                 if (onOptions != null) IconButton(onClick = onOptions, modifier = Modifier.testTag("budget_options_${item.id}")) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${item.name}")
                 }
             }
-            item.interval?.let {
-                Text(
-                    "${item.scopeLabel} · ${BudgetTexts.compactInterval(it)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             val consumption = item.consumption
             if (consumption != null) {
+                val daysLeft = item.interval?.takeIf { !finished }?.let {
+                    java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), it.lastDay).takeIf { days -> days >= 0 }?.plus(1)
+                }
                 BudgetAmountsRow(consumption, item.currency, thresholdsBps = item.thresholdsBps)
-                BudgetProgressBar(consumption, item.currency, thresholdsBps = item.thresholdsBps)
+                BudgetProgressBar(consumption, item.currency, thresholdsBps = item.thresholdsBps, daysLeft = daysLeft)
             } else {
                 Text("Sin periodo disponible todavía.", style = MaterialTheme.typography.bodySmall)
             }
             if (item.hasPendingChange) {
                 Text(
-                    "Hay un cambio de alcance o calendario programado para el siguiente periodo.",
+                    "Cambio programado",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
             item.syncIssue?.let { issue ->
                 Text(issue, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BudgetTotalsCard(items: List<BudgetListItem>) {
+    val colors = rememberPlanningColors()
+    val today = java.time.LocalDate.now()
+    val current = items.filter { it.interval?.contains(today) == true && it.consumption != null }
+    val currencies = current.map { it.currency }.distinct().sorted().ifEmpty { listOf("PEN") }
+    KipuCard(Modifier.fillMaxWidth().testTag("budget_totals"), shape = RoundedCornerShape(18.dp), borderColor = colors.borderSubtle) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Presupuesto total", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                currencies.forEach { currency ->
+                    BudgetMoney(current.filter { it.currency == currency }.sumOf { it.consumption!!.limitMinor }, currency,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+            }
+            VerticalDivider(Modifier.height(48.dp), color = colors.borderSubtle)
+            Column(Modifier.weight(1f).padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Usado", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                currencies.forEach { currency ->
+                    BudgetMoney(current.filter { it.currency == currency }.sumOf { it.consumption!!.consumedMinor }, currency,
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

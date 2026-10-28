@@ -101,5 +101,5 @@ internal fun openSourceLabel(event: CalendarEvent): String = when (event.source)
 internal fun eventCountLabel(count: Int): String = when (count) {
     0 -> "Sin eventos"
     1 -> "1 evento"
-    else -> "$count eventos · agrupados en el mismo día"
+    else -> "$count eventos"
 }

@@ -41,7 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kipu.app.ui.component.KipuBottomSheet
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 /** D6: the Basic plan allows [limit] active debts or loans in total, shared between both directions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +53,7 @@ fun DebtPlanLimitSheet(
     onSeePlans: () -> Unit,
     onSeeActiveDebts: () -> Unit,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     KipuBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("debt_plan_limit_sheet")) {
         Column(
             Modifier
@@ -72,7 +72,7 @@ fun DebtPlanLimitSheet(
                     Icon(Icons.Default.Lock, contentDescription = null, tint = colors.warningText, modifier = Modifier.size(28.dp))
                 }
                 Text(
-                    "Llegaste al límite de tu Plan Básico",
+                    "Llegaste al límite de tu Plan Free",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 14.dp).weight(1f).semantics { heading() },
@@ -84,7 +84,7 @@ fun DebtPlanLimitSheet(
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)) {
                         append("$activeCount de $limit deudas o préstamos activos")
                     }
-                    append(". El límite se comparte entre lo que debes y lo que te deben. Para registrar otro, mejora a PRO o salda uno existente.")
+                    append(". El límite es compartido entre lo que debes y te deben. Salda una para crear otra.")
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.secondaryMuted,

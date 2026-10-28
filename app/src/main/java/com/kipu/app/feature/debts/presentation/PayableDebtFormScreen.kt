@@ -55,7 +55,7 @@ import com.kipu.app.feature.debts.domain.DebtAmountParser
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
 import com.kipu.app.ui.component.KipuOptionalDateField
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @Composable
 fun PayableDebtFormScreen(
@@ -136,7 +136,7 @@ private fun DebtOpeningFormScreen(
     } else {
         "El saldo de la cuenta disminuye por el dinero entregado."
     }
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val amountMinor = DebtAmountParser.toMinorUnits(state.principalAmount)
     val name = state.counterpartyName.trim()
 
@@ -317,7 +317,7 @@ private fun DebtTypeOption(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
@@ -346,7 +346,7 @@ private fun OpeningModeOption(
     tag: String,
     onClick: () -> Unit,
 ) {
-    val emeraldColors = rememberCalmEmeraldColors()
+    val emeraldColors = rememberPlanningColors()
     Card(
         modifier = Modifier
             .fillMaxWidth()

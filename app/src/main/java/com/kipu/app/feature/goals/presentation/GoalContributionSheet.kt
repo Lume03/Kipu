@@ -15,7 +15,7 @@ import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.symbol
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,11 +30,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.CheckCircle
+import com.kipu.app.ui.component.PlanningNotice
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -74,8 +80,10 @@ fun GoalContributionSheet(
     withdrawalState: GoalDetailUiState? = null,
     onRelease: ((String, Money, String?) -> Unit)? = null,
     initialWithdrawal: Boolean = false,
+    onReleaseAchieved: (() -> Unit)? = null,
+    onCreateGoal: (() -> Unit)? = null,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val goal = state.goal
     var withdrawing by rememberSaveable(goal?.id) { mutableStateOf(initialWithdrawal) }
     var releaseAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
@@ -88,6 +96,7 @@ fun GoalContributionSheet(
     val releasable = state.accounts.filter { (reserves[it.id] ?: 0L) > 0L }
     val releaseAccount = releasable.firstOrNull { it.id == releaseAccountId } ?: releasable.firstOrNull()
     val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var backingAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var sourceAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
@@ -115,10 +124,30 @@ fun GoalContributionSheet(
         withdrawalState?.hasPremiumAccess == false && candidates.size >= 2
     val canRelease = amount != null && amount.minorUnits <= maxRelease && releaseAccount != null &&
         (!needsReplacement || candidates.any { it.id == replacementId })
+    if (!withdrawing && goal?.status == GoalStatus.COMPLETED && state.message != null && withdrawalState != null && !state.isSaving) {
+        GoalAchievedScreen(goal, withdrawalState.events, onRelease = onReleaseAchieved ?: onNavigateBack,
+            onRetain = onNavigateBack, onCreate = onCreateGoal)
+        return
+    }
+    if (!withdrawing && state.message != null && state.errorMessage == null) {
+        AlertDialog(
+            onDismissRequest = onNavigateBack,
+            containerColor = colors.surfaceCard,
+            shape = RoundedCornerShape(28.dp),
+            icon = { Icon(Icons.Default.CheckCircle, null, tint = colors.primaryDeep) },
+            title = { Text("Aporte guardado", fontWeight = FontWeight.Bold) },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(state.message)
+                Text("El dinero queda reservado para ${goal?.name.orEmpty()} y puedes consultar el aporte en su historial.")
+            } },
+            confirmButton = { TextButton(onClick = onNavigateBack) { Text("Volver a la meta", color = colors.primaryDeep) } },
+        )
+    }
     Scaffold(
         containerColor = colors.background,
         bottomBar = {
             if (goal != null && !state.isLoading) Surface(color = colors.surfaceCard) {
+                Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp)) {
                 Button(
                     onClick = {
                         focusManager.clearFocus()
@@ -128,11 +157,13 @@ fun GoalContributionSheet(
                         }
                     },
                     enabled = !state.isSaving && withdrawalState?.isSaving != true && if (withdrawing) canRelease else canReserve,
-                    modifier = Modifier.navigationBarsPadding().imePadding().padding(16.dp).fillMaxWidth().heightIn(min = 52.dp).testTag(if (withdrawing) "goal_release_confirm" else "goal_contribution_submit"),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag(if (withdrawing) "goal_release_confirm" else "goal_contribution_submit"),
                     shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.primaryDeep, contentColor = colors.onPrimaryDeep),
                 ) {
                     Text(if (state.isSaving || withdrawalState?.isSaving == true) "Guardando…" else if (withdrawing) "Retirar reserva" else if (effectiveTransfer) "Trasladar y reservar" else "Aportar", fontWeight = FontWeight.Bold)
                     if (!state.isSaving && !withdrawing && !effectiveTransfer && amount != null) MoneyText(amount, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelLarge)
+                }
                 }
             }
         },
@@ -149,9 +180,19 @@ fun GoalContributionSheet(
             state.isLoading -> CircularProgressIndicator(Modifier.padding(padding).padding(24.dp))
             goal == null -> Text("No encontramos esta meta.", Modifier.padding(padding).padding(24.dp))
             else -> Column(
-                Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    GoalIconBadge(goal.iconKey)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(goal.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Row {
+                            Text("Objetivo: ", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                            MoneyText(goal.target, style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                        }
+                    }
+                }
                 if (onRelease != null || onWithdraw != null) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         KipuFilterChip(selected = !withdrawing, onClick = { focusManager.clearFocus(); withdrawing = false; amountText = "" },
@@ -174,6 +215,10 @@ fun GoalContributionSheet(
                             textStyle = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
+                            isError = amountText.isNotBlank() && amount == null,
+                            supportingText = {
+                                if (amountText.isNotBlank() && amount == null) Text("Introduce un monto mayor que cero, con hasta dos decimales.")
+                            },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             modifier = Modifier.fillMaxWidth().testTag("goal_contribution_amount"),
@@ -190,15 +235,15 @@ fun GoalContributionSheet(
                             MoneyText(reserves[account.id] ?: 0L, currency = account.currency, fontWeight = FontWeight.Bold)
                         }
                     }
-                    if (releasable.isEmpty()) Text("Esta meta no tiene reservas que puedas retirar.")
-                    if (amount != null && amount.minorUnits > maxRelease) Text("El importe supera lo reservado en esta cuenta para esta meta.", color = MaterialTheme.colorScheme.error)
+                    if (releasable.isEmpty()) PlanningNotice("Sin dinero reservado", "Esta meta no tiene reservas que puedas retirar.")
+                    if (amount != null && amount.minorUnits > maxRelease) PlanningNotice("Revisa el importe", "El importe supera lo reservado en esta cuenta para esta meta.", isError = true)
                     if (needsReplacement) {
                         Text("Al retirar, esta meta vuelve a estar activa. Elige qué otra meta se bloqueará por el límite del plan.")
                         GoalPicker(candidates.map { it.id to it.name }, replacementId, { replacementMenu = it }, replacementMenu,
                             testTag = "goal_release_replacement_picker") { replacementId = it }
                     }
-                    withdrawalState?.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    withdrawalState?.message?.let { Text(it, color = colors.primaryDeep) }
+                    withdrawalState?.errorMessage?.let { PlanningNotice("No se pudo retirar", it, isError = true) }
+                    withdrawalState?.message?.let { PlanningNotice("Cambios guardados", it) }
                     androidx.compose.material3.TextButton(onClick = onNavigateBack, modifier = Modifier.testTag("goal_release_cancel")) { Text("Volver a la meta") }
                 } else {
                 Text("Aportar desde", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -208,8 +253,9 @@ fun GoalContributionSheet(
                     accounts.forEach { account ->
                         val selected = account.id == chosenBackingId
                         Surface(
-                            modifier = Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton, onClick = { backingAccountId = account.id }),
-                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else colors.surfaceCard,
+                            modifier = Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
+                                onClick = { focusManager.clearFocus(); keyboard?.hide(); backingAccountId = account.id }),
+                            color = if (selected) colors.incomeBg else colors.surfaceCard,
                             border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primaryDeep else colors.borderSubtle),
                             shape = RoundedCornerShape(16.dp),
                         ) {
@@ -224,13 +270,18 @@ fun GoalContributionSheet(
                         }
                     }
                 }
-                if (accounts.isEmpty()) Text("No hay cuentas activas compatibles para respaldar esta meta.")
+                if (accounts.isEmpty()) PlanningNotice("Necesitas una cuenta", "No hay cuentas activas con la misma moneda de esta meta. Agrega una para poder aportar.")
+                else if (selectedBacking == null) PlanningNotice("Elige una cuenta", "Selecciona la cuenta desde la que quieres reservar el dinero.")
                 if (selectedBacking != null && amount != null && !effectiveTransfer) {
-                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = if (selectedBacking.available < amount) colors.expenseBg else colors.incomeBg) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Dinero disponible después", style = MaterialTheme.typography.bodyMedium)
-                            MoneyText(selectedBacking.available.minus(amount), fontWeight = FontWeight.Bold)
-                            if (selectedBacking.available < amount) Text("El importe supera el disponible de esta cuenta.", color = MaterialTheme.colorScheme.error)
+                            if (selectedBacking.available < amount) {
+                                Text("Saldo insuficiente", fontWeight = FontWeight.Bold, color = colors.expenseText)
+                                Text("El importe supera el disponible de esta cuenta. Reduce el aporte o elige otra cuenta.", style = MaterialTheme.typography.bodyMedium, color = colors.primaryText)
+                            } else {
+                                Text("Dinero disponible después", style = MaterialTheme.typography.bodyMedium, color = colors.primaryDeep)
+                                MoneyText(selectedBacking.available.minus(amount), fontWeight = FontWeight.Bold, color = colors.primaryDeep)
+                            }
                         }
                     }
                 }
@@ -256,11 +307,13 @@ fun GoalContributionSheet(
                         testTag = "goal_transfer_source_picker",
                     )
                     selectedSource?.let { Text("Saldo libre en origen: ${it.available.minorUnits.asCurrency()}") }
+                    if (selectedSource == null) PlanningNotice("Elige la cuenta origen", "Selecciona desde qué cuenta se hará el traslado interno.")
+                    else if (amount != null && selectedSource.available < amount) PlanningNotice("Saldo insuficiente en origen", "Reduce el importe o selecciona otra cuenta origen.", isError = true)
                 }
                 CardNote(effectiveTransfer)
                 }
-                state.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+                state.errorMessage?.let { PlanningNotice("No se pudo guardar", it, isError = true) }
+                state.message?.let { PlanningNotice("Aporte guardado", it) }
                 Spacer(Modifier.height(12.dp))
 
             }
@@ -297,16 +350,9 @@ private fun AccountChoice(
 
 @Composable
 private fun CardNote(confirmTransfer: Boolean) {
-    androidx.compose.material3.Card {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                if (confirmTransfer) "El traslado interno y la reserva se registran juntos. No se crea gasto ni ingreso."
-                else "La reserva no cambia el saldo real y no duplica el patrimonio.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text("Completar la meta tampoco libera automáticamente el dinero.", style = MaterialTheme.typography.bodySmall)
-        }
-    }
+    PlanningNotice("Tu dinero sigue siendo tuyo",
+        if (confirmTransfer) "El traslado entre tus cuentas y el aporte se guardan juntos. No se crea gasto ni ingreso."
+        else "El aporte aparta dinero para esta meta. El dinero permanece en tu cuenta y podrás retirarlo de la reserva cuando lo necesites.")
 }
 
 private fun parseContributionAmount(raw: String, currency: com.kipu.app.core.finance.domain.model.Currency): Money? = runCatching {

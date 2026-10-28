@@ -24,7 +24,6 @@ internal fun BudgetActionsSheet(
     summary: @Composable () -> Unit = {},
 ) {
     PlanningActionsSheet(name, onDismiss, buildList {
-        add(PlanningAction("Ver detalle", "Gastos, consumo y alertas", Icons.Default.Visibility, onDetail, PlanningActionTone.PRIMARY))
         if (active) {
             add(PlanningAction("Editar", "Nombre, límite, periodo y alertas", Icons.Default.Edit, onEdit))
             add(PlanningAction("Finalizar", "Conserva el historial; detiene renovaciones y alertas", Icons.Default.Flag, onFinish, PlanningActionTone.WARNING))

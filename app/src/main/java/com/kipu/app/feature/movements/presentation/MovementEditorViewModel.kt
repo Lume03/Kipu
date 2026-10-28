@@ -172,7 +172,7 @@ class MovementEditorViewModel @Inject constructor(
                         val matchingCat = options.firstOrNull { it.id == current.selectedCategoryId }
                         current.copy(
                             availableCategories = options,
-                            selectedCategoryName = matchingCat?.displayName ?: current.selectedCategoryName,
+                            selectedCategoryName = matchingCat?.name ?: current.selectedCategoryName,
                         )
                     }
                 }
@@ -233,7 +233,7 @@ class MovementEditorViewModel @Inject constructor(
                     initialSourceAccountId = head.payload.sourceAccountId,
                     initialDestinationAccountId = head.payload.destinationAccountId,
                     initialCategoryId = head.payload.categoryId,
-                    initialCategoryName = matchingCat?.displayName,
+                    initialCategoryName = matchingCat?.name,
                     initialMerchantName = merchantName,
                     initialMerchantId = head.payload.merchantId,
                     initialOccurredAt = head.payload.occurredAt,
@@ -242,7 +242,7 @@ class MovementEditorViewModel @Inject constructor(
                     selectedSourceAccountId = head.payload.sourceAccountId,
                     selectedDestinationAccountId = head.payload.destinationAccountId,
                     selectedCategoryId = head.payload.categoryId,
-                    selectedCategoryName = matchingCat?.displayName,
+                    selectedCategoryName = matchingCat?.name,
                     merchantName = merchantName,
                     selectedMerchantId = head.payload.merchantId,
                     occurredAt = head.payload.occurredAt,
@@ -274,7 +274,7 @@ class MovementEditorViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedCategoryId = category.id,
-                selectedCategoryName = category.displayName,
+                selectedCategoryName = category.name,
                 categoryError = null,
             )
         }

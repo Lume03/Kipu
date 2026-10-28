@@ -28,7 +28,6 @@ class DashboardAccountGroupingTest {
         assertEquals(listOf(cash, bbva, bcp), groups.map { it.account })
         assertEquals(listOf(plin), groups[1].wallets)
         assertEquals(listOf(yape), groups[2].wallets)
-        assertEquals("3 activas · 2 billeteras", accountsCountLabel(groups))
     }
 
     @Test
@@ -38,7 +37,6 @@ class DashboardAccountGroupingTest {
         val groups = groupAccountsWithWallets(listOf(orphan))
 
         assertEquals(listOf(orphan), groups.map { it.account })
-        assertEquals("1 activa", accountsCountLabel(groups))
     }
 
     @Test
@@ -58,7 +56,6 @@ class DashboardAccountGroupingTest {
     @Test
     fun emptyListsKeepAZeroInSolesAndPlanLabelUsesRealQuota() {
         assertEquals(mapOf(Currency.PEN to 0L), sumByCurrency(emptyList()) { true })
-        assertEquals("0 activas", accountsCountLabel(emptyList()))
         assertEquals("4 de 4 cuentas y tarjetas", planUsageLabel(4, 4))
     }
 

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.formatMinorUnits
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 /** Section heading used by the debt form and the payment sheet (D3, D5). */
 @Composable
@@ -43,7 +43,7 @@ internal fun DebtSectionLabel(text: String, modifier: Modifier = Modifier, optio
     Row(modifier, verticalAlignment = Alignment.Bottom) {
         Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         optionalHint?.let {
-            Text(" $it", style = MaterialTheme.typography.bodyMedium, color = rememberCalmEmeraldColors().secondaryMuted)
+            Text(" $it", style = MaterialTheme.typography.bodyMedium, color = rememberPlanningColors().secondaryMuted)
         }
     }
 }
@@ -66,7 +66,7 @@ internal fun DebtAmountCard(
     tag: String? = null,
     footer: @Composable () -> Unit = {},
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -126,7 +126,7 @@ internal fun DebtAmountCard(
 
 @Composable
 private fun DebtCurrencyToggle(selected: String, onSelect: (String) -> Unit, enabled: Boolean) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Row(
         Modifier
             .clip(RoundedCornerShape(14.dp))
@@ -165,7 +165,7 @@ internal fun DebtAccountOptionCard(
     modifier: Modifier = Modifier,
     balance: String? = null,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val masked = LocalBalanceMasked.current
     Surface(
         modifier = modifier

@@ -17,4 +17,6 @@ data class GoalDetailUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
+    val isDeleted: Boolean = false,
+    val isPaused: Boolean = false,
 )

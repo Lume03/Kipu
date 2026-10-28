@@ -215,7 +215,7 @@ private fun MovementFiltersSheetContent(
     val shortDateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM", Locale("es")) }
 
     val periodSubtitle = when {
-        !isPeriodActive -> "Cualquier fecha (Historial completo)"
+        !isPeriodActive -> "Cualquier fecha"
         isMonthPreset -> "Este mes: ${fromDateObj?.format(shortDateFormatter)} — ${toDateObj?.format(shortDateFormatter)}"
         isTodayPreset -> "Hoy: ${fromDateObj?.format(shortDateFormatter)}"
         is7DaysPreset -> "Últimos 7 días: ${fromDateObj?.format(shortDateFormatter)} — ${toDateObj?.format(shortDateFormatter)}"
@@ -440,7 +440,7 @@ private fun MovementFiltersSheetContent(
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = "Periodo y Fecha",
+                                        text = "Fecha",
                                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                         color = themeColors.inkPrimary
                                     )

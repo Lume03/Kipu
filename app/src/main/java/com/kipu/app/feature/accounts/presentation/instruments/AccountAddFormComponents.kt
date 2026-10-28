@@ -177,7 +177,13 @@ internal fun AddFormTextField(
 
 /** Selected-state chip used for account type and currency. */
 @Composable
-internal fun AddFormChoiceChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AddFormChoiceChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leading: (@Composable () -> Unit)? = null,
+) {
     val calmColors = rememberCalmEmeraldColors()
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -188,7 +194,12 @@ internal fun AddFormChoiceChip(label: String, selected: Boolean, onClick: () -> 
             .clickable(role = Role.RadioButton, onClick = onClick)
             .semantics { this.selected = selected },
     ) {
-        Box(Modifier.padding(horizontal = 22.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier.padding(horizontal = if (leading != null) 14.dp else 22.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke()
             Text(
                 label,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),

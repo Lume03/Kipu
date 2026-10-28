@@ -116,7 +116,7 @@ class BudgetListViewModelTest {
         kit.seed(sampleBudget(scope = BudgetScope.Category("cat-food-out")))
         val vm = viewModel(kit)
         advanceUntilIdle()
-        assertEquals("Comida > Restaurantes", (vm.state.value as BudgetListUiState.Content).items.single().scopeLabel)
+        assertEquals("Comida › Restaurantes", (vm.state.value as BudgetListUiState.Content).items.single().scopeLabel)
     }
 
     @Test

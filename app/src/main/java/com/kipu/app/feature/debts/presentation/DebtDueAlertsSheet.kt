@@ -30,7 +30,7 @@ import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.KipuFilterChip
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -45,7 +45,7 @@ internal fun DebtDueAlertsSheet(
     onSettle: (String) -> Unit,
 ) {
     var filter by rememberSaveable { mutableStateOf(0) }
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val due = debts.filter { it.status == DebtLifecycleStatus.ACTIVE && it.remainingPrincipalMinor > 0L }.flatMap { debt ->
         val schedule = schedules[debt.debtId].orEmpty()
         if (schedule.isNotEmpty()) schedule.filter { it.status == "PENDING" || it.status == "PARTIAL" }

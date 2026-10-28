@@ -197,10 +197,16 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                             priority = dto.priority,
                             logoKey = dto.logoKey,
                             brandColor = dto.brandColor,
+                            logoPath = dto.logoPath,
+                            logoDarkPath = dto.logoDarkPath,
+                            logoSource = dto.logoSource,
                         )
                     }
                     if (entities.isNotEmpty()) {
                         merchantDao.insertMerchants(entities)
+                        if (MerchantLogoPrefetchPlan.hasRemoteLogos(entities)) {
+                            MerchantLogoPrefetchWorker.enqueue(applicationContext)
+                        }
                     }
                 }
                 else -> {

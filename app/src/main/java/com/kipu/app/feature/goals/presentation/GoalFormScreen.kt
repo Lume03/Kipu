@@ -186,7 +186,7 @@ fun GoalFormScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                color = com.kipu.app.ui.theme.rememberPlanningColors().incomeBg,
                 shape = RoundedCornerShape(20.dp),
                 border = BorderStroke(1.dp, kipuColors.border),
             ) {
@@ -385,7 +385,7 @@ fun GoalFormScreen(
                         options.forEach { option ->
                             Column(
                                 Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                    .background(if (iconKey == option.key) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                                    .background(if (iconKey == option.key) com.kipu.app.ui.theme.rememberPlanningColors().incomeBg else MaterialTheme.colorScheme.surface)
                                     .clickable(role = Role.RadioButton) { iconKey = option.key; iconSheetVisible = false }
                                     .semantics { selected = iconKey == option.key }
                                     .testTag("goal_icon_${option.key}").padding(vertical = 12.dp),

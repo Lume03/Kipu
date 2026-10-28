@@ -441,12 +441,7 @@ fun MovementEditorContent(
                     }
                 }
 
-                Text(
-                    text = "TOCA LO QUE QUIERAS CORREGIR",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp),
-                    color = ec.secondaryMuted,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
-                )
+                Spacer(Modifier.height(8.dp))
 
                 EditorAmountCard(
                     uiState = uiState,
@@ -572,7 +567,7 @@ fun MovementEditorContent(
 
                 if (changeCount == 0 && editable) {
                     Text(
-                        text = "Aún no cambiaste nada. Al guardar se recalculan el saldo de la cuenta, el presupuesto y tus métricas, y se conserva la versión anterior.",
+                        text = "Sin cambios",
                         style = MaterialTheme.typography.bodyMedium,
                         color = ec.secondaryMuted,
                         modifier = Modifier
@@ -918,11 +913,7 @@ private fun EditorAmountCard(
                         }
                     }
                 }
-                else -> Text(
-                    text = "Toca el monto para cambiarlo",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ec.secondaryMuted,
-                )
+                else -> Unit
             }
         }
     }

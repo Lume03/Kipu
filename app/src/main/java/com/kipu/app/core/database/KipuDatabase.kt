@@ -150,7 +150,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         BudgetTombstoneEntity::class,
         BudgetSyncOutboxEntity::class,
     ],
-    version = 27,
+    version = 28,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)

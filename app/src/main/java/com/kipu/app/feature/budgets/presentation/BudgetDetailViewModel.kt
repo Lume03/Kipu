@@ -181,6 +181,7 @@ class BudgetDetailViewModel @Inject constructor(
                 history = rows.filter { it.periodId != current?.periodId },
                 pendingChangeLabel = pending,
                 iconId = budgetIconId(budget.scope.categoryIdOrNull(), appearance?.icon(owner, budget.id), options),
+                isParentCategory = budget.scope.categoryIdOrNull()?.let { id -> options.firstOrNull { it.id == id }?.parentId == null && options.any { it.id == id } } == true,
             ),
         )
     }

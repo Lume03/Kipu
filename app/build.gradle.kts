@@ -92,8 +92,13 @@ android {
         }
         release {
             buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", "false")
+            // R8 shrinks/optimizes release; library consumer rules cover Room, Hilt,
+            // kotlinx.serialization, Ktor and Supabase.
             optimization {
-                enable = false
+                enable = true
+                keepRules {
+                    files.add(file("proguard-rules.pro"))
+                }
             }
         }
     }
@@ -122,6 +127,8 @@ dependencies {
     // Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    // Installs the bundled baseline profile on sideloaded and Play installs.
+    implementation(libs.androidx.profileinstaller)
 
     // Lifecycle / ViewModel
     implementation(libs.androidx.lifecycle.runtime.ktx)

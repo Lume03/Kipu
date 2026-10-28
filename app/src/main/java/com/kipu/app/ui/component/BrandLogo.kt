@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.R
+import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.presentation.components.CardArtCatalog
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.text.Normalizer
@@ -44,18 +45,20 @@ enum class KipuBrand(
     val brandColor: Color,
     @DrawableRes val logoRes: Int?,
     private val aliases: Set<String>,
+    /** The logo is an opaque square in the brand color, so it fills the tile edge to edge. */
+    val fullBleed: Boolean = true,
 ) {
     BCP("BCP", "BCP", Color(0xFF002A8F), R.drawable.ic_brand_bcp, setOf("bcp", "banco de credito", "banco de credito del peru")),
     BBVA("BBVA", "BBVA", Color(0xFF004481), R.drawable.ic_brand_bbva, setOf("bbva", "bbva peru")),
     INTERBANK("Interbank", "IB", Color(0xFF00843D), R.drawable.ic_brand_interbank, setOf("interbank")),
     SCOTIABANK("Scotiabank", "SB", Color(0xFFEC111A), R.drawable.ic_brand_scotiabank, setOf("scotiabank")),
-    BANCO_NACION("Banco de la Nación", "BN", Color(0xFFC8102E), R.drawable.ic_brand_banco_nacion, setOf("banco nacion", "banco de la nacion", "bn")),
+    BANCO_NACION("Banco de la Nación", "BN", Color(0xFFC8102E), R.drawable.ic_brand_banco_nacion, setOf("banco nacion", "banco de la nacion", "bn"), fullBleed = false),
     BANBIF("BanBif", "BB", Color(0xFF0B3D91), R.drawable.ic_brand_banbif, setOf("banbif")),
     FALABELLA("Banco Falabella", "BF", Color(0xFF007A33), R.drawable.ic_brand_falabella, setOf("banco falabella", "falabella")),
     CENCOSUD("Cencosud", "CS", Color(0xFF0060A9), R.drawable.ic_brand_cencosud, setOf("cencosud", "cencosud scotia", "metro")),
     RIPLEY("Banco Ripley", "BR", Color(0xFF5B2D86), R.drawable.ic_brand_ripley, setOf("ripley", "banco ripley")),
     YAPE("Yape", "Y", Color(0xFF742284), R.drawable.ic_brand_yape, setOf("yape")),
-    PLIN("Plin", "P", Color(0xFF00A19B), R.drawable.ic_brand_plin, setOf("plin"));
+    PLIN("Plin", "P", Color(0xFF00A19B), R.drawable.ic_brand_plin, setOf("plin"), fullBleed = false);
 
     companion object {
         /** Resolves presets ("BANCO_NACION"), catalog codes ("BANCO_FALABELLA") and display names. */
@@ -76,8 +79,9 @@ internal fun normalizeBrandKey(value: String): String = Normalizer
     .trim()
 
 /**
- * Logo tile for a bank, issuer or wallet. Without a bundled image it shows the initials on the
- * brand color (or on teal for unknown institutions), so a missing asset never leaves a hole.
+ * Logo tile for a bank, issuer or wallet. Opaque logos ([KipuBrand.fullBleed]) fill the tile; the
+ * rest sit on a white bordered tile. Without a bundled image it shows the initials on the brand
+ * color (or on teal for unknown institutions), so a missing asset never leaves a hole.
  */
 @Composable
 fun BrandLogo(
@@ -86,6 +90,7 @@ fun BrandLogo(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
+    contentPadding: Dp = size * 0.12f,
 ) {
     val colors = rememberCalmEmeraldColors()
     val shape = RoundedCornerShape(size * 0.28f)
@@ -95,7 +100,14 @@ fun BrandLogo(
         Modifier
     }
     val logo = brand?.logoRes
-    if (logo != null) {
+    if (logo != null && brand.fullBleed) {
+        Image(
+            painter = painterResource(logo),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(shape).then(semantics),
+        )
+    } else if (logo != null) {
         Box(
             modifier
                 .size(size)
@@ -109,7 +121,7 @@ fun BrandLogo(
                 painter = painterResource(logo),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().padding(size * 0.12f),
+                modifier = Modifier.fillMaxSize().padding(contentPadding),
             )
         }
     } else {
@@ -130,6 +142,43 @@ fun BrandLogo(
                 maxLines = 1,
             )
         }
+    }
+}
+
+/** Bundled network mark (Logo.dev snapshot); `null` for [CardNetwork.OTHER], which keeps its text label. */
+@DrawableRes
+fun CardNetwork.logoRes(): Int? = when (this) {
+    CardNetwork.VISA -> R.drawable.ic_network_visa
+    CardNetwork.MASTERCARD -> R.drawable.ic_network_mastercard
+    CardNetwork.AMEX -> R.drawable.ic_network_amex
+    CardNetwork.DINERS -> R.drawable.ic_network_diners
+    CardNetwork.OTHER -> null
+}
+
+/** Card network mark on the same white tile as [BrandLogo]; draws nothing for [CardNetwork.OTHER]. */
+@Composable
+fun CardNetworkLogo(
+    network: CardNetwork,
+    modifier: Modifier = Modifier,
+    size: Dp = 32.dp,
+) {
+    val logo = network.logoRes() ?: return
+    val colors = rememberCalmEmeraldColors()
+    val shape = RoundedCornerShape(size * 0.28f)
+    Box(
+        modifier
+            .size(size)
+            .clip(shape)
+            .background(Color.White)
+            .border(BorderStroke(1.dp, colors.borderSubtle), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(logo),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize().padding(size * 0.08f),
+        )
     }
 }
 

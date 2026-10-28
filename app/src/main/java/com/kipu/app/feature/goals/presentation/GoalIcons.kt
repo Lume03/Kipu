@@ -38,14 +38,13 @@ internal fun goalIcon(key: String?): GoalIconOption = goalIcons.firstOrNull { it
 @Composable
 internal fun GoalIconBadge(key: String?, modifier: Modifier = Modifier) {
     val option = goalIcon(key)
-    val colors = MaterialTheme.colorScheme
-    val alternate = option.key in setOf("laptop", "school", "smartphone")
+    val colors = com.kipu.app.ui.theme.rememberPlanningColors()
     Surface(
         modifier = modifier.size(48.dp), shape = RoundedCornerShape(14.dp),
-        color = if (alternate) colors.secondaryContainer else colors.primaryContainer,
+        color = colors.incomeBg,
     ) {
         Icon(option.image, contentDescription = "Icono: ${option.label}",
-            tint = if (alternate) colors.onSecondaryContainer else colors.onPrimaryContainer,
+            tint = colors.primaryDeep,
             modifier = Modifier.padding(11.dp))
     }
 }

@@ -28,7 +28,7 @@ import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomShe
 import com.kipu.app.feature.movements.presentation.privateAmount
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.symbol
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +38,7 @@ fun BudgetFormScreen(
     onRetry: () -> Unit, onDismissQuota: () -> Unit, onSeePlans: () -> Unit,
 ) {
     val isEdit = (state as? BudgetFormUiState.Content)?.form?.isEdit == true
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Scaffold(
         modifier = Modifier.testTag("budget_form_screen"), containerColor = colors.background,
         topBar = { TopAppBar(
@@ -81,7 +81,7 @@ fun BudgetFormScreen(
 @Composable
 private fun BudgetFormContent(form: BudgetFormState, onChange: ((BudgetFormInput) -> BudgetFormInput) -> Unit, modifier: Modifier) {
     val input = form.input
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val masked = LocalBalanceMasked.current
     var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     var showIconPicker by rememberSaveable { mutableStateOf(false) }
@@ -147,7 +147,7 @@ private fun BudgetFormContent(form: BudgetFormState, onChange: ((BudgetFormInput
                         BudgetIconBadge(selectedCategory?.iconId, colors.primaryDeep, colors.incomeBg)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(if (selectedCategory == null) "Categoría de gasto" else "Categoría elegida", style = MaterialTheme.typography.labelSmall, color = colors.secondaryMuted)
-                            Text(selectedCategory?.label?.replace(" > ", " › ") ?: "Elegir categoría", fontWeight = FontWeight.Bold)
+                            Text(selectedCategory?.label ?: "Elegir categoría", fontWeight = FontWeight.Bold)
                         }
                         Text(if (selectedCategory == null) "Elegir" else "Cambiar", style = MaterialTheme.typography.labelMedium, color = colors.primaryDeep, fontWeight = FontWeight.SemiBold)
                     }

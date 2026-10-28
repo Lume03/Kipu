@@ -16,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallReceived
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,7 +49,7 @@ fun DebtCreationTypeSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var selectionInProgress by remember { mutableStateOf(false) }
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
 
     fun selectType(type: DebtObligationType) {
         if (selectionInProgress) return
@@ -121,7 +121,7 @@ private fun DebtCreationOption(
             .semantics { contentDescription = "$title. $description" },
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, rememberCalmEmeraldColors().borderSubtle),
+        border = BorderStroke(1.dp, rememberPlanningColors().borderSubtle),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

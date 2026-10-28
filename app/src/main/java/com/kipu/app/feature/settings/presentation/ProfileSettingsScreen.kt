@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Chat
@@ -75,6 +74,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -286,8 +289,8 @@ fun ProfileSettingsScreen(
                 // 3. Tema de la aplicación
                 SettingsCard(
                     icon = Icons.Default.Palette,
-                    title = "Tema de la aplicación",
-                    subtitle = "Preferencia visual de interfaz",
+                    title = "Tema",
+                    subtitle = null,
                 ) {
                     val fontScale = LocalDensity.current.fontScale
                     val isLargeFont = fontScale > 1.15f
@@ -396,8 +399,8 @@ fun ProfileSettingsScreen(
                 // 4. Ocultar montos sensibles
                 SettingsCard(
                     icon = Icons.Default.VisibilityOff,
-                    title = "Ocultar montos sensibles",
-                    subtitle = "Ocultar saldos e importes",
+                    title = "Ocultar saldos e importes",
+                    subtitle = null,
                     trailing = {
                         Switch(
                             checked = state.hideBalances,
@@ -447,26 +450,6 @@ fun ProfileSettingsScreen(
                             }
                         }
                     }
-                }
-
-                // Acceso a Historial de Movimientos
-                onNavigateToMovements?.let {
-                    SettingsActionCard(
-                        icon = Icons.Default.Payments,
-                        title = "Movimientos",
-                        subtitle = "Consultar y registrar movimientos",
-                        onClick = it,
-                    )
-                }
-
-                // Acceso a Cuentas y Tarjetas
-                onNavigateToAccounts?.let {
-                    SettingsActionCard(
-                        icon = Icons.Default.AccountBalance,
-                        title = "Mi Dinero Real / Cuentas",
-                        subtitle = "Ver cuentas bancarias y tarjetas registradas",
-                        onClick = it,
-                    )
                 }
 
                 onNavigateToPurchase?.let {
@@ -592,6 +575,21 @@ fun ProfileSettingsScreen(
                     }
                 }
 
+                // Logo.dev free plan: commercial use requires a visible attribution link.
+                val uriHandler = LocalUriHandler.current
+                Text(
+                    text = "Logos por Logo.dev",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textDecoration = TextDecoration.Underline,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { uriHandler.openUri("https://logo.dev") }
+                        .padding(vertical = 12.dp)
+                        .testTag("logo_dev_attribution"),
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -610,7 +608,7 @@ fun ProfileSettingsScreen(
 private fun SettingsCard(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     trailing: (@Composable () -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
@@ -644,7 +642,9 @@ private fun SettingsCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (subtitle != null) {
+                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
 
                 trailing?.invoke()

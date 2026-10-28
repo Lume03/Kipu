@@ -37,12 +37,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.kipu.app.core.security.LocalAuthenticatorGateway
 import com.kipu.app.core.security.LocalLockCoordinator
@@ -78,6 +80,7 @@ import com.kipu.app.feature.debts.data.sync.DebtSyncScheduler
 import com.kipu.app.feature.goals.data.sync.GoalsSyncScheduler
 import com.kipu.app.navigation.ANALYSIS_ROUTE
 import com.kipu.app.navigation.PLANNING_CREATE_REQUEST_KEY
+import com.kipu.app.navigation.PLANNING_LIMIT_REACHED_KEY
 import com.kipu.app.navigation.PLANNING_ROUTE
 import com.kipu.app.navigation.PLANNING_TAB_KEY
 import com.kipu.app.navigation.PlanningTab
@@ -301,6 +304,8 @@ class MainActivity : FragmentActivity() {
                                 dashboardHandle?.getStateFlow(PLANNING_TAB_KEY, PlanningTab.GOALS.ordinal)
                                     ?.collectAsStateWithLifecycle()?.value,
                             )
+                            val planningLimitReached = dashboardHandle?.getStateFlow(PLANNING_LIMIT_REACHED_KEY, false)
+                                ?.collectAsStateWithLifecycle()?.value ?: false
                             val rootTabRoute = if (currentRoute == ACCOUNTS_DASHBOARD_ROUTE) {
                                 when (rootTab) {
                                     RootTab.MOVEMENTS -> MOVEMENTS_HISTORY_ROUTE
@@ -339,12 +344,13 @@ class MainActivity : FragmentActivity() {
                                     if (shouldShowBottomBar) {
                                         KipuNavigationBar(
                                             currentRoute = rootTabRoute,
+                                            registerLocked = rootTabRoute == PLANNING_ROUTE && planningLimitReached,
                                             onNavigateToDinero = { navController.selectRootTab(RootTab.MONEY) },
                                             onNavigateToMovimientos = { navController.selectRootTab(RootTab.MOVEMENTS) },
                                             onNavigateToPlanificacion = { navController.selectRootTab(RootTab.PLANNING) },
                                             onNavigateToAnalisis = { navController.selectRootTab(RootTab.ANALYSIS) },
                                             registerContentDescription = if (rootTabRoute == PLANNING_ROUTE) {
-                                                planningTab.createDescription
+                                                planningTab.createDescription + if (planningLimitReached) ". Límite del Plan Free alcanzado" else ""
                                             } else {
                                                 null
                                             },
@@ -377,6 +383,65 @@ class MainActivity : FragmentActivity() {
                                 val selectedDashboardTabForMotion = {
                                     navController.dashboardEntryOrNull()?.savedStateHandle?.get<Int>(ROOT_TAB_KEY) ?: RootTab.MONEY
                                 }
+                                // Root tabs keep their short lateral shift. Every other push/pop slides the whole screen:
+                                // forward enters from the right over the previous one, back (arrow, button
+                                // or gesture) pushes it out to the right revealing the previous screen.
+                                val rootTabSpec = tween<IntOffset>(KipuMotionTokens.RootTabSwitchMillis, easing = KipuEasingTokens.Standard)
+                                val stackSpec = tween<IntOffset>(KipuMotionTokens.NavStackMillis, easing = KipuEasingTokens.Standard)
+                                val stackFadeSpec = tween<Float>(KipuMotionTokens.NavStackMillis, easing = KipuEasingTokens.Standard)
+                                val rootFadeSpec = tween<Float>(KipuMotionTokens.RootTabSwitchMillis, easing = KipuEasingTokens.Standard)
+                                fun AnimatedContentTransitionScope<NavBackStackEntry>.isRootSwitch() = RootTabMotion.isRootTransition(
+                                    initialState.destination.route,
+                                    targetState.destination.route,
+                                    selectedDashboardTabForMotion(),
+                                )
+                                fun AnimatedContentTransitionScope<NavBackStackEntry>.rootForward() = RootTabMotion.isForward(
+                                    initialState.destination.route,
+                                    targetState.destination.route,
+                                    selectedDashboardTabForMotion(),
+                                )
+                                fun AnimatedContentTransitionScope<NavBackStackEntry>.rootEnter(): EnterTransition {
+                                    val offset = if (rootForward()) navigationOffset else -navigationOffset
+                                    return slideInHorizontally(rootTabSpec) { offset } + fadeIn(rootFadeSpec)
+                                }
+                                fun AnimatedContentTransitionScope<NavBackStackEntry>.rootExit(): ExitTransition {
+                                    val offset = if (rootForward()) -navigationOffset else navigationOffset
+                                    return slideOutHorizontally(rootTabSpec) { offset } + fadeOut(rootFadeSpec)
+                                }
+                                val enter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+                                    when {
+                                        reducedMotion -> EnterTransition.None
+                                        isRootSwitch() -> rootEnter()
+                                        isTopLevelRoute(targetState.destination.route) -> fadeIn(
+                                            animationSpec = tween(KipuMotionTokens.TopLevelMillis, easing = KipuEasingTokens.Decelerate),
+                                        )
+                                        else -> slideInHorizontally(stackSpec) { it }
+                                    }
+                                }
+                                val exit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+                                    when {
+                                        reducedMotion -> ExitTransition.None
+                                        isRootSwitch() -> rootExit()
+                                        isTopLevelRoute(targetState.destination.route) -> fadeOut(
+                                            animationSpec = tween(KipuMotionTokens.NavExitMillis, easing = KipuEasingTokens.Accelerate),
+                                        )
+                                        else -> slideOutHorizontally(stackSpec) { -it / 4 } + fadeOut(stackFadeSpec, targetAlpha = 0.6f)
+                                    }
+                                }
+                                val popEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+                                    when {
+                                        reducedMotion -> EnterTransition.None
+                                        isRootSwitch() -> rootEnter()
+                                        else -> slideInHorizontally(stackSpec) { -it / 4 } + fadeIn(stackFadeSpec, initialAlpha = 0.6f)
+                                    }
+                                }
+                                val popExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+                                    when {
+                                        reducedMotion -> ExitTransition.None
+                                        isRootSwitch() -> rootExit()
+                                        else -> slideOutHorizontally(stackSpec) { it }
+                                    }
+                                }
                                 NavHost(
                                     navController = navController,
                                     startDestination = AUTH_START_ROUTE,
@@ -384,144 +449,14 @@ class MainActivity : FragmentActivity() {
                                         .fillMaxSize()
                                         .padding(innerPadding)
                                         .consumeWindowInsets(innerPadding),
-                                    enterTransition = {
-                                        val initialRoute = initialState.destination.route
-                                        val targetRoute = targetState.destination.route
-                                        if (reducedMotion) {
-                                            EnterTransition.None
-                                        } else if (RootTabMotion.isRootTransition(initialRoute, targetRoute, selectedDashboardTabForMotion())) {
-                                            val movingForward = RootTabMotion.isForward(initialRoute, targetRoute, selectedDashboardTabForMotion())
-                                            slideInHorizontally(
-                                                initialOffsetX = { if (movingForward) navigationOffset else -navigationOffset },
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            ) + fadeIn(
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            )
-                                        } else if (isDetailRoute(targetRoute)) {
-                                            slideInHorizontally(
-                                                initialOffsetX = { navigationOffset },
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            ) + fadeIn(
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            )
-                                        } else {
-                                            fadeIn(
-                                                animationSpec = tween(KipuMotionTokens.TopLevelMillis, easing = KipuEasingTokens.Decelerate),
-                                            )
-                                        }
-                                    },
-                                    exitTransition = {
-                                        val initialRoute = initialState.destination.route
-                                        val targetRoute = targetState.destination.route
-                                        if (reducedMotion) {
-                                            ExitTransition.None
-                                        } else if (RootTabMotion.isRootTransition(initialRoute, targetRoute, selectedDashboardTabForMotion())) {
-                                            val movingForward = RootTabMotion.isForward(initialRoute, targetRoute, selectedDashboardTabForMotion())
-                                            slideOutHorizontally(
-                                                targetOffsetX = { if (movingForward) -navigationOffset else navigationOffset },
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            ) + fadeOut(
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            )
-                                        } else if (isDetailRoute(targetRoute)) {
-                                            slideOutHorizontally(
-                                                targetOffsetX = { -navigationOffset },
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.NavEnterMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            ) + fadeOut(
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.NavEnterMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            )
-                                        } else {
-                                            fadeOut(
-                                                animationSpec = tween(KipuMotionTokens.NavExitMillis, easing = KipuEasingTokens.Accelerate),
-                                            )
-                                        }
-                                    },
-                                    popEnterTransition = {
-                                        val initialRoute = initialState.destination.route
-                                        val targetRoute = targetState.destination.route
-                                        if (reducedMotion) {
-                                            EnterTransition.None
-                                        } else if (RootTabMotion.isRootTransition(initialRoute, targetRoute, selectedDashboardTabForMotion())) {
-                                            val movingForward = RootTabMotion.isForward(initialRoute, targetRoute, selectedDashboardTabForMotion())
-                                            slideInHorizontally(
-                                                initialOffsetX = { if (movingForward) navigationOffset else -navigationOffset },
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            ) + fadeIn(
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            )
-                                        } else if (isDetailRoute(initialRoute)) {
-                                            slideInHorizontally(
-                                                initialOffsetX = { -navigationOffset },
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            ) + fadeIn(
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            )
-                                        } else if (isDetailRoute(targetRoute)) {
-                                            fadeIn(
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Decelerate),
-                                            )
-                                        } else {
-                                            fadeIn(
-                                                animationSpec = tween(KipuMotionTokens.TopLevelMillis, easing = KipuEasingTokens.Decelerate),
-                                            )
-                                        }
-                                    },
-                                    popExitTransition = {
-                                        val initialRoute = initialState.destination.route
-                                        val targetRoute = targetState.destination.route
-                                        if (reducedMotion) {
-                                            ExitTransition.None
-                                        } else if (RootTabMotion.isRootTransition(initialRoute, targetRoute, selectedDashboardTabForMotion())) {
-                                            val movingForward = RootTabMotion.isForward(initialRoute, targetRoute, selectedDashboardTabForMotion())
-                                            slideOutHorizontally(
-                                                targetOffsetX = { if (movingForward) -navigationOffset else navigationOffset },
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            ) + fadeOut(
-                                                animationSpec = tween(
-                                                    KipuMotionTokens.RootTabSwitchMillis,
-                                                    easing = KipuEasingTokens.Standard,
-                                                ),
-                                            )
-                                        } else if (isDetailRoute(initialRoute)) {
-                                            slideOutHorizontally(
-                                                targetOffsetX = { navigationOffset },
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            ) + fadeOut(
-                                                animationSpec = tween(KipuMotionTokens.NavEnterMillis, easing = KipuEasingTokens.Standard),
-                                            )
-                                        } else {
-                                            fadeOut(
-                                                animationSpec = tween(KipuMotionTokens.NavExitMillis, easing = KipuEasingTokens.Accelerate),
-                                            )
-                                        }
-                                    },
+                                    enterTransition = enter,
+                                    exitTransition = exit,
+                                    popEnterTransition = popEnter,
+                                    popExitTransition = popExit,
+                                    // The default predictive pop scales the outgoing screen down; the gesture
+                                    // seeks the same slide as the in-app back arrow instead.
+                                    predictivePopEnterTransition = { popEnter() },
+                                    predictivePopExitTransition = { popExit() },
                                 ) {
                                     appDestinations(
                                         navController = navController,
@@ -612,18 +547,6 @@ private fun debtReminderId(intent: Intent?): String? {
     val segments = uri.pathSegments
     if (segments.size != 2 || segments.firstOrNull() != "detail") return null
     return runCatching { UUID.fromString(segments[1]).toString() }.getOrNull()
-}
-
-private fun isDetailRoute(route: String?): Boolean {
-    if (route == null) return false
-    return route.contains("/{") ||
-        route == ACCOUNT_FORM_ROUTE ||
-        route == CARD_FORM_ROUTE ||
-        route == NOTIFICATION_CENTER_ROUTE ||
-        route.startsWith("settings/") ||
-        route == PLAN_PURCHASE_ROUTE ||
-        route == GOAL_CREATE_ROUTE ||
-        route == BUDGET_CREATE_ROUTE
 }
 
 private fun isTopLevelRoute(route: String?): Boolean {

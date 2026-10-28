@@ -13,6 +13,7 @@ El inventario versionado y la investigación tienen propósitos distintos. No se
 - [Modelo EP-CCO](../../../specs/003-ep-cco-categorias-comercios/data-model.md): entidades y responsabilidades.
 - [Seed de catálogo Priority A](../../../supabase/migrations/20260929235340_merchant_catalog_priority_a.sql) y [actualización de logo keys](../../../supabase/migrations/20261007144000_merchant_catalog_logo_keys_update.sql): datos versionados; no certifican el contenido de una instancia remota.
 - [Procedencia de logos](../../ux-ui/references/merchant-logo-assets.md): documenta capturas iniciales y una actualización posterior. Sus conteos pertenecen a esas fechas, no a una comprobación nueva.
+- [Logos remotos vía Logo.dev](../../ux-ui/references/merchant-logo-assets.md#logos-remotos-vía-logodev-2026-10-28-pendiente-de-aplicar-en-remoto): flujo de sincronización, almacenamiento, estados, carga manual y atribución (pendiente de aplicar en remoto).
 
 No convertir nombres, dominios o sugerencias de investigación en descriptores bancarios probados. Antes de ampliar el catálogo, separar evidencia de reconocimiento, clasificación sugerida y permisos de uso de marca.
 

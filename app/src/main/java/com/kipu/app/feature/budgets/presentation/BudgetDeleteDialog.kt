@@ -16,12 +16,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @Composable
 internal fun BudgetDeleteDialog(content: BudgetDetailContent, onDelete: () -> Unit, onCancel: () -> Unit,
     onKeepHistory: (() -> Unit)?) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Dialog(onDismissRequest = onCancel) {
         Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceCard, modifier = Modifier.fillMaxWidth().testTag("budget_delete_dialog")) {
             Column(Modifier.heightIn(max = 680.dp).verticalScroll(rememberScrollState()).padding(22.dp),
@@ -31,10 +31,8 @@ internal fun BudgetDeleteDialog(content: BudgetDetailContent, onDelete: () -> Un
                 }
                 Text("¿Eliminar «${content.budget.name}»?", style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("Dejarás de ver su progreso y de recibir alertas.", style = MaterialTheme.typography.bodyMedium,
-                    color = colors.secondaryMuted, textAlign = TextAlign.Center)
-                Text("NO se borra ningún movimiento, gasto, cuenta ni categoría. Tus saldos no cambian.",
-                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text("Se elimina el presupuesto y su historial de periodos. No se borran movimientos ni cuentas.",
+                    style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 content.current?.let { current ->
                     Surface(shape = RoundedCornerShape(12.dp), color = colors.pillTrack, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -47,7 +45,7 @@ internal fun BudgetDeleteDialog(content: BudgetDetailContent, onDelete: () -> Un
                         }
                     }
                 }
-                Text("Esta acción es irreversible: se elimina el presupuesto y su historial de periodos.",
+                Text("Esta acción no se puede deshacer.",
                     style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted, textAlign = TextAlign.Center)
                 Button(onDelete, Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget_delete_confirm"), enabled = !content.isWorking,
                     shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = colors.expenseText, contentColor = colors.surfaceCard)) {

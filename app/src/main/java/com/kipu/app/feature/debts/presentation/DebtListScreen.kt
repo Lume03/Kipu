@@ -31,7 +31,9 @@ import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
@@ -63,6 +65,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -77,7 +81,7 @@ import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.theme.CalmEmeraldColors
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -105,14 +109,15 @@ fun DebtListScreen(
     allInstallments: Map<String, List<DebtScheduleItem>> = emptyMap(),
 ) {
     var optionsId by rememberSaveable { mutableStateOf<String?>(null) }
-    val colors = rememberCalmEmeraldColors()
+    var showClosed by rememberSaveable { mutableStateOf(false) }
+    val colors = rememberPlanningColors()
     val filtered = remember(debts, selectedType) {
         debts.filter { selectedType == null || it.obligationType == selectedType }
     }
     var showRegisterTypeSheet by rememberSaveable { mutableStateOf(false) }
     var showLimitSheet by rememberSaveable { mutableStateOf(false) }
     var showDueAlerts by rememberSaveable { mutableStateOf(false) }
-    // Every entry point (root +, "Nueva", empty state) passes through the Basic plan check first.
+    // Every entry point (root + and empty state) passes through the Basic plan check first.
     val requestCreate: (DebtObligationType?) -> Unit = { type ->
         when {
             freeLimitReached -> showLimitSheet = true
@@ -162,12 +167,8 @@ fun DebtListScreen(
             item(key = "summary") { DebtTotalsCard(debts) }
             item(key = "filters") {
                 DebtFilterRow(
-                    debts = debts,
                     selectedType = selectedType,
                     onTypeSelected = onTypeSelected,
-                    showNewChip = debts.isNotEmpty(),
-                    freeLimitReached = freeLimitReached,
-                    onNew = { requestCreate(null) },
                 )
             }
             if (debts.any { it.status == DebtLifecycleStatus.ACTIVE && (it.dueDate != null || allInstallments[it.debtId].orEmpty().isNotEmpty()) }) {
@@ -199,14 +200,47 @@ fun DebtListScreen(
                         modifier = Modifier.fillMaxWidth().padding(24.dp),
                     )
                 }
-                else -> items(filtered, key = DebtSummary::debtId) { debt ->
-                    DebtListItem(
-                        debt = debt,
-                        scheduledInstallment = scheduledInstallments[debt.debtId],
-                        today = today,
-                        onClick = { onDebtSelected(debt.debtId) },
-                        onOptions = { optionsId = debt.debtId },
-                    )
+                else -> {
+                    // Settled or cancelled debts fold away like finished budgets and archived goals.
+                    val (open, closed) = filtered.partition { it.status == DebtLifecycleStatus.ACTIVE }
+                    items(open, key = DebtSummary::debtId) { debt ->
+                        DebtListItem(
+                            debt = debt,
+                            scheduledInstallment = scheduledInstallments[debt.debtId],
+                            today = today,
+                            onClick = { onDebtSelected(debt.debtId) },
+                            onOptions = { optionsId = debt.debtId },
+                        )
+                    }
+                    if (closed.isNotEmpty()) {
+                        item(key = "closed_header") {
+                            Surface(
+                                onClick = { showClosed = !showClosed },
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, colors.borderSubtle),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth().testTag("debt_closed_section")
+                                    .semantics { stateDescription = if (showClosed) "Expandido" else "Contraído" },
+                            ) {
+                                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(24.dp), tint = colors.secondaryMuted)
+                                    Text("Saldadas (${closed.size})", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                    Icon(if (showClosed) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                                }
+                            }
+                        }
+                        if (showClosed) {
+                            items(closed, key = DebtSummary::debtId) { debt ->
+                                DebtListItem(
+                                    debt = debt,
+                                    scheduledInstallment = scheduledInstallments[debt.debtId],
+                                    today = today,
+                                    onClick = { onDebtSelected(debt.debtId) },
+                                    onOptions = { optionsId = debt.debtId },
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -248,7 +282,7 @@ fun DebtListScreen(
 
 @Composable
 private fun DebtTotalsCard(debts: List<DebtSummary>) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val active = debts.filter { it.status == DebtLifecycleStatus.ACTIVE }
     Card(
         modifier = Modifier.fillMaxWidth().testTag("debt_totals"),
@@ -258,14 +292,14 @@ private fun DebtTotalsCard(debts: List<DebtSummary>) {
     ) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(16.dp)) {
             DebtTotal(
-                label = "Debo (pasivos pendientes)",
+                label = "Debes",
                 totals = active.totalsFor(DebtObligationType.PAYABLE),
                 accent = colors.expenseText,
                 modifier = Modifier.weight(1f),
             )
             VerticalDivider(Modifier.fillMaxHeight().padding(horizontal = 14.dp), color = colors.borderSubtle)
             DebtTotal(
-                label = "Me deben (por cobrar)",
+                label = "Te deben",
                 totals = active.totalsFor(DebtObligationType.RECEIVABLE),
                 accent = colors.incomeText,
                 modifier = Modifier.weight(1f),
@@ -276,7 +310,7 @@ private fun DebtTotalsCard(debts: List<DebtSummary>) {
 
 @Composable
 private fun DebtTotal(label: String, totals: Map<Currency, Long>, accent: Color, modifier: Modifier = Modifier) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     // PEN leads; other currencies are listed below instead of being mixed into one sum.
     val primary = totals[Currency.PEN] ?: 0L
     val others = totals.filterKeys { it != Currency.PEN }.filterValues { it > 0L }
@@ -296,14 +330,10 @@ private fun DebtTotal(label: String, totals: Map<Currency, Long>, accent: Color,
 
 @Composable
 private fun DebtFilterRow(
-    debts: List<DebtSummary>,
     selectedType: DebtObligationType?,
     onTypeSelected: (DebtObligationType?) -> Unit,
-    showNewChip: Boolean,
-    freeLimitReached: Boolean,
-    onNew: () -> Unit,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val filters = listOf(
         Triple<DebtObligationType?, String, String>(null, "Todas", "debt_filter_all"),
         Triple(DebtObligationType.PAYABLE, "Debo", "debt_filter_payable"),
@@ -315,11 +345,10 @@ private fun DebtFilterRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         filters.forEach { (type, label, tag) ->
-            val count = debts.count { type == null || it.obligationType == type }
             KipuFilterChip(
                 selected = selectedType == type,
                 onClick = { onTypeSelected(type) },
-                label = { Text("$label $count", fontWeight = FontWeight.SemiBold) },
+                label = { Text(label, fontWeight = FontWeight.SemiBold) },
                 modifier = Modifier.testTag(tag),
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -329,41 +358,12 @@ private fun DebtFilterRow(
                 ),
             )
         }
-        if (showNewChip) {
-            KipuFilterChip(
-                selected = false,
-                onClick = onNew,
-                label = { Text("Nueva", fontWeight = FontWeight.SemiBold) },
-                leadingIcon = {
-                    Icon(
-                        if (freeLimitReached) Icons.Default.Lock else Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                },
-                modifier = Modifier
-                    .testTag("debt_new_chip")
-                    .semantics {
-                        contentDescription = if (freeLimitReached) {
-                            "Nueva deuda o préstamo. Límite del Plan Básico alcanzado"
-                        } else {
-                            "Nueva deuda o préstamo"
-                        }
-                    },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = if (freeLimitReached) colors.warningBg else MaterialTheme.colorScheme.surface,
-                    labelColor = if (freeLimitReached) colors.warningText else colors.primaryDeep,
-                    iconColor = if (freeLimitReached) colors.warningText else colors.primaryDeep,
-                ),
-                border = BorderStroke(1.dp, if (freeLimitReached) colors.warningBorder else colors.borderSubtle),
-            )
-        }
     }
 }
 
 @Composable
 private fun DebtEmptyCard(onRegister: () -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Card(
         modifier = Modifier.fillMaxWidth().testTag("debt_empty_state"),
         shape = RoundedCornerShape(18.dp),
@@ -409,7 +409,7 @@ private fun DebtEmptyCard(onRegister: () -> Unit) {
 
 @Composable
 private fun DebtTypeShortcuts(onPayable: () -> Unit, onReceivable: () -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         DebtTypeShortcut(
             title = "Yo debo",
@@ -442,7 +442,7 @@ private fun DebtTypeShortcut(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
@@ -479,14 +479,13 @@ private fun DebtListItem(
     onClick: () -> Unit,
     onOptions: () -> Unit,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val isPayable = debt.obligationType == DebtObligationType.PAYABLE
     val currency = debt.currency()
     val paidFraction = if (debt.principalMinor > 0L) {
         ((debt.principalMinor - debt.remainingPrincipalMinor).toFloat() / debt.principalMinor).coerceIn(0f, 1f)
     } else 0f
     val paidPercent = (paidFraction * 100).toInt()
-    val typeLabel = if (isPayable) "Debo" else "Me deben"
 
     Card(
         modifier = Modifier
@@ -507,19 +506,12 @@ private fun DebtListItem(
                 )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(debt.counterpartyName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DebtPill(
-                            text = typeLabel,
-                            textColor = if (isPayable) colors.expenseText else colors.incomeText,
-                            background = if (isPayable) colors.expenseBg else colors.incomeBg,
-                        )
-                        Text(
-                            debtPaymentKind(debt, scheduledInstallment),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.secondaryMuted,
-                            maxLines = 1,
-                        )
-                    }
+                    Text(
+                        debtPaymentKind(debt, scheduledInstallment),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.secondaryMuted,
+                        maxLines = 1,
+                    )
                 }
                 IconButton(onClick = onOptions, modifier = Modifier.testTag("debt_options_${debt.debtId}")) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones de ${debt.counterpartyName}", tint = colors.secondaryMuted)
@@ -578,7 +570,7 @@ private fun DebtProgressBar(fraction: Float, color: Color, track: Color, descrip
 
 @Composable
 private fun DebtStatusLine(debt: DebtSummary, installment: DebtScheduleItem?, currency: Currency, today: LocalDate) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val masked = LocalBalanceMasked.current
     when (debt.status) {
         DebtLifecycleStatus.SETTLED -> {
@@ -599,14 +591,14 @@ private fun DebtStatusLine(debt: DebtSummary, installment: DebtScheduleItem?, cu
         if (dueDate != null) {
             val days = ChronoUnit.DAYS.between(today, dueDate)
             val amountPrefix = if (pendingInstallment != null) {
-                if (masked) "Cuota" else "Cuota de ${currency.symbol()} ${formatMinorUnits(pendingInstallment.principalMinor)}"
+                if (masked) "Cuota" else "Cuota ${currency.symbol()} ${formatMinorUnits(pendingInstallment.principalMinor)} ·"
             } else null
             val (text, tone) = when {
                 days < 0 -> "Vencida hace ${-days} ${if (days == -1L) "día" else "días"}" to DueTone.Overdue
                 days == 0L -> listOfNotNull(amountPrefix, "vence hoy").joinToString(" ").replaceFirstChar { it.uppercase() } to DueTone.Soon
-                days <= DUE_SOON_DAYS -> listOfNotNull(amountPrefix, "vence en $days ${if (days == 1L) "día" else "días"}")
+                days <= DUE_SOON_DAYS -> listOfNotNull(amountPrefix, "en $days ${if (days == 1L) "día" else "días"}")
                     .joinToString(" ").replaceFirstChar { it.uppercase() } to DueTone.Soon
-                else -> listOfNotNull(amountPrefix, "vence el ${dueDate.format(DUE_FORMAT)}")
+                else -> listOfNotNull(amountPrefix, "vence ${dueDate.format(if (dueDate.year == today.year) DUE_FORMAT_SHORT else DUE_FORMAT)}")
                     .joinToString(" ").replaceFirstChar { it.uppercase() } to DueTone.Neutral
             }
             when (tone) {
@@ -614,10 +606,6 @@ private fun DebtStatusLine(debt: DebtSummary, installment: DebtScheduleItem?, cu
                 DueTone.Soon -> DebtPill(text, colors.warningText, colors.warningBg)
                 DueTone.Neutral -> DebtPill(text, colors.primaryText, colors.pillTrack)
             }
-        }
-        when (installment?.status) {
-            "PARTIAL" -> Text("Pago parcial registrado", style = MaterialTheme.typography.labelMedium, color = colors.warningText)
-            "PAID" -> Text("Pago completado", style = MaterialTheme.typography.labelMedium, color = colors.incomeText)
         }
     }
 }
@@ -639,6 +627,7 @@ private enum class DueTone { Overdue, Soon, Neutral }
 
 private const val DUE_SOON_DAYS = 7L
 private val DUE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))
+private val DUE_FORMAT_SHORT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("es-PE"))
 
 /** How the debt is repaid, following the creation form options. */
 private fun debtPaymentKind(debt: DebtSummary, installment: DebtScheduleItem?): String = when {
@@ -655,5 +644,5 @@ private fun List<DebtSummary>.totalsFor(type: DebtObligationType): Map<Currency,
         .groupBy { it.currency() }
         .mapValues { (_, items) -> items.sumOf { it.remainingPrincipalMinor } }
 
-/** Payable progress teal from the Planning reference (#14A38F); falls back to the theme in dark mode. */
-private fun CalmEmeraldColors.payableProgress(): Color = if (isDark) incomeEmerald else Color(0xFF14A38F)
+/** Repayment progress follows the same primary color as the other Planning tabs. */
+private fun CalmEmeraldColors.payableProgress(): Color = incomeEmerald

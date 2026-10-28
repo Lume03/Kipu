@@ -8,10 +8,23 @@ import android.graphics.pdf.PdfDocument
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.text.style.TextOverflow
+import com.kipu.app.ui.component.PlanningNotice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,11 +69,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -69,10 +85,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
+import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtOpeningMode
 import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -128,11 +146,36 @@ fun DebtDetailScreen(
     val currency = runCatching { Currency.getInstance(debt.currencyCode) }.getOrNull()
     val formatter = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("es").setRegion("PE").build())
     if (currency != null) formatter.currency = currency
-    val emeraldColors = rememberCalmEmeraldColors()
+    val emeraldColors = rememberPlanningColors()
 
     val isLiquidated = debt.status == DebtLifecycleStatus.SETTLED && debt.remainingPrincipalMinor == 0L
 
     Scaffold(
+        containerColor = emeraldColors.background,
+        bottomBar = {
+            if (!isLiquidated) Surface(color = emeraldColors.surfaceCard, shadowElevation = 3.dp) {
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onSettle, enabled = debt.remainingPrincipalMinor > 0L && debt.status == DebtLifecycleStatus.ACTIVE,
+                        shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep, contentColor = emeraldColors.onPrimaryDeep)) {
+                        Icon(Icons.Rounded.ReceiptLong, null, Modifier.size(20.dp))
+                        Text(if (debt.obligationType == DebtObligationType.PAYABLE) "Registrar pago" else "Registrar cobro",
+                            Modifier.padding(start = 8.dp), fontWeight = FontWeight.Bold)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = onSchedule, modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(14.dp)) {
+                            Icon(Icons.Rounded.CalendarMonth, null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(18.dp))
+                            Text("Cuotas", Modifier.padding(start = 6.dp), color = emeraldColors.primaryDeep)
+                        }
+                        OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f).heightIn(min = 48.dp), shape = RoundedCornerShape(14.dp)) {
+                            Icon(Icons.Rounded.Edit, null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(18.dp))
+                            Text("Editar", Modifier.padding(start = 6.dp), color = emeraldColors.primaryDeep)
+                        }
+                    }
+                }
+            }
+        },
         topBar = {
             Row(
                 modifier = Modifier
@@ -144,6 +187,7 @@ fun DebtDetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -151,7 +195,7 @@ fun DebtDetailScreen(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
                     }
                     Text(
-                        debt.counterpartyName,
+                        "Detalle de deuda",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -170,7 +214,7 @@ fun DebtDetailScreen(
                 .padding(insets)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = if (isLiquidated) Arrangement.Center else Arrangement.spacedBy(14.dp),
         ) {
             if (isLiquidated) {
                 // ==========================================
@@ -181,11 +225,7 @@ fun DebtDetailScreen(
                     formatter = formatter,
                     activities = activities,
                     emeraldColors = emeraldColors,
-                    onDownloadPdf = {
-                        certificateMessage = null
-                        certificateLauncher.launch("cierre-deuda-${debt.counterpartyName.take(30).replace(' ', '-')}.pdf")
-                    },
-                    certificateMessage = certificateMessage,
+                    onHistory = { showHistory = true },
                     onReturn = onNavigateBack,
                 )
             } else {
@@ -223,7 +263,7 @@ fun DebtDetailScreen(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text(if (hasFinancialHistory) "Historial protegido" else "¿Eliminar esta deuda?") },
             text = { Text(if (hasFinancialHistory)
-                "Esta deuda tiene operaciones relacionadas. Se conserva junto con su historial y saldo pendiente. Para resolver el saldo usa Cerrar deuda."
+                "Tiene movimientos. Para resolverla, usa Cerrar deuda."
                 else "Se elimina la obligación y sus cuotas sin pagos asociados. Esta acción no se puede deshacer.") },
             confirmButton = {
                 Button(
@@ -268,93 +308,52 @@ private fun ActiveDebtDetailView(
     val orderedInstallments = installments.sortedBy(DebtScheduleItem::installmentNumber)
     val nextInstallment = orderedInstallments.firstOrNull { it.status == "PENDING" || it.status == "PARTIAL" }
 
-    // D4 hero: type, schedule summary, outstanding balance and repayment progress.
-    Surface(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
-        color = emeraldColors.surfaceCard,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-    ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DetailPill(
-                    text = if (payable) "Debo" else "Me deben",
-                    textColor = if (payable) emeraldColors.expenseText else emeraldColors.incomeText,
-                    background = if (payable) emeraldColors.expenseBg else emeraldColors.incomeBg,
-                )
-                Text(
-                    if (orderedInstallments.isNotEmpty()) {
-                        "${orderedInstallments.size} cuotas · desde ${formatSpanishDate(debt.openedOn)}"
-                    } else {
-                        "Desde ${formatSpanishDate(debt.openedOn)}"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = emeraldColors.secondaryMuted,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                )
-            }
-            Text("Saldo pendiente", style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted)
-            Text(
-                text = formatter.format(debt.remainingPrincipalMinor / 100.0),
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 36.sp),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(CircleShape)
-                    .background(emeraldColors.pillTrack),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(amortizedFraction)
-                        .height(10.dp)
-                        .clip(CircleShape)
-                        .background(if (payable) payableProgressColor(emeraldColors) else emeraldColors.incomeEmerald),
-                )
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "$amortizedPercent% ${if (payable) "pagado" else "cobrado"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = emeraldColors.primaryDeep,
-                )
-                Text(
-                    if (amortizedMinor == 0L) " · sin amortizaciones" else " · ${formatter.format(amortizedMinor / 100.0)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = emeraldColors.secondaryMuted,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                )
-                Text(
-                    "Total ${formatter.format(debt.principalMinor / 100.0)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = emeraldColors.secondaryMuted,
-                )
-            }
-            HorizontalDivider(color = emeraldColors.borderSubtle)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    if (debt.openingMode == DebtOpeningMode.HISTORICAL) "Apertura histórica" else "Registro contable",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (debt.openingMode == DebtOpeningMode.HISTORICAL) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
-                    modifier = Modifier.weight(1f),
-                )
-                DetailPill(
-                    text = when (debt.status) {
-                        DebtLifecycleStatus.ACTIVE -> "Obligación activa"
-                        DebtLifecycleStatus.SETTLED -> "Liquidada"
-                        DebtLifecycleStatus.CANCELLED -> "Cancelada"
-                    },
-                    textColor = if (debt.status == DebtLifecycleStatus.ACTIVE) emeraldColors.incomeText else emeraldColors.expenseText,
-                    background = if (debt.status == DebtLifecycleStatus.ACTIVE) emeraldColors.incomeBg else emeraldColors.expenseBg,
-                )
-            }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(color = emeraldColors.incomeBg, shape = RoundedCornerShape(16.dp)) {
+            Icon(Icons.Rounded.ReceiptLong, null, tint = emeraldColors.primaryDeep, modifier = Modifier.padding(14.dp).size(26.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(if (payable) "DEUDA POR PAGAR" else "PRÉSTAMO POR COBRAR", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
+            Text(debt.counterpartyName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
     }
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("debt_balance_summary"),
+        color = emeraldColors.surfaceCard,
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DetailPill(if (payable) "Debo" else "Me deben", emeraldColors.primaryDeep, emeraldColors.incomeBg)
+                DetailPill(if (debt.status == DebtLifecycleStatus.CANCELLED) "Cancelada" else "Activa",
+                    if (debt.status == DebtLifecycleStatus.CANCELLED) emeraldColors.expenseText else emeraldColors.primaryDeep,
+                    if (debt.status == DebtLifecycleStatus.CANCELLED) emeraldColors.expenseBg else emeraldColors.incomeBg)
+                DetailPill(debt.currencyCode, emeraldColors.secondaryMuted, emeraldColors.pillTrack)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Saldo pendiente", style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted)
+                Text(formatter.format(debt.remainingPrincipalMinor / 100.0),
+                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = emeraldColors.primaryText)
+            }
+            LinearProgressIndicator(progress = { amortizedFraction }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
+                color = emeraldColors.incomeEmerald, trackColor = emeraldColors.incomeBg)
+            Text("$amortizedPercent% del principal resuelto", style = MaterialTheme.typography.labelLarge, color = emeraldColors.primaryDeep)
+            HorizontalDivider(color = emeraldColors.borderSubtle)
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Monto original", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+                    Text(formatter.format(debt.principalMinor / 100.0), fontWeight = FontWeight.Bold, color = emeraldColors.primaryText)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Principal resuelto", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+                    Text(formatter.format(amortizedMinor / 100.0), fontWeight = FontWeight.Bold, color = emeraldColors.primaryDeep)
+                }
+            }
+            Text("Registrada el ${formatSpanishDate(debt.openedOn)}", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+        }
+    }
+    errorMessage?.let { PlanningNotice("No se pudo completar la acción", it, isError = true) }
 
     // Next installment, or the due date when there is no schedule.
     val dueDate = nextInstallment?.dueDate ?: debt.dueDate
@@ -434,45 +433,43 @@ private fun ActiveDebtDetailView(
         ) {
             Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Cuotas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                val paid = orderedInstallments.count { it.status == "PAID" }
-                val pending = orderedInstallments.count { it.status == "PENDING" || it.status == "PARTIAL" } - if (nextInstallment != null) 1 else 0
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Plan de cuotas (no son pagos)", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 6) {
                     orderedInstallments.take(MAX_INSTALLMENT_CELLS).forEach { installment ->
-                        val cellColor = when {
-                            installment.status == "PAID" -> payableProgressColor(emeraldColors)
-                            installment == nextInstallment -> emeraldColors.warningAmber
-                            installment.status == "CANCELLED" -> emeraldColors.expenseBg
-                            else -> emeraldColors.borderSubtle
+                        val paid = installment.status == "PAID"
+                        val next = installment == nextInstallment
+                        val background = when {
+                            paid -> emeraldColors.incomeBg
+                            next -> emeraldColors.warningBg
+                            else -> emeraldColors.pillTrack
                         }
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(cellColor),
-                        )
+                        val foreground = when {
+                            paid -> emeraldColors.primaryDeep
+                            next -> emeraldColors.warningText
+                            else -> emeraldColors.secondaryMuted
+                        }
+                        Surface(color = background, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (paid) Icon(Icons.Rounded.Check, "Cuota ${installment.installmentNumber}: pagada", tint = foreground, modifier = Modifier.size(20.dp))
+                                else Text(installment.installmentNumber.toString(), color = foreground, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LegendDot(payableProgressColor(emeraldColors), "Pagadas $paid")
-                    if (nextInstallment != null) LegendDot(emeraldColors.warningAmber, "Próxima")
-                    LegendDot(emeraldColors.borderSubtle, "Pendientes ${pending.coerceAtLeast(0)}")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LegendDot(emeraldColors.incomeEmerald, "Pagada")
+                    LegendDot(emeraldColors.warningAmber, "Próxima")
+                    LegendDot(emeraldColors.borderSubtle, "Pendiente")
                 }
                 HorizontalDivider(color = emeraldColors.borderSubtle)
-                Text(
-                    "Plan de cuotas (no son pagos)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = emeraldColors.primaryDeep,
-                )
-                orderedInstallments.forEach { installment ->
+                orderedInstallments.take(3).forEach { installment ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Cuota ${installment.installmentNumber} · ${installment.dueDate}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Cuota ${installment.installmentNumber} · ${formatSpanishDate(installment.dueDate)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             Text(installmentStatusLabel(installment.status), style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                         }
                         Text(formatter.format(installment.principalMinor / 100.0), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
@@ -491,18 +488,11 @@ private fun ActiveDebtDetailView(
             shape = RoundedCornerShape(18.dp),
         ) {
             Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
-                Text(
-                    if (payable) "Historial de pagos" else "Historial de cobros",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 10.dp),
-                )
-                Text(
-                    "Pagos, ajustes y condonaciones",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = emeraldColors.secondaryMuted,
-                )
-                TextButton(onClick = onHistory, modifier = Modifier.testTag("debt_history_all")) { Text("Ver historial completo") }
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(if (payable) "Historial de pagos" else "Historial de cobros",
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 12.dp))
+                    TextButton(onClick = onHistory, modifier = Modifier.testTag("debt_history_all")) { Text("Ver todo", color = emeraldColors.primaryDeep) }
+                }
                 activities.take(3).forEach { activity ->
                     HorizontalDivider(color = emeraldColors.borderSubtle, modifier = Modifier.padding(top = 12.dp))
                     val displayedPrincipal = if (activity.eventType == "PAYMENT") {
@@ -571,76 +561,10 @@ private fun ActiveDebtDetailView(
         }
     }
 
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(
-            onClick = onSettle,
-            enabled = debt.remainingPrincipalMinor > 0,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
-            modifier = Modifier.weight(1.6f).heightIn(min = 52.dp),
-        ) {
-            Text(if (payable) "Registrar pago" else "Registrar cobro", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-        OutlinedButton(
-            onClick = onEdit,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-            modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-        ) {
-            Text("Editar datos", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
-        }
+    if (orderedInstallments.size > 3) TextButton(onClick = onSchedule, modifier = Modifier.fillMaxWidth()) {
+        Text("Ver las ${orderedInstallments.size} cuotas", color = emeraldColors.primaryDeep)
     }
 
-    OutlinedButton(
-        onClick = onSchedule,
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.5.dp, emeraldColors.primaryDeep),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-    ) {
-        Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text("Gestionar cuotas", color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-    }
-
-    TextButton(
-        onClick = onDeleteRequest,
-        enabled = !hasFinancialHistory,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = emeraldColors.expenseText),
-    ) {
-        Text("Eliminar deuda", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = emeraldColors.surfaceCard,
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = Modifier.size(28.dp).background(emeraldColors.transferBg, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.Info, contentDescription = null, tint = emeraldColors.transferBlue, modifier = Modifier.size(18.dp))
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Trazabilidad contable", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
-                Text(
-                    "El saldo pendiente, la apertura y cualquier movimiento se conservan como historial auditable para cumplimiento y control.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = emeraldColors.secondaryMuted,
-                    lineHeight = 18.sp,
-                )
-            }
-        }
-    }
-
-    errorMessage?.let { Text(it, color = emeraldColors.expenseText, style = MaterialTheme.typography.bodyMedium) }
 }
 
 @Composable
@@ -660,13 +584,9 @@ private fun DetailPill(text: String, textColor: Color, background: Color) {
 private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
-        Text(label, style = MaterialTheme.typography.bodySmall, color = rememberCalmEmeraldColors().secondaryMuted)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = rememberPlanningColors().secondaryMuted)
     }
 }
-
-/** Repayment teal from the Planning reference (#14A38F); dark mode keeps the theme accent. */
-private fun payableProgressColor(colors: com.kipu.app.ui.theme.CalmEmeraldColors): Color =
-    if (colors.isDark) colors.incomeEmerald else Color(0xFF14A38F)
 
 private const val MAX_INSTALLMENT_CELLS = 12
 
@@ -676,280 +596,90 @@ private fun LiquidatedDebtSuccessView(
     formatter: NumberFormat,
     activities: List<DebtSettlementActivity>,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
-    onDownloadPdf: () -> Unit,
-    certificateMessage: String?,
+    onHistory: () -> Unit,
     onReturn: () -> Unit,
 ) {
-    val themeColors = rememberKipuColors()
-    val semanticColors = rememberCalmEmeraldColors()
-    val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
-    val condonedMinor = activities.filter { it.eventType == "FORGIVENESS" && !it.isVoided }
-        .sumOf { it.principalMinor }
-    val adjustmentsMinor = activities.filter { it.eventType == "ADJUSTMENT" && !it.isVoided }
+    val payable = debt.obligationType == DebtObligationType.PAYABLE
+    val effectiveActivities = activities.filterNot { it.isVoided }
+    val paidMinor = effectiveActivities.filter { it.eventType == "PAYMENT" }.sumOf { it.principalMinor }
+    val condonedMinor = effectiveActivities.filter { it.eventType == "FORGIVENESS" }.sumOf { it.principalMinor }
+    val adjustmentsMinor = effectiveActivities.filter { it.eventType == "ADJUSTMENT" }
         .sumOf { it.principalDeltaMinor ?: 0L }
+    // The closing date is the last effective settlement event, never the current clock.
+    val closedOn = effectiveActivities.maxOfOrNull { it.occurredAt }?.let {
+        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+    }
 
-    // Celebration Hero Card
-    Surface(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        color = emeraldColors.surfaceCard,
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        LiquidatedDebtCelebration(emeraldColors)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Deuda liquidada", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center, color = emeraldColors.primaryText)
+            Text(listOfNotNull(debt.counterpartyName, closedOn?.let(::formatSpanishDate)).joinToString(" · "),
+                style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted, textAlign = TextAlign.Center)
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth(), color = emeraldColors.surfaceCard,
+            shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, emeraldColors.borderSubtle),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(semanticColors.incomeBg, RoundedCornerShape(20.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.Verified,
-                    contentDescription = null,
-                    tint = semanticColors.incomeText,
-                    modifier = Modifier.size(40.dp),
-                )
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SettlementRow("Monto original", formatter.format(debt.principalMinor / 100.0))
+                SettlementRow(if (payable) "Pagado" else "Cobrado", formatter.format(paidMinor / 100.0))
+                if (condonedMinor != 0L) SettlementRow("Condonado", formatter.format(condonedMinor / 100.0))
+                if (adjustmentsMinor != 0L) SettlementRow("Ajustes", formatter.format(adjustmentsMinor / 100.0))
+                LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
+                    color = emeraldColors.primaryDeep, trackColor = emeraldColors.pillTrack)
+                Text(if (payable) "100 % pagado" else "100 % cobrado", style = MaterialTheme.typography.labelLarge,
+                    color = emeraldColors.primaryDeep, fontWeight = FontWeight.Bold)
             }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onHistory, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep, contentColor = emeraldColors.onPrimaryDeep)) {
+                Text("Ver historial", fontWeight = FontWeight.Bold)
+            }
+            OutlinedButton(onClick = onReturn, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, emeraldColors.borderSubtle)) {
+                Text("Volver a Deudas", color = emeraldColors.primaryDeep, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
 
-            Text(
-                "Obligación liquidada con éxito",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            )
-
-            Text(
-                "Deuda cerrada y registrada en libros contables",
-                style = MaterialTheme.typography.bodyMedium,
-                color = emeraldColors.secondaryMuted,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                "SALDO FINAL",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                ),
-                color = emeraldColors.secondaryMuted,
-            )
-
-            Text(
-                formatter.format(0.0),
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 36.sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = semanticColors.incomeBg,
-                border = BorderStroke(1.dp, semanticColors.incomeBorder),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(16.dp))
-                    Text(
-                        "LIQUIDADA · AUDITADA",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = semanticColors.incomeText,
-                    )
+@Composable
+private fun LiquidatedDebtCelebration(colors: com.kipu.app.ui.theme.CalmEmeraldColors) {
+    val reducedMotion = rememberReducedMotionEnabled()
+    val pulse = if (!reducedMotion) {
+        val transition = rememberInfiniteTransition(label = "halo")
+        transition.animateFloat(1f, 1.12f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "halo scale").value
+    } else 1f
+    val confetti = remember { Animatable(0f) }
+    LaunchedEffect(reducedMotion) {
+        if (!reducedMotion) confetti.animateTo(1f, tween(1800)) else confetti.snapTo(1f)
+    }
+    Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+        if (!reducedMotion && confetti.value < 1f) {
+            val palette = listOf(colors.primaryDeep, colors.incomeText, colors.warningAmber, colors.expenseText)
+            Canvas(Modifier.fillMaxSize()) {
+                val progress = confetti.value
+                repeat(24) { index ->
+                    val x = size.width * (0.08f + ((index * 37) % 85) / 100f)
+                    val y = size.height * (-0.15f + progress * (1.1f + (index % 4) * 0.12f) - (index % 5) * 0.08f)
+                    drawCircle(palette[index % palette.size].copy(alpha = (1f - progress).coerceIn(0f, 1f)),
+                        radius = (3 + index % 3).dp.toPx(), center = Offset(x, y))
                 }
             }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 4.dp),
-            ) {
-                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
-                Text(
-                    formatSpanishDateTime(LocalDate.now()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = themeColors.inkSecondary,
-                )
-            }
         }
-    }
-
-    // Resumen de Cierre Card (Acta Contable)
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = emeraldColors.surfaceCard,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(Icons.Rounded.ReceiptLong, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(20.dp))
-                    Text("Resumen de Cierre", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                }
-                Text("Acta contable", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
+        Box(Modifier.size(122.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }
+            .background(colors.incomeBg, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(86.dp).background(colors.primaryDeep, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Check, contentDescription = null, tint = colors.onPrimaryDeep, modifier = Modifier.size(48.dp))
             }
-
-            HorizontalDivider(color = themeColors.surfaceVariant)
-
-            SettlementRow("Deudor / Referencia", debt.counterpartyName)
-            SettlementRow("Principal original", formatter.format(debt.principalMinor / 100.0))
-            SettlementRow("Total amortizado / pagado", formatter.format(amortizedMinor / 100.0))
-
-            if (condonedMinor > 0L) {
-                SettlementRow("Total condonado", formatter.format(condonedMinor / 100.0), valueColor = semanticColors.expenseText)
-                Text(
-                    "Motivo: Acuerdo mutuo de condonación",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = themeColors.inkSecondary,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
-
-            SettlementRow("Ajustes de saldo", formatter.format(adjustmentsMinor / 100.0))
-
-            // Highlighted row
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = semanticColors.incomeBg,
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Saldo liquidado", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                    Text(
-                        formatter.format(0.0),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = semanticColors.incomeText,
-                    )
-                }
-            }
-
-            HorizontalDivider(color = themeColors.border)
-
-            // Metadata: Folio contable & Hash
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("FOLIO CONTABLE", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
-                Text(
-                    "#KIPU-LIQ-2026-${debt.debtId.take(5).uppercase()}",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = emeraldColors.primaryDeep,
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("HASH DE VERIFICACIÓN", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
-                Text(
-                    "SHA256: ${debt.debtId.hashCode().toUInt().toString(16).padStart(8, '0')}...b831",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = themeColors.inkSecondary,
-                )
-            }
-        }
-    }
-
-    // Inmutable Audit Card
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = themeColors.surfaceSubtle,
-        border = BorderStroke(1.dp, themeColors.border),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(themeColors.border, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.Lock, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(20.dp))
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "Registro contable inmutable",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = themeColors.inkPrimary,
-                )
-                Text(
-                    "Este historial no se elimina para mantener la fidelidad tributaria y el balance patrimonial de Kipu.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = themeColors.inkSecondary,
-                    lineHeight = 18.sp,
-                )
-            }
-        }
-    }
-
-    // CTAs
-    OutlinedButton(
-        onClick = onDownloadPdf,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.5.dp, themeColors.border),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("debt-closure-certificate"),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = themeColors.inkPrimary, modifier = Modifier.size(20.dp))
-            Text("Descargar constancia de no adeudo (PDF)", color = themeColors.inkPrimary, fontWeight = FontWeight.SemiBold)
-        }
-    }
-
-    certificateMessage?.let { message ->
-        Text(
-            message,
-            color = if (message.startsWith("Constancia")) emeraldColors.incomeText else emeraldColors.expenseText,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-
-    Button(
-        onClick = onReturn,
-        shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text("Volver a Mis Cuentas / Deudas", fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
 }
@@ -974,14 +704,6 @@ private fun SettlementRow(label: String, value: String, valueColor: Color = Colo
 private fun formatSpanishDate(date: LocalDate): String {
     val months = listOf("ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "set.", "oct.", "nov.", "dic.")
     return "${date.dayOfMonth} ${months[date.monthValue - 1]} ${date.year}"
-}
-
-private fun formatSpanishDateTime(date: LocalDate): String {
-    val months = listOf(
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre",
-    )
-    return "${date.dayOfMonth} de ${months[date.monthValue - 1]} de ${date.year} · 10:25 AM"
 }
 
 private fun installmentStatusLabel(status: String): String = when (status) {

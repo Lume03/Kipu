@@ -624,7 +624,7 @@ class QuickMovementViewModelTest {
         assertEquals("Supermercado", created.name)
         assertEquals(parent.id, created.parentCategoryId)
         assertEquals(created.id, viewModel.uiState.value.selectedCategoryId)
-        assertEquals("${parent.name} > Supermercado", viewModel.uiState.value.selectedCategoryName)
+        assertEquals("Supermercado", viewModel.uiState.value.selectedCategoryName)
     }
 
     private class FakeCategoriesRepo(

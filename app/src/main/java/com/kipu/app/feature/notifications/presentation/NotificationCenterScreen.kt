@@ -243,7 +243,7 @@ private fun HeaderActions(
     val colors = rememberCalmEmeraldColors()
     if (showMarkAllRead) {
         TextButton(onClick = onMarkAllRead, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text("Marcar leídas", color = colors.primaryDeep, fontWeight = FontWeight.SemiBold)
+            Text("Marcar todas como leídas", color = colors.primaryDeep, fontWeight = FontWeight.SemiBold)
         }
     }
     if (showDismissRead) {
@@ -317,9 +317,9 @@ private fun NotificationRow(
             .withZone(ZoneId.systemDefault())
     }
     val kindLabel = if (notification.category == NotificationCategory.REMINDER) {
-        "Recordatorio · Fecha prevista"
+        "Recordatorio"
     } else {
-        "Alerta · Condición ocurrida"
+        "Alerta"
     }
     val readLabel = if (notification.isRead) "Leído" else "No leído"
     val dueDateLabel = notification.expectedDueDateLabel()

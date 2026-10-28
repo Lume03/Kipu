@@ -67,6 +67,9 @@ interface MerchantCatalogDao {
     @Query("SELECT COUNT(*) FROM merchant_catalog_cache WHERE is_active = 1")
     suspend fun countActiveMerchants(): Int
 
+    @Query("SELECT * FROM merchant_catalog_cache WHERE is_active = 1 AND (logo_path IS NOT NULL OR logo_dark_path IS NOT NULL)")
+    suspend fun getMerchantsWithRemoteLogos(): List<MerchantCatalogEntity>
+
     @Query("SELECT MAX(version) FROM merchant_catalog_cache")
     suspend fun getLatestVersion(): Long?
 }

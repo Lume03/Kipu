@@ -104,6 +104,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MerchantLogoDrawables
 import com.kipu.app.feature.categories.presentation.components.MovementCategoryIconAvatar
 import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
 import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
@@ -432,12 +433,6 @@ fun MovementHistoryRoute(
                         Modifier.fillMaxWidth(),
                     )
 
-                    MovementBalanceCard(
-                        totalCount = uiState.totalFilteredCount,
-                        netByCurrency = uiState.netByCurrency,
-                        filtered = uiState.searchQuery.isNotBlank() || uiState.hasActiveAdvancedFilters || uiState.selectedFilterType != null,
-                    )
-
                     // System / Access cards
                     MovementAccessCard(
                         uiState,
@@ -514,7 +509,7 @@ fun MovementHistoryRoute(
                 else -> {
                     uiState.filteredTransactions.forEach { (dateHeader, rows) ->
                         item(key = "header_$dateHeader", contentType = "day_header") {
-                            MovementDayHeader(label = dateHeader, rows = rows)
+                            MovementDayHeader(label = dateHeader)
                         }
 
                         items(
@@ -562,16 +557,6 @@ fun MovementHistoryRoute(
                             Text(stringResource(R.string.history_retry))
                         }
                     }
-                }
-            } else if (!uiState.isLoading && uiState.filteredTransactions.isNotEmpty() && !uiState.hasMorePages) {
-                item(key = "end_of_history") {
-                    Text(
-                        text = "Fin del historial",
-                        color = emeraldColors.secondaryMuted,
-                        style = MaterialTheme.typography.labelMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    )
                 }
             }
 
@@ -749,94 +734,10 @@ fun MovementHistoryRoute(
     }
 }
 
+/** "Hoy · 24 oct" ———: the day only; amounts live on each row. */
 @Composable
-private fun MovementBalanceCard(
-    totalCount: Long,
-    netByCurrency: Map<String, BigInteger>,
-    filtered: Boolean,
-) {
+private fun MovementDayHeader(label: String) {
     val emeraldColors = rememberCalmEmeraldColors()
-    val currenciesToShow = remember(netByCurrency) {
-        if (netByCurrency.isEmpty()) listOf("PEN")
-        else listOfNotNull("PEN".takeIf { it in netByCurrency }, "USD".takeIf { it in netByCurrency }) +
-            netByCurrency.keys.filter { it != "PEN" && it != "USD" }
-    }
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
-        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-        modifier = Modifier.fillMaxWidth().testTag("movement_balance_card"),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(modifier = Modifier.weight(1f, fill = false)) {
-                    Text(
-                        text = "BALANCE NETO",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp),
-                        color = emeraldColors.secondaryMuted,
-                    )
-                    Text(
-                        text = if (filtered) "Resultados filtrados" else "Historial completo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = emeraldColors.secondaryMuted,
-                    )
-                }
-                Surface(shape = RoundedCornerShape(10.dp), color = emeraldColors.pillTrack) {
-                    Text(
-                        text = if (totalCount == 1L) "1 mov" else "$totalCount movs",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = emeraldColors.secondaryMuted,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            currenciesToShow.forEach { currency ->
-                val netMinor = netByCurrency[currency] ?: BigInteger.ZERO
-                val (prefix, formattedAmount) = formatSignedBigIntegerMinor(netMinor)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    MoneyText(
-                        amount = "${prefix.trim()}$formattedAmount",
-                        currencySymbol = currencySymbol(currency),
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = if (currenciesToShow.size > 1) 24.sp else 32.sp,
-                            fontFeatureSettings = "tnum",
-                        ),
-                        color = if (netMinor < BigInteger.ZERO) emeraldColors.expenseText else emeraldColors.primaryText,
-                    )
-                    if (currenciesToShow.size > 1) {
-                        Text(
-                            text = currency,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = emeraldColors.secondaryMuted,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** "Hoy · 24 oct" ——— −S/ 62.50: the day's net of income and expenses (transfers and voided rows excluded). */
-@Composable
-private fun MovementDayHeader(label: String, rows: List<TransactionItem>) {
-    val emeraldColors = rememberCalmEmeraldColors()
-    val dayNet = remember(rows) {
-        rows.filter { it.transaction.status != TransactionStatus.VOIDED && it.transaction.type != MovementType.TRANSFER }
-            .groupBy { it.transaction.currency }
-            .mapValues { (_, items) ->
-                items.sumOf { if (it.transaction.type == MovementType.INCOME) it.transaction.amountMinor else -it.transaction.amountMinor }
-            }
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -856,14 +757,6 @@ private fun MovementDayHeader(label: String, rows: List<TransactionItem>) {
                 .height(1.dp)
                 .background(emeraldColors.borderSubtle),
         )
-        dayNet.entries.sortedBy { if (it.key == "PEN") 0 else 1 }.forEach { (currency, net) ->
-            MoneyText(
-                amount = "${if (net < 0) "−" else if (net > 0) "+" else ""}${formatMinorUnits(kotlin.math.abs(net))}",
-                currencySymbol = currencySymbol(currency),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
-                color = emeraldColors.secondaryMuted,
-            )
-        }
     }
 }
 
@@ -909,15 +802,10 @@ fun TransactionRow(
 
     val paymentChannel = WalletPaymentChannel.entries.firstOrNull { it.name == tx.paymentChannel }
     val subtitle = when {
-        tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) ->
-            listOfNotNull(item.categoryName?.takeIf { it.isNotBlank() && it != title }, cardLabel).joinToString(" · ")
+        tx.operationKind.equals("CARD_PURCHASE", ignoreCase = true) -> cardLabel
         isCardPayment -> "${item.sourceAccountAlias ?: "Cuenta"} → $cardLabel"
         tx.type == MovementType.TRANSFER -> "Transferencia"
-        else -> listOfNotNull(
-            item.categoryName?.takeIf { it.isNotBlank() && it != title },
-            paymentChannel?.label,
-            item.sourceAccountAlias ?: "Cuenta",
-        ).joinToString(" · ")
+        else -> listOfNotNull(paymentChannel?.label, item.sourceAccountAlias ?: "Cuenta").joinToString(" · ")
     }
 
     val (iconBg, iconTint) = when {
@@ -989,12 +877,11 @@ fun TransactionRow(
                             .weight(1f, fill = false)
                             .then(if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier),
                     )
-                    if (!isVoided && !isPending) SyncStatusIcon(status = tx.syncStatus)
                 }
                 when {
                     // Anulado = borrado lógico: el movimiento deja de contar en los totales
                     isVoided -> RowStatusPill(
-                        text = "Anulado · no cuenta en tus gastos",
+                        text = "Anulado",
                         background = emeraldColors.pillTrack,
                         content = emeraldColors.secondaryMuted,
                         modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
@@ -1181,7 +1068,6 @@ private fun formatSignedBigIntegerMinor(minor: BigInteger): Pair<String, String>
     return prefix to formatted
 }
 
-private val merchantLogoCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
 private val movementAvatarShape = RoundedCornerShape(14.dp)
 
 @Composable
@@ -1193,17 +1079,8 @@ fun TransactionIconAvatar(
     modifier: Modifier = Modifier,
 ) {
     val tx = item.transaction
-    val context = LocalContext.current
 
-    val drawableId = remember(item.merchantLogoKey) {
-        val key = item.merchantLogoKey
-        if (key != null) {
-            merchantLogoCache.getOrPut(key) {
-                @Suppress("DiscouragedApi")
-                context.resources.getIdentifier(key, "drawable", context.packageName)
-            }
-        } else 0
-    }
+    val drawableId = MerchantLogoDrawables.resolve(item.merchantLogoKey)
 
     val remoteLogoUrl = item.merchantLogoUrl
     val categoryIcon = item.categoryIcon?.takeIf(String::isNotBlank)
@@ -1224,6 +1101,7 @@ fun TransactionIconAvatar(
         MovementAvatarPresentation.MERCHANT_AVATAR -> MerchantAvatar(
             drawableId = drawableId,
             remoteLogoUrl = remoteLogoUrl,
+            remoteDarkLogoUrl = item.merchantLogoDarkUrl,
             profile = getMerchantVisualProfile(
                 item.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
                 item.merchantBrandColor,

@@ -389,7 +389,7 @@ internal fun PermissionSafetyBanner() {
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = "El registro manual siempre permanece 100% operativo sin importar el estado de estos permisos opcionales.",
+                text = "Puedes registrar movimientos manualmente sin estos permisos.",
                 fontSize = 13.sp,
                 color = semanticColors.incomeText,
                 fontWeight = FontWeight.Medium,

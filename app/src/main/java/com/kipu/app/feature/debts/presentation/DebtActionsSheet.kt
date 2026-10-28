@@ -36,7 +36,6 @@ internal fun DebtActionsSheet(
             add(PlanningAction(if (payable) "Registrar pago" else "Registrar cobro", "Capital e interés por separado",
                 Icons.Default.Add, onSettle, PlanningActionTone.PRIMARY, tag = "debt_action_settle"))
         }
-        add(PlanningAction("Ver detalle", "Saldo, cuotas e historial", Icons.Default.Visibility, onDetail, tag = "debt_action_detail"))
         add(PlanningAction("Ver historial", "Todos los pagos y ajustes registrados", Icons.Default.History, onHistory, tag = "debt_action_history"))
         if (debt.status == DebtLifecycleStatus.ACTIVE) {
             add(PlanningAction("Editar", "Nombre, vencimiento y nota", Icons.Default.Edit, onEdit, tag = "debt_action_edit"))

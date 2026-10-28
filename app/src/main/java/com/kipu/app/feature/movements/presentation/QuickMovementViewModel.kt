@@ -259,7 +259,7 @@ class QuickMovementViewModel @Inject constructor(
                             isLoadingCategories = false,
                             availableCategories = options,
                             selectedCategoryId = selection?.id,
-                            selectedCategoryName = selection?.displayName,
+                            selectedCategoryName = selection?.name,
                             selectedCategoryIcon = selection?.icon,
                         )
                     }
@@ -331,7 +331,7 @@ class QuickMovementViewModel @Inject constructor(
                 type = type,
                 availableCategories = options,
                 selectedCategoryId = selection?.id,
-                selectedCategoryName = selection?.displayName,
+                selectedCategoryName = selection?.name,
                 selectedCategoryIcon = selection?.icon,
                 merchantName = if (type == MovementType.EXPENSE) current.merchantName else "",
                 selectedMerchantId = if (type == MovementType.EXPENSE) current.selectedMerchantId else null,
@@ -411,7 +411,7 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedCategoryId = category.id,
-                selectedCategoryName = category.displayName,
+                selectedCategoryName = category.name,
                 selectedCategoryIcon = category.icon,
                 categoryError = null,
             )
@@ -480,7 +480,7 @@ class QuickMovementViewModel @Inject constructor(
                     state.copy(
                         availableCategories = options,
                         selectedCategoryId = option.id,
-                        selectedCategoryName = option.displayName,
+                        selectedCategoryName = option.name,
                         selectedCategoryIcon = option.icon,
                         isCreatingSubcategory = false,
                         categoryCreationError = null,
@@ -533,7 +533,7 @@ class QuickMovementViewModel @Inject constructor(
                 selectedMerchantId = merchant.id.value,
                 merchantProvisionalText = null,
                 selectedCategoryId = selected?.id,
-                selectedCategoryName = selected?.displayName,
+                selectedCategoryName = selected?.name,
                 selectedCategoryIcon = selected?.icon,
                 categoryError = null,
             )
@@ -584,7 +584,7 @@ class QuickMovementViewModel @Inject constructor(
                 } else {
                     current.copy(
                         selectedCategoryId = resolved?.id,
-                        selectedCategoryName = resolved?.displayName,
+                        selectedCategoryName = resolved?.name,
                         selectedCategoryIcon = resolved?.icon,
                     )
                 }
@@ -606,7 +606,7 @@ class QuickMovementViewModel @Inject constructor(
                 selectedMerchantId = null,
                 merchantProvisionalText = name.takeIf(String::isNotBlank),
                 selectedCategoryId = selected?.id,
-                selectedCategoryName = selected?.displayName,
+                selectedCategoryName = selected?.name,
                 selectedCategoryIcon = selected?.icon,
                 categoryError = null,
             )

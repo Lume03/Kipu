@@ -40,6 +40,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -66,6 +67,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import com.kipu.app.feature.budgets.presentation.BudgetListScreen
 import com.kipu.app.feature.budgets.presentation.BudgetListViewModel
+import com.kipu.app.feature.budgets.presentation.BudgetListUiState
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.presentation.DebtListScreen
 import com.kipu.app.feature.debts.presentation.DebtListViewModel
@@ -74,7 +76,7 @@ import com.kipu.app.feature.goals.presentation.GoalListViewModel
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 /**
  * Bottom-bar identifier of Planning. It is a page of the dashboard destination ([RootTab.PLANNING]),
@@ -87,6 +89,9 @@ const val PLANNING_TAB_KEY = "planning_tab"
 
 /** Set by the root (+) button; the Planning host turns it into the selected tab's create action. */
 const val PLANNING_CREATE_REQUEST_KEY = "planning_create_request"
+
+/** Active tab quota shared with the root bar through the dashboard back-stack entry. */
+const val PLANNING_LIMIT_REACHED_KEY = "planning_limit_reached"
 
 enum class PlanningTab(val label: String, val createDescription: String) {
     GOALS("Metas", "Crear meta"),
@@ -119,6 +124,16 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
     val budgetState by budgetViewModel.state.collectAsStateWithLifecycle()
     val debtViewModel: DebtListViewModel = hiltViewModel(backStackEntry)
     val debtState by debtViewModel.state.collectAsStateWithLifecycle()
+    val limitReached = when (selectedTab) {
+        PlanningTab.GOALS -> goalState.freeGoalLimitReached
+        PlanningTab.BUDGETS -> when (val state = budgetState) {
+            is BudgetListUiState.Content -> state.quota.isAtLimit
+            is BudgetListUiState.Empty -> state.quota.isAtLimit
+            else -> false
+        }
+        PlanningTab.DEBTS -> debtState.freeLimitReached
+    }
+    SideEffect { handle[PLANNING_LIMIT_REACHED_KEY] = limitReached }
     // Planning stays composed behind the other bottom-bar pages: refresh when it is shown or resumed.
     LifecycleResumeEffect(active) {
         if (active) {
@@ -152,8 +167,10 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
                     onContributeGoal = { goalId -> navController.navigate("goals/$goalId/contribute") },
                     onWithdrawGoal = { goalId -> navController.navigate("goals/$goalId?withdraw=true") },
-                    onArchiveGoal = { goalId -> navController.navigate("goals/$goalId?action=archive") },
+                    onArchiveGoal = { goalId -> navController.navigate("goals/$goalId?action=pause") },
+                    onManageDeleteGoal = { goalId -> navController.navigate("goals/$goalId?action=delete") },
                     onGoalHistory = { goalId -> navController.navigate("goals/$goalId?action=history") },
+                    onCompleteGoal = { goalId -> navController.navigate("goals/$goalId?action=complete") },
                     createRequested = createRequested && selectedTab == PlanningTab.GOALS,
                     onCreateRequestConsumed = consumeCreate,
                     embedded = true,
@@ -240,7 +257,7 @@ fun PlanningSegmentedTabs(
     onSelect: (PlanningTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val reducedMotion = rememberReducedMotionEnabled()
     val largeText = LocalDensity.current.fontScale >= 1.3f
     val tabs = PlanningTab.entries

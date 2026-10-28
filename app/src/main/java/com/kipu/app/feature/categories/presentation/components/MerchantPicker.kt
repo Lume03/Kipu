@@ -1,6 +1,7 @@
 package com.kipu.app.feature.categories.presentation.components
 
 import com.kipu.app.ui.theme.KipuModalSystemBars
+import com.kipu.app.ui.theme.LocalKipuDarkTheme
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
 import com.kipu.app.ui.theme.readableContentColor
@@ -66,7 +67,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -537,25 +537,32 @@ fun MerchantPicker(
     }
 }
 
+private val KipuDarkLogoBackground = Color(0xFF1C1C1E)
+
 @Composable
 fun MerchantAvatar(
     drawableId: Int,
     remoteLogoUrl: String?,
+    remoteDarkLogoUrl: String? = null,
     profile: MerchantVisualProfile,
     size: Dp = 42.dp,
     modifier: Modifier = Modifier,
     fallbackContent: (@Composable () -> Unit)? = null,
 ) {
+    // Logo.dev dark variants are meant for dark backgrounds; the bundled fallback stays on white.
+    val isDark = LocalKipuDarkTheme.current
+    val useDarkVariant = isDark && remoteDarkLogoUrl != null
+    val activeLogoUrl = if (useDarkVariant) remoteDarkLogoUrl else remoteLogoUrl
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        var isRemoteLoaded by remember(remoteLogoUrl) { mutableStateOf(false) }
-        var isRemoteError by remember(remoteLogoUrl) { mutableStateOf(false) }
+        var isRemoteLoaded by remember(activeLogoUrl) { mutableStateOf(false) }
+        var isRemoteError by remember(activeLogoUrl) { mutableStateOf(false) }
 
-        if (remoteLogoUrl != null && !isRemoteError) {
+        if (activeLogoUrl != null && !isRemoteError) {
             if (!isRemoteLoaded) {
                 if (drawableId != 0) {
                     Box(
@@ -577,12 +584,12 @@ fun MerchantAvatar(
             }
 
             AsyncImage(
-                model = remoteLogoUrl,
+                model = activeLogoUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(size)
-                    .then(if (isRemoteLoaded) Modifier.background(Color.White) else Modifier),
+                    .then(if (isRemoteLoaded) Modifier.background(if (useDarkVariant) KipuDarkLogoBackground else Color.White) else Modifier),
                 onSuccess = { isRemoteLoaded = true },
                 onError = { isRemoteError = true },
             )
@@ -636,11 +643,9 @@ fun SelectedMerchantCard(
     val displayName = selectedMerchant?.name ?: provisionalText ?: ""
     val profile = getMerchantVisualProfile(displayName, selectedMerchant?.brandColor)
 
-    val context = LocalContext.current
-    val drawableId = remember(selectedMerchant?.logoKey) {
-        selectedMerchant?.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
-    }
+    val drawableId = MerchantLogoDrawables.resolve(selectedMerchant?.logoKey)
     val remoteLogoUrl = selectedMerchant?.logoUrl
+    val remoteDarkLogoUrl = selectedMerchant?.logoDarkUrl
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -658,6 +663,7 @@ fun SelectedMerchantCard(
             MerchantAvatar(
                 drawableId = drawableId,
                 remoteLogoUrl = remoteLogoUrl,
+                remoteDarkLogoUrl = remoteDarkLogoUrl,
                 profile = profile,
                 size = 40.dp,
             )
@@ -704,11 +710,9 @@ fun MerchantResultItem(
     val profile = getMerchantVisualProfile(entry.name, entry.brandColor)
     // Subtitle: the visual group the merchant belongs to (e.g. "Supermercados y Tiendas").
     val groupLabel = remember(entry.id) { UiMerchantGroup.entries.firstOrNull { it.matches(entry) }?.label }
-    val context = LocalContext.current
-    val drawableId = remember(entry.logoKey) {
-        entry.logoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
-    }
+    val drawableId = MerchantLogoDrawables.resolve(entry.logoKey)
     val remoteLogoUrl = entry.logoUrl
+    val remoteDarkLogoUrl = entry.logoDarkUrl
 
     val kipuColors = rememberKipuColors()
     val shape = RoundedCornerShape(16.dp)
@@ -733,6 +737,7 @@ fun MerchantResultItem(
             MerchantAvatar(
                 drawableId = drawableId,
                 remoteLogoUrl = remoteLogoUrl,
+                remoteDarkLogoUrl = remoteDarkLogoUrl,
                 profile = profile,
                 size = 44.dp,
             )

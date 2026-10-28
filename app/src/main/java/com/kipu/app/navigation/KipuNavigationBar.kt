@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -66,6 +67,7 @@ fun KipuNavigationBar(
     onNavigateToPlanificacion: () -> Unit = {},
     onNavigateToAnalisis: () -> Unit = {},
     registerContentDescription: String? = null,
+    registerLocked: Boolean = false,
 ) {
     val isDineroSelected = currentRoute == ACCOUNTS_DASHBOARD_ROUTE
     val isMovimientosSelected = currentRoute == MOVEMENTS_HISTORY_PATTERN ||
@@ -142,8 +144,8 @@ fun KipuNavigationBar(
                 FloatingActionButton(
                     onClick = onRegisterClick,
                     shape = CircleShape,
-                    containerColor = colors.primaryDeep,
-                    contentColor = colors.onPrimaryDeep,
+                    containerColor = if (registerLocked && isPlanificacionSelected) colors.warningBg else colors.primaryDeep,
+                    contentColor = if (registerLocked && isPlanificacionSelected) colors.warningText else colors.onPrimaryDeep,
                     elevation = FloatingActionButtonDefaults.elevation(
                         defaultElevation = 4.dp,
                         pressedElevation = 6.dp,
@@ -157,10 +159,10 @@ fun KipuNavigationBar(
                         },
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = if (registerLocked && isPlanificacionSelected) Icons.Default.Lock else Icons.Default.Add,
                         contentDescription = null,
                         modifier = Modifier.size(28.dp),
-                        tint = colors.onPrimaryDeep,
+                        tint = if (registerLocked && isPlanificacionSelected) colors.warningText else colors.onPrimaryDeep,
                     )
                 }
             }

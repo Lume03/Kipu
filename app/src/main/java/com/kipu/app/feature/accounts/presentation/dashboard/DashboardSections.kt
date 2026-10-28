@@ -73,6 +73,8 @@ import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
+import com.kipu.app.feature.accounts.presentation.components.AccountIdentityIcon
+import com.kipu.app.feature.accounts.presentation.components.accountSurfaceColor
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
@@ -120,13 +122,6 @@ internal fun groupAccountsWithWallets(accounts: List<AccountWithBalance>): List<
     return accounts
         .filter { it.account.linkedAccountId == null || it.account.linkedAccountId !in ids }
         .map { DashboardAccountGroup(it, walletsByParent[it.account.id].orEmpty()) }
-}
-
-internal fun accountsCountLabel(groups: List<DashboardAccountGroup>): String {
-    val active = groups.size
-    val wallets = groups.sumOf { it.wallets.size }
-    val activeText = "$active ${if (active == 1) "activa" else "activas"}"
-    return if (wallets == 0) activeText else "$activeText · $wallets ${if (wallets == 1) "billetera" else "billeteras"}"
 }
 
 internal fun planUsageLabel(used: Int, max: Int): String = "$used de $max cuentas y tarjetas"
@@ -306,84 +301,9 @@ internal fun DashboardCalendarEntryCard(onClick: () -> Unit, modifier: Modifier 
 
 /** Uses the real Free quota ([FreePlanLimits.instruments]); the CTA only routes to plans. */
 @Composable
-internal fun DashboardPlanCard(used: Int, max: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = rememberCalmEmeraldColors()
-    val reached = max in 1..used
-    val title = if (colors.isDark) colors.warningText else Color(0xFF5A3200)
-    val chipBg = if (colors.isDark) colors.warningBorder else Color(0xFFFDEBB0)
-    val filled = colors.warningAmber
-    val empty = if (colors.isDark) colors.pillTrack else Color(0xFFF3E3B0)
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(DASHBOARD_PLAN_TAG),
-        shape = RoundedCornerShape(20.dp),
-        color = if (colors.isDark) colors.warningBg else Color(0xFFFFF8E1),
-        border = BorderStroke(1.5.dp, if (colors.isDark) colors.warningBorder else Color(0xFFF3D58A)),
-    ) {
-        FlowRow(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier.weight(1f).width(200.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(chipBg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Outlined.Schedule, contentDescription = null, tint = if (colors.isDark) colors.warningText else Color(0xFF8A4B00), modifier = Modifier.size(20.dp))
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Plan Básico · ${planUsageLabel(used, max)}",
-                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp),
-                        fontWeight = FontWeight.ExtraBold,
-                        color = title,
-                    )
-                    Row(
-                        modifier = Modifier.padding(top = 6.dp).fillMaxWidth().semantics {
-                            contentDescription = "${used.coerceAtMost(max)} de $max espacios usados"
-                        },
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    ) {
-                        repeat(max.coerceIn(1, 12)) { index ->
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(if (index < used) filled else empty),
-                            )
-                        }
-                    }
-                }
-            }
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(chipBg)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    if (reached) "Mejorar a PRO" else "Disponibles",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = title,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 internal fun DashboardSectionHeader(
     title: String,
-    count: String,
+    count: String? = null,
     addLabel: String,
     onAdd: () -> Unit,
     manageLabel: String,
@@ -404,13 +324,15 @@ internal fun DashboardSectionHeader(
             color = colors.primaryText,
             modifier = Modifier.semantics { heading() },
         )
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(colors.pillTrack)
-                .padding(horizontal = 9.dp, vertical = 3.dp),
-        ) {
-            Text(count, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
+        if (count != null) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colors.pillTrack)
+                    .padding(horizontal = 9.dp, vertical = 3.dp),
+            ) {
+                Text(count, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
+            }
         }
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -441,7 +363,7 @@ internal fun DashboardAccountGroupCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = colors.surfaceCard,
+        color = accountSurfaceColor(group.account.account),
         shadowElevation = 1.dp,
     ) {
         Column {
@@ -459,7 +381,6 @@ internal fun DashboardAccountGroupCard(
 private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () -> Unit) {
     val colors = rememberCalmEmeraldColors()
     val account = item.account
-    val isCash = account.type == AccountType.CASH
     val preset = AccountPreset.normalizedFor(account.type, account.preset)
     Row(
         modifier = Modifier
@@ -470,48 +391,24 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (isCash) {
-            IconTile(
-                Icons.Outlined.Payments,
-                background = if (colors.isDark) colors.incomeBg else Color(0xFFDDF5E6),
-                tint = if (colors.isDark) colors.incomeText else Color(0xFF14532D),
-                size = 48,
-            )
-        } else {
-            BrandLogo(
-                brand = KipuBrand.from(preset?.takeIf { it != AccountPreset.GENERIC }?.name),
-                fallbackName = account.alias,
-                contentDescription = null,
-                size = 48.dp,
-            )
-        }
+        AccountIdentityIcon(account, size = 48.dp)
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    account.alias,
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = colors.primaryText,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (account.preset == AccountPreset.BCP && account.alias.contains("Sueldo", ignoreCase = true)) {
-                    Box(
-                        Modifier.clip(RoundedCornerShape(8.dp)).background(colors.incomeBg).padding(horizontal = 6.dp, vertical = 1.dp),
-                    ) {
-                        Text("Principal", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), fontWeight = FontWeight.Bold, color = colors.incomeText)
-                    }
-                }
-            }
-            val issuer = preset?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
-            val typeLabel = account.type.dashboardLabel()
             Text(
-                text = when {
-                    account.linkedAccountId != null -> "${issuer ?: typeLabel} · Saldo compartido · ${account.currency.name}"
-                    issuer != null -> "$issuer · $typeLabel · ${account.currency.name}"
-                    else -> "$typeLabel · ${account.currency.name}"
-                },
+                account.alias,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                fontWeight = FontWeight.Bold,
+                color = colors.primaryText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // One short line: the issuer only when the alias does not already name it, the type,
+            // and the currency only when it is not soles.
+            val issuer = preset?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
+                ?.takeUnless { account.alias.contains(it, ignoreCase = true) }
+            val typeLabel = if (account.linkedAccountId != null) "Saldo compartido" else account.type.dashboardLabel()
+            Text(
+                text = listOfNotNull(issuer, typeLabel, account.currency.name.takeIf { account.currency != Currency.PEN })
+                    .joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = colors.secondaryMuted,
             )
@@ -519,20 +416,12 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
                 Text("Bloqueado por el plan Free", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.expenseText)
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
-            MoneyText(
-                money = item.balance,
-                isMasked = isMasked,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFeatureSettings = "tnum"),
-                color = colors.primaryText,
-            )
-            Text(
-                text = if (isCash) "En bolsillo" else "● Disponible",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                fontWeight = if (isCash) FontWeight.SemiBold else FontWeight.Bold,
-                color = if (isCash) colors.secondaryMuted else colors.incomeText,
-            )
-        }
+        MoneyText(
+            money = item.balance,
+            isMasked = isMasked,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFeatureSettings = "tnum"),
+            color = colors.primaryText,
+        )
     }
 }
 
@@ -541,15 +430,11 @@ private fun WalletRow(wallet: AccountWithBalance, parentName: String, onClick: (
     val colors = rememberCalmEmeraldColors()
     val brand = KipuBrand.from(wallet.account.preset?.name)
     val isYape = brand == KipuBrand.YAPE
-    val rowBg = when {
-        colors.isDark -> colors.pillTrack
-        isYape -> Color(0xFFF6F1FB)
-        else -> Color(0xFFF1F9FB)
-    }
+    val rowBg = accountSurfaceColor(wallet.account)
     val divider = if (colors.isDark) colors.borderSubtle else if (isYape) Color(0xFFE9E1F3) else Color(0xFFE1EEF3)
     val chipBg = if (colors.isDark) colors.surfaceCard else if (isYape) Color(0xFFE8DAF5) else Color(0xFFCFF5F3)
     val chipText = if (colors.isDark) colors.primaryText else if (isYape) Color(0xFF5B1F8F) else Color(0xFF0B6B68)
-    val name = (brand?.displayName ?: wallet.account.alias).uppercase(Locale.ROOT)
+    val name = brand?.displayName ?: wallet.account.alias
     val stack = LocalDensity.current.fontScale > 1.15f
     Column(
         modifier = Modifier
@@ -569,13 +454,11 @@ private fun WalletRow(wallet: AccountWithBalance, parentName: String, onClick: (
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                BrandLogo(brand = brand, fallbackName = wallet.account.alias, contentDescription = brand?.displayName ?: wallet.account.alias, size = 32.dp)
+                AccountIdentityIcon(wallet.account, size = 36.dp)
                 Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(name) }
-                        append(" · billetera con saldo compartido")
-                    },
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    name,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    fontWeight = FontWeight.Bold,
                     color = colors.primaryText,
                     modifier = Modifier.weight(1f),
                 )
@@ -583,20 +466,10 @@ private fun WalletRow(wallet: AccountWithBalance, parentName: String, onClick: (
             Box(
                 Modifier.clip(RoundedCornerShape(8.dp)).background(chipBg).padding(horizontal = 8.dp, vertical = 2.dp),
             ) {
-                Text("Usa el saldo de $parentName", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), fontWeight = FontWeight.Bold, color = chipText)
+                Text("Saldo de $parentName", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), fontWeight = FontWeight.Bold, color = chipText)
             }
         }
     }
-}
-
-@Composable
-internal fun DashboardWalletFootnote() {
-    Text(
-        "Plin y Yape no suman saldo aparte: sus movimientos se descuentan de la cuenta bancaria afiliada.",
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-        color = rememberCalmEmeraldColors().secondaryMuted,
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
 }
 
 /** H5: no instruments yet; the first step is a single clear action. */
@@ -672,13 +545,14 @@ internal fun DashboardCreditCardRow(item: CreditCardWithSummary, onClick: () -> 
     val title = card.alias ?: "${card.issuer} ${card.network}"
     val nextDue = remember(card.dueDay) { CreditCalculations.calculateNextDate(card.dueDay) }
     val dueText = remember(nextDue) { nextDue.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))) }
+    // A badge only when the card needs attention; normal or hidden usage needs no label.
     val (statusLabel, statusBg, statusText) = when {
         card.isArchived -> Triple("Archivada · Deuda pendiente", colors.expenseBg, colors.expenseText)
-        isMasked -> Triple("Uso oculto", colors.pillTrack, colors.secondaryMuted)
+        isMasked -> Triple(null, colors.pillTrack, colors.secondaryMuted)
         utilization > 100.0 -> Triple("Sobreutilizada", colors.expenseBg, colors.expenseText)
         utilization >= 80.0 -> Triple("Uso alto", colors.warningBg, colors.warningText)
         utilization >= 50.0 -> Triple("Uso moderado", colors.warningBg, colors.warningText)
-        else -> Triple("En uso normal", colors.incomeBg, colors.incomeText)
+        else -> Triple(null, colors.incomeBg, colors.incomeText)
     }
     val barColor = when {
         utilization >= 80.0 -> colors.expenseText
@@ -725,14 +599,16 @@ internal fun DashboardCreditCardRow(item: CreditCardWithSummary, onClick: () -> 
                         }
                     }
                 }
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(statusBg)
-                        .border(1.dp, statusText.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                ) {
-                    Text(statusLabel, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), fontWeight = FontWeight.Bold, color = statusText)
+                if (statusLabel != null) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(statusBg)
+                            .border(1.dp, statusText.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                    ) {
+                        Text(statusLabel, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), fontWeight = FontWeight.Bold, color = statusText)
+                    }
                 }
             }
             FlowRow(
@@ -888,14 +764,11 @@ internal fun DashboardArchivedSection(
                                     }
                                 }
                             }
-                            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(colors.pillTrack).padding(horizontal = 9.dp, vertical = 3.dp)) {
-                                Text("Archivada", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
-                            }
                         }
                         HorizontalDivider(color = colors.pillTrack)
                     }
                     Text(
-                        "Conservan su historial y no ocupan un cupo de tu plan. Ábrelas para reactivarlas.",
+                        "Conservan su historial. Abre una para reactivarla.",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = colors.secondaryMuted,
                         modifier = Modifier.padding(vertical = 10.dp),

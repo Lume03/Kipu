@@ -75,8 +75,8 @@ fun RecurrenceRegistrationScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Registrar pago recurrente", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        Text("Movimiento de origen: ${source.merchantName ?: source.categoryName ?: "Movimiento"}", style = MaterialTheme.typography.bodyMedium)
-        Text("Importe esperado: ${com.kipu.app.ui.component.formatMinorUnits(transaction.amountMinor)} ${transaction.currency}", style = MaterialTheme.typography.bodyMedium)
+        Text("De: ${source.merchantName ?: source.categoryName ?: "Movimiento"}", style = MaterialTheme.typography.bodyMedium)
+        Text("Importe esperado: ${if (transaction.currency == "PEN") "S/" else if (transaction.currency == "USD") "$" else transaction.currency} ${com.kipu.app.ui.component.formatMinorUnits(transaction.amountMinor)}", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
             value = concept,
             onValueChange = { concept = it },
@@ -117,7 +117,7 @@ fun RecurrenceRegistrationScreen(
         OutlinedTextField(
             value = nextDueDate,
             onValueChange = { nextDueDate = it; validationError = null },
-            label = { Text("Próxima fecha (AAAA-MM-DD)") },
+            label = { Text("Próxima fecha (ej. 2026-11-03)") },
             singleLine = true,
             isError = validationError != null && parsedDate == null,
             modifier = Modifier.fillMaxWidth().testTag("recurrence_next_due_date"),
@@ -139,7 +139,7 @@ fun RecurrenceRegistrationScreen(
                 modifier = Modifier.testTag("recurrence_save_result"),
                 color = MaterialTheme.colorScheme.primary,
             )
-            Text("Estado: ${it.status} · Próxima fecha: ${it.nextDueDate}")
+            Text(recurrenceStateLabel(it.status, it.nextDueDate))
         }
         if (isSaving) CircularProgressIndicator(Modifier.testTag("recurrence_loading"))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

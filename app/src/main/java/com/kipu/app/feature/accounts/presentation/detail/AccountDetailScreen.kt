@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material.icons.rounded.Storefront
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
@@ -101,7 +102,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -121,6 +121,7 @@ import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.MovementKind
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MerchantLogoDrawables
 import com.kipu.app.feature.categories.presentation.components.MovementCategoryIconAvatar
 import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
 import com.kipu.app.feature.accounts.domain.model.Account
@@ -129,6 +130,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card as FinancialCard
 import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
@@ -175,6 +177,7 @@ fun AccountDetailScreen(
     onNavigateToMovements: (Account) -> Unit = {},
     cardMovements: List<CardMovementDisplay>? = null,
     startPurchaseOnOpen: Boolean = false,
+    onNavigateToLinkedAccount: (String) -> Unit = {},
 ) {
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
     val dashboard by viewModel.dashboardUiState.collectAsStateWithLifecycle()
@@ -193,11 +196,14 @@ fun AccountDetailScreen(
     val linkedAccount = account?.linkedAccountId?.let { parentId ->
         (instruments.activeAccounts + instruments.archivedAccounts).firstOrNull { it.id == parentId }
     }
+    val debitAccount = (card as? DebitCard)?.linkedAccountId?.let { parentId ->
+        (instruments.activeAccounts + instruments.archivedAccounts).firstOrNull { it.id == parentId }
+    }
     val affiliatedWallets = account?.let { parent ->
         instruments.activeAccounts.filter { it.linkedAccountId == parent.id && it.type == AccountType.DIGITAL_WALLET }
     }.orEmpty()
-    val accountBalanceFlow = remember(account?.id) {
-        account?.let { target ->
+    val accountBalanceFlow = remember(account?.id, debitAccount?.id) {
+        (account ?: debitAccount)?.let { target ->
             viewModel.observeAccountBalance(target.id).map { it as Money? }
         } ?: flowOf(null)
     }
@@ -341,6 +347,8 @@ fun AccountDetailScreen(
         linkedAccount = linkedAccount,
         affiliatedWallets = affiliatedWallets,
         onRetry = viewModel::retryDashboard,
+        debitAccount = debitAccount,
+        onNavigateToLinkedAccount = onNavigateToLinkedAccount,
     )
 
     if (showCardTermsEditor && card is CreditCard) {
@@ -503,7 +511,7 @@ fun AccountDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
+                                text = "Crédito disponible",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.weight(1f),
@@ -816,7 +824,7 @@ fun AccountDetailScreen(
                     if (availableBefore != null) {
                         val availableAfter = (availableBefore - savedPurchase.amount.minorUnits).coerceAtLeast(0L)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
+                            Text("Crédito disponible")
                             MoneyText(money = Money(availableAfter, card.currency))
                         }
                     } else {
@@ -878,6 +886,8 @@ fun AccountDetailContent(
     onRetry: () -> Unit = {},
     onNavigateToSpend: ((Account) -> Unit)? = null,
     onNavigateToTransfer: ((Account) -> Unit)? = null,
+    debitAccount: Account? = null,
+    onNavigateToLinkedAccount: (String) -> Unit = {},
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -888,6 +898,7 @@ fun AccountDetailContent(
     var isInstitutionMenuExpanded by remember(instrumentKey, account?.type) { mutableStateOf(false) }
     var showArchiveConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showReactivateConfirmation by remember(instrumentKey) { mutableStateOf(false) }
+    var showAppearanceEditor by remember(instrumentKey) { mutableStateOf(false) }
     var showOpeningCorrection by remember(instrumentKey) { mutableStateOf(false) }
     var openingAmount by remember(instrumentKey, account?.initialBalance?.minorUnits) {
         mutableStateOf(account?.initialBalance?.minorUnits?.let(::formatMinorUnits).orEmpty())
@@ -909,7 +920,8 @@ fun AccountDetailContent(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (card is CreditCard) {
+                        // Only the exceptional archived state is labelled; active is the default.
+                        if (card is CreditCard && card.isArchived) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -926,7 +938,7 @@ fun AccountDetailContent(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        } else if (card != null) {
+                        } else if (card != null && card !is CreditCard && card.isArchived) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -943,7 +955,7 @@ fun AccountDetailContent(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        } else if (account != null) {
+                        } else if (card == null && account != null && account.isArchived) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -969,6 +981,23 @@ fun AccountDetailContent(
                     }
                 },
                 actions = {
+                    if (account != null) {
+                        TextButton(
+                            onClick = {
+                                alias = account.alias
+                                aliasError = null
+                                selectedPreset = AccountPreset.normalizedFor(account.type, account.preset)
+                                isInstitutionMenuExpanded = false
+                                showAppearanceEditor = true
+                            },
+                            enabled = !isSubmitting,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("edit_account"),
+                        ) {
+                            Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Editar")
+                        }
+                    }
                     if (card is CreditCard && !archived) {
                         IconButton(onClick = onEditCreditCardTerms) {
                             Icon(Icons.Rounded.Tune, contentDescription = "Editar tarjeta")
@@ -1064,7 +1093,11 @@ fun AccountDetailContent(
                     )
                 } else {
                     // Liquid account (C1-C9) or debit card view
-                    if (account == null) {
+                    if (card is DebitCard) {
+                        DebitAccountSummary(card, debitAccount, currentBalance,
+                            onOpenAccount = { debitAccount?.let { onNavigateToLinkedAccount(it.id.value) } },
+                            onMovements = { debitAccount?.let(onNavigateToMovements) })
+                    } else if (account == null) {
                         InstrumentSummary(
                             account = null,
                             card = card,
@@ -1118,46 +1151,11 @@ fun AccountDetailContent(
                             onMovements = if (canOpenMovementHistory) ({ onNavigateToMovements(target) }) else null,
                         )
 
-                        AccountSectionTitle("Presentación")
-                        AccountPresentationCard(
+                        AccountOpeningBalanceRow(
                             account = target,
-                            alias = alias,
-                            aliasError = aliasError,
-                            onAliasChange = { value ->
-                                alias = value.take(80)
-                                aliasError = if (value.isBlank()) "Escribe un alias para identificar la cuenta." else null
-                            },
-                            selectedPreset = selectedPreset,
-                            onPresetSelected = { preset ->
-                                selectedPreset = preset
-                                isInstitutionMenuExpanded = false
-                            },
-                            isInstitutionMenuExpanded = isInstitutionMenuExpanded,
-                            onInstitutionMenuExpandedChange = { isInstitutionMenuExpanded = it },
-                            isSubmitting = isSubmitting,
-                            onSave = {
-                                if (alias.isBlank()) {
-                                    aliasError = "Escribe un alias para identificar la cuenta."
-                                } else {
-                                    onSaveAppearance(alias.trim(), selectedPreset)
-                                }
-                            },
-                        )
-
-                        AccountSectionTitle("Saldo inicial")
-                        Text(
-                            text = "Corregir solo si el saldo con el que abriste la cuenta fue registrado incorrectamente. La corrección conserva el historial original mediante un reverso y un nuevo ajuste auditado.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        OutlinedButton(
-                            onClick = { showOpeningCorrection = true },
                             enabled = !isSubmitting,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("correct_opening_balance"),
-                        ) {
-                            Text("Corregir saldo inicial", fontWeight = FontWeight.SemiBold)
-                        }
+                            onCorrect = { showOpeningCorrection = true },
+                        )
 
                         if (!archived) {
                             OutlinedButton(
@@ -1208,6 +1206,54 @@ fun AccountDetailContent(
         }
     }
 
+    if (showAppearanceEditor && account != null) {
+        KipuBottomSheet(
+            onDismissRequest = { if (!isSubmitting) showAppearanceEditor = false },
+            header = {
+                Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Editar cuenta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showAppearanceEditor = false }, enabled = !isSubmitting) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Cerrar edición")
+                    }
+                }
+            },
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AccountSummaryCard(
+                    account = account.copy(alias = alias.ifBlank { account.alias }, preset = selectedPreset),
+                    currentBalance = null,
+                    linkedAccount = null,
+                    affiliatedWallets = emptyList(),
+                )
+                AccountPresentationCard(
+                    account = account,
+                    alias = alias,
+                    aliasError = aliasError,
+                    onAliasChange = { value ->
+                        alias = value.take(80)
+                        aliasError = if (value.isBlank()) "Escribe un alias para identificar la cuenta." else null
+                    },
+                    selectedPreset = selectedPreset,
+                    onPresetSelected = { preset ->
+                        selectedPreset = preset
+                        isInstitutionMenuExpanded = false
+                    },
+                    isInstitutionMenuExpanded = isInstitutionMenuExpanded,
+                    onInstitutionMenuExpandedChange = { isInstitutionMenuExpanded = it },
+                    isSubmitting = isSubmitting,
+                    onSave = {
+                        if (alias.isBlank()) {
+                            aliasError = "Escribe un alias para identificar la cuenta."
+                        } else {
+                            onSaveAppearance(alias.trim(), selectedPreset)
+                        }
+                    },
+                )
+
+            }
+        }
+    }
+
     if (showArchiveConfirmation) {
         AlertDialog(
             onDismissRequest = { showArchiveConfirmation = false },
@@ -1240,7 +1286,7 @@ fun AccountDetailContent(
             onDismissRequest = { showReactivateConfirmation = false },
             title = { Text("¿Reactivar ${if (card == null) "la cuenta" else "la tarjeta"}?") },
             text = {
-                Text("El instrumento volverá a estar activo. La reactivación puede estar sujeta al cupo de tu plan; su historial se mantiene.")
+                Text("Se reactivará y conservará su historial. Puede requerir un cupo disponible.")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -1813,7 +1859,7 @@ private fun CreditCardPeriodPanel(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
+                            text = "Crédito disponible",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1918,44 +1964,6 @@ private fun CreditCardPeriodPanel(
         label = "creditDetailUtilizationColor",
     ).value
 
-    val utilizationStatusLabel = when {
-        utilization > 100.0 -> "Sobreutilizada"
-        utilization >= 80.0 -> "⚠ Utilización muy alta (> 80%)"
-        utilization >= 50.0 -> "Atención: > 50% utilizado"
-        utilization >= 30.0 -> "Utilización moderada (30-50%)"
-        else -> "✓ Utilización moderada (< 30%) · Óptimo"
-    }
-    val utilizationStatusBackgroundTarget = when {
-        utilization >= 80.0 -> emeraldColors.expenseBg
-        utilization >= 50.0 -> emeraldColors.warningBg
-        else -> emeraldColors.incomeBg
-    }
-    val utilizationStatusBorderTarget = when {
-        utilization >= 80.0 -> emeraldColors.expenseBorder
-        utilization >= 50.0 -> emeraldColors.warningBorder
-        else -> emeraldColors.incomeBorder
-    }
-    val utilizationStatusTextTarget = when {
-        utilization >= 80.0 -> emeraldColors.expenseText
-        utilization >= 50.0 -> emeraldColors.warningText
-        else -> emeraldColors.incomeText
-    }
-    val utilizationStatusBackground = animateColorAsState(
-        utilizationStatusBackgroundTarget,
-        animationSpec = if (reducedMotion) snap() else tween(KipuMotionTokens.MediumMillis, easing = FastOutSlowInEasing),
-        label = "creditDetailStatusBackground",
-    ).value
-    val utilizationStatusBorder = animateColorAsState(
-        utilizationStatusBorderTarget,
-        animationSpec = if (reducedMotion) snap() else tween(KipuMotionTokens.MediumMillis, easing = FastOutSlowInEasing),
-        label = "creditDetailStatusBorder",
-    ).value
-    val utilizationStatusText = animateColorAsState(
-        utilizationStatusTextTarget,
-        animationSpec = if (reducedMotion) snap() else tween(KipuMotionTokens.MediumMillis, easing = FastOutSlowInEasing),
-        label = "creditDetailStatusText",
-    ).value
-
     val dueFormatter = remember {
         DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.forLanguageTag("es-PE"))
     }
@@ -2043,7 +2051,7 @@ private fun CreditCardPeriodPanel(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY,
+                        text = "Crédito disponible",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -2118,24 +2126,6 @@ private fun CreditCardPeriodPanel(
 
             // Utilization progress bar
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Uso de la línea total de crédito:",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = if (card.creditLimitMinorUnits == 0L) "No disponible" else "%.1f%% / 100%%".format(Locale.US, utilization),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = progressColor,
-                    )
-                }
-
                 LinearProgressIndicator(
                     progress = { animatedProgress },
                     color = progressColor,
@@ -2147,28 +2137,21 @@ private fun CreditCardPeriodPanel(
                 )
             }
 
-            // Status chip on left, Línea total de crédito on right
+            // Utilization and credit limit
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = utilizationStatusBackground,
-                    border = BorderStroke(1.dp, utilizationStatusBorder),
-                ) {
-                    Text(
-                        text = utilizationStatusLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = utilizationStatusText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
+                Text(
+                    text = if (card.creditLimitMinorUnits == 0L) "Uso no disponible" else "Uso %.0f %%".format(Locale.US, utilization),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = progressColor,
+                )
 
                 Text(
-                    text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${displayCreditLimit(card)}",
+                    text = "Línea ${card.currency.symbol()} ${displayCreditLimit(card)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2201,7 +2184,7 @@ private fun CreditCardPeriodPanel(
                                 color = emeraldColors.expenseText,
                             )
                             Text(
-                        text = "Estás usando el ${"%.1f".format(Locale.US, utilization)}% de tu línea total de crédito. Superar el 50% puede afectar tu score crediticio y generar comisiones por sobregiro.",
+                        text = "Uso de línea elevado. Revisa las condiciones de tu tarjeta.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = emeraldColors.expenseText,
                             )
@@ -2623,7 +2606,7 @@ private fun CreditCardMovementsSection(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = if (activeFilterCount > 0) "Intenta cambiar o limpiar los filtros seleccionados para ver más movimientos." else "No has registrado compras ni pagos con esta tarjeta este mes.",
+                        text = if (activeFilterCount > 0) "Sin movimientos con estos filtros." else "No has registrado compras ni pagos con esta tarjeta este mes.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -2859,10 +2842,7 @@ private fun CreditCardMovementRow(
     }
 
     val merchantLogoKey = display.merchantLogoKey
-    val context = LocalContext.current
-    val merchantDrawableId = remember(merchantLogoKey) {
-        merchantLogoKey?.let { context.resources.getIdentifier(it, "drawable", context.packageName) } ?: 0
-    }
+    val merchantDrawableId = MerchantLogoDrawables.resolve(merchantLogoKey)
     val remoteMerchantLogoUrl = display.merchantLogoUrl
     val categoryIcon = if (movement.kind == MovementKind.CREDIT_PURCHASE) {
         display.categoryIcon?.takeIf(String::isNotBlank)
@@ -2909,6 +2889,7 @@ private fun CreditCardMovementRow(
                     MovementAvatarPresentation.MERCHANT_AVATAR -> MerchantAvatar(
                         drawableId = merchantDrawableId,
                         remoteLogoUrl = remoteMerchantLogoUrl,
+                        remoteDarkLogoUrl = display.merchantLogoDarkUrl,
                         profile = getMerchantVisualProfile(
                             display.merchantName?.takeIf(String::isNotBlank) ?: "Comercio",
                             display.merchantBrandColor,
@@ -3040,7 +3021,7 @@ private fun InstrumentSummary(
                     fontWeight = FontWeight.Bold,
                     color = if (summary.debt.minorUnits > 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
                 )
-                Text(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY, style = MaterialTheme.typography.labelMedium)
+                Text("Crédito disponible", style = MaterialTheme.typography.labelMedium)
                 MoneyText(money = summary.availableCredit, style = MaterialTheme.typography.titleMedium)
             }
             card?.let { target ->

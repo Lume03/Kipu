@@ -105,6 +105,7 @@ import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.presentation.components.colorFromHex
 import com.kipu.app.ui.component.CardArtThumbnail
+import com.kipu.app.ui.component.CardNetworkLogo
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -263,14 +264,9 @@ fun CalmEmeraldQuotaNotice(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "Cuentas y tarjetas activas: $activeCount de $maxQuota incluidos en el plan base",
+                    text = "Plan Free · $activeCount de $maxQuota cuentas y tarjetas",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                     color = calmColors.primaryText,
-                )
-                Text(
-                    text = "La disponibilidad se valida al guardar",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = calmColors.secondaryMuted,
                 )
             }
             if (onNavigateToPlans != null) {
@@ -1507,6 +1503,7 @@ internal fun CalmEmeraldCreditProductTree(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        CardNetworkLogo(network, size = 40.dp)
                         Column(Modifier.weight(1f)) {
                             Text(
                                 text = when (network) {

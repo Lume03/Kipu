@@ -1,0 +1,4 @@
+# Precompile Kipu's own code at install so the first tap on each screen does not wait for JIT.
+# Compose, Navigation and other AndroidX libraries ship their own baseline profiles.
+HSPLcom/kipu/app/**->**(**)**
+Lcom/kipu/app/**;

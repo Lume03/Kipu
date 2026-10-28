@@ -57,7 +57,7 @@ class GoalContributionViewModel @Inject constructor(
                 }
                 .catch { _state.value = _state.value.copy(isLoading = false, errorMessage = "No se pudieron cargar las cuentas.") }
                 .collectLatest { fresh ->
-                    _state.value = fresh.copy(isSaving = _state.value.isSaving, errorMessage = _state.value.errorMessage)
+                    _state.value = fresh.copy(isSaving = _state.value.isSaving, errorMessage = _state.value.errorMessage, message = _state.value.message)
                 }
         }
     }

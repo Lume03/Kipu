@@ -22,11 +22,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.budgets.domain.BudgetSchedule
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @Composable
 internal fun BudgetCreatedScreen(content: BudgetDetailContent, onView: () -> Unit, onReturn: () -> Unit) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val pulse = if (!rememberReducedMotionEnabled()) {
         rememberInfiniteTransition(label = "budgetCreatedPulse").animateFloat(1f, 1.06f,
             infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "budgetCreatedScale")
@@ -50,7 +50,7 @@ internal fun BudgetCreatedScreen(content: BudgetDetailContent, onView: () -> Uni
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Presupuesto creado", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                Text("Tu límite ya está listo. Aquí tienes el resumen de lo que vas a seguir.",
+                Text("Tu presupuesto está listo.",
                     style = MaterialTheme.typography.bodyMedium, color = colors.secondaryMuted, textAlign = TextAlign.Center)
             }
             Surface(shape = RoundedCornerShape(24.dp), color = colors.surfaceCard, border = BorderStroke(1.dp, colors.borderSubtle), modifier = Modifier.fillMaxWidth()) {
@@ -71,17 +71,17 @@ internal fun BudgetCreatedScreen(content: BudgetDetailContent, onView: () -> Uni
                     HorizontalDivider(color = colors.borderSubtle)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.Rounded.NotificationsNone, null, tint = colors.warningText, modifier = Modifier.size(20.dp))
-                        Text("Te avisaremos al llegar a ${BudgetTexts.thresholds(budget.thresholdsBps)}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Avisa al ${BudgetTexts.thresholds(budget.thresholdsBps)}", style = MaterialTheme.typography.bodyMedium)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.Rounded.Autorenew, null, tint = colors.primaryDeep, modifier = Modifier.size(20.dp))
-                        Text(if (budget.schedule is BudgetSchedule.CustomRange) "Termina al cerrar el rango elegido" else "Se renueva automáticamente al terminar el periodo",
+                        Text(if (budget.schedule is BudgetSchedule.CustomRange) "Termina al cerrar el rango elegido" else "Se renueva al terminar el periodo",
                             style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
             Surface(shape = RoundedCornerShape(14.dp), color = colors.incomeBg, modifier = Modifier.fillMaxWidth()) {
-                Text("Solo creaste una planificación. No se movió dinero de tus cuentas.", Modifier.padding(16.dp),
+                Text("Solo planificación · no movió dinero.", Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium, color = colors.incomeText, textAlign = TextAlign.Center)
             }
         }

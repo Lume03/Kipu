@@ -1,10 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,17 +13,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.NorthEast
-import androidx.compose.material.icons.rounded.Wallet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,12 +38,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -61,6 +57,8 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.presentation.components.AccountIdentityIcon
+import com.kipu.app.feature.accounts.presentation.components.accountSurfaceColor
 import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.KipuBrand
@@ -74,38 +72,15 @@ import androidx.compose.ui.text.input.VisualTransformation
 import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
-/** Tint of the summary card: mint for cash, the brand color for banks and wallets, teal otherwise. */
-@Composable
-private fun accountSummaryContainer(account: Account): Color {
-    val colors = rememberCalmEmeraldColors()
-    val surface = MaterialTheme.colorScheme.surface
-    val brand = account.preset?.let { KipuBrand.from(it.name) }
-    return when {
-        account.type == AccountType.CASH -> colors.incomeBg
-        brand != null -> brand.brandColor.copy(alpha = if (colors.isDark) 0.22f else 0.12f).compositeOver(surface)
-        else -> colors.primaryDeep.copy(alpha = if (colors.isDark) 0.22f else 0.10f).compositeOver(surface)
-    }
-}
-
-private fun Account.subtitle(linkedAccount: Account?): String {
-    val institution = preset?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
+private fun Account.subtitle(): String {
+    val institution = AccountPreset.normalizedFor(type, preset)?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
     return when (type) {
         AccountType.CASH -> "${currency.name} · en bolsillo"
-        AccountType.DIGITAL_WALLET -> when {
-            linkedAccount != null -> "${institution ?: "Billetera"} · afiliada a ${linkedAccount.alias}"
-            else -> "${institution ?: "Billetera"} · saldo propio · ${currency.name}"
-        }
+        AccountType.DIGITAL_WALLET -> "${institution ?: "Billetera digital"} · ${currency.name}"
         AccountType.SAVINGS -> listOfNotNull(institution, "Ahorros", currency.name).joinToString(" · ")
         AccountType.BANK -> listOfNotNull(institution, "Corriente", currency.name).joinToString(" · ")
         AccountType.CREDIT_LIABILITY -> "Pasivo de tarjeta · ${currency.name}"
     }
-}
-
-private fun Account.kindLabel(): String = when (type) {
-    AccountType.CASH -> "Efectivo"
-    AccountType.SAVINGS, AccountType.BANK -> "Cuenta bancaria"
-    AccountType.DIGITAL_WALLET -> "Billetera digital"
-    AccountType.CREDIT_LIABILITY -> "Pasivo de tarjeta"
 }
 
 /** C1-C3: logo, kind, institution line, current balance and the shared-balance tag of a wallet. */
@@ -121,41 +96,27 @@ internal fun AccountSummaryCard(
     val textColor = colors.primaryText
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = accountSummaryContainer(account)),
+        colors = CardDefaults.cardColors(containerColor = accountSurfaceColor(account)),
         modifier = modifier.fillMaxWidth().testTag("account_summary_card"),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (account.type == AccountType.CASH) {
-                    Box(
-                        Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Rounded.Payments, contentDescription = null, tint = colors.incomeText)
-                    }
-                } else {
-                    BrandLogo(
-                        brand = account.preset?.let { KipuBrand.from(it.name) },
-                        fallbackName = account.alias,
-                        contentDescription = account.preset?.defaultName?.let { "Logo de $it" },
-                        size = 48.dp,
-                    )
-                }
+                AccountIdentityIcon(account, size = 56.dp)
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = account.kindLabel(),
+                        text = account.alias,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = textColor,
                     )
                     Text(
-                        text = account.subtitle(linkedAccount),
+                        text = account.subtitle(),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.secondaryMuted,
                     )
@@ -163,13 +124,13 @@ internal fun AccountSummaryCard(
             }
             if (currentBalance != null) {
                 Text(
-                    text = if (account.isArchived) "Saldo inicial registrado" else "Saldo actual",
+                    text = if (account.isArchived) "Saldo actual · Cuenta archivada" else "Saldo disponible",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = textColor,
                 )
                 MoneyText(
-                    money = if (account.isArchived) account.initialBalance else currentBalance,
+                    money = currentBalance,
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = textColor,
@@ -220,6 +181,29 @@ internal fun AccountQuickActions(
     modifier: Modifier = Modifier,
 ) {
     if (onSpend == null && onTransfer == null && onMovements == null) return
+    if (onSpend == null && onTransfer == null && onMovements != null) {
+        val colors = rememberCalmEmeraldColors()
+        Surface(
+            onClick = onMovements,
+            shape = RoundedCornerShape(20.dp),
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.borderSubtle),
+            modifier = modifier.fillMaxWidth().testTag("account_view_movements"),
+        ) {
+            Row(
+                Modifier.padding(16.dp).heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.ReceiptLong, null, tint = colors.primaryText)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Ver movimientos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = colors.primaryText)
+            }
+        }
+        return
+    }
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         onSpend?.let { QuickActionTile("Gasto", Icons.Rounded.NorthEast, it, Modifier.weight(1f).testTag("account_action_spend")) }
         onTransfer?.let { QuickActionTile("Transferir", Icons.Rounded.SwapHoriz, it, Modifier.weight(1f).testTag("account_action_transfer")) }
@@ -273,6 +257,30 @@ internal fun AccountSectionTitle(text: String, modifier: Modifier = Modifier) {
     )
 }
 
+@Composable
+internal fun AccountOpeningBalanceRow(account: Account, enabled: Boolean, onCorrect: () -> Unit) {
+    val colors = rememberCalmEmeraldColors()
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = colors.surfaceCard,
+        border = BorderStroke(1.dp, colors.borderSubtle),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Saldo inicial", style = MaterialTheme.typography.labelLarge, color = colors.secondaryMuted)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                MoneyText(account.initialBalance, style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                TextButton(onClick = onCorrect, enabled = enabled,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("correct_opening_balance")
+                        .semantics { contentDescription = "Corregir saldo inicial" }) {
+                    Text("Corregir")
+                }
+            }
+        }
+    }
+}
+
 /** C4-C5: alias, institution (not for cash) and the save action, all inside one card. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -301,7 +309,7 @@ internal fun AccountPresentationCard(
             OutlinedTextField(
                 value = alias,
                 onValueChange = onAliasChange,
-                label = { Text("Alias de la cuenta") },
+                label = { Text("Nombre de la cuenta") },
                 singleLine = true,
                 isError = aliasError != null,
                 supportingText = aliasError?.let { { Text(it) } },
@@ -369,7 +377,7 @@ internal fun AccountPresentationCard(
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primaryDeep, contentColor = colors.onPrimaryDeep),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_account_presentation"),
             ) {
-                Text(if (isSubmitting) "Guardando..." else "Guardar presentación", fontWeight = FontWeight.Bold)
+                Text(if (isSubmitting) "Guardando..." else "Guardar cambios", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -395,7 +403,7 @@ private fun ReadOnlyKindRow(icon: ImageVector, text: String, modifier: Modifier 
                 color = colors.incomeText,
                 modifier = Modifier.weight(1f),
             )
-            Text("No editable", style = MaterialTheme.typography.labelMedium, color = colors.secondaryMuted)
+
         }
     }
 }

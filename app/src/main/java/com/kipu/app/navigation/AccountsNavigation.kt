@@ -26,7 +26,6 @@ import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
 import com.kipu.app.feature.analysis.presentation.AnalysisScreen
-import com.kipu.app.feature.home.presentation.HomeNetWorthViewModel
 import com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreen
 import com.kipu.app.feature.notifications.presentation.NotificationBadgeViewModel
 import com.kipu.app.navigation.navigateToNotifications
@@ -155,6 +154,7 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
                 }
             },
             startPurchaseOnOpen = startPurchaseOnOpen,
+            onNavigateToLinkedAccount = navController::navigateToAccountDetail,
         )
     }
 
@@ -234,8 +234,6 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
 @Composable
 private fun AccountsRootContent(navController: NavController, backStackEntry: NavBackStackEntry, selected: State<Boolean>) {
         val viewModel: AccountsViewModel = hiltViewModel()
-        val netWorthViewModel: HomeNetWorthViewModel = hiltViewModel()
-        val netWorthState by netWorthViewModel.state.collectAsStateWithLifecycle()
         val settingsViewModel: SettingsViewModel = hiltViewModel()
         val notificationBadgeViewModel: NotificationBadgeViewModel = hiltViewModel()
         val unreadNotificationCount by notificationBadgeViewModel.unreadCount.collectAsStateWithLifecycle()
@@ -261,8 +259,6 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
             openRegisterMovement = openRegisterMovement && selected.value,
             onConsumeRegisterMovement = { backStackEntry.savedStateHandle["open_register_movement"] = false },
             onNavigateToGoals = { navController.navigateToPlanning(PlanningTab.GOALS) },
-            netWorthState = netWorthState,
             onNavigateToCalendar = { navController.navigateToCalendar() },
-            onRetryNetWorth = netWorthViewModel::retry,
         )
 }

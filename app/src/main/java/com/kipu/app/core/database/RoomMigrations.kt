@@ -1282,6 +1282,16 @@ val MIGRATION_26_27 = object : Migration(26, 27) {
     }
 }
 
+val MIGRATION_27_28 = object : Migration(27, 28) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `merchant_catalog_cache` ADD COLUMN `logo_path` TEXT")
+        db.execSQL("ALTER TABLE `merchant_catalog_cache` ADD COLUMN `logo_dark_path` TEXT")
+        db.execSQL("ALTER TABLE `merchant_catalog_cache` ADD COLUMN `logo_source` TEXT NOT NULL DEFAULT 'BUNDLED'")
+        // Force the next catalog sync to refetch every row so the new logo columns are populated.
+        db.execSQL("UPDATE `merchant_catalog_cache` SET `version` = 0")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

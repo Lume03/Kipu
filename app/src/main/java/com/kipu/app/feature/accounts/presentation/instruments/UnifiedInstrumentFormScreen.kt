@@ -140,7 +140,9 @@ import com.kipu.app.feature.accounts.presentation.components.CardStylePreset
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
 import com.kipu.app.feature.accounts.presentation.components.InstrumentCardPreview
+import com.kipu.app.ui.component.CardNetworkLogo
 import com.kipu.app.ui.component.KipuBrand
+import com.kipu.app.ui.component.logoRes
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -1034,7 +1036,8 @@ fun UnifiedInstrumentFormScreen(
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             networkOptions.forEach { option ->
                                 FilterChip(selected = network == option, onClick = { network = option },
-                                    label = { Text(networkLabel(option)) }, modifier = Modifier.heightIn(min = 48.dp))
+                                    label = { Text(networkLabel(option)) }, modifier = Modifier.heightIn(min = 48.dp),
+                                    leadingIcon = option.logoRes()?.let { { CardNetworkLogo(option, size = 24.dp) } })
                             }
                         }
                     }
@@ -1188,7 +1191,7 @@ fun UnifiedInstrumentFormScreen(
                             AddFormBalanceModeCard(
                                 isLink = true,
                                 title = "Afiliada a una cuenta",
-                                description = "No suma saldo aparte: sus movimientos se descuentan de tu cuenta bancaria.",
+                                description = "Usa el saldo de la cuenta bancaria afiliada.",
                                 selected = walletAffiliated,
                                 onClick = { walletAffiliated = true },
                             )
@@ -1240,9 +1243,6 @@ fun UnifiedInstrumentFormScreen(
                                 hint = "Es el dinero que tienes hoy en esta cuenta. Podrás corregirlo luego.",
                             )
                         }
-                    } else {
-                        Text("El saldo se obtiene de la cuenta bancaria afiliada; no se registrará un saldo propio.",
-                            style = MaterialTheme.typography.bodyMedium, color = calmColors.secondaryMuted)
                     }
                     if (kind == InstrumentKind.SAVINGS_DEBIT) {
                         Column(Modifier.bringIntoViewRequester(lastFourBringIntoViewRequester), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1261,7 +1261,12 @@ fun UnifiedInstrumentFormScreen(
                                 AddFormLabel("Red de tu tarjeta de débito")
                                 AddFormChoiceRow {
                                     networkOptions.forEach { option ->
-                                        AddFormChoiceChip(networkLabel(option), network == option, { network = option })
+                                        AddFormChoiceChip(
+                                            networkLabel(option),
+                                            network == option,
+                                            { network = option },
+                                            leading = option.logoRes()?.let { { CardNetworkLogo(option, size = 24.dp) } },
+                                        )
                                     }
                                 }
                             }
@@ -1987,14 +1992,14 @@ private fun R9CreditCardSuccessBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = "¡Tarjeta registrada con éxito!",
+                    text = "Tarjeta registrada",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = KipuInkTitle,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "Tu ${card.alias ?: card.issuer} ha sido vinculada a tu panel de instrumentos financieros.",
+                    text = "${card.alias ?: card.issuer}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = KipuTextMuted,
                     textAlign = TextAlign.Center,
@@ -2039,23 +2044,6 @@ private fun R9CreditCardSuccessBottomSheet(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(KipuSuccessGreen),
-                            )
-                            Text(
-                                text = "Activa para registrar consumos",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = KipuSuccessGreen,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
                     }
                 }
             }
@@ -2178,31 +2166,6 @@ private fun R9CreditCardSuccessBottomSheet(
                 }
             }
 
-            // Educational tip card
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = KipuLightGreenContainer,
-                border = BorderStroke(1.dp, rememberCalmEmeraldColors().incomeBorder),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = KipuTealPrimary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Text(
-                        text = "Tip financiero: procura mantener tus consumos por debajo del 30% de tu línea total de crédito para conservar un uso moderado del crédito.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KipuInkTitle,
-                    )
-                }
-            }
 
             Spacer(Modifier.height(4.dp))
 

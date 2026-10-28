@@ -169,7 +169,7 @@ internal fun BiometricSettingsContent(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "Exige tu huella, rostro o PIN al iniciar la aplicación o tras 60 segundos continuos en segundo plano para ocultar y proteger tus balances financieros.",
+                        text = "Solicita huella, rostro o PIN al abrir Kipu o tras 60 segundos en segundo plano.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

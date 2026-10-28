@@ -147,7 +147,7 @@ private fun PendingReceiptsHeader(count: Int) {
             modifier = Modifier.semantics { contentDescription = "$count comprobantes pendientes" },
         ) {
             Text(
-                text = if (count == 0) "0" else "$count por conciliar",
+                text = if (count == 0) "0" else "$count pendientes",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
@@ -393,7 +393,7 @@ private fun ReceiptCandidateCard(
                 ) {
                     Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Revisar comprobante", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Revisar", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
                 TextButton(
                     onClick = onDiscard,
@@ -401,7 +401,7 @@ private fun ReceiptCandidateCard(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("receipt_discard_${candidate.id}"),
                     colors = ButtonDefaults.textButtonColors(contentColor = palette.secondaryMuted),
                 ) {
-                    Text("Descartar comprobante", style = MaterialTheme.typography.titleSmall)
+                    Text("Descartar", style = MaterialTheme.typography.titleSmall)
                 }
             }
         }

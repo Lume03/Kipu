@@ -102,7 +102,7 @@ fun InstrumentCardPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 160.dp)
+            .heightIn(min = if (art != null && stylePreset?.cardType == CardStyleType.DEBIT) 0.dp else 160.dp)
             .onSizeChanged { size = it }
             .pointerInput(reducedMotion, size) {
                 if (!reducedMotion) {
@@ -143,7 +143,7 @@ fun InstrumentCardPreview(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 160.dp)
+                .heightIn(min = if (art != null && stylePreset?.cardType == CardStyleType.DEBIT) 0.dp else 160.dp)
                 .graphicsLayer {
                     if (!reducedMotion) {
                         this.rotationX = rotationX.value

@@ -38,8 +38,8 @@ fun AnalysisScreen() {
         )
         Box(Modifier.fillMaxSize().padding(bottom = 48.dp), contentAlignment = Alignment.Center) {
             KipuEmptyState(
-                title = "Muy pronto",
-                message = "Aquí podrás analizar cómo se mueve tu dinero. Esta sección todavía está en preparación.",
+                title = "Próximamente",
+                message = "Estamos preparando el análisis de tu dinero.",
                 icon = {
                     Surface(shape = CircleShape, color = colors.incomeBg, modifier = Modifier.size(72.dp)) {
                         Icon(

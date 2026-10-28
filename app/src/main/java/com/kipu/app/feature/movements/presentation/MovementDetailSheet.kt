@@ -259,7 +259,7 @@ fun MovementDetailSheet(
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
-                                            text = "Verificado",
+                                            text = if (tx.syncStatus == MovementSyncStatus.SYNCED) "Sincronizado" else "Guardado en este dispositivo",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = emeraldColors.incomeText,
                                         )
@@ -325,13 +325,13 @@ fun MovementDetailSheet(
                                     )
                                     Column {
                                         Text(
-                                            text = if (receiptAttached) "Comprobante_Adjunto.pdf" else "Comprobante de pago",
+                                            text = if (receiptAttached) "Comprobante_Adjunto.pdf" else "Comprobante",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                         Text(
-                                            text = if (receiptAttached) "Archivo PDF · Guardado en este dispositivo" else "Pendiente de adjuntar",
+                                            text = if (receiptAttached) "Archivo PDF · Guardado en este dispositivo" else "Sin adjunto",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = emeraldColors.secondaryMuted,
                                         )

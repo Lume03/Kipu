@@ -114,7 +114,7 @@ class PlanningVisualEvidenceTest {
             when (case) {
                 "goal-options", "goal-delete" -> {
                     compose.onNodeWithContentDescription("Opciones de $name").performScrollTo().performClick()
-                    if (case == "goal-delete") compose.onNodeWithText("Eliminar meta vacía").performScrollTo().performClick()
+                    if (case == "goal-delete") compose.onNodeWithText("Eliminar meta").performScrollTo().performClick()
                 }
                 "goal-release" -> compose.onNodeWithTag("goal_release").performClick()
                 "budget-delete" -> compose.onNodeWithTag("budget_delete").performScrollTo().performClick()

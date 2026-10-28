@@ -196,6 +196,8 @@ class FakeMerchantCatalogDao : MerchantCatalogDao {
     override suspend fun countActiveMerchants(): Int = merchants.values.count { it.isActive }
 
     override suspend fun getLatestVersion(): Long? = merchants.values.maxOfOrNull { it.version }
+    override suspend fun getMerchantsWithRemoteLogos(): List<MerchantCatalogEntity> =
+        merchants.values.filter { it.logoPath != null || it.logoDarkPath != null }
 }
 
 class FakeMerchantRulesDao : MerchantRulesDao {

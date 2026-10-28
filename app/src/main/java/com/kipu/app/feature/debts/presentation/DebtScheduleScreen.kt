@@ -96,7 +96,7 @@ import com.kipu.app.feature.debts.domain.model.CloseDebtAction
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
@@ -123,7 +123,7 @@ fun DebtScheduleScreen(
     startWithClosure: Boolean = false,
 ) {
     val debt = state.debt
-    val emeraldColors = rememberCalmEmeraldColors()
+    val emeraldColors = rememberPlanningColors()
     var attemptedAction by remember(debt?.debtId) { mutableStateOf<CloseDebtAction?>(null) }
     var showScheduleReplacementConfirmation by remember(debt?.debtId) { mutableStateOf(false) }
     var selectedTab by remember(debt?.debtId) {
@@ -277,9 +277,9 @@ fun DebtScheduleScreen(
             text = {
                 Text(
                     if (isScheduleHelp) {
-                        "El cronograma organiza el saldo pendiente en cuotas y fechas. Guardar el plan o llegar a un vencimiento no registra un pago ni reduce el saldo; los pagos reales se registran por separado."
+                        "Las cuotas organizan el saldo en fechas. No registran pagos ni reducen el saldo."
                     } else {
-                        "Un ajuste modifica el saldo de forma explícita y queda registrado en el historial con su motivo. La condonación también debe ser explícita. La deuda solo puede marcarse como liquidada cuando el saldo pendiente es cero. Esta ayuda no realiza cambios."
+                        "Un ajuste cambia el saldo y queda en el historial con su motivo."
                     },
                 )
             },
@@ -312,7 +312,7 @@ fun DebtScheduleScreen(
         AlertDialog(
             onDismissRequest = { attemptedAction = null },
             title = { Text(closureTitle(action), fontWeight = FontWeight.Bold) },
-            text = { Text("Confirma esta acción. El motivo y el saldo actualizado quedarán en el historial de auditoría.") },
+            text = { Text("El motivo y el saldo actualizado quedarán en el historial.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -345,7 +345,7 @@ private fun ScheduleProjectionTab(
     onCancelSchedule: () -> Unit,
 ) {
     val themeColors = rememberKipuColors()
-    val semanticColors = rememberCalmEmeraldColors()
+    val semanticColors = rememberPlanningColors()
     val formatter = currencyFormatter(debt.currencyCode)
     val count = state.installmentCount.toIntOrNull()?.coerceIn(1, 48) ?: 3
     val approxPerQuotaMinor = if (count > 0) debt.remainingPrincipalMinor / count else 0L
@@ -372,7 +372,7 @@ private fun ScheduleProjectionTab(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(themeColors.primaryContainer, RoundedCornerShape(12.dp)),
+                        .background(com.kipu.app.ui.theme.rememberPlanningColors().incomeBg, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
@@ -436,7 +436,7 @@ private fun ScheduleProjectionTab(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Aviso contable importante", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = semanticColors.transferBlue)
                 Text(
-                    "Las cuotas planificadas organizan tu calendario de vencimientos, pero NO registran pagos automáticamente. Los pagos reales deben registrarse por separado.",
+                    "Las cuotas son planificación: no registran pagos.",
                     style = MaterialTheme.typography.bodySmall,
                     color = semanticColors.transferBlue,
                     lineHeight = 18.sp,
@@ -454,7 +454,7 @@ private fun ScheduleProjectionTab(
         Text("Configurar cronograma de pagos", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
         Surface(
             shape = RoundedCornerShape(999.dp),
-            color = themeColors.primaryContainer,
+            color = com.kipu.app.ui.theme.rememberPlanningColors().incomeBg,
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -671,7 +671,7 @@ private fun ScheduleProjectionTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (index == 0) themeColors.primaryContainer else themeColors.surfaceVariant, CircleShape),
+                            .background(if (index == 0) com.kipu.app.ui.theme.rememberPlanningColors().incomeBg else themeColors.surfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -830,7 +830,7 @@ private fun AdjustmentsAndClosureTab(
     onRequestAction: (CloseDebtAction) -> Unit,
 ) {
     val themeColors = rememberKipuColors()
-    val semanticColors = rememberCalmEmeraldColors()
+    val semanticColors = rememberPlanningColors()
     val formatter = currencyFormatter(debt.currencyCode)
     val isZeroBalance = debt.remainingPrincipalMinor == 0L
     var isReduce by remember { mutableStateOf(true) }
@@ -898,7 +898,7 @@ private fun AdjustmentsAndClosureTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (hasValidationError) semanticColors.expenseBg else themeColors.primaryContainer, RoundedCornerShape(10.dp)),
+                            .background(if (hasValidationError) semanticColors.expenseBg else com.kipu.app.ui.theme.rememberPlanningColors().incomeBg, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -970,7 +970,7 @@ private fun AdjustmentsAndClosureTab(
                     ) {
                         Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(20.dp))
                         Text(
-                            "Saldo completamente amortizado. La obligación cumple los requisitos contables para cerrarse definitivamente sin saldos pendientes.",
+                            "Saldo en cero. Puedes cerrar la deuda.",
                             style = MaterialTheme.typography.bodySmall,
                             color = semanticColors.incomeText,
                             lineHeight = 18.sp,
@@ -1307,7 +1307,7 @@ private fun AdjustmentsAndClosureTab(
                     )
                     if (isForgivenessExceeded) {
                         Text(
-                            "✕ El monto excede el saldo pendiente máximo exigible de ${formatter.format(debt.remainingPrincipalMinor / 100.0)}",
+                            "El monto supera el saldo (${formatter.format(debt.remainingPrincipalMinor / 100.0)}).",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseText,
                         )
@@ -1339,7 +1339,7 @@ private fun AdjustmentsAndClosureTab(
                     )
                     if (isReasonMissing) {
                         Text(
-                            "⚠ El motivo es obligatorio para fines de auditoría e historial contable",
+                            "Falta el motivo (obligatorio).",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseText,
                         )
@@ -1388,7 +1388,7 @@ private fun AdjustmentsAndClosureTab(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(if (isZeroBalance) themeColors.primaryContainer else themeColors.surfaceVariant, RoundedCornerShape(10.dp)),
+                            .background(if (isZeroBalance) com.kipu.app.ui.theme.rememberPlanningColors().incomeBg else themeColors.surfaceVariant, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -1409,7 +1409,7 @@ private fun AdjustmentsAndClosureTab(
                 }
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isZeroBalance) themeColors.primaryContainer else themeColors.surfaceVariant,
+                    color = if (isZeroBalance) com.kipu.app.ui.theme.rememberPlanningColors().incomeBg else themeColors.surfaceVariant,
                 ) {
                     Text(
                         if (isZeroBalance) "Habilitado" else "Bloqueado",
@@ -1438,7 +1438,7 @@ private fun AdjustmentsAndClosureTab(
                 }
 
                 Text(
-                    "Al liquidar, se archivará la deuda del panel de cobro activo y se guardará la constancia en el historial contable.",
+                    "Se archivará y quedará en tu historial.",
                     style = MaterialTheme.typography.bodySmall,
                     color = themeColors.inkSecondary,
                     lineHeight = 18.sp,
@@ -1485,7 +1485,7 @@ private fun AdjustmentsAndClosureTab(
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text("Cierre de obligación no disponible", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                             Text(
-                                "La obligación aún tiene ${formatter.format(debt.remainingPrincipalMinor / 100.0)} pendientes. Amortiza, ajusta o condona el saldo restante para habilitar la liquidación definitiva.",
+                                "Faltan ${formatter.format(debt.remainingPrincipalMinor / 100.0)}. Amortiza, ajusta o condona para liquidar.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = themeColors.inkSecondary,
                                 lineHeight = 16.sp,

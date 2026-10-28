@@ -57,7 +57,7 @@ import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.formatMinorUnits
-import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPlanningColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +72,7 @@ fun DebtSettlementSheet(
     onDismiss: () -> Unit,
 ) {
     val themeColors = rememberKipuColors()
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     val principalMinor = DebtAmountParser.toMinorUnits(state.principalAmount)
     val interestMinor = DebtAmountParser.toNonNegativeMinorUnits(state.interestAmount)
     val principalTooHigh = principalMinor != null && principalMinor > debt.remainingPrincipalMinor
@@ -182,7 +182,7 @@ fun DebtSettlementSheet(
             }
 
             Text(
-                "El principal reduce el saldo exigible; el interés se contabiliza por separado como gasto o ingreso operativo.",
+                "El interés se registra aparte como gasto o ingreso.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.secondaryMuted,
                 lineHeight = 18.sp,
@@ -335,7 +335,7 @@ fun DebtSettlementSheet(
 
 @Composable
 private fun DebtTypePill(payable: Boolean) {
-    val colors = rememberCalmEmeraldColors()
+    val colors = rememberPlanningColors()
     Surface(shape = RoundedCornerShape(20.dp), color = if (payable) colors.expenseBg else colors.incomeBg) {
         Text(
             if (payable) "Yo debo" else "Me deben",
