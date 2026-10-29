@@ -756,13 +756,16 @@ class QuickMovementViewModel @Inject constructor(
 
         val selectedWallet = state.availableAccounts.firstOrNull { it.id.value == state.selectedSourceAccountId }
             ?.takeIf { it.linkedAccountId != null }
+        val movementSource = com.kipu.app.feature.accounts.domain.model.MovementAccountSource.of(
+            state.selectedSourceAccountId.orEmpty(), selectedWallet?.linkedAccountId?.value, selectedWallet?.preset?.name,
+        )
         val command = RegisterTransactionCommand(
             idempotencyKey = receiptDraftId?.let { "yape-candidate:$it" } ?: UUID.randomUUID().toString(),
             userId = userId,
             type = state.type,
             amountMinor = amountMinor,
             currency = state.currency,
-            sourceAccountId = selectedWallet?.linkedAccountId?.value ?: state.selectedSourceAccountId,
+            sourceAccountId = movementSource.accountId,
             destinationAccountId = if (state.type == MovementType.TRANSFER) state.selectedDestinationAccountId else null,
             categoryId = state.selectedCategoryId.takeUnless { state.type == MovementType.TRANSFER },
             merchantId = state.selectedMerchantId,
@@ -770,7 +773,7 @@ class QuickMovementViewModel @Inject constructor(
             occurredAt = state.occurredAt,
             note = state.note.takeIf { it.isNotBlank() },
             ignoreSimilarityWarning = false,
-            paymentChannel = if (receiptDraftId != null) "YAPE" else selectedWallet?.preset?.name,
+            paymentChannel = if (receiptDraftId != null) "YAPE" else movementSource.paymentChannel,
         )
 
         executeRegister(command)
