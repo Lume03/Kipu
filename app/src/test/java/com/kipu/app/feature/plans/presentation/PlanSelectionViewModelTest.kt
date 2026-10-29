@@ -46,6 +46,51 @@ class PlanSelectionViewModelTest {
     }
 
     @Test
+    fun `switching to Free retains the last premium period without persisting`() = runTest(dispatcher) {
+        val repository = FakePlanPreferencesRepository()
+        val viewModel = viewModel(repository)
+
+        viewModel.onOptionSelected(CommercialOption.LIFETIME)
+        viewModel.onOptionSelected(CommercialOption.FREE)
+
+        assertEquals(CommercialOption.FREE, viewModel.uiState.value.selectedOption)
+        assertEquals(CommercialOption.LIFETIME, viewModel.uiState.value.premiumOption)
+        assertEquals(0, repository.confirmCalls)
+
+        viewModel.onOptionSelected(viewModel.uiState.value.premiumOption)
+        assertEquals(CommercialOption.LIFETIME, viewModel.uiState.value.selectedOption)
+    }
+
+    @Test
+    fun `confirming the Free tab persists only Free`() = runTest(dispatcher) {
+        val repository = FakePlanPreferencesRepository()
+        val viewModel = viewModel(repository)
+        viewModel.onOptionSelected(CommercialOption.FREE)
+
+        viewModel.confirmSelection()
+        advanceUntilIdle()
+
+        assertEquals(PlanSelection.FREE, repository.lastSelection)
+        assertEquals(1, repository.confirmCalls)
+    }
+
+    @Test
+    fun `selection cannot change while confirmation is pending`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val repository = FakePlanPreferencesRepository(confirmGate = gate)
+        val viewModel = viewModel(repository)
+        viewModel.onOptionSelected(CommercialOption.MONTHLY)
+        viewModel.confirmSelection()
+        runCurrent()
+
+        viewModel.onOptionSelected(CommercialOption.FREE)
+        assertEquals(CommercialOption.MONTHLY, viewModel.uiState.value.selectedOption)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(PlanSelection.PREMIUM_INTENT, repository.lastSelection)
+    }
+
+    @Test
     fun `initial premium selection is Annual and opening the screen does not persist it`() = runTest(dispatcher) {
         val repository = FakePlanPreferencesRepository()
         val viewModel = viewModel(repository)

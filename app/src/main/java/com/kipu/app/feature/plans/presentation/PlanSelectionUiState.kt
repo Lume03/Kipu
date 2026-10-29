@@ -12,6 +12,8 @@ data class PlanSelectionUiState(
     val isConfirming: Boolean = false,
     val errorMessage: String? = null,
     val error: PlanSelectionError? = null,
+    val freeLimits: FreePlanLimits = FreePlanLimits(),
+    val premiumOption: CommercialOption = CommercialOption.ANNUAL,
 ) {
     val isSubmitting get() = isConfirming
 }

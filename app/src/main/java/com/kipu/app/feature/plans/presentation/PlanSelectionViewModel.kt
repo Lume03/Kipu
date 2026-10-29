@@ -20,7 +20,14 @@ class PlanSelectionViewModel @Inject constructor(private val repository: PlanPre
     private val eventChannel = Channel<PlanSelectionEvent>(Channel.BUFFERED)
     val events = eventChannel.receiveAsFlow()
     init { viewModelScope.launch { val value = runCatching { repository.getTrialEligibility() }.getOrDefault(TrialEligibilitySnapshot.UNKNOWN); mutableState.update { it.copy(eligibility = value, isLoadingEligibility = false) } } }
-    fun onOptionSelected(option: CommercialOption) = mutableState.update { it.copy(selectedOption = option, error = null, errorMessage = null) }
+    fun onOptionSelected(option: CommercialOption) = mutableState.update {
+        if (it.isConfirming) it else it.copy(
+            selectedOption = option,
+            premiumOption = if (option == CommercialOption.FREE) it.premiumOption else option,
+            error = null,
+            errorMessage = null,
+        )
+    }
     fun selectOption(option: CommercialOption) = onOptionSelected(option)
     fun onAbandoned() = Unit
     fun confirmSelection() = confirm(mutableState.value.selectedOption)
