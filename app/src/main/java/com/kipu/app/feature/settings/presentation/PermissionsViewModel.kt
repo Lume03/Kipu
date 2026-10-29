@@ -3,6 +3,10 @@ package com.kipu.app.feature.settings.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.core.finance.domain.model.UserId
+import com.kipu.app.feature.capture.domain.CaptureAccessDecision
+import com.kipu.app.feature.capture.domain.CaptureAccessGate
+import com.kipu.app.feature.categories.domain.CategoriesRepository
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
 import com.kipu.app.feature.settings.data.local.PermissionConsentDao
 import com.kipu.app.feature.settings.domain.PermissionSourceGateway
@@ -19,6 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,10 +34,13 @@ class PermissionsViewModel @Inject constructor(
     private val dao: PermissionConsentDao,
     private val gateway: PermissionSourceGateway,
     private val sessionCoordinator: SessionCoordinator,
+    private val captureGate: CaptureAccessGate,
+    private val categories: CategoriesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PermissionsUiState(isLoading = true))
     val uiState: StateFlow<PermissionsUiState> = _uiState.asStateFlow()
+    private var refreshJob: Job? = null
 
     private val currentUserId: UUID?
         get() = sessionCoordinator.currentOwner?.verifiedUserId?.let {
@@ -42,17 +52,20 @@ class PermissionsViewModel @Inject constructor(
     }
 
     fun refresh() {
+        refreshJob?.cancel()
         val userId = currentUserId
         if (userId == null) {
             _uiState.update { it.copy(isLoading = false, message = "No hay usuario activo") }
             return
         }
 
-        viewModelScope.launch {
+        refreshJob = viewModelScope.launch {
             gateway.refreshAndSaveDeviceAuthorizations()
-            dao.observeAccountConsents(userId).collectLatest { consents ->
+            combine(dao.observeAccountConsents(userId), categories.observePremiumVerified(UserId(userId.toString()))) { consents, premium ->
+                consents to premium
+            }.collectLatest { (consents, isPremium) ->
                 val consentMap = consents.associateBy { it.source }
-                val isPremium = _uiState.value.isPremiumUser
+                val captureAllowed = captureGate.evaluate(userId.toString()) is CaptureAccessDecision.Allowed
 
                 val items = PermissionSource.entries.map { source ->
                     val deviceAuth = gateway.checkDeviceAuthorization(source)
@@ -100,13 +113,13 @@ class PermissionsViewModel @Inject constructor(
                             deviceAuth = deviceAuth,
                             consentState = consentState,
                             capabilityState = capabilityState,
-                            isProcessingAuthorized = authEval.isAuthorized,
+                            isProcessingAuthorized = captureAllowed,
                             requiresPremium = true,
                         )
                     }
                 }
 
-                _uiState.update { it.copy(isLoading = false, items = items) }
+                _uiState.update { it.copy(isLoading = false, items = items, isPremiumUser = isPremium) }
             }
         }
     }
@@ -121,17 +134,16 @@ class PermissionsViewModel @Inject constructor(
 
     fun grantConsent(source: PermissionSource) {
         val userId = currentUserId ?: return
-        if (source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT && !_uiState.value.isPremiumUser) {
-            _uiState.update {
-                it.copy(
-                    showRationaleFor = null,
-                    message = "Esta fuente de automatización requiere una suscripción Premium activa.",
-                )
-            }
-            return
-        }
-
         viewModelScope.launch {
+            if (source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT &&
+                (captureGate.currentOwnerId() != userId.toString() ||
+                    !categories.observePremiumVerified(UserId(userId.toString())).first())
+            ) {
+                _uiState.update {
+                    it.copy(showRationaleFor = null, message = "Esta fuente de automatización requiere una suscripción Premium activa.")
+                }
+                return@launch
+            }
             dao.putAccountConsent(
                 AccountSourceConsentEntity(
                     userId = userId,
@@ -160,11 +172,6 @@ class PermissionsViewModel @Inject constructor(
                 )
             )
         }
-    }
-
-    fun setPremiumUserForTesting(isPremium: Boolean) {
-        _uiState.update { it.copy(isPremiumUser = isPremium) }
-        refresh()
     }
 
     fun clearMessage() {
