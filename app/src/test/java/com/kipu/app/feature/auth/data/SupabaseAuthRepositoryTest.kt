@@ -191,4 +191,26 @@ class SupabaseAuthRepositoryTest {
         coVerify { storage.delete(); coordinator.clearActiveOwner(false); auth.clearSession() }
     }
 
+    @Test fun `verification deadline clears session and never activates owner`() = runTest {
+        val repo = repository()
+        coEvery { verifier.retrieveUser(any()) } coAnswers { kotlinx.coroutines.awaitCancellation() }
+        val result = repo.signIn(credentials)
+        assertTrue(result.isFailure)
+        assertEquals(AUTH_TIMEOUT_MILLIS, testScheduler.currentTime)
+        coVerify(exactly = 0) { coordinator.setActiveOwner(any()); auth.importSession(any(), any(), any()) }
+        coVerify { auth.clearSession(); storage.delete(); coordinator.clearActiveOwner(false) }
+    }
+
+    @Test fun `caller cancellation during verification propagates after cleanup`() = runTest {
+        val repo = repository()
+        coEvery { verifier.retrieveUser(any()) } coAnswers { kotlinx.coroutines.awaitCancellation() }
+        val login = async { repo.signIn(credentials) }
+        runCurrent()
+        login.cancel()
+        login.join()
+        assertTrue(login.isCancelled)
+        coVerify(exactly = 0) { coordinator.setActiveOwner(any()) }
+        coVerify { auth.clearSession(); storage.delete() }
+    }
+
 }

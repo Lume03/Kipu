@@ -89,7 +89,14 @@ class SupabaseAuthRepository @Inject constructor(
     }
 
     override suspend fun signIn(credentials: AuthCredentials): Result<AuthResult> =
-        sessionGate.exclusive { signInExclusive(credentials) }
+        sessionGate.exclusive {
+            try {
+                withAuthTimeout { signInExclusive(credentials) }
+            } catch (error: java.net.SocketTimeoutException) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { clearFailedSession() }
+                Result.failure(Exception("Tiempo de espera agotado. Revisa tu red e intenta nuevamente.", error))
+            }
+        }
 
     private suspend fun signInExclusive(credentials: AuthCredentials): Result<AuthResult> {
         if (_cooldownState.value.isBlocked) {
@@ -147,7 +154,9 @@ class SupabaseAuthRepository @Inject constructor(
                 } catch (e: Exception) {
                     clearFailedSession()
                     SecureLog.e("SupabaseAuthRepository", "Failed to activate owner session", e)
-                    Result.failure(Exception("Error al inicializar la sesión."))
+                    Result.failure(Exception(
+                        if (isTransportFailure(e)) "Error de red. Revisa tu conexi\u00f3n e intenta nuevamente."
+                        else "Error al inicializar la sesi\u00f3n.", e))
                 }
             }
             is ApiResponse.Error -> {

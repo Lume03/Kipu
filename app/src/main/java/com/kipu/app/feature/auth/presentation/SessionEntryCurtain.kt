@@ -1,5 +1,6 @@
 package com.kipu.app.feature.auth.presentation
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,13 +33,16 @@ class SessionEntryCurtain @Inject constructor() {
         val registering: Boolean = false,
         val confirmationRequired: Boolean = false,
         val destinationRoute: String? = null,
+        val errorExiting: Boolean = false,
     )
 
     private val _state = MutableStateFlow<State?>(null)
     val state: StateFlow<State?> = _state.asStateFlow()
     private var counter = 0L
+    private var afterErrorExit: (() -> Unit)? = null
 
     fun start(email: String, registering: Boolean = false) {
+        afterErrorExit = null
         _state.value = State(++counter, email.trim(), registering = registering)
     }
 
@@ -59,7 +63,23 @@ class SessionEntryCurtain @Inject constructor() {
         _state.update { it?.copy(homeReady = true) }
     }
 
+    fun exitWithError(onFinished: () -> Unit) {
+        if (_state.value == null) {
+            onFinished()
+            return
+        }
+        afterErrorExit = onFinished
+        _state.update { it?.copy(errorExiting = true) }
+    }
+
+    internal fun finishErrorExit() {
+        val callback = afterErrorExit
+        dismiss()
+        callback?.invoke()
+    }
+
     fun dismiss() {
+        afterErrorExit = null
         _state.value = null
     }
 }
@@ -69,6 +89,8 @@ val LocalSessionEntryCurtain = staticCompositionLocalOf<SessionEntryCurtain?> { 
 /** Decides when the curtain may start closing; kept free of Compose so it can be unit tested. */
 internal object SessionEntryTiming {
     /** Long enough for the cords to hang and the logo to settle before the exit starts. */
+    const val ERROR_EXIT_MILLIS = 180
+
     const val MIN_VISIBLE_MILLIS = 1_800L
 
     fun isReady(minElapsed: Boolean, authenticated: Boolean, homeReady: Boolean): Boolean =
@@ -100,15 +122,27 @@ fun SessionEntryCurtainHost(curtain: SessionEntryCurtain, currentRoute: String?,
         minElapsed, current.authenticated,
         current.homeReady && currentRoute == (current.destinationRoute ?: dashboardRoute),
     )
+    val errorAlpha = remember(current.id) { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(current.id, current.errorExiting, reducedMotion) {
+        if (current.errorExiting) {
+            if (!reducedMotion) errorAlpha.animateTo(0f,
+                androidx.compose.animation.core.tween(SessionEntryTiming.ERROR_EXIT_MILLIS))
+            curtain.finishErrorExit()
+        }
+    }
     key(current.id) {
-        if (current.registering && (current.authenticated || current.confirmationRequired)) {
-            AccountCreatedScreen(current.email, onContinue = curtain::dismiss,
-                homeReady = current.confirmationRequired || ready,
-                confirmationRequired = current.confirmationRequired,
-                autoContinue = current.authenticated)
-        } else {
-            WelcomeBackCurtain(current.email, ready, onFinished = curtain::dismiss,
-                registering = current.registering)
+        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.graphicsLayer {
+            alpha = errorAlpha.value
+        }) {
+            if (current.registering && (current.authenticated || current.confirmationRequired)) {
+                AccountCreatedScreen(current.email, onContinue = curtain::dismiss,
+                    homeReady = current.confirmationRequired || ready,
+                    confirmationRequired = current.confirmationRequired,
+                    autoContinue = current.authenticated)
+            } else {
+                WelcomeBackCurtain(current.email, ready, onFinished = curtain::dismiss,
+                    registering = current.registering)
+            }
         }
     }
 }

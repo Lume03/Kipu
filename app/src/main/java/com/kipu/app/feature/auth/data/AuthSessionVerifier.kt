@@ -30,7 +30,8 @@ class AuthSessionVerifier @Inject constructor(
         ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
 
     // Auth, rather than decoding JWT locally, verifies the signature/header and returns the user.
-    suspend fun retrieveUser(accessToken: String): UserInfo = client.auth.retrieveUser(accessToken)
+    suspend fun retrieveUser(accessToken: String): UserInfo =
+        withAuthTimeout { client.auth.retrieveUser(accessToken) }
 
     fun whenOnline(action: suspend () -> Unit): Job = scope.launch {
         callbackFlow {

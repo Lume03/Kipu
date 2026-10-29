@@ -1,6 +1,9 @@
 package com.kipu.app.feature.auth.data.remote
 
 import com.kipu.app.core.logging.SecureLog
+import com.kipu.app.feature.auth.data.AUTH_TIMEOUT_MILLIS
+import com.kipu.app.feature.auth.data.withAuthTimeout
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -20,20 +23,30 @@ sealed interface ApiResponse<out T> {
 
 @Singleton
 class AuthApi @Inject constructor(
-    private val httpClient: HttpClient,
+    httpClient: HttpClient,
 ) {
+    private val httpClient = httpClient.config {
+        install(HttpTimeout) {
+            requestTimeoutMillis = AUTH_TIMEOUT_MILLIS
+            connectTimeoutMillis = AUTH_TIMEOUT_MILLIS
+            socketTimeoutMillis = AUTH_TIMEOUT_MILLIS
+        }
+    }
+
     suspend fun register(request: RegisterRequestDto): ApiResponse<RegisterResponseDto> {
         return try {
-            val response = httpClient.post("functions/v1/auth-access/register") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-            when (response.status) {
-                HttpStatusCode.Created -> ApiResponse.Success(response.body<RegisterResponseDto>())
-                else -> {
-                    val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
-                    val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
-                    ApiResponse.Error(response.status.value, problem, retryAfter)
+            withAuthTimeout {
+                val response = httpClient.post("functions/v1/auth-access/register") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+                when (response.status) {
+                    HttpStatusCode.Created -> ApiResponse.Success(response.body<RegisterResponseDto>())
+                    else -> {
+                        val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
+                        val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
+                        ApiResponse.Error(response.status.value, problem, retryAfter)
+                    }
                 }
             }
         } catch (e: CancellationException) {
@@ -45,16 +58,18 @@ class AuthApi @Inject constructor(
 
     suspend fun login(request: LoginRequestDto): ApiResponse<SessionEnvelopeDto> {
         return try {
-            val response = httpClient.post("functions/v1/auth-access/login") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-            when (response.status) {
-                HttpStatusCode.OK -> ApiResponse.Success(response.body<SessionEnvelopeDto>())
-                else -> {
-                    val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
-                    val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
-                    ApiResponse.Error(response.status.value, problem, retryAfter)
+            withAuthTimeout {
+                val response = httpClient.post("functions/v1/auth-access/login") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+                when (response.status) {
+                    HttpStatusCode.OK -> ApiResponse.Success(response.body<SessionEnvelopeDto>())
+                    else -> {
+                        val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
+                        val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
+                        ApiResponse.Error(response.status.value, problem, retryAfter)
+                    }
                 }
             }
         } catch (e: CancellationException) {
@@ -67,16 +82,18 @@ class AuthApi @Inject constructor(
 
     suspend fun recovery(request: RecoveryRequestDto): ApiResponse<Unit> {
         return try {
-            val response = httpClient.post("functions/v1/auth-access/recovery") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-            when (response.status) {
-                HttpStatusCode.Accepted, HttpStatusCode.OK -> ApiResponse.Success(Unit)
-                else -> {
-                    val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
-                    val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
-                    ApiResponse.Error(response.status.value, problem, retryAfter)
+            withAuthTimeout {
+                val response = httpClient.post("functions/v1/auth-access/recovery") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+                when (response.status) {
+                    HttpStatusCode.Accepted, HttpStatusCode.OK -> ApiResponse.Success(Unit)
+                    else -> {
+                        val problem = try { response.body<ProblemDto>() } catch (_: Exception) { null }
+                        val retryAfter = response.headers["Retry-After"]?.toIntOrNull()
+                        ApiResponse.Error(response.status.value, problem, retryAfter)
+                    }
                 }
             }
         } catch (e: CancellationException) {

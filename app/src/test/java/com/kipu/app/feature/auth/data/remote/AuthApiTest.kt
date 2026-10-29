@@ -14,6 +14,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(application = android.app.Application::class, sdk = [28])
 class AuthApiTest {
 
     private val json = Json {
@@ -23,14 +25,17 @@ class AuthApiTest {
 
     @Test
     fun `register returns success when status is 201 Created`() = runTest {
-        val mockEngine = MockEngine { request ->
+        val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { request ->
             assertEquals("functions/v1/auth-access/register", request.url.encodedPath.trimStart('/'))
             respond(
                 content = """{"status":"ACCEPTED","confirmationRequired":true}""",
                 status = HttpStatusCode.Created,
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
-        }
+            }
+        })
         val client = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -45,13 +50,16 @@ class AuthApiTest {
 
     @Test
     fun `register returns 409 when account already exists`() = runTest {
-        val mockEngine = MockEngine { _ ->
+        val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { _ ->
             respond(
                 content = """{"status":409,"title":"Account already exists"}""",
                 status = HttpStatusCode.Conflict,
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
-        }
+            }
+        })
         val client = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -64,14 +72,17 @@ class AuthApiTest {
 
     @Test
     fun `login returns session envelope on 200 OK`() = runTest {
-        val mockEngine = MockEngine { request ->
+        val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { request ->
             assertEquals("functions/v1/auth-access/login", request.url.encodedPath.trimStart('/'))
             respond(
                 content = """{"accessToken":"token123","refreshToken":"refresh123","expiresIn":3600,"tokenType":"bearer","userId":"user-uuid-1","sessionMetadata":{"provider":"email"}}""",
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
-        }
+            }
+        })
         val client = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -86,7 +97,9 @@ class AuthApiTest {
 
     @Test
     fun `login returns rate limited error with Retry-After header`() = runTest {
-        val mockEngine = MockEngine { _ ->
+        val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { _ ->
             respond(
                 content = """{"status":429,"title":"Too Many Requests"}""",
                 status = HttpStatusCode.TooManyRequests,
@@ -95,7 +108,8 @@ class AuthApiTest {
                     "Retry-After" to listOf("30"),
                 ),
             )
-        }
+            }
+        })
         val client = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
@@ -107,4 +121,36 @@ class AuthApiTest {
         assertEquals(429, error.statusCode)
         assertEquals(30, error.retryAfter)
     }
+    @Test fun `blocked login and registration return recoverable timeout`() = runTest {
+        val client = HttpClient(MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { kotlinx.coroutines.awaitCancellation() }
+        })) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = AuthApi(client)
+        assertTrue(api.login(LoginRequestDto("test@example.com", "Secret123", "captcha")) is ApiResponse.NetworkFailure)
+        assertTrue(api.register(RegisterRequestDto("test@example.com", "Secret123", "captcha")) is ApiResponse.NetworkFailure)
+        assertEquals(30_000L, testScheduler.currentTime)
+        client.close()
+    }
+
+    @Test fun `caller cancellation is never converted to network failure`() = runTest {
+        val client = HttpClient(MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
+            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            addHandler { kotlinx.coroutines.awaitCancellation() }
+        })) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val api = AuthApi(client)
+        try {
+            kotlinx.coroutines.withTimeout(50) {
+                api.login(LoginRequestDto("test@example.com", "Secret123", "captcha"))
+            }
+            org.junit.Assert.fail("Caller cancellation must propagate")
+        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+            assertEquals(50L, testScheduler.currentTime)
+        } finally { client.close() }
+    }
+
 }

@@ -72,7 +72,7 @@ class AuthViewModel @Inject constructor(
 
     fun login() {
         val currentState = _uiState.value
-        if (currentState.isLoading || currentState.cooldownSeconds > 0) return
+        if (currentState.isLoading || currentState.cooldownSeconds > 0 || entryCurtain.state.value?.errorExiting == true) return
         val emailValidation = PasswordValidator.validateEmail(currentState.email)
         if (!emailValidation.isValid) {
             _uiState.update { it.copy(emailError = (emailValidation as PasswordValidator.ValidationResult.Invalid).reason) }
@@ -99,19 +99,23 @@ class AuthViewModel @Inject constructor(
                             _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId))
                         }
                         else -> {
-                            entryCurtain.dismiss()
-                            _uiState.update { it.copy(generalError = "Respuesta de autenticación inesperada.") }
+                            entryCurtain.exitWithError {
+                                _uiState.update { it.copy(isLoading = false, generalError = "Respuesta inesperada. Intenta nuevamente.") }
+                            }
                         }
                     }
                 },
                 onFailure = { throwable ->
-                    entryCurtain.dismiss()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            generalError = if (authRepository.cooldownState.value.isBlocked) null
-                                else throwable.message ?: "Error al iniciar sesión.",
-                        )
+                    // Restore the form before fading, so no button spinner is revealed underneath.
+                    _uiState.update { it.copy(isLoading = false) }
+                    entryCurtain.exitWithError {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                generalError = if (authRepository.cooldownState.value.isBlocked) null
+                                    else throwable.message ?: "Error al iniciar sesión.",
+                            )
+                        }
                     }
                 }
             )
@@ -120,7 +124,7 @@ class AuthViewModel @Inject constructor(
 
     fun register() {
         val currentState = _uiState.value
-        if (currentState.isLoading || currentState.cooldownSeconds > 0) return
+        if (currentState.isLoading || currentState.cooldownSeconds > 0 || entryCurtain.state.value?.errorExiting == true) return
         val emailValidation = PasswordValidator.validateEmail(currentState.email)
         if (!emailValidation.isValid) {
             _uiState.update { it.copy(emailError = (emailValidation as PasswordValidator.ValidationResult.Invalid).reason) }
@@ -159,12 +163,15 @@ class AuthViewModel @Inject constructor(
                     }
                 },
                 onFailure = { throwable ->
-                    entryCurtain.dismiss()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            generalError = throwable.message ?: "Error al registrar la cuenta.",
-                        )
+                    // Restore the form before fading, so no button spinner is revealed underneath.
+                    _uiState.update { it.copy(isLoading = false) }
+                    entryCurtain.exitWithError {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                generalError = throwable.message ?: "Error al registrar la cuenta.",
+                            )
+                        }
                     }
                 }
             )
