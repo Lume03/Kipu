@@ -87,6 +87,7 @@ import com.kipu.app.feature.settings.domain.model.SyncState
 import com.kipu.app.feature.settings.domain.model.ThemeMode
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.ui.theme.KipuThemePreviews
+import com.kipu.app.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +112,15 @@ fun ProfileSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var currencyDropdownExpanded by remember { mutableStateOf(false) }
+    var showPlanSummary by remember { mutableStateOf(false) }
+
+    if (showPlanSummary && state.planCard.clickable) {
+        PlanSummarySheet(
+            plan = state.planCard,
+            onDismiss = { showPlanSummary = false },
+            onViewOffers = onNavigateToPurchase,
+        )
+    }
 
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let {
@@ -453,16 +463,22 @@ fun ProfileSettingsScreen(
                     }
                 }
 
-                onNavigateToPurchase?.let {
+                if (!state.planCard.clickable) {
+                    SettingsCard(
+                        icon = Icons.Default.Payments,
+                        title = state.planCard.title,
+                        subtitle = state.planCard.subtitle,
+                    )
+                } else {
                     SettingsActionCard(
                         icon = Icons.Default.Payments,
-                        title = "Ver ofertas Kipu Premium",
-                        subtitle = "Consulta precios localizados y condiciones en Google Play",
-                        onClick = it,
+                        title = state.planCard.title,
+                        subtitle = state.planCard.subtitle,
+                        onClick = { showPlanSummary = true },
                     )
                 }
 
-                if (state.testPlanOverridesEnabled) {
+                if (BuildConfig.TEST_PLAN_OVERRIDES_ENABLED && state.testPlanOverridesEnabled) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),

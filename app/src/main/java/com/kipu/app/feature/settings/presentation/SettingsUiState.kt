@@ -17,6 +17,8 @@ data class SettingsUiState(
     val isSaving: Boolean = false,
     val showSignOutDialog: Boolean = false,
     val pendingChangesCount: Int = 0,
+    val isDeveloperPlan: Boolean = false,
+    val planCard: SettingsPlanCard = SettingsPlanCard(),
     val testPlanOverridesEnabled: Boolean = false,
     val testPlanRefreshInProgress: Boolean = false,
     val testPlanTier: String? = null,

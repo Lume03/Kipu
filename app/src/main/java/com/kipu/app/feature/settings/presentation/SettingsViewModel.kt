@@ -87,14 +87,16 @@ class SettingsViewModel @Inject constructor(
         }
         val userId = currentUserId
         if (userId != null) {
-            if (BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) {
-                viewModelScope.launch {
-                    featureAccessCacheDao.observe(userId).collect { access ->
-                        _uiState.update {
-                            it.copy(testPlanTier = access?.takeIf { row ->
+            viewModelScope.launch {
+                featureAccessCacheDao.observe(userId).collect { access ->
+                    _uiState.update {
+                        it.copy(
+                            isDeveloperPlan = access?.source == "SIGNED_DEVELOPER_GRANT",
+                            planCard = SettingsPlanCard.from(access),
+                            testPlanTier = access?.takeIf { row ->
                                 row.source == "TEST_OVERRIDE" || row.source == "SIGNED_TEST_GRANT"
-                            }?.effectiveTier)
-                        }
+                            }?.effectiveTier,
+                        )
                     }
                 }
             }
@@ -218,7 +220,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun refreshTestPlan() {
-        if (!BuildConfig.TEST_PLAN_OVERRIDES_ENABLED || _uiState.value.testPlanRefreshInProgress) return
+        if (!BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return
+        if (_uiState.value.testPlanRefreshInProgress) return
         _uiState.update { it.copy(testPlanRefreshInProgress = true, errorMessage = null, infoMessage = null) }
         viewModelScope.launch {
             val result = try {
@@ -231,7 +234,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     testPlanRefreshInProgress = false,
-                    infoMessage = if (result.success) "Plan de pruebas actualizado" else null,
+                    infoMessage = if (result.success) "Plan actualizado" else null,
                     errorMessage = if (result.success) null else when (result.code) {
                         "TEST_PLANS_DISABLED" -> "Los planes de prueba están deshabilitados en el servidor."
                         "UNAUTHENTICATED" -> "Inicia sesión para actualizar el plan de pruebas."

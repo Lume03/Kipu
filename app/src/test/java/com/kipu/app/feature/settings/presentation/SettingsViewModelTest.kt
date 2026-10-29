@@ -28,6 +28,56 @@ import kotlinx.coroutines.test.setMain
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
 
+    @Test
+    fun planCardTracksFreePremiumAndDeveloperWithoutManualRefresh() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            val refresh = io.mockk.mockk<com.kipu.app.feature.plans.data.entitlement.TestPlanRefresh>()
+            io.mockk.coEvery { refresh.refresh() } returns com.kipu.app.feature.plans.data.entitlement.TestPlanRefreshResult(true)
+            val dao = io.mockk.mockk<com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao>()
+            val access = MutableStateFlow<com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity?>(
+                com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity(userId, 1, "PREMIUM", source = "SIGNED_DEVELOPER_GRANT"),
+            )
+            io.mockk.every { dao.observe(userId) } returns access
+            val viewModel = SettingsViewModel(
+                FakeProfilePreferencesRepository(), FakeSessionCoordinator(LocalOwner(userId.toString(), false)),
+                FakeProfileSyncScheduler(), io.mockk.mockk(relaxed = true), io.mockk.mockk(relaxed = true), refresh, dao,
+            )
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isDeveloperPlan)
+            assertEquals("Plan Desarrollador", viewModel.uiState.value.planCard.title)
+            assertEquals("Todas las funciones Premium, sin vencimiento", viewModel.uiState.value.planCard.subtitle)
+            assertFalse(viewModel.uiState.value.planCard.clickable)
+
+            val expiry = java.time.Instant.parse("2026-12-31T12:00:00Z")
+            access.value = com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity(
+                userId, 1, "PREMIUM", entitlementExpiresAt = expiry, source = "SIGNED_SERVER_GRANT",
+            )
+            advanceUntilIdle()
+            assertEquals("Plan Premium", viewModel.uiState.value.planCard.title)
+            assertEquals(expiry, viewModel.uiState.value.planCard.expiresAt)
+            assertTrue(viewModel.uiState.value.planCard.subtitle.contains("2026"))
+            assertTrue(viewModel.uiState.value.planCard.clickable)
+            assertFalse(viewModel.uiState.value.isDeveloperPlan)
+
+            access.value = access.value!!.copy(entitlementExpiresAt = null)
+            advanceUntilIdle()
+            assertEquals("Acceso Premium sin vencimiento", viewModel.uiState.value.planCard.subtitle)
+
+            access.value = com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity.verifiedFree(userId)
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.isDeveloperPlan)
+            assertEquals("Plan Free", viewModel.uiState.value.planCard.title)
+            assertTrue(viewModel.uiState.value.planCard.clickable)
+            io.mockk.coVerify(exactly = 0) { refresh.refresh() }
+            viewModel.refreshTestPlan()
+            advanceUntilIdle()
+            io.mockk.coVerify(exactly = if (com.kipu.app.BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) 1 else 0) { refresh.refresh() }
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     private val testDispatcher = StandardTestDispatcher()
     private val userId = UUID.randomUUID()
 
