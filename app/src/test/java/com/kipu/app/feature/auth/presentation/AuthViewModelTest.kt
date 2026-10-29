@@ -78,6 +78,64 @@ class AuthViewModelTest {
         assertFalse(state.isLoading)
     }
 
+    @Test
+    fun `welcome starts synchronously before sign in and waits for home after success`() = runTest {
+        val curtain = SessionEntryCurtain()
+        val viewModel = AuthViewModel(fakeRepository, curtain)
+        backgroundScope.launch(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.navigationEvents.collect { }
+        }
+        viewModel.onEmailChanged("test@example.com")
+        viewModel.onPasswordChanged("Password123")
+        viewModel.login()
+        assertNotNull(curtain.state.value)
+        assertFalse(curtain.state.value!!.authenticated)
+        assertEquals(0, signInCalls)
+        runCurrent()
+        assertTrue(curtain.state.value!!.authenticated)
+        assertFalse(curtain.state.value!!.homeReady)
+    }
+
+    @Test
+    fun `invalid credentials dismiss welcome and retain the form error`() = runTest {
+        fakeSignInResult = Result.failure(Exception("Credenciales incorrectas"))
+        val curtain = SessionEntryCurtain()
+        val viewModel = AuthViewModel(fakeRepository, curtain)
+        viewModel.onEmailChanged("test@example.com")
+        viewModel.onPasswordChanged("Password123")
+        viewModel.login()
+        assertNotNull(curtain.state.value)
+        runCurrent()
+        assertNull(curtain.state.value)
+        assertEquals("Credenciales incorrectas", viewModel.uiState.value.generalError)
+        assertEquals("", viewModel.uiState.value.password)
+    }
+
+    @Test
+    fun `registration animates immediately but confirmation never grants a session`() = runTest {
+        val curtain = SessionEntryCurtain()
+        val viewModel = AuthViewModel(fakeRepository, curtain)
+        viewModel.onEmailChanged("test@example.com")
+        viewModel.onPasswordChanged("Password123")
+        viewModel.register()
+        assertTrue(curtain.state.value!!.registering)
+        assertFalse(curtain.state.value!!.authenticated)
+        assertEquals(0, registerCalls)
+        runCurrent()
+        assertTrue(curtain.state.value!!.confirmationRequired)
+        assertFalse(curtain.state.value!!.authenticated)
+        assertEquals("test@example.com", viewModel.uiState.value.confirmationRequiredEmail)
+    }
+
+    @Test
+    fun `local validation never opens the curtain`() = runTest {
+        val curtain = SessionEntryCurtain()
+        val viewModel = AuthViewModel(fakeRepository, curtain)
+        viewModel.login()
+        assertNull(curtain.state.value)
+        assertEquals(0, signInCalls)
+    }
+
     @Test fun `duplicate login while loading only dispatches once`() = runTest {
         val viewModel = AuthViewModel(fakeRepository)
         viewModel.onEmailChanged("test@example.com")

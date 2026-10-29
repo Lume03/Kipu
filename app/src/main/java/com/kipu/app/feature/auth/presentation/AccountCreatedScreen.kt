@@ -1,8 +1,8 @@
 package com.kipu.app.feature.auth.presentation
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +49,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +62,6 @@ import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlin.math.hypot
 import kotlin.math.max
 
-private val RevealEase = CubicBezierEasing(0.5f, 0f, 0.15f, 1f)
 
 /**
  * Grows (or, with a shrinking [progress], closes) a circle from [center]; only what is inside it is drawn.
@@ -84,26 +85,32 @@ internal fun Modifier.circleReveal(progress: () -> Float, center: (Size) -> Offs
     }
 }
 
-/** Where the circle that floods the screen is born: roughly where the "Crear cuenta" button sat. */
-private const val ButtonCenterY = 0.765f
 
 /**
  * "¡Cuenta creada!": the quipu is woven in white over the brand teal, its knots gather into a seal with a check,
  * and the copy and the "Continuar" button arrive. With animations disabled it appears already composed.
  */
 @Composable
-internal fun AccountCreatedScreen(email: String, onContinue: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AccountCreatedScreen(email: String, onContinue: () -> Unit, modifier: Modifier = Modifier,
+    homeReady: Boolean = true, confirmationRequired: Boolean = false, autoContinue: Boolean = false) {
     val colors = rememberCalmEmeraldColors()
-    val clock = rememberSceneClock(active = true)
+    val entranceClock = rememberSceneClock(active = true)
+    val clock = remember(entranceClock) { { entranceClock() + 0.7f } }
     val tl = AccountCreatedTimeline
     var consumed by remember { mutableStateOf(false) }
     val ctaReady by remember(clock) { derivedStateOf { clock() >= tl.CTA } }
+    LaunchedEffect(ctaReady, homeReady, autoContinue) {
+        if (ctaReady && homeReady && autoContinue && !consumed) {
+            consumed = true
+            onContinue()
+        }
+    }
     LightStatusBarIcons()
     // The account exists already; going back would only show a form that cannot be submitted again.
     BackHandler(true) {}
     BoxWithConstraints(
         modifier.fillMaxSize().testTag("auth-account-created")
-            .circleReveal({ RevealEase.transform(clock.at(0f, tl.REVEAL)) }, { Offset(it.width / 2f, it.height * ButtonCenterY) })
+            .pointerInput(Unit) { detectTapGestures { } }
             .drawBehind { drawRect(celebrationBrush(colors.isDark, size.width, size.height)) },
     ) {
         val sealY = maxHeight * 0.44f
@@ -146,14 +153,15 @@ internal fun AccountCreatedScreen(email: String, onContinue: () -> Unit, modifie
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "Siguiente paso: elegir tu plan", Modifier.sceneReveal(clock, tl.NEXT, 0.6f),
+                    if (confirmationRequired) "Confirma tu correo para iniciar sesión" else "Tu dinero está listo",
+                    Modifier.sceneReveal(clock, tl.NEXT, 0.6f),
                     color = Color.White.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = { if (!consumed) { consumed = true; onContinue() } },
-                    enabled = ctaReady && !consumed,
+                    enabled = ctaReady && homeReady && !consumed,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp).sceneReveal(clock, tl.CTA, 0.6f)
                         .testTag("auth-created-continue"),
                     shape = RoundedCornerShape(18.dp),

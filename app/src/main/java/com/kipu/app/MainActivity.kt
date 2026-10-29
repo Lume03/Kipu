@@ -200,7 +200,8 @@ class MainActivity : FragmentActivity() {
                 (accessState as? LocalAccess.Available)?.let { access ->
                     // Pull remote changes when the session opens; otherwise a fresh
                     // install only hydrates after the first local write.
-                    movementSyncScheduler.scheduleSync(access.userId)
+                    // Interactive sign-in hydrates and awaits this work under the welcome curtain.
+                    if (sessionEntryCurtain.state.value == null) movementSyncScheduler.scheduleSync(access.userId)
                     debtSyncScheduler.schedule(access.userId)
                     goalsSyncScheduler.schedule(access.userId)
                     budgetSyncScheduler.scheduleSync(access.userId)
@@ -477,12 +478,11 @@ class MainActivity : FragmentActivity() {
                                     appDestinations(
                                         navController = navController,
                                         onAuthenticated = { userId ->
-                                            scope.launch {
-                                                (pendingReminderRoute ?: postAuthDestination(userId))?.let { destination ->
-                                                    navController.openReminderRoute(destination)
-                                                    pendingReminderRoute = null
-                                                }
-                                            }
+                                            // Compose Mi dinero immediately behind the curtain. Plan selection
+                                            // remains available from settings; a local missing preference must
+                                            // not redirect a successful interactive sign-in away from home.
+                                            navController.openReminderRoute(ACCOUNTS_DASHBOARD_ROUTE)
+                                            pendingReminderRoute = null
                                         },
                                         onSignOut = {
                                             navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)

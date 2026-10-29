@@ -42,6 +42,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -94,6 +97,7 @@ class AccountsViewModel @Inject constructor(
     private val financialInstrumentsRepository: FinancialInstrumentsRepository,
     private val observeCategories: ObserveCategories,
     private val sessionCoordinator: SessionCoordinator,
+    private val entryPreloader: com.kipu.app.feature.accounts.data.DashboardEntryPreloader? = null,
 ) : ViewModel() {
 
     private val _isMasked = MutableStateFlow(false)
@@ -113,6 +117,8 @@ class AccountsViewModel @Inject constructor(
 
     private val _creditNotifications = MutableStateFlow<List<CreditUtilizationNotification>>(emptyList())
     val creditNotifications: StateFlow<List<CreditUtilizationNotification>> = _creditNotifications.asStateFlow()
+    private val creditNotificationsLoaded = MutableStateFlow(false)
+    val creditNotificationsReady: StateFlow<Boolean> = creditNotificationsLoaded.asStateFlow()
 
     private val _purchaseCategories = MutableStateFlow<List<PurchaseCategoryOption>>(emptyList())
     val purchaseCategories: StateFlow<List<PurchaseCategoryOption>> = _purchaseCategories.asStateFlow()
@@ -136,10 +142,16 @@ class AccountsViewModel @Inject constructor(
 
     fun refreshCreditUtilizationNotifications(cardId: String? = null) {
         viewModelScope.launch {
-            financialInstrumentsRepository.getCreditUtilizationNotifications(cardId).fold(
-                onSuccess = { _creditNotifications.value = it },
-                onFailure = { /* Keep the last shared notification snapshot visible during transient failures. */ },
-            )
+            try {
+                withTimeoutOrNull(10_000L) {
+                    financialInstrumentsRepository.getCreditUtilizationNotifications(cardId).fold(
+                        onSuccess = { _creditNotifications.value = it },
+                        onFailure = { /* Keep the last snapshot on transient failures. */ },
+                    )
+                }
+            } finally {
+                creditNotificationsLoaded.value = true
+            }
         }
     }
 
@@ -221,16 +233,18 @@ class AccountsViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val dashboardUiState: StateFlow<DashboardUiState> = dashboardRetry.flatMapLatest { attempt ->
-        combine(
-            observeFinancialDashboard(),
-            _isMasked,
-        ) { dashboardData, masked ->
-            DashboardUiState(
-                isLoading = false,
-                dashboardData = dashboardData,
-                activeAlerts = emptyList(),
-                isMasked = masked,
-                errorMessage = null,
+        flow {
+            entryPreloader?.awaitInitialData()
+            emitAll(
+                combine(observeFinancialDashboard(), _isMasked) { dashboardData, masked ->
+                    DashboardUiState(
+                        isLoading = false,
+                        dashboardData = dashboardData,
+                        activeAlerts = emptyList(),
+                        isMasked = masked,
+                        errorMessage = null,
+                    )
+                }
             )
         }.onStart {
             if (attempt > 0) emit(DashboardUiState(isLoading = true))

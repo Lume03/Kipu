@@ -20,6 +20,7 @@ import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.auth.domain.model.CooldownState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.user.UserInfo
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -117,7 +118,11 @@ class SupabaseAuthRepository @Inject constructor(
                         userId = envelope.userId,
                         expiresAtEpochSeconds = now.plusSeconds(envelope.expiresIn).epochSecond,
                     )
-                    supabaseClient.auth.importSession(stored.toUserSession(), autoRefresh = false)
+                    // The verified server envelope already supplies the owner. Keeping it in
+                    // the SDK session avoids a Keystore read/decryption for every API request.
+                    supabaseClient.auth.importSession(stored.toUserSession().copy(
+                        user = UserInfo(aud = "authenticated", id = stored.userId),
+                    ), autoRefresh = false)
                     sessionStorage.save(StoredAuthSession.encode(stored))
                     sessionCoordinator.setActiveOwner(envelope.userId)
                     sessionCoordinator.updateRemoteSession(
@@ -125,6 +130,8 @@ class SupabaseAuthRepository @Inject constructor(
                     )
                     _cooldownState.value = CooldownState(0, null)
                     Result.success(AuthResult.Success(envelope.userId))
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     SecureLog.e("SupabaseAuthRepository", "Failed to activate owner session", e)
                     Result.failure(Exception("Error al inicializar la sesión."))
@@ -188,7 +195,11 @@ class SupabaseAuthRepository @Inject constructor(
             val userId = stored.userId
             sessionCoordinator.setActiveOwner(userId)
             if (stored.hasValidAccessToken(Instant.now())) {
-                val imported = runCatching { supabaseClient.auth.importSession(stored.toUserSession(), autoRefresh = false) }.isSuccess
+                val imported = runCatching {
+                    supabaseClient.auth.importSession(stored.toUserSession().copy(
+                        user = UserInfo(aud = "authenticated", id = stored.userId),
+                    ), autoRefresh = false)
+                }.isSuccess
                 if (imported) {
                     sessionCoordinator.updateRemoteSession(
                         RemoteSession.Valid(userId, Instant.ofEpochSecond(requireNotNull(stored.expiresAtEpochSeconds)))

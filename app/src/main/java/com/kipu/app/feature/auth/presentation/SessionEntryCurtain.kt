@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import javax.inject.Inject
@@ -23,14 +24,29 @@ import kotlinx.coroutines.flow.update
  */
 @Singleton
 class SessionEntryCurtain @Inject constructor() {
-    data class State(val id: Long, val email: String, val homeReady: Boolean = false)
+    data class State(
+        val id: Long,
+        val email: String,
+        val homeReady: Boolean = false,
+        val authenticated: Boolean = false,
+        val registering: Boolean = false,
+        val confirmationRequired: Boolean = false,
+    )
 
     private val _state = MutableStateFlow<State?>(null)
     val state: StateFlow<State?> = _state.asStateFlow()
     private var counter = 0L
 
-    fun start(email: String) {
-        _state.value = State(++counter, email.trim())
+    fun start(email: String, registering: Boolean = false) {
+        _state.value = State(++counter, email.trim(), registering = registering)
+    }
+
+    fun authenticated() {
+        _state.update { it?.copy(authenticated = true) }
+    }
+
+    fun requireConfirmation() {
+        _state.update { it?.copy(confirmationRequired = true) }
     }
 
     /** Ignored when no curtain is showing, so screens can report readiness unconditionally. */
@@ -50,15 +66,9 @@ internal object SessionEntryTiming {
     /** Long enough for the cords to hang and the logo to settle before the exit starts. */
     const val MIN_VISIBLE_MILLIS = 1_800L
 
-    /** The curtain never traps the user if the destination does not report back. */
-    const val MAX_VISIBLE_MILLIS = 9_000L
+    fun isReady(minElapsed: Boolean, authenticated: Boolean, homeReady: Boolean): Boolean =
+        minElapsed && authenticated && homeReady
 
-    fun isReady(minElapsed: Boolean, timedOut: Boolean, homeReady: Boolean, destinationIsOtherScreen: Boolean): Boolean =
-        timedOut || (minElapsed && (homeReady || destinationIsOtherScreen))
-
-    /** Destinations other than the dashboard (plan selection, a reminder) have nothing to wait for. */
-    fun isOtherScreen(route: String?, dashboardRoute: String): Boolean =
-        route != null && !route.startsWith("auth/") && route != dashboardRoute
 }
 
 /** Draws the curtain above the navigation host while a sign-in is waiting for the dashboard. */
@@ -68,17 +78,23 @@ fun SessionEntryCurtainHost(curtain: SessionEntryCurtain, currentRoute: String?,
     val current = entry ?: return
     val reducedMotion = rememberReducedMotionEnabled()
     var minElapsed by remember(current.id) { mutableStateOf(false) }
-    var timedOut by remember(current.id) { mutableStateOf(false) }
     LaunchedEffect(current.id, reducedMotion) {
         if (!reducedMotion) delay(SessionEntryTiming.MIN_VISIBLE_MILLIS)
         minElapsed = true
     }
-    LaunchedEffect(current.id) {
-        delay(SessionEntryTiming.MAX_VISIBLE_MILLIS)
-        timedOut = true
-    }
     val ready = SessionEntryTiming.isReady(
-        minElapsed, timedOut, current.homeReady, SessionEntryTiming.isOtherScreen(currentRoute, dashboardRoute),
+        minElapsed, current.authenticated,
+        current.homeReady && currentRoute == dashboardRoute,
     )
-    WelcomeBackCurtain(current.email, ready, onFinished = curtain::dismiss)
+    key(current.id) {
+        if (current.registering && (current.authenticated || current.confirmationRequired)) {
+            AccountCreatedScreen(current.email, onContinue = curtain::dismiss,
+                homeReady = current.confirmationRequired || ready,
+                confirmationRequired = current.confirmationRequired,
+                autoContinue = current.authenticated)
+        } else {
+            WelcomeBackCurtain(current.email, ready, onFinished = curtain::dismiss,
+                registering = current.registering)
+        }
+    }
 }

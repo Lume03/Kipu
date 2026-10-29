@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val entryCurtain: SessionEntryCurtain = SessionEntryCurtain(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -85,6 +86,7 @@ class AuthViewModel @Inject constructor(
         val credentials = AuthCredentials(currentState.email, currentState.password)
         // Clear password from state immediately after capturing credentials (FR-006)
         _uiState.update { it.copy(password = "", isLoading = true, generalError = null) }
+        entryCurtain.start(currentState.email)
 
         viewModelScope.launch {
             val result = authRepository.signIn(credentials)
@@ -93,14 +95,17 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false) }
                     when (authResult) {
                         is AuthResult.Success -> {
+                            entryCurtain.authenticated()
                             _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId))
                         }
                         else -> {
+                            entryCurtain.dismiss()
                             _uiState.update { it.copy(generalError = "Respuesta de autenticación inesperada.") }
                         }
                     }
                 },
                 onFailure = { throwable ->
+                    entryCurtain.dismiss()
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -130,6 +135,7 @@ class AuthViewModel @Inject constructor(
         val credentials = AuthCredentials(currentState.email, currentState.password)
         // Clear password from state immediately (FR-006)
         _uiState.update { it.copy(password = "", isLoading = true, generalError = null) }
+        entryCurtain.start(currentState.email, registering = true)
 
         viewModelScope.launch {
             val result = authRepository.register(credentials)
@@ -138,18 +144,22 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false) }
                     when (authResult) {
                         is AuthResult.AccountAlreadyExists -> {
+                            entryCurtain.dismiss()
                             // FR-051: Offer sign-in when account already exists
                             _uiState.update { it.copy(showExistingAccountDialog = true) }
                         }
                         is AuthResult.ConfirmationRequired -> {
+                            entryCurtain.requireConfirmation()
                             _uiState.update { it.copy(confirmationRequiredEmail = authResult.email) }
                         }
                         is AuthResult.Success -> {
+                            entryCurtain.authenticated()
                             _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId, accountCreated = true))
                         }
                     }
                 },
                 onFailure = { throwable ->
+                    entryCurtain.dismiss()
                     _uiState.update {
                         it.copy(
                             isLoading = false,

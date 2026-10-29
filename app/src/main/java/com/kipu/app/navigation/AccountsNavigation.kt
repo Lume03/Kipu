@@ -242,8 +242,16 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
         val entryCurtain = LocalSessionEntryCurtain.current
         val dashboardState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
         val instrumentsState by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
-        val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading
-        LaunchedEffect(dashboardLoaded) { if (dashboardLoaded) entryCurtain?.markHomeReady() }
+        val notificationsReady by viewModel.creditNotificationsReady.collectAsStateWithLifecycle()
+        val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading && notificationsReady
+        LaunchedEffect(dashboardLoaded) {
+            if (dashboardLoaded) {
+                // Let Compose lay out the resolved data/error state before the iris can expose it.
+                androidx.compose.runtime.withFrameNanos { }
+                androidx.compose.runtime.withFrameNanos { }
+                entryCurtain?.markHomeReady()
+            }
+        }
         val unreadNotificationCount by notificationBadgeViewModel.unreadCount.collectAsStateWithLifecycle()
         val feedback by backStackEntry.savedStateHandle
             .getStateFlow<String?>(ACCOUNT_DASHBOARD_FEEDBACK_KEY, null)

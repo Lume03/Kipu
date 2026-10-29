@@ -75,24 +75,15 @@ class SessionEntryTimingTest {
 
     @Test
     fun `curtain waits for both the minimum time and the dashboard`() {
-        assertFalse(SessionEntryTiming.isReady(minElapsed = false, timedOut = false, homeReady = true, destinationIsOtherScreen = false))
-        assertFalse(SessionEntryTiming.isReady(minElapsed = true, timedOut = false, homeReady = false, destinationIsOtherScreen = false))
-        assertTrue(SessionEntryTiming.isReady(minElapsed = true, timedOut = false, homeReady = true, destinationIsOtherScreen = false))
+        assertFalse(SessionEntryTiming.isReady(minElapsed = false, authenticated = true, homeReady = true))
+        assertFalse(SessionEntryTiming.isReady(minElapsed = true, authenticated = true, homeReady = false))
+        assertTrue(SessionEntryTiming.isReady(minElapsed = true, authenticated = true, homeReady = true))
     }
 
     @Test
-    fun `a destination that is not the dashboard has nothing to wait for`() {
-        assertTrue(SessionEntryTiming.isReady(minElapsed = true, timedOut = false, homeReady = false, destinationIsOtherScreen = true))
-        assertTrue(SessionEntryTiming.isOtherScreen("plans/selection", dashboard))
-        assertFalse(SessionEntryTiming.isOtherScreen(dashboard, dashboard))
-        assertFalse(SessionEntryTiming.isOtherScreen("auth/login", dashboard))
-        assertFalse(SessionEntryTiming.isOtherScreen(null, dashboard))
-    }
-
-    @Test
-    fun `curtain never traps the user`() {
-        assertTrue(SessionEntryTiming.isReady(minElapsed = false, timedOut = true, homeReady = false, destinationIsOtherScreen = false))
-        assertTrue(SessionEntryTiming.MIN_VISIBLE_MILLIS < SessionEntryTiming.MAX_VISIBLE_MILLIS)
+    fun `elapsed time never reveals a destination before authentication or data`() {
+        assertFalse(SessionEntryTiming.isReady(minElapsed = true, authenticated = false, homeReady = true))
+        assertFalse(SessionEntryTiming.isReady(minElapsed = true, authenticated = true, homeReady = false))
     }
 
     @Test

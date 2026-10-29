@@ -2,19 +2,14 @@ package com.kipu.app.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.kipu.app.feature.auth.presentation.AccountCreatedScreen
 import com.kipu.app.feature.auth.presentation.AuthNavigationEvent
-import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
 import com.kipu.app.feature.auth.presentation.AuthViewModel
+import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
 import com.kipu.app.feature.auth.presentation.LoginScreen
 import com.kipu.app.feature.auth.presentation.RegisterScreen
 import com.kipu.app.feature.auth.presentation.OnboardingScreen
@@ -66,20 +61,13 @@ fun NavGraphBuilder.authDestinations(
     composable(AUTH_LOGIN_ROUTE) {
         val viewModel: AuthViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        val entryCurtain = LocalSessionEntryCurtain.current
-        val latestEmail by rememberUpdatedState(uiState.email)
-        // A brand-new account sees its welcome screen before moving on; a returning user gets the curtain instead.
-        var createdUserId by rememberSaveable { mutableStateOf<String?>(null) }
+        val entry = LocalSessionEntryCurtain.current?.state?.collectAsStateWithLifecycle()?.value
+        val formState = if (entry?.confirmationRequired == true) uiState.copy(confirmationRequiredEmail = null) else uiState
 
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
                 when (event) {
-                    is AuthNavigationEvent.NavigateToHome -> if (event.accountCreated) {
-                        createdUserId = event.userId
-                    } else {
-                        entryCurtain?.start(latestEmail)
-                        onAuthenticated(event.userId)
-                    }
+                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event.userId)
                     is AuthNavigationEvent.NavigateToRegister -> navController.navigate(AUTH_REGISTER_ROUTE)
                     is AuthNavigationEvent.NavigateToRecovery -> navController.navigate(AUTH_RECOVERY_ROUTE)
                     else -> Unit
@@ -89,7 +77,7 @@ fun NavGraphBuilder.authDestinations(
 
         Box(Modifier.fillMaxSize()) {
             LoginScreen(
-                uiState = uiState,
+                uiState = formState,
                 onEmailChanged = viewModel::onEmailChanged,
                 onPasswordChanged = viewModel::onPasswordChanged,
                 onLoginClick = viewModel::login,
@@ -98,28 +86,19 @@ fun NavGraphBuilder.authDestinations(
                 onDismissExistingAccountDialog = viewModel::dismissExistingAccountDialog,
                 onDismissConfirmationDialog = viewModel::dismissConfirmationDialog,
             )
-            createdUserId?.let { userId ->
-                AccountCreatedScreen(email = uiState.email.trim(), onContinue = { onAuthenticated(userId) })
-            }
         }
     }
 
     composable(AUTH_REGISTER_ROUTE) {
         val viewModel: AuthViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        val entryCurtain = LocalSessionEntryCurtain.current
-        val latestEmail by rememberUpdatedState(uiState.email)
-        var createdUserId by rememberSaveable { mutableStateOf<String?>(null) }
+        val entry = LocalSessionEntryCurtain.current?.state?.collectAsStateWithLifecycle()?.value
+        val formState = if (entry?.confirmationRequired == true) uiState.copy(confirmationRequiredEmail = null) else uiState
 
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
                 when (event) {
-                    is AuthNavigationEvent.NavigateToHome -> if (event.accountCreated) {
-                        createdUserId = event.userId
-                    } else {
-                        entryCurtain?.start(latestEmail)
-                        onAuthenticated(event.userId)
-                    }
+                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event.userId)
                     is AuthNavigationEvent.NavigateToLogin -> navController.navigate(AUTH_LOGIN_ROUTE)
                     else -> Unit
                 }
@@ -128,7 +107,7 @@ fun NavGraphBuilder.authDestinations(
 
         Box(Modifier.fillMaxSize()) {
             RegisterScreen(
-                uiState = uiState,
+                uiState = formState,
                 onEmailChanged = viewModel::onEmailChanged,
                 onPasswordChanged = viewModel::onPasswordChanged,
                 onRegisterClick = viewModel::register,
@@ -143,9 +122,6 @@ fun NavGraphBuilder.authDestinations(
                 onLoginClick = viewModel::login,
                 onNavigateToRecovery = { navController.navigate(AUTH_RECOVERY_ROUTE) },
             )
-            createdUserId?.let { userId ->
-                AccountCreatedScreen(email = uiState.email.trim(), onContinue = { onAuthenticated(userId) })
-            }
         }
     }
 

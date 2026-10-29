@@ -94,6 +94,7 @@ internal fun AuthFormScreen(
     val duration = if (reducedMotion) 0 else KipuMotionTokens.FastMillis
     val canAct = !uiState.isLoading && uiState.cooldownSeconds == 0
     val focus = LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val clock = rememberSceneClock(active = true)
 
     LaunchedEffect(uiState.password) {
@@ -123,8 +124,14 @@ internal fun AuthFormScreen(
                 return
             }
             confirmation = ""
+            focus.clearFocus()
+            keyboard?.hide()
             onRegisterClick()
-        } else onLoginClick()
+        } else {
+            focus.clearFocus()
+            keyboard?.hide()
+            onLoginClick()
+        }
     }
 
     Box(modifier.fillMaxSize().background(colors.background)

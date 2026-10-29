@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +62,6 @@ import kotlinx.coroutines.delay
 
 private val IrisEase = CubicBezierEasing(0.7f, 0f, 0.4f, 1f)
 private val DrawEase = CubicBezierEasing(0.5f, 0f, 0.3f, 1f)
-private val ButtonCenterY = 0.765f
 private val SealCenterY = 0.48f
 
 /** Size of the white frame around the real Kipu logo at the centre of the curtain. */
@@ -74,10 +74,13 @@ private val LogoSize = 80.dp
  * closes like an iris over the logo, leaving the loaded screen behind. [onFinished] runs once it is gone.
  */
 @Composable
-internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () -> Unit, modifier: Modifier = Modifier,
+    registering: Boolean = false) {
     val colors = rememberCalmEmeraldColors()
     val reducedMotion = rememberReducedMotionEnabled()
-    val intro = rememberSceneClock(active = true)
+    val introClock = rememberSceneClock(active = true)
+    // The old iris needed 700 ms before the first stroke. The opaque entrance starts drawing immediately.
+    val intro = remember(introClock) { { introClock() + 0.7f } }
     val exit = rememberSceneClock(active = ready)
     val tl = WelcomeBackTimeline
     LightStatusBarIcons()
@@ -92,7 +95,6 @@ internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () ->
         modifier.fillMaxSize().testTag("auth-welcome-curtain")
             .pointerInput(Unit) { detectTapGestures { } }
             .circleReveal({ 1f - IrisEase.transform(exit.at(tl.EXIT_IRIS, tl.EXIT_IRIS_DURATION)) }, { Offset(it.width / 2f, it.height * SealCenterY) })
-            .circleReveal({ easeReveal(intro.at(0f, tl.REVEAL)) }, { Offset(it.width / 2f, it.height * ButtonCenterY) })
             .drawBehind { drawRect(celebrationBrush(colors.isDark, size.width, size.height)) },
     ) {
         val sealY = maxHeight * SealCenterY
@@ -128,7 +130,7 @@ internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () ->
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "¡Hola de nuevo!", Modifier.sceneReveal(intro, tl.TITLE, 0.6f).semantics { heading() },
+                    if (registering) "Preparando tu cuenta" else "¡Hola de nuevo!", Modifier.sceneReveal(intro, tl.TITLE, 0.6f).semantics { heading() },
                     color = Color.White, fontSize = 34.sp, lineHeight = 38.sp, fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center, style = MaterialTheme.typography.headlineLarge,
                 )
@@ -141,7 +143,7 @@ internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () ->
                             .semantics { liveRegion = LiveRegionMode.Polite },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Preparando tu resumen", color = Color.White.copy(alpha = 0.88f), fontWeight = FontWeight.SemiBold,
+                        Text(if (registering) "Creando tu cuenta" else "Preparando tu resumen", color = Color.White.copy(alpha = 0.88f), fontWeight = FontWeight.SemiBold,
                             style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.width(6.dp))
                         repeat(3) { index -> WaitingDot(intro, index * 0.15f) }
@@ -161,8 +163,6 @@ internal fun WelcomeBackCurtain(email: String, ready: Boolean, onFinished: () ->
     }
 }
 
-private fun easeReveal(p: Float) = RevealEaseCurve.transform(p)
-private val RevealEaseCurve = CubicBezierEasing(0.5f, 0f, 0.15f, 1f)
 
 /** The real logo in a white frame; once the app is ready it fades out and a check is drawn in its place. */
 @Composable
