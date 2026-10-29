@@ -14,9 +14,11 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
+import com.kipu.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,20 +42,20 @@ internal fun PlanSummarySheet(
                 Text("Hasta ${limits.customCategories} categorías personalizadas por tipo")
                 Text("Hasta ${limits.debts} deudas, ${limits.goals} metas y ${limits.budgets} presupuestos activos")
                 Text("Registro y consulta de tus movimientos")
-                onViewOffers?.let { navigate ->
-                    Button(
-                        onClick = { onDismiss(); navigate() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) { Text("Ver ofertas Premium") }
-                    Text(
-                        "Consulta precios y condiciones actualizados en Google Play.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             } else {
                 Text("Todas las funciones Premium")
                 Text("Instrumentos, categorías personalizadas, deudas, metas y presupuestos sin los límites de cantidad del plan Free")
+            }
+            onViewOffers?.let { navigate ->
+                Button(
+                    onClick = { onDismiss(); navigate() },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.plan_choose_action)) }
+                Text(
+                    stringResource(R.string.plan_preference_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

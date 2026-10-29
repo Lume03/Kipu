@@ -8,9 +8,16 @@ import com.kipu.app.feature.plans.presentation.PlanPurchaseRoute
 
 const val PLAN_SELECTION_ROUTE = "onboarding/plan-selection"
 const val PLAN_PURCHASE_ROUTE = "billing/purchase"
+const val PLAN_PREFERENCE_ROUTE = "settings/plan-preference"
 
 fun NavGraphBuilder.planSelectionDestination(navController: NavController, onConfirmed: () -> Unit) {
     composable(PLAN_SELECTION_ROUTE) { PlanSelectionRoute(onConfirmed) }
+    composable(PLAN_PREFERENCE_ROUTE) {
+        PlanSelectionRoute(
+            onConfirmed = { navController.popBackStack() },
+            onNavigateBack = { navController.popBackStack() },
+        )
+    }
     composable(PLAN_PURCHASE_ROUTE) { PlanPurchaseRoute(onNavigateBack = { navController.popBackStack() }) }
 }
 

@@ -58,7 +58,7 @@ fun NavGraphBuilder.settingsDestinations(
             onNavigateToMerchantCategoryPreferences = { navController.navigate(MERCHANT_CATEGORY_PREFERENCES_ROUTE) },
             onNavigateToMovements = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
             onNavigateToAccounts = { navController.navigate(ACCOUNTS_DASHBOARD_ROUTE) },
-            onNavigateToPurchase = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+            onNavigateToPurchase = { navController.navigate(PLAN_PREFERENCE_ROUTE) },
             onSignOut = onSignOut,
             onNavigateToReceipts = { navController.navigate(RECEIPTS_ROUTE) },
             onNavigateToCaptureInbox = { navController.navigateToCaptureInbox() },

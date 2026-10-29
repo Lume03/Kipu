@@ -7,7 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 
-@Composable fun PlanSelectionRoute(onConfirmed: () -> Unit, viewModel: PlanSelectionViewModel = hiltViewModel()) {
+@Composable fun PlanSelectionRoute(onConfirmed: () -> Unit, viewModel: PlanSelectionViewModel = hiltViewModel(), onNavigateBack: (() -> Unit)? = null) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnConfirmed by rememberUpdatedState(onConfirmed)
@@ -18,5 +18,5 @@ import androidx.lifecycle.repeatOnLifecycle
             }
         }
     }
-    PlanSelectionScreen(state, viewModel::onOptionSelected, viewModel::confirmSelection, viewModel::continueWithFree)
+    PlanSelectionScreen(state, viewModel::onOptionSelected, viewModel::confirmSelection, viewModel::continueWithFree, onNavigateBack)
 }
