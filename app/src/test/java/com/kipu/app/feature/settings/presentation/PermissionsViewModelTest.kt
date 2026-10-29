@@ -3,6 +3,13 @@ package com.kipu.app.feature.settings.presentation
 import android.content.Intent
 import com.kipu.app.core.session.LocalOwner
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.capture.domain.CaptureAccessDecision
+import com.kipu.app.feature.capture.domain.CaptureAccessGate
+import com.kipu.app.feature.categories.domain.CategoriesRepository
+import com.kipu.app.feature.plans.domain.model.EffectiveEntitlement
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
 import com.kipu.app.feature.settings.data.local.InstallationPermissionStateEntity
 import com.kipu.app.feature.settings.data.local.PermissionConsentDao
@@ -31,6 +38,17 @@ class PermissionsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val userId = UUID.randomUUID()
+    private var verifiedPremium = false
+    private val categories = mockk<CategoriesRepository> {
+        every { observePremiumVerified(com.kipu.app.core.finance.domain.model.UserId(userId.toString())) } answers { flowOf(verifiedPremium) }
+    }
+    private val captureGate = object : CaptureAccessGate {
+        override fun currentOwnerId() = userId.toString()
+        override suspend fun evaluateCurrent() = evaluate(userId.toString())
+        override suspend fun evaluate(ownerId: String): CaptureAccessDecision =
+            if (verifiedPremium) CaptureAccessDecision.Allowed(EffectiveEntitlement(true, null))
+            else CaptureAccessDecision.PremiumRequired
+    }
 
     private class FakePermissionDao : PermissionConsentDao {
         val installationState = mutableMapOf<String, InstallationPermissionStateEntity>()
@@ -105,7 +123,7 @@ class PermissionsViewModelTest {
             val dao = FakePermissionDao()
             val gateway = FakeGateway()
             val coordinator = FakeSessionCoordinator(LocalOwner(userId.toString(), false))
-            val viewModel = PermissionsViewModel(dao, gateway, coordinator)
+            val viewModel = PermissionsViewModel(dao, gateway, coordinator, captureGate, categories)
 
             advanceUntilIdle()
 
@@ -126,7 +144,7 @@ class PermissionsViewModelTest {
             val dao = FakePermissionDao()
             val gateway = FakeGateway()
             val coordinator = FakeSessionCoordinator(LocalOwner(userId.toString(), false))
-            val viewModel = PermissionsViewModel(dao, gateway, coordinator)
+            val viewModel = PermissionsViewModel(dao, gateway, coordinator, captureGate, categories)
 
             advanceUntilIdle()
 
@@ -143,13 +161,34 @@ class PermissionsViewModelTest {
     }
 
     @Test
+    fun `verified Premium permits granting listener consent without UI override`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            verifiedPremium = true
+            val dao = FakePermissionDao()
+            val viewModel = PermissionsViewModel(dao, FakeGateway(),
+                FakeSessionCoordinator(LocalOwner(userId.toString(), false)), captureGate, categories)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isPremiumUser)
+            viewModel.grantConsent(PermissionSource.OTHER_APP_NOTIFICATION_CONTENT)
+            advanceUntilIdle()
+            assertEquals("GRANTED", dao.findAccountConsent(userId, PermissionSource.OTHER_APP_NOTIFICATION_CONTENT.name)?.consentState)
+            viewModel.revokeConsent(PermissionSource.OTHER_APP_NOTIFICATION_CONTENT)
+            advanceUntilIdle()
+            assertEquals("REVOKED", dao.findAccountConsent(userId, PermissionSource.OTHER_APP_NOTIFICATION_CONTENT.name)?.consentState)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `granting and revoking own notifications updates dao and state`() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
         try {
             val dao = FakePermissionDao()
             val gateway = FakeGateway()
             val coordinator = FakeSessionCoordinator(LocalOwner(userId.toString(), false))
-            val viewModel = PermissionsViewModel(dao, gateway, coordinator)
+            val viewModel = PermissionsViewModel(dao, gateway, coordinator, captureGate, categories)
 
             advanceUntilIdle()
 

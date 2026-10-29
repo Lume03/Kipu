@@ -104,6 +104,7 @@ fun ProfileSettingsScreen(
     onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onNavigateToReceipts: (() -> Unit)? = null,
+    onNavigateToCaptureInbox: (() -> Unit)? = null,
 ) {
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
@@ -533,6 +534,15 @@ fun ProfileSettingsScreen(
                         icon = Icons.Default.Payments,
                         title = "Comprobantes Yape",
                         subtitle = "Revisa los candidatos compartidos antes de registrar",
+                        onClick = it,
+                    )
+                }
+
+                onNavigateToCaptureInbox?.let {
+                    SettingsActionCard(
+                        icon = Icons.Default.Chat,
+                        title = "Capturas por revisar",
+                        subtitle = "Movimientos detectados en notificaciones de bancos y billeteras",
                         onClick = it,
                     )
                 }

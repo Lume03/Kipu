@@ -61,6 +61,7 @@ fun NavGraphBuilder.settingsDestinations(
             onNavigateToPurchase = { navController.navigate(PLAN_PURCHASE_ROUTE) },
             onSignOut = onSignOut,
             onNavigateToReceipts = { navController.navigate(RECEIPTS_ROUTE) },
+            onNavigateToCaptureInbox = { navController.navigateToCaptureInbox() },
         )
     }
 
