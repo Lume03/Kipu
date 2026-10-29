@@ -11,9 +11,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kipu.app.feature.plans.domain.PlanPreferencesRepository
+import com.kipu.app.feature.plans.domain.ConfirmPlanSelection
+import com.kipu.app.feature.plans.domain.OperationIdProvider
 import com.kipu.app.feature.plans.domain.model.CommercialOption
 import com.kipu.app.feature.plans.domain.model.PlanSelection
 import com.kipu.app.feature.plans.domain.model.TrialEligibilitySnapshot
@@ -36,12 +37,12 @@ class PlanSelectionRouteTest {
     @Test
     fun stateCollectionStopsBelowStartedAndRendersLatestValueOnResume() {
         val repository = RecordingRepository()
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = {}) }
         compose.onNodeWithTag("plan-option-ANNUAL").assertIsSelected()
 
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
-        viewModel.selectOption(CommercialOption.LIFETIME)
+        viewModel.onOptionSelected(CommercialOption.LIFETIME)
 
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         compose.onNodeWithTag("plan-option-LIFETIME").assertIsSelected()
@@ -50,7 +51,7 @@ class PlanSelectionRouteTest {
     @Test
     fun systemBackAbandonsWithoutPreferenceOrOutboxWrite() {
         val repository = RecordingRepository()
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = {}) }
         compose.onNodeWithText("Mensual", substring = true).performClick()
 
@@ -64,7 +65,7 @@ class PlanSelectionRouteTest {
     @Test
     fun hostExitAbandonsWithoutPersistingVisualSelection() {
         val repository = RecordingRepository()
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         val showRoute = mutableStateOf(true)
         compose.setContent {
             if (showRoute.value) PlanSelectionRoute(viewModel = viewModel, onConfirmed = {})
@@ -82,7 +83,7 @@ class PlanSelectionRouteTest {
     @Test
     fun localCommitProducesExactlyOneHostCallbackAcrossRecompositionAndLifecycleRestart() {
         val repository = RecordingRepository()
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         val callbacks = AtomicInteger()
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { callbacks.incrementAndGet() }) }
 
@@ -101,7 +102,7 @@ class PlanSelectionRouteTest {
     @Test
     fun continueFreeCommitsFreeAndProducesOneHostCallback() {
         val repository = RecordingRepository()
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         val callbacks = AtomicInteger()
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { callbacks.incrementAndGet() }) }
 
@@ -118,7 +119,7 @@ class PlanSelectionRouteTest {
     @Test
     fun offlineConfirmationNavigatesImmediatelyAfterLocalCommitWithoutWaitingForSync() {
         val repository = RecordingRepository(networkAvailable = false)
-        val viewModel = PlanSelectionViewModel(repository, SavedStateHandle())
+        val viewModel = viewModel(repository)
         val confirmed = AtomicBoolean()
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { confirmed.set(true) }) }
 
@@ -131,6 +132,11 @@ class PlanSelectionRouteTest {
         assertEquals(PlanSelection.PREMIUM_INTENT, repository.lastSelection)
         assertEquals(1, repository.outboxWrites)
     }
+
+    private fun viewModel(repository: PlanPreferencesRepository) = PlanSelectionViewModel(
+        repository,
+        ConfirmPlanSelection(repository, OperationIdProvider { UUID.randomUUID() }),
+    )
 
     private class RecordingRepository(
         private val networkAvailable: Boolean = true,

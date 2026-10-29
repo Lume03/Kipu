@@ -1,5 +1,6 @@
 package com.kipu.app.feature.plans.presentation
 
+import com.kipu.app.R
 import com.kipu.app.feature.plans.domain.ConfirmPlanSelection
 import com.kipu.app.feature.plans.domain.OperationIdProvider
 import com.kipu.app.feature.plans.domain.PlanPreferencesRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -153,7 +155,6 @@ class PlanSelectionViewModelTest {
         val viewModel = viewModel(repository)
         viewModel.onOptionSelected(CommercialOption.MONTHLY)
 
-        viewModel.onAbandoned()
         advanceUntilIdle()
 
         assertEquals(0, repository.confirmCalls)
@@ -189,7 +190,15 @@ class PlanSelectionViewModelTest {
         advanceUntilIdle()
 
         assertEquals(PlanSelectionError.CONFIRMATION_FAILED, viewModel.uiState.value.error)
+        assertFalse(viewModel.uiState.value.isConfirming)
+        assertTrue(viewModel.uiState.value.canConfirm)
         assertFalse(viewModel.uiState.value.toString().contains("token=secret"))
+
+        repository.confirmFailure = null
+        viewModel.confirmSelection()
+        advanceUntilIdle()
+        assertEquals(2, repository.confirmCalls)
+        assertNull(viewModel.uiState.value.error)
     }
 
     @Test
@@ -215,23 +224,125 @@ class PlanSelectionViewModelTest {
         assertNull(viewModel.uiState.value.error)
     }
 
+    @Test
+    fun `saved Free preference is preselected without writes`() = runTest(dispatcher) {
+        val repository = FakePlanPreferencesRepository(preference = PlanSelection.FREE)
+        val viewModel = viewModel(repository)
+
+        assertEquals(CommercialOption.FREE, viewModel.uiState.value.selectedOption)
+        assertEquals(CommercialOption.ANNUAL, viewModel.uiState.value.premiumOption)
+        assertFalse(viewModel.uiState.value.isLoadingPreference)
+        assertEquals(0, repository.confirmCalls)
+    }
+
+    @Test
+    fun `saved Premium and Trial intents open Premium with Annual as the unstored period`() = runTest(dispatcher) {
+        listOf(PlanSelection.PREMIUM_INTENT, PlanSelection.TRIAL_INTENT).forEach { preference ->
+            val repository = FakePlanPreferencesRepository(preference = preference)
+            val viewModel = viewModel(repository)
+
+            assertEquals(CommercialOption.ANNUAL, viewModel.uiState.value.selectedOption)
+            assertEquals(0, repository.confirmCalls)
+        }
+    }
+
+    @Test
+    fun `confirmation waits for the stored preference`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val repository = FakePlanPreferencesRepository(preference = PlanSelection.FREE, preferenceGate = gate)
+        val viewModel = viewModel(repository)
+
+        viewModel.confirmSelection()
+        viewModel.continueWithFree()
+        runCurrent()
+        assertFalse(viewModel.uiState.value.canConfirm)
+        assertEquals(0, repository.confirmCalls)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.canConfirm)
+        assertEquals(CommercialOption.FREE, viewModel.uiState.value.selectedOption)
+    }
+
+    @Test
+    fun `both confirmation actions are ignored while eligibility is loading`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val repository = FakePlanPreferencesRepository(eligibilityValue = eligible, eligibilityGate = gate)
+        val viewModel = viewModel(repository)
+
+        viewModel.confirmSelection()
+        viewModel.continueWithFree()
+        runCurrent()
+        assertTrue(viewModel.uiState.value.isLoadingEligibility)
+        assertFalse(viewModel.uiState.value.canConfirm)
+        assertEquals(0, repository.confirmCalls)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.canConfirm)
+        viewModel.confirmSelection()
+        advanceUntilIdle()
+        assertEquals(PlanSelection.TRIAL_INTENT, repository.lastSelection)
+        assertEquals(1, repository.confirmCalls)
+    }
+
+    @Test
+    fun `trial copy is shown only for eligible subscriptions`() = runTest(dispatcher) {
+        val expired = eligible.copy(validUntil = Instant.parse("2020-01-01T00:00:00Z"))
+        listOf(eligible, ineligible, TrialEligibilitySnapshot.UNKNOWN, expired).forEach { snapshot ->
+            val viewModel = viewModel(FakePlanPreferencesRepository(eligibilityValue = snapshot))
+            assertEquals(
+                if (snapshot == eligible) R.string.plan_display_annual_trial else R.string.plan_display_annual_note,
+                viewModel.uiState.value.premiumNote,
+            )
+            viewModel.onOptionSelected(CommercialOption.MONTHLY)
+            assertEquals(
+                if (snapshot == eligible) R.string.plan_display_monthly_trial else R.string.plan_display_monthly_note,
+                viewModel.uiState.value.premiumNote,
+            )
+            viewModel.onOptionSelected(CommercialOption.LIFETIME)
+            assertEquals(R.string.plan_display_lifetime_note, viewModel.uiState.value.premiumNote)
+        }
+    }
+
+    @Test
+    fun `trial copy is hidden until eligibility finishes loading`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = viewModel(FakePlanPreferencesRepository(eligibilityValue = eligible, eligibilityGate = gate))
+        assertEquals(R.string.plan_display_annual_note, viewModel.uiState.value.premiumNote)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(R.string.plan_display_annual_trial, viewModel.uiState.value.premiumNote)
+    }
+
     private fun viewModel(repository: FakePlanPreferencesRepository): PlanSelectionViewModel =
         PlanSelectionViewModel(
             repository = repository,
             confirmPlanSelection = ConfirmPlanSelection(repository, OperationIdProvider { operationId }),
-        )
+        ).also { dispatcher.scheduler.runCurrent() }
 
     private class FakePlanPreferencesRepository(
         private val eligibilityValue: TrialEligibilitySnapshot = TrialEligibilitySnapshot.UNKNOWN,
         private val confirmGate: CompletableDeferred<Unit>? = null,
-        private val confirmFailure: Throwable? = null,
+        var confirmFailure: Throwable? = null,
+        private val preference: PlanSelection? = null,
+        private val preferenceGate: CompletableDeferred<Unit>? = null,
+        private val eligibilityGate: CompletableDeferred<Unit>? = null,
     ) : PlanPreferencesRepository {
+        override val currentPreference = flow {
+            preferenceGate?.await()
+            emit(preference)
+        }
         var confirmCalls: Int = 0
             private set
         var lastSelection: PlanSelection? = null
             private set
 
-        override suspend fun getTrialEligibility(): TrialEligibilitySnapshot = eligibilityValue
+        override suspend fun getTrialEligibility(): TrialEligibilitySnapshot {
+            eligibilityGate?.await()
+            return eligibilityValue
+        }
 
         override suspend fun confirmSelection(selection: PlanSelection, operationId: UUID) {
             confirmCalls += 1
