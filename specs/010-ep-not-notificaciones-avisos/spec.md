@@ -181,3 +181,16 @@ Como usuario, quiero recibir un recordatorio configurable antes del vencimiento 
 - Los recordatorios de HU-44 se guardan como eventos locales Room del centro HU-42 en el dispositivo y no se insertan ni sincronizan en `public.app_notifications`; se conserva la prohibición HU-42 de INSERT desde el cliente. No se promete sincronización del evento local entre dispositivos ni recuperación tras perder los datos de la aplicación.
 - Si el permiso está concedido, la notificación del sistema es una presentación adicional del mismo evento local; al reprogramar, se cancela/reemplaza también la notificación anterior.
 - El planificador usa la zona `America/Lima` y la fecha civil de vencimiento. WorkManager/Android puede diferir la entrega; no se garantiza una hora exacta.
+
+## Incremento: Alertas financieras como notificación Android
+
+**Origen**: solicitud del propietario del producto (2026-10-28): las alertas de presupuesto y de límite de tarjeta deben verse dentro de la app y también como notificación del teléfono. Verificación previa: ambas existían solo en el centro HU-42 y el CHECK remoto de `app_notifications.notification_type` rechazaba el tipo de cruce de crédito, abortando la compra que cruzaba el umbral.
+
+### Functional Requirements — Alertas Android
+
+- **FR-021**: Un aviso `BUDGET_ALERT`, `CREDIT_THRESHOLD` o `CREDIT_UTILIZATION_THRESHOLD_CROSSED` nuevo, activo y no leído MUST mostrarse además como notificación Android del canal «Alertas financieras» cuando `POST_NOTIFICATIONS` está concedido y la cuenta activa es la propietaria.
+- **FR-022**: La notificación Android MUST ser una presentación adicional del aviso del centro: sin permiso el aviso sigue en el centro (como FR-018), repetir la evaluación o el pull no duplica la notificación y un aviso remoto solo se notifica la primera vez que el dispositivo lo recibe y si fue emitido en las últimas 24 horas.
+- **FR-023**: Tras confirmar en el servidor una compra con tarjeta, el cliente MUST traer los avisos remotos sin esperar al siguiente inicio de la app.
+- **FR-024**: Tocar la notificación MUST abrir el centro de avisos sobre el inicio de la app; la notificación no registra ni modifica movimientos.
+- **FR-025**: El servidor MUST aceptar `CREDIT_THRESHOLD` y `CREDIT_UTILIZATION_THRESHOLD_CROSSED` en `app_notifications.notification_type` (FR-002), de modo que una compra que cruza 50/80/100% del límite se registra y emite su aviso.
+- **FR-026**: El cuerpo de una alerta de presupuesto MUST nombrar el umbral cruzado (50/80/100%) y no el consumo actual, para que cruces simultáneos se distingan.
