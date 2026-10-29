@@ -60,7 +60,7 @@ class OfflineFirstNotificationsRepository @Inject constructor(
                 val pendingIds = outboxDao.getPending(userId).mapTo(mutableSetOf()) { it.notificationId }
                 val remoteRows = response.data
                     .asSequence()
-                    .filter { it.userId == userId && it.id !in pendingIds }
+                    .filter { it.userId == userId && it.id !in pendingIds && !it.id.startsWith(CAPTURE_REVIEW_PREFIX) }
                     .map { it.toEntity() }
                     .toList()
                 val newRows = transactionRunner {
@@ -89,6 +89,10 @@ class OfflineFirstNotificationsRepository @Inject constructor(
             val notice = notificationDao.getById(userId, notificationId)
                 ?: error("Notification is no longer available")
             if (notice.deletedAt != null) error("Notification is no longer active")
+            if (notice.id.startsWith(CAPTURE_REVIEW_PREFIX)) {
+                if (!notice.isRead) notificationDao.markRead(userId, notificationId)
+                return@transactionRunner false
+            }
             val previous = outboxDao.getByNotice(userId, notificationId)
             if (!notice.isRead) {
                 val updated = notificationDao.markRead(userId, notificationId)
@@ -107,13 +111,13 @@ class OfflineFirstNotificationsRepository @Inject constructor(
             val unread = notificationDao.getAllActiveUnsorted(userId).filterNot { it.isRead || it.deletedAt != null }
             if (unread.isNotEmpty()) {
                 notificationDao.markAllRead(userId)
-                unread.forEach { notice ->
+                unread.filterNot { it.id.startsWith(CAPTURE_REVIEW_PREFIX) }.forEach { notice ->
                     val previous = outboxDao.getByNotice(userId, notice.id)
                     outboxDao.upsert(previous.coalesced(userId, notice.id, isRead = true, deletedAt = null))
                 }
             }
             localReminderEventDao.markAllRead(userId)
-            unread.isNotEmpty()
+            unread.any { !it.id.startsWith(CAPTURE_REVIEW_PREFIX) }
         }
         if (changed) scheduleSafely(userId)
     }
@@ -128,6 +132,10 @@ class OfflineFirstNotificationsRepository @Inject constructor(
         val changed = transactionRunner {
             val notice = notificationDao.getById(userId, notificationId)
                 ?: error("Notification is no longer available")
+            if (notice.id.startsWith(CAPTURE_REVIEW_PREFIX)) {
+                if (notice.deletedAt == null) notificationDao.dismiss(userId, notificationId, clock.instant())
+                return@transactionRunner false
+            }
             val previous = outboxDao.getByNotice(userId, notificationId)
             if (notice.deletedAt != null) {
                 previous != null
@@ -151,6 +159,10 @@ class OfflineFirstNotificationsRepository @Inject constructor(
 
     override suspend fun syncPending(userId: String): Result<Unit> = runCatching {
         for (command in outboxDao.getPending(userId)) {
+            if (command.notificationId.startsWith(CAPTURE_REVIEW_PREFIX)) {
+                outboxDao.delete(command.operationId)
+                continue
+            }
             when (val response = api.patchForUser(
                 userId = userId,
                 notificationId = command.notificationId,
@@ -236,6 +248,7 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     )
 
     private companion object {
+        const val CAPTURE_REVIEW_PREFIX = "CAPTURE_REVIEW:"
         const val LOCAL_REMINDER_ID_PREFIX = "local-reminder:v1:"
         const val LOCAL_REMINDER_TITLE = "Recordatorio de vencimiento"
         const val LOCAL_REMINDER_BODY = "Recordatorio local de vencimiento."

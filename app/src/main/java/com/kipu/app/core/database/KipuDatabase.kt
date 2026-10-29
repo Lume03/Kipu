@@ -80,6 +80,12 @@ import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceEntity
 import com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceSyncCheckpointEntity
+import com.kipu.app.feature.capture.data.local.CaptureCandidateDao
+import com.kipu.app.feature.capture.data.local.CaptureCandidateEntity
+import com.kipu.app.feature.capture.data.local.CaptureSourceEventDao
+import com.kipu.app.feature.capture.data.local.CaptureSourceEventEntity
+import com.kipu.app.feature.recurrences.data.local.ExpectedPaymentDao
+import com.kipu.app.feature.recurrences.data.local.ExpectedPaymentEntity
 import com.kipu.app.feature.receipts.data.local.ReceiptCandidateDao
 import com.kipu.app.feature.receipts.data.local.ReceiptCandidateEntity
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
@@ -149,8 +155,11 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         BudgetAlertLedgerEntity::class,
         BudgetTombstoneEntity::class,
         BudgetSyncOutboxEntity::class,
+        CaptureSourceEventEntity::class,
+        CaptureCandidateEntity::class,
+        ExpectedPaymentEntity::class,
     ],
-    version = 28,
+    version = 29,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -184,4 +193,7 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun receiptCandidateDao(): ReceiptCandidateDao
     abstract fun budgetDao(): BudgetDao
     abstract fun budgetAlertLedgerDao(): BudgetAlertLedgerDao
+    abstract fun captureSourceEventDao(): CaptureSourceEventDao
+    abstract fun captureCandidateDao(): CaptureCandidateDao
+    abstract fun expectedPaymentDao(): ExpectedPaymentDao
 }

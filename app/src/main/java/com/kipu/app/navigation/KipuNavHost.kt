@@ -29,6 +29,7 @@ fun NavGraphBuilder.appDestinations(
     accountsDestinations(navController = navController)
     movementDestinations(navController = navController)
     receiptDestinations(navController)
+    captureDestinations(navController = navController)
     movementsDestinations(navController = navController)
     debtDestinations(navController = navController)
     notificationDestinations(navController = navController)

@@ -546,12 +546,25 @@ private fun reminderRoute(intent: Intent?): String? {
         }
         // Financial alert notifications open the center on top of the dashboard so back returns home.
         "notifications" -> NOTIFICATION_CENTER_ROUTE.takeIf { segments == listOf("center") }
+        // HU-43 review notification: kipu://capture/candidate/{id}
+        "capture" -> {
+            if (segments.size != 2 || segments.firstOrNull() != "candidate") return null
+            runCatching { UUID.fromString(segments[1]).toString() }.getOrNull()?.let { "capture/candidate/$it" }
+        }
         else -> null
     }
 }
 
 private fun NavController.openReminderRoute(route: String) {
-    if (route == NOTIFICATION_CENTER_ROUTE) {
+    if (route.startsWith("capture/candidate/")) {
+        // Dashboard > inbox > candidate, so back walks out through the inbox.
+        navigate(ACCOUNTS_DASHBOARD_ROUTE) {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+        navigate("capture/inbox") { launchSingleTop = true }
+        navigate(route) { launchSingleTop = true }
+    } else if (route == NOTIFICATION_CENTER_ROUTE) {
         navigate(ACCOUNTS_DASHBOARD_ROUTE) {
             popUpTo(0) { inclusive = true }
             launchSingleTop = true
