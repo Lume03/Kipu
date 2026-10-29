@@ -846,7 +846,19 @@ class MovementHistoryViewModel @Inject constructor(
             _history.value = HistoryLoadState(ownerId = null, key = request.key)
             return
         }
-        _history.value = HistoryLoadState(ownerId = owner, key = request.key, loadingFirst = true)
+        val previous = _history.value
+        val previousKey = previous.key
+        // A local write (register, void, sync status, balance projection) only bumps `invalidation`.
+        // Keep the rendered page while re-reading so each write does not blank the list into the
+        // loading state; a different owner, query, access refresh or retry still shows loading.
+        val silentRefresh = previousKey != null && previous.ownerId == owner &&
+            !previous.loadingFirst && !previous.firstPageError &&
+            previousKey.copy(invalidation = request.key.invalidation) == request.key
+        _history.value = if (silentRefresh) {
+            previous.copy(key = request.key, loadingMore = false, loadMoreError = null)
+        } else {
+            HistoryLoadState(ownerId = owner, key = request.key, loadingFirst = true)
+        }
         viewModelScope.launch {
             try {
                 val useCase = queryMovementHistoryUseCase ?: run {

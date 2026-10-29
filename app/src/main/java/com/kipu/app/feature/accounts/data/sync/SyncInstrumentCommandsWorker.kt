@@ -322,6 +322,11 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                             updatedAt = System.currentTimeMillis(),
                         )
                     }
+                    if (cmd.commandType == "CONFIRM_CREDIT_PURCHASE") {
+                        // The server may have emitted a card utilization alert for this purchase.
+                        com.kipu.app.feature.notifications.data.sync.WorkManagerNotificationSyncScheduler(applicationContext)
+                            .scheduleSync(cmd.userId)
+                    }
                     true
                 }
                 "CONFLICT" -> {

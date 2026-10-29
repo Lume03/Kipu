@@ -108,6 +108,7 @@ class NotificationMutationTest {
         },
         syncScheduler = scheduler,
         clock = Clock.fixed(NOW, ZoneOffset.UTC),
+        systemNotifier = FinancialAlertSystemNotifier.None,
     )
 
     private fun notification(

@@ -36,6 +36,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -509,6 +511,28 @@ class MovementHistoryViewModelTest {
         }
     }
 
+    @Test
+    fun localWriteRefreshKeepsRenderedListInsteadOfShowingLoading() = runTest {
+        val first = item("one", 1_000)
+        val repository = FakeHistoryRepository { MovementHistoryPage(listOf(first), null, false, MovementHistoryAccessDecision.Allowed) }
+        val viewModel = viewModel(repository)
+        advanceUntilIdle()
+        assertEquals(listOf("one"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
+
+        val pending = CompletableDeferred<MovementHistoryPage>()
+        repository.page = { pending.await() }
+        repository.invalidations.emit(Unit)
+        runCurrent()
+
+        // While the re-read is pending, the list stays on screen (no blink to the loading state).
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertEquals(listOf("one"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
+
+        pending.complete(MovementHistoryPage(listOf(item("two", 2_000), first), null, false, MovementHistoryAccessDecision.Allowed))
+        advanceUntilIdle()
+        assertEquals(listOf("two", "one"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
+    }
+
     private fun viewModel(
         repository: FakeHistoryRepository,
         access: LocalAccess = LocalAccess.Available("user", RemoteSession.Absent),
@@ -535,7 +559,7 @@ class MovementHistoryViewModelTest {
     )
 
     private class FakeHistoryRepository(
-        var page: (MovementHistoryQuery) -> MovementHistoryPage = {
+        var page: suspend (MovementHistoryQuery) -> MovementHistoryPage = {
             MovementHistoryPage(emptyList(), null, false, MovementHistoryAccessDecision.Allowed)
         },
     ) : MovementHistoryQueryRepository {
@@ -551,7 +575,8 @@ class MovementHistoryViewModelTest {
             else MovementHistoryPage(emptyList(), null, false, MovementHistoryAccessDecision.Allowed)
         }
         override suspend fun getHistorySummary(userId: String, query: MovementHistoryQuery) = summary
-        override fun observeHistoryInvalidations() = emptyFlow<Unit>()
+        val invalidations = MutableSharedFlow<Unit>()
+        override fun observeHistoryInvalidations(): Flow<Unit> = invalidations
     }
 
     private fun filteringRepository(vararg items: TransactionItem) = FakeHistoryRepository { query ->

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -63,16 +64,16 @@ class NotificationCenterScreenTest {
             }
         }
 
-        compose.onNodeWithText("Alertas").performScrollTo().performClick()
-        assertEquals(NotificationFilter.ALERTS, selected)
-        compose.onNodeWithText("Recordatorios").performScrollTo().performClick()
-        assertEquals(NotificationFilter.REMINDERS, selected)
-        compose.onNodeWithText("Todos").performScrollTo().performClick()
-        assertEquals(NotificationFilter.ALL, selected)
-        compose.onNodeWithText("Presupuestos").performScrollTo().performClick()
-        assertEquals(NotificationFilter.BUDGETS, selected)
-        compose.onNodeWithText("Metas").performScrollTo().performClick()
-        assertEquals(NotificationFilter.GOALS, selected)
+        listOf(
+            "Alertas" to NotificationFilter.ALERTS,
+            "Recordatorios" to NotificationFilter.REMINDERS,
+            "Presupuestos" to NotificationFilter.BUDGETS,
+            "Metas" to NotificationFilter.GOALS,
+        ).forEach { (label, filter) ->
+            compose.onNodeWithTag("notification-filter-button").performClick()
+            compose.onNodeWithText(label).performScrollTo().performClick()
+            assertEquals(filter, selected)
+        }
     }
 
     @Test
@@ -101,7 +102,8 @@ class NotificationCenterScreenTest {
         compose.onNodeWithText("Notificaciones").assertIsDisplayed()
         compose.onNodeWithText("Marcar leídas").assertIsDisplayed().performClick()
         NotificationFilter.entries.reversed().forEach { filter ->
-            compose.onNodeWithText(filter.label).performScrollTo().assertIsDisplayed().performClick()
+            compose.onNodeWithTag("notification-filter-button").performClick()
+            compose.onAllNodesWithText(filter.label).onLast().performScrollTo().assertIsDisplayed().performClick()
             assertEquals(filter, selected)
         }
         assertEquals(1, readAllCount)

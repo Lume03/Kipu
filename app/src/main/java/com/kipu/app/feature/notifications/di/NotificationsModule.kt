@@ -1,5 +1,7 @@
 package com.kipu.app.feature.notifications.di
 
+import com.kipu.app.feature.notifications.data.AndroidFinancialAlertSystemNotifier
+import com.kipu.app.feature.notifications.data.FinancialAlertSystemNotifier
 import com.kipu.app.feature.notifications.data.OfflineFirstNotificationsRepository
 import com.kipu.app.feature.notifications.data.RegisteredNotificationDestinationResolver
 import com.kipu.app.feature.notifications.data.sync.NotificationSyncScheduler
@@ -26,6 +28,12 @@ abstract class NotificationsModule {
     abstract fun bindNotificationDestinationResolver(
         impl: RegisteredNotificationDestinationResolver,
     ): NotificationDestinationResolver
+
+    @Binds
+    @Singleton
+    abstract fun bindFinancialAlertSystemNotifier(
+        impl: AndroidFinancialAlertSystemNotifier,
+    ): FinancialAlertSystemNotifier
 
     @Binds
     @Singleton

@@ -4,9 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +26,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Schedule
@@ -41,7 +44,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,7 +75,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationCategory
-import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
@@ -102,7 +104,18 @@ fun NotificationCenterScreen(
     val largeText = LocalDensity.current.fontScale >= 1.3f
     val readVisibleCount = state.visibleNotifications.count { it.isRead }
     var confirmDismissRead by rememberSaveable { mutableStateOf(false) }
+    var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val referenceNow = now ?: remember(state.visibleNotifications) { Instant.now() }
+    if (showFilterSheet) {
+        NotificationFilterSheet(
+            selected = state.selectedFilter,
+            onSelect = { filter ->
+                showFilterSheet = false
+                onFilterSelected(filter)
+            },
+            onDismiss = { showFilterSheet = false },
+        )
+    }
     if (confirmDismissRead && readVisibleCount > 0) {
         DismissReadDialog(
             readCount = readVisibleCount,
@@ -161,32 +174,11 @@ fun NotificationCenterScreen(
                 modifier = Modifier.fillMaxSize().padding(insets),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    NotificationFilter.entries.forEach { filter ->
-                        KipuFilterChip(
-                            selected = state.selectedFilter == filter,
-                            onClick = { onFilterSelected(filter) },
-                            label = {
-                                Text(
-                                    filter.label,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = colors.surfaceCard,
-                                labelColor = colors.primaryText,
-                                selectedContainerColor = colors.primaryDeep,
-                                selectedLabelColor = colors.onPrimaryDeep,
-                            ),
-                        )
-                    }
-                }
+                NotificationFilterButton(
+                    selected = state.selectedFilter,
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
 
                 when {
                     state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -249,6 +241,85 @@ private fun HeaderActions(
     if (showDismissRead) {
         IconButton(onClick = onDismissRead, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Default.DeleteSweep, contentDescription = "Borrar leídas", tint = colors.secondaryMuted)
+        }
+    }
+}
+
+@Composable
+private fun NotificationFilterButton(
+    selected: NotificationFilter,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = rememberCalmEmeraldColors()
+    val active = selected != NotificationFilter.ALL
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = if (active) colors.primaryDeep else colors.surfaceCard,
+        contentColor = if (active) colors.onPrimaryDeep else colors.primaryText,
+        border = if (active) null else BorderStroke(1.dp, colors.pillTrack),
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .testTag("notification-filter-button")
+            .semantics { contentDescription = "Filtrar notificaciones: ${selected.label}" },
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(selected.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotificationFilterSheet(
+    selected: NotificationFilter,
+    onSelect: (NotificationFilter) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = rememberCalmEmeraldColors()
+    KipuBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surfaceCard,
+        header = {
+            Text(
+                "Filtrar notificaciones",
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colors.primaryText,
+            )
+        },
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+            NotificationFilter.entries.forEach { filter ->
+                val isSelected = filter == selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .clickable { onSelect(filter) }
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        filter.label,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) colors.primaryDeep else colors.primaryText,
+                    )
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = "Seleccionado", tint = colors.primaryDeep)
+                    }
+                }
+            }
         }
     }
 }

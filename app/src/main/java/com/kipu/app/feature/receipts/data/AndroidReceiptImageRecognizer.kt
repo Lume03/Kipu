@@ -9,6 +9,7 @@ import androidx.exifinterface.media.ExifInterface
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.feature.receipts.domain.ReceiptImageRecognizer
 import com.kipu.app.feature.receipts.domain.RecognizedReceiptText
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,24 +29,25 @@ class AndroidReceiptImageRecognizer @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ReceiptImageRecognizer {
     override suspend fun recognize(uri: Uri): RecognizedReceiptText? = withContext(Dispatchers.IO) {
-        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return@withContext null
-        val bytes = readBounded(uri) ?: return@withContext null
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return@withContext unreadable("unsupported scheme")
+        val bytes = readBounded(uri) ?: return@withContext unreadable("image not readable")
         recognizeBytes(bytes)
     }
 
     /** Public to enable instrumented ML Kit checks with adb-pushed, untracked fixtures. */
     suspend fun recognizeBytes(bytes: ByteArray): RecognizedReceiptText? = withContext(Dispatchers.IO) {
-        if (bytes.isEmpty() || bytes.size > MAX_BYTES) return@withContext null
+        if (bytes.isEmpty() || bytes.size > MAX_BYTES) return@withContext unreadable("size out of bounds")
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         if (bounds.outWidth !in 1..MAX_DIMENSION || bounds.outHeight !in 1..MAX_DIMENSION ||
-            bounds.outWidth.toLong() * bounds.outHeight > MAX_PIXELS) return@withContext null
+            bounds.outWidth.toLong() * bounds.outHeight > MAX_PIXELS) return@withContext unreadable("dimensions out of bounds")
         val options = BitmapFactory.Options().apply {
             var sampleSize = 1
             while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > MAX_DECODE_SIDE) sampleSize *= 2
             inSampleSize = sampleSize
         }
-        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return@withContext null
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+            ?: return@withContext unreadable("decode failed")
         val bitmap = orient(decoded, runCatching {
             ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
         }.getOrDefault(ExifInterface.ORIENTATION_NORMAL))
@@ -54,8 +56,8 @@ class AndroidReceiptImageRecognizer @Inject constructor(
             RecognizedReceiptText(readingOrder(result), bytes.sha256())
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
-            null
+        } catch (error: Exception) {
+            unreadable("text recognition failed", error)
         } finally {
             bitmap.recycle()
         }
@@ -111,7 +113,10 @@ class AndroidReceiptImageRecognizer @Inject constructor(
             }
             out.toByteArray().takeIf { it.isNotEmpty() }
         }
-    } catch (_: Exception) { null }
+    } catch (error: Exception) {
+        SecureLog.w(TAG, "Receipt image read failed: ${error.javaClass.simpleName}")
+        null
+    }
 
     private suspend fun recognizeBitmap(bitmap: android.graphics.Bitmap): com.google.mlkit.vision.text.Text =
         suspendCoroutine { continuation ->
@@ -121,10 +126,17 @@ class AndroidReceiptImageRecognizer @Inject constructor(
                 .addOnFailureListener { error -> recognizer.close(); continuation.resumeWithException(error) }
         }
 
+    /** Logs only the failing stage and exception type; never image content or recognized text. */
+    private fun unreadable(stage: String, error: Exception? = null): RecognizedReceiptText? {
+        SecureLog.w(TAG, "Receipt OCR unreadable: $stage${error?.let { " (${it.javaClass.name}: ${it.message})" }.orEmpty()}")
+        return null
+    }
+
     private fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256")
         .digest(this).joinToString("") { "%02x".format(it) }
 
     private companion object {
+        const val TAG = "ReceiptOcr"
         const val MAX_BYTES = 12 * 1024 * 1024
         const val MAX_DIMENSION = 8_192
         const val MAX_PIXELS = 40_000_000L

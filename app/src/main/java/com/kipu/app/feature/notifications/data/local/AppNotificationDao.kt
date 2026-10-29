@@ -24,6 +24,9 @@ interface AppNotificationDao {
     @Query("SELECT * FROM app_notifications WHERE user_id = :userId AND deleted_at IS NULL ORDER BY created_at DESC")
     suspend fun getActive(userId: String): List<AppNotificationEntity>
 
+    @Query("SELECT id FROM app_notifications WHERE user_id = :userId")
+    suspend fun getAllIds(userId: String): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(notifications: List<AppNotificationEntity>)
 

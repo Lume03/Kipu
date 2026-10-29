@@ -110,6 +110,7 @@ class OfflineFirstNotificationsRepositoryTest {
         )
         val saved = slot<List<AppNotificationEntity>>()
         coEvery { dao.upsertAll(capture(saved)) } returns Unit
+        coEvery { dao.getAllIds(USER_A) } returns emptyList()
         val repository = repository(dao = dao, outbox = outbox, api = api)
 
         val result = repository.refresh(USER_A)
@@ -154,7 +155,7 @@ class OfflineFirstNotificationsRepositoryTest {
         val scheduler = object : NotificationSyncScheduler {
             override fun scheduleSync(userId: String) = Unit
         }
-        val dependencies = listOf<Any>(dao, reminders, outbox, api, transactionRunner, scheduler, Clock.fixed(NOW, ZoneOffset.UTC))
+        val dependencies = listOf<Any>(dao, reminders, outbox, api, transactionRunner, scheduler, Clock.fixed(NOW, ZoneOffset.UTC), FinancialAlertSystemNotifier.None)
         val constructor = OfflineFirstNotificationsRepository::class.java.declaredConstructors
             .maxBy { it.parameterCount }
         val arguments = constructor.parameterTypes.map { parameter ->

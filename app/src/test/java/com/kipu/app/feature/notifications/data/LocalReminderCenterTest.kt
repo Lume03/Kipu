@@ -85,6 +85,7 @@ class LocalReminderCenterTest {
             transactionRunner,
             scheduler,
             Clock.fixed(Instant.parse("2026-09-26T10:00:00Z"), ZoneOffset.UTC),
+            FinancialAlertSystemNotifier.None,
         )
         val constructor = OfflineFirstNotificationsRepository::class.java.declaredConstructors
             .maxBy { it.parameterCount }

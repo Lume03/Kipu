@@ -27,6 +27,9 @@ class SyncNotificationsWorker @AssistedInject constructor(
 
         return try {
             val syncResult = repository.syncPending(verifiedOwner)
+            // Pull server-emitted alerts (e.g. card utilization) so they reach the center and the phone
+            // without waiting for the next app start; a failed pull does not retry the pushed mutations.
+            repository.refresh(verifiedOwner)
             if (syncResult.isSuccess) Result.success() else Result.retry()
         } catch (cancelled: CancellationException) {
             throw cancelled

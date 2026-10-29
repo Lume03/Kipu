@@ -20,6 +20,7 @@ class SyncNotificationsWorkerTest {
     fun `matching verified owner syncs pending notifications`() = runTest {
         val repository = mockk<NotificationsRepository>()
         coEvery { repository.syncPending(USER_A) } returns Result.success(Unit)
+        coEvery { repository.refresh(USER_A) } returns Result.success(Unit)
         val session = session(USER_A)
         val worker = worker(repository, session, USER_A)
 
@@ -27,6 +28,7 @@ class SyncNotificationsWorkerTest {
 
         assertTrue(result is ListenableWorker.Result.Success)
         coVerify { repository.syncPending(USER_A) }
+        coVerify { repository.refresh(USER_A) }
     }
 
     @Test
@@ -44,6 +46,7 @@ class SyncNotificationsWorkerTest {
     fun `failed sync retries and keeps repository outbox available`() = runTest {
         val repository = mockk<NotificationsRepository>()
         coEvery { repository.syncPending(USER_A) } returns Result.failure(IllegalStateException("offline"))
+        coEvery { repository.refresh(USER_A) } returns Result.failure(IllegalStateException("offline"))
         val worker = worker(repository, session(USER_A), USER_A)
 
         val result = worker.doWork()

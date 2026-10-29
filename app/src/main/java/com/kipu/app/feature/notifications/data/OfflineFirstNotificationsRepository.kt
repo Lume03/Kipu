@@ -16,6 +16,7 @@ import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationOrigin
 import com.kipu.app.feature.notifications.domain.NotificationsRepository
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -33,6 +34,7 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     private val transactionRunner: DatabaseTransactionRunner,
     private val syncScheduler: NotificationSyncScheduler,
     private val clock: Clock,
+    private val systemNotifier: FinancialAlertSystemNotifier,
 ) : NotificationsRepository {
 
     override fun observeActive(userId: String): Flow<List<AppNotification>> = combine(
@@ -61,7 +63,15 @@ class OfflineFirstNotificationsRepository @Inject constructor(
                     .filter { it.userId == userId && it.id !in pendingIds }
                     .map { it.toEntity() }
                     .toList()
-                transactionRunner { notificationDao.upsertAll(remoteRows) }
+                val newRows = transactionRunner {
+                    val knownIds = notificationDao.getAllIds(userId).toHashSet()
+                    notificationDao.upsertAll(remoteRows)
+                    remoteRows.filter { it.id !in knownIds }
+                }
+                // Only alerts first seen on this device and recently emitted reach the phone, so a
+                // reinstall or account switch does not replay the whole history as notifications.
+                val recentSince = clock.instant().minus(SYSTEM_NOTIFICATION_WINDOW)
+                newRows.filter { it.createdAt.isAfter(recentSince) }.forEach(systemNotifier::publish)
             }
             is NotificationsApiResponse.Error -> error("Notification refresh failed (${response.statusCode}): ${response.message.orEmpty()}")
             is NotificationsApiResponse.NetworkFailure -> throw response.exception
@@ -229,5 +239,6 @@ class OfflineFirstNotificationsRepository @Inject constructor(
         const val LOCAL_REMINDER_ID_PREFIX = "local-reminder:v1:"
         const val LOCAL_REMINDER_TITLE = "Recordatorio de vencimiento"
         const val LOCAL_REMINDER_BODY = "Recordatorio local de vencimiento."
+        val SYSTEM_NOTIFICATION_WINDOW: Duration = Duration.ofHours(24)
     }
 }

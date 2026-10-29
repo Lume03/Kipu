@@ -153,7 +153,7 @@ class MainActivity : FragmentActivity() {
     lateinit var onboardingPreferences: OnboardingPreferences
 
     private var pendingDeepLink by mutableStateOf<DeepLinkResult?>(null)
-    private var pendingDebtReminderId by mutableStateOf<String?>(null)
+    private var pendingReminderRoute by mutableStateOf<String?>(null)
     private var pendingReceiptUri by mutableStateOf<String?>(null)
     private var restorationJob: Job? = null
     private val authCallbackViewModel: AuthCallbackViewModel by viewModels()
@@ -172,7 +172,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         pendingDeepLink = intent?.data?.let { authDeepLinkHandler.handleDeepLink(it) }
-        pendingDebtReminderId = debtReminderId(intent)
+        pendingReminderRoute = reminderRoute(intent)
         pendingReceiptUri = if (savedInstanceState != null) {
             savedInstanceState.getString("pending_receipt_uri")
         } else sharedReceiptUri(intent)
@@ -238,7 +238,7 @@ class MainActivity : FragmentActivity() {
                 val restored = authRepository.restoreSession().getOrNull() as? AuthResult.Success
                 if (!hasActionableDeepLink) {
                     val destination = if (restored != null) {
-                        pendingDebtReminderId?.let { "debts/detail/$it" }
+                        pendingReminderRoute
                             ?: postAuthDestination(restored.userId) ?: AUTH_LOGIN_ROUTE
                     } else if (onboardingPreferences.checkpoint.first().completed) {
                         AUTH_LOGIN_ROUTE
@@ -252,14 +252,11 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            LaunchedEffect(currentUserId, pendingDebtReminderId) {
-                val debtId = pendingDebtReminderId
-                if (currentUserId != null && debtId != null) {
-                    navController.navigate("debts/detail/$debtId") {
-                        popUpTo(0) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                    pendingDebtReminderId = null
+            LaunchedEffect(currentUserId, pendingReminderRoute) {
+                val route = pendingReminderRoute
+                if (currentUserId != null && route != null) {
+                    navController.openReminderRoute(route)
+                    pendingReminderRoute = null
                 }
             }
 
@@ -462,12 +459,9 @@ class MainActivity : FragmentActivity() {
                                         navController = navController,
                                         onAuthenticated = { userId ->
                                             scope.launch {
-                                                (pendingDebtReminderId?.let { "debts/detail/$it" } ?: postAuthDestination(userId))?.let { destination ->
-                                                    navController.navigate(destination) {
-                                                        popUpTo(0) { inclusive = true }
-                                                        launchSingleTop = true
-                                                    }
-                                                    pendingDebtReminderId = null
+                                                (pendingReminderRoute ?: postAuthDestination(userId))?.let { destination ->
+                                                    navController.openReminderRoute(destination)
+                                                    pendingReminderRoute = null
                                                 }
                                             }
                                         },
@@ -511,7 +505,7 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingDeepLink = intent.data?.let { authDeepLinkHandler.handleDeepLink(it) }
-        pendingDebtReminderId = debtReminderId(intent)
+        pendingReminderRoute = reminderRoute(intent)
         sharedReceiptUri(intent)?.let { pendingReceiptUri = it }
     }
 
@@ -541,12 +535,34 @@ class MainActivity : FragmentActivity() {
 }
 
 
-private fun debtReminderId(intent: Intent?): String? {
+private fun reminderRoute(intent: Intent?): String? {
     val uri = intent?.data ?: return null
-    if (uri.scheme != "kipu" || uri.host != "debts") return null
+    if (uri.scheme != "kipu") return null
     val segments = uri.pathSegments
-    if (segments.size != 2 || segments.firstOrNull() != "detail") return null
-    return runCatching { UUID.fromString(segments[1]).toString() }.getOrNull()
+    return when (uri.host) {
+        "debts" -> {
+            if (segments.size != 2 || segments.firstOrNull() != "detail") return null
+            runCatching { UUID.fromString(segments[1]).toString() }.getOrNull()?.let { "debts/detail/$it" }
+        }
+        // Financial alert notifications open the center on top of the dashboard so back returns home.
+        "notifications" -> NOTIFICATION_CENTER_ROUTE.takeIf { segments == listOf("center") }
+        else -> null
+    }
+}
+
+private fun NavController.openReminderRoute(route: String) {
+    if (route == NOTIFICATION_CENTER_ROUTE) {
+        navigate(ACCOUNTS_DASHBOARD_ROUTE) {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+        navigate(route) { launchSingleTop = true }
+    } else {
+        navigate(route) {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 }
 
 private fun isTopLevelRoute(route: String?): Boolean {
