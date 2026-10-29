@@ -86,40 +86,40 @@ class AuthVisualFlowTest {
             androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Cumplido")
         val pending = SemanticsMatcher.expectValue(
             androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Pendiente")
-        rule.onNodeWithText("Entre 8 y 72 caracteres", substring = true).assert(pending)
-        rule.onNodeWithText("Al menos una letra", substring = true).assert(completed)
-        rule.onNodeWithText("Al menos un número", substring = true).assert(pending)
+        rule.onNodeWithContentDescription("Entre 8 y 72 caracteres").assert(pending)
+        rule.onNodeWithContentDescription("Al menos una letra").assert(completed)
+        rule.onNodeWithContentDescription("Al menos un número").assert(pending)
         capture("register-requirements-pending")
         rule.onNodeWithText("Crear cuenta").performScrollTo().performClick()
         val invalid = SemanticsMatcher.expectValue(
             androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "No cumplido")
-        rule.onNodeWithText("Entre 8 y 72 caracteres", substring = true).assert(invalid)
-        rule.onNodeWithText("Al menos un número", substring = true).assert(invalid)
-        rule.onNodeWithText("Al menos una letra", substring = true).assert(completed)
+        rule.onNodeWithContentDescription("Entre 8 y 72 caracteres").assert(invalid)
+        rule.onNodeWithContentDescription("Al menos un número").assert(invalid)
+        rule.onNodeWithContentDescription("Al menos una letra").assert(completed)
         capture("register-requirements-submitted")
         rule.runOnIdle { state.value = state.value.copy(password = "Password123") }
         rule.onAllNodes(completed).assertCountEquals(3)
         capture("register-requirements-completed")
     }
 
-    @Test fun modeChangeKeepsEmailAndMovesCardThroughIntermediateFrames() {
+    @Test fun modeChangeKeepsEmailAndMovesFormThroughIntermediateFrames() {
         val state = mutableStateOf(AuthUiState(email = "demo@example.com", password = "Password123"))
         rule.setContent { KipuTheme(darkTheme = false) {
             LoginScreen(state.value, { state.value = state.value.copy(email = it) },
                 { state.value = state.value.copy(password = it) }, {}, {}, {})
         } }
-        val before = rule.onNodeWithTag("auth-form-logo").fetchSemanticsNode().boundsInRoot.top
+        val before = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
         rule.mainClock.autoAdvance = false
         rule.onNodeWithText("Registrarse").performClick()
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(100)
-        val during = rule.onNodeWithTag("auth-form-logo").fetchSemanticsNode().boundsInRoot.top
+        val during = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
         rule.mainClock.advanceTimeBy(400)
         rule.mainClock.autoAdvance = true
         rule.waitForIdle()
-        val after = rule.onNodeWithTag("auth-form-logo").fetchSemanticsNode().boundsInRoot.top
-        assertTrue("The growing form moves up", after < before)
-        assertTrue("The card must pass through an intermediate position", during < before && during > after)
+        val after = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("The shorter header lifts the form", after < before)
+        assertTrue("The form must pass through an intermediate position", during < before && during > after)
         rule.runOnIdle { assertEquals("demo@example.com", state.value.email); assertEquals("", state.value.password) }
         rule.onNodeWithText("Confirmar contraseña").assertExists()
         rule.onNodeWithText("Iniciar Sesión").performClick()

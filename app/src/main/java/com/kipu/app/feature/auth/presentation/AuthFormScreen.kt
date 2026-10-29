@@ -1,47 +1,66 @@
 package com.kipu.app.feature.auth.presentation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kipu.app.R
 import com.kipu.app.feature.auth.domain.PasswordValidator
@@ -71,9 +90,11 @@ internal fun AuthFormScreen(
     var registrationAttempted by remember { mutableStateOf(false) }
     var legalDocument by rememberSaveable { mutableStateOf<String?>(null) }
     val colors = rememberCalmEmeraldColors()
-    val duration = if (rememberReducedMotionEnabled()) 0 else KipuMotionTokens.FastMillis
+    val reducedMotion = rememberReducedMotionEnabled()
+    val duration = if (reducedMotion) 0 else KipuMotionTokens.FastMillis
     val canAct = !uiState.isLoading && uiState.cooldownSeconds == 0
     val focus = LocalFocusManager.current
+    val clock = rememberSceneClock(active = true)
 
     LaunchedEffect(uiState.password) {
         if (uiState.password.isEmpty()) confirmation = ""
@@ -106,99 +127,117 @@ internal fun AuthFormScreen(
         } else onLoginClick()
     }
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
-    // Adapt decoration and spacing to the window, never shrink accessible fields or text.
-    val compact = maxHeight < 940.dp
-    val logoSize = if (compact) 56.dp else 80.dp
-    val sectionGap = if (compact) 16.dp else 24.dp
-    val smallGap = if (compact) 8.dp else 12.dp
-    val fieldGap = if (compact) 12.dp else AuthLayout.Gap
-    AuthSurface(verticalPadding = if (compact) 12.dp else 24.dp) {
-        AuthCard(contentPadding = if (compact) 20.dp else AuthLayout.CardPadding) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Image(painterResource(R.drawable.kipu_logo), null, Modifier.size(logoSize).testTag("auth-form-logo"))
-                Spacer(Modifier.height(smallGap))
-                Text("Kipu", style = MaterialTheme.typography.displayMedium)
-                Spacer(Modifier.height(if (compact) 12.dp else sectionGap))
-                Row(Modifier.fillMaxWidth().selectableGroup()
-                    .clip(RoundedCornerShape(28.dp)).background(colors.pillTrack).padding(4.dp)) {
-                    listOf(false to "Iniciar Sesión", true to "Registrarse").forEach { (mode, label) ->
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(if (register == mode) colors.surfaceCard else colors.pillTrack)
-                            .selectable(register == mode, enabled = canAct, role = Role.Tab,
-                                onClick = { changeMode(mode) }), contentAlignment = Alignment.Center) {
-                            Text(label, style = MaterialTheme.typography.labelLarge,
-                                color = colors.primaryText, textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+    Box(modifier.fillMaxSize().background(colors.background)
+        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val viewport = maxHeight
+            val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            // The header is decoration: it gives way on short windows so the fields keep their size.
+            val loginHeader = (viewport * 0.34f).coerceIn(228.dp, 300.dp)
+            val registerHeader = (viewport * 0.26f).coerceIn(184.dp, 236.dp)
+            val headerTarget by animateFloatAsState(
+                if (register) registerHeader.value else loginHeader.value, tween(duration + 150), label = "auth-header-height",
+            )
+            val scroll = rememberScrollState()
+            val sectionGap = if (viewport < 700.dp) 10.dp else 12.dp
+            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(min = viewport),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.fillMaxWidth()) {
+                            AuthHero(register, clock, headerTarget.dp + statusTop, duration + 150)
+                            AuthModeTabs(
+                                register, canAct, duration + 100, ::changeMode,
+                                Modifier.align(Alignment.BottomCenter).offset(y = 29.dp).widthIn(max = 480.dp)
+                                    .padding(horizontal = 24.dp).sceneReveal(clock, 0.15f, 0.6f, dy = 16.dp),
+                            )
+                        }
+                        Column(
+                            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 49.dp),
+                        ) {
+                            AuthBanner(uiState.generalError)
+                            AuthBanner(if (uiState.cooldownSeconds > 0)
+                                stringResource(R.string.auth_cooldown_message, uiState.cooldownSeconds) else null)
+                            AuthFloatingField(uiState.email, onEmailChanged, "Correo electrónico", Icons.Outlined.Email,
+                                Modifier.sceneReveal(clock, 0.25f, 0.6f, dy = 16.dp),
+                                error = uiState.emailError, enabled = canAct)
+                            Spacer(Modifier.height(sectionGap))
+                            AuthFloatingField(uiState.password, onPasswordChanged, "Contraseña", Icons.Outlined.Lock,
+                                Modifier.sceneReveal(clock, 0.33f, 0.6f, dy = 16.dp),
+                                error = uiState.passwordError, enabled = canAct, password = true,
+                                imeAction = if (register) ImeAction.Next else ImeAction.Done, onDone = ::submit)
+                            AnimatedVisibility(register,
+                                enter = expandVertically(tween(duration), expandFrom = Alignment.Top) + fadeIn(tween(duration)),
+                                exit = shrinkVertically(tween(duration), shrinkTowards = Alignment.Top) + fadeOut(tween(duration))) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.height(10.dp))
+                                    AuthRequirementChips(uiState.password, registrationAttempted)
+                                    Spacer(Modifier.height(sectionGap + 2.dp))
+                                    AuthFloatingField(confirmation, { confirmation = it; confirmationError = null },
+                                        "Confirmar contraseña", Icons.Outlined.Lock,
+                                        error = confirmationError, enabled = canAct, password = true, onDone = ::submit)
+                                    if (confirmation.isNotEmpty() && uiState.password.isNotEmpty()) {
+                                        val match = PasswordValidator.passwordsMatch(uiState.password, confirmation)
+                                        Text(if (match) "Las contraseñas coinciden" else "Las contraseñas no coinciden",
+                                            color = if (match) colors.incomeText else MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(top = 6.dp))
+                                    }
+                                }
+                            }
+                            AnimatedVisibility(!register,
+                                enter = expandVertically(tween(duration)) + fadeIn(tween(duration)),
+                                exit = shrinkVertically(tween(duration)) + fadeOut(tween(duration))) {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                    TextButton(onNavigateToRecovery, enabled = canAct) {
+                                        Text("¿Olvidaste tu contraseña?", color = colors.primaryDeep, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(if (register) 14.dp else 4.dp))
+                            AuthCtaButton(
+                                text = if (register) "Crear cuenta" else "Ingresar",
+                                loadingText = if (register) "Creando cuenta…" else "Ingresando…",
+                                loading = uiState.isLoading, enabled = canAct, onClick = ::submit,
+                                modifier = Modifier.sceneReveal(clock, 0.41f, 0.6f, dy = 16.dp),
+                            )
+                            Box(Modifier.fillMaxWidth().sceneReveal(clock, 0.48f, 0.6f, dy = 16.dp), contentAlignment = Alignment.Center) {
+                                TextButton({ changeMode(!register) }, enabled = canAct) {
+                                    val question = if (register) "¿Ya tienes una cuenta?" else "¿No tienes cuenta?"
+                                    val action = if (register) "Iniciar sesión" else "Regístrate"
+                                    Text(buildAnnotatedString {
+                                        append("$question ")
+                                        withStyle(SpanStyle(color = colors.primaryDeep, fontWeight = FontWeight.Bold)) { append(action) }
+                                    }, color = colors.secondaryMuted, textAlign = TextAlign.Center)
+                                }
+                            }
                         }
                     }
-                }
-                Spacer(Modifier.height(sectionGap))
-                AuthTextField(uiState.email, onEmailChanged, "Correo electrónico",
-                    error = uiState.emailError, placeholder = "ejemplo@correo.com", enabled = canAct,
-                    trailing = { Icon(Icons.Outlined.Email, null, tint = colors.secondaryMuted) })
-                Spacer(Modifier.height(fieldGap))
-                AuthPasswordField(uiState.password, onPasswordChanged, error = uiState.passwordError,
-                    enabled = canAct, imeAction = if (register) ImeAction.Next else ImeAction.Done,
-                    onDone = ::submit)
-                AnimatedVisibility(register,
-                    enter = expandVertically(tween(duration), expandFrom = Alignment.Top) + fadeIn(tween(duration)),
-                    exit = shrinkVertically(tween(duration), shrinkTowards = Alignment.Top) + fadeOut(tween(duration))) {
-                    Column(Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.height(8.dp))
-                        PasswordRequirement("Entre 8 y 72 caracteres", uiState.password.length in 8..72, compact, registrationAttempted)
-                        PasswordRequirement("Al menos una letra", PasswordValidator.hasLetter(uiState.password), compact, registrationAttempted)
-                        PasswordRequirement("Al menos un número", PasswordValidator.hasNumber(uiState.password), compact, registrationAttempted)
-                        Spacer(Modifier.height(fieldGap))
-                        AuthPasswordField(confirmation, { confirmation = it; confirmationError = null },
-                            "Confirmar contraseña", error = confirmationError, enabled = canAct, onDone = ::submit)
-                        if (confirmation.isNotEmpty() && uiState.password.isNotEmpty()) {
-                            val match = PasswordValidator.passwordsMatch(uiState.password, confirmation)
-                            Text(if (match) "Las contraseñas coinciden" else "Las contraseñas no coinciden",
-                                color = if (match) colors.incomeText else MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 6.dp))
+                    Text(buildAnnotatedString {
+                        append(if (register) "Al registrarte aceptas los " else "Al ingresar aceptas los ")
+                        val styles = TextLinkStyles(SpanStyle(color = colors.primaryDeep, fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline))
+                        withLink(LinkAnnotation.Clickable("terms", styles) { legalDocument = "Términos y Condiciones" }) {
+                            append("Términos y Condiciones")
                         }
-                    }
+                        append(" y ")
+                        withLink(LinkAnnotation.Clickable("privacy", styles) { legalDocument = "Políticas de privacidad" }) {
+                            append("Políticas de privacidad")
+                        }
+                        append(" de Kipu.")
+                    }, style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted, textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(max = 480.dp).padding(horizontal = 32.dp, vertical = 16.dp)
+                            .sceneReveal(clock, 0.55f, 0.6f, dy = 12.dp))
                 }
-                AuthErrorMessage(uiState.generalError)
-                AuthErrorMessage(if (uiState.cooldownSeconds > 0)
-                    stringResource(R.string.auth_cooldown_message, uiState.cooldownSeconds) else null)
-                Spacer(Modifier.height(sectionGap))
-                AuthPrimaryButton(if (register) "Crear cuenta" else "Ingresar", ::submit,
-                    enabled = canAct, loading = uiState.isLoading)
-                Spacer(Modifier.height(smallGap))
-                AnimatedVisibility(!register,
-                    enter = expandVertically(tween(duration)) + fadeIn(tween(duration)),
-                    exit = shrinkVertically(tween(duration)) + fadeOut(tween(duration))) {
-                    TextButton(onNavigateToRecovery, enabled = canAct) {
-                        Text("¿Olvidaste tu contraseña?", color = colors.primaryDeep)
-                    }
-                }
-                TextButton({ changeMode(!register) }, enabled = canAct) {
-                    Text(if (register) "¿Ya tienes una cuenta? Iniciar sesión" else "¿No tienes cuenta? Regístrate",
-                        color = colors.primaryDeep, textAlign = TextAlign.Center)
-                }
-                Spacer(Modifier.height(smallGap))
-                HorizontalDivider(color = colors.borderSubtle)
-                Spacer(Modifier.height(smallGap))
-                Text(buildAnnotatedString {
-                    append(if (register) "Al registrarte aceptas los " else "Al ingresar aceptas los ")
-                    val styles = TextLinkStyles(SpanStyle(color = colors.primaryDeep,
-                        textDecoration = TextDecoration.Underline))
-                    withLink(LinkAnnotation.Clickable("terms", styles) { legalDocument = "Términos y Condiciones" }) {
-                        append("Términos y Condiciones")
-                    }
-                    append(" y ")
-                    withLink(LinkAnnotation.Clickable("privacy", styles) { legalDocument = "Políticas de privacidad" }) {
-                        append("Políticas de privacidad")
-                    }
-                    append(" de Kipu.")
-                }, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             }
+            // Keeps the status bar icons readable once the teal header has scrolled away.
+            val scrimAlpha by animateFloatAsState(if (scroll.value > 0) 1f else 0f, tween(150), label = "auth-status-scrim")
+            Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(Color(0xFF0A5A54).copy(alpha = scrimAlpha)))
         }
-    }
     }
     if (uiState.showExistingAccountDialog) AlertDialog(
         onDismissRequest = onDismissExistingAccountDialog,
@@ -216,29 +255,4 @@ internal fun AuthFormScreen(
         title = { Text(legalDocument.orEmpty()) },
         text = { Text("Este documento aún no está disponible en la aplicación.") },
         confirmButton = { TextButton({ legalDocument = null }) { Text("Cerrar") } })
-}
-
-@Composable
-private fun PasswordRequirement(text: String, satisfied: Boolean, compact: Boolean, showErrors: Boolean) {
-    val colors = rememberCalmEmeraldColors()
-    // Brighter checks match the reference; the text keeps sufficient contrast on a light card.
-    val successText = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color(0xFF15803D) else colors.incomeText
-    val statusColor = when {
-        satisfied -> successText
-        showErrors -> MaterialTheme.colorScheme.error
-        else -> colors.secondaryMuted
-    }
-    Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 3.dp).semantics(mergeDescendants = true) {
-        stateDescription = if (satisfied) "Cumplido" else if (showErrors) "No cumplido" else "Pendiente"
-    }, verticalAlignment = Alignment.CenterVertically) {
-        Icon(when {
-            satisfied -> Icons.Filled.CheckCircle
-            showErrors -> Icons.Outlined.ErrorOutline
-            else -> Icons.Outlined.RadioButtonUnchecked
-        }, null, Modifier.size(18.dp), tint = if (satisfied && MaterialTheme.colorScheme.surface.luminance() > 0.5f)
-            Color(0xFF16A34A) else statusColor)
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium, color = statusColor, modifier = Modifier.weight(1f))
-    }
 }
