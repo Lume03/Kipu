@@ -31,6 +31,7 @@ import java.util.UUID
 
 @Module @InstallIn(SingletonComponent::class)
 abstract class PlansModule {
+    @Binds abstract fun verifiedPlanAccess(value: com.kipu.app.feature.plans.data.entitlement.CurrentOwnerVerifiedPlanAccess): VerifiedPlanAccess
     @Binds abstract fun repository(value: OfflineFirstPlanPreferencesRepository): PlanPreferencesRepository
     @Binds abstract fun billingPurchaseRepository(value: BillingRepository): BillingPurchaseRepository
     @Binds abstract fun installationSigningKeyProvider(value: AndroidKeystoreInstallationSigningKeyProvider): InstallationSigningKeyProvider
