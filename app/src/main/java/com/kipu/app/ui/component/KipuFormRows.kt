@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,6 +44,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
@@ -62,6 +66,10 @@ fun KipuStatusChip(
     tone: KipuChipTone,
     modifier: Modifier = Modifier,
     leading: (@Composable () -> Unit)? = null,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+    textStyle: TextStyle = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
 ) {
     val ec = rememberCalmEmeraldColors()
     val (bg, fg, border) = when (tone) {
@@ -72,21 +80,21 @@ fun KipuStatusChip(
     }
     Surface(
         shape = CircleShape,
-        color = bg,
-        contentColor = fg,
+        color = containerColor ?: bg,
+        contentColor = contentColor ?: fg,
         border = border?.let { BorderStroke(1.dp, it) },
         modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(contentPadding),
         ) {
             leading?.invoke()
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = fg,
+                style = textStyle,
+                color = contentColor ?: fg,
                 maxLines = 1,
             )
         }
@@ -300,15 +308,22 @@ fun <T> KipuSegmentedControl(
     icon: ((T) -> ImageVector?)? = null,
     selectedColors: @Composable (T) -> Pair<Color, Color> = { rememberSegmentDefault() },
     tag: (T) -> String = { "" },
+    role: Role = Role.RadioButton,
+    trackColor: Color? = null,
+    selectedElevation: Dp = 0.dp,
+    minimumHeight: Dp = 48.dp,
+    spacing: Dp = 4.dp,
+    textStyle: TextStyle? = null,
 ) {
     val ec = rememberCalmEmeraldColors()
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(ec.pillTrack, RoundedCornerShape(16.dp))
+            .background(trackColor ?: ec.pillTrack, RoundedCornerShape(16.dp))
             .padding(4.dp)
+            .selectableGroup()
             .alpha(if (enabled) 1f else 0.6f),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
     ) {
         options.forEach { option ->
             val isSelected = option == selected
@@ -318,9 +333,10 @@ fun <T> KipuSegmentedControl(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = minimumHeight)
+                    .shadow(if (isSelected) selectedElevation else 0.dp, RoundedCornerShape(12.dp))
                     .background(bg, RoundedCornerShape(12.dp))
-                    .clickable(enabled = enabled && !isSelected, role = Role.RadioButton) { onSelect(option) }
+                    .clickable(enabled = enabled && !isSelected, role = role) { onSelect(option) }
                     .semantics { this.selected = isSelected }
                     .then(tag(option).takeIf(String::isNotEmpty)?.let { Modifier.testTag(it) } ?: Modifier),
                 horizontalArrangement = Arrangement.Center,
@@ -332,7 +348,7 @@ fun <T> KipuSegmentedControl(
                 }
                 Text(
                     label(option),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                    style = textStyle ?: MaterialTheme.typography.bodyLarge.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
                     color = fg,
                 )
             }

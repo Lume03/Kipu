@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
 import com.kipu.app.feature.plans.domain.model.CommercialOption
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
+import com.kipu.app.feature.plans.domain.model.TrialEligibilitySnapshot
+import java.time.Instant
 import com.kipu.app.ui.theme.KipuTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -72,8 +74,40 @@ class PlanSelectionScreenTest {
         compose.onNodeWithTag("plan-confirm").assertIsDisplayed().assertHasClickAction()
     }
 
+    @Test
+    fun confirmationIsDisabledWhileEligibilityLoads() {
+        compose.setContent {
+            KipuTheme {
+                PlanSelectionScreen(PlanSelectionUiState(isLoadingPreference = false), {}, {}, {})
+            }
+        }
+        compose.onNodeWithTag("plan-confirm").assertIsNotEnabled()
+        compose.onNodeWithText("Prueba 7 días gratis", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun trialCopyFollowsVerifiedEligibilityAndSelectedPeriod() {
+        val state = mutableStateOf(PlanSelectionUiState(isLoadingPreference = false, isLoadingEligibility = false))
+        compose.setContent {
+            KipuTheme {
+                PlanSelectionScreen(state.value, { state.value = state.value.copy(selectedOption = it) }, {}, {})
+            }
+        }
+        compose.onNodeWithText("S/ 29.99 al año.").assertExists()
+        compose.runOnIdle {
+            state.value = state.value.copy(eligibility = TrialEligibilitySnapshot.eligible(
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2030-01-01T00:00:00Z"),
+            ))
+        }
+        compose.onNodeWithText("Prueba 7 días gratis, luego S/ 29.99 al año.").assertExists()
+        compose.onNodeWithTag("plan-option-MONTHLY").performClick()
+        compose.onNodeWithText("7 días gratis, luego S/ 4.99 al mes.").assertExists()
+        compose.onNodeWithTag("plan-option-LIFETIME").performClick()
+        compose.onNodeWithText("Sin prueba y sin renovación.").assertExists()
+    }
+
     private fun setScreen(limits: FreePlanLimits = FreePlanLimits(), onFree: () -> Unit = {}) {
-        val state = mutableStateOf(PlanSelectionUiState(freeLimits = limits))
+        val state = mutableStateOf(PlanSelectionUiState(freeLimits = limits, isLoadingPreference = false, isLoadingEligibility = false))
         compose.setContent {
             KipuTheme {
                 PlanSelectionScreen(state.value, { option ->

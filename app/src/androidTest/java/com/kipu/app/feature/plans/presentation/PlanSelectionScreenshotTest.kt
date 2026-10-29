@@ -31,7 +31,7 @@ class PlanSelectionScreenshotTest {
     }
 
     private fun captureAfter(dark: Boolean, suffix: String) {
-        val state = mutableStateOf(PlanSelectionUiState(isLoadingEligibility = false))
+        val state = mutableStateOf(PlanSelectionUiState(isLoadingEligibility = false, isLoadingPreference = false))
         compose.setContent {
             KipuTheme(darkTheme = dark) {
                 Surface(modifier = Modifier) {

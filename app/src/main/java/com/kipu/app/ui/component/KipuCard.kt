@@ -25,9 +25,10 @@ fun KipuCard(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     borderColor: Color? = MaterialTheme.colorScheme.outlineVariant,
     elevation: Dp = 0.dp,
+    borderWidth: Dp = 1.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val border = borderColor?.let { BorderStroke(1.dp, it) }
+    val border = borderColor?.let { BorderStroke(borderWidth, it) }
     val colors = CardDefaults.cardColors(
         containerColor = containerColor,
         contentColor = contentColor,
