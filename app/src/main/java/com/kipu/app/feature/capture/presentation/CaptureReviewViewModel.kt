@@ -55,9 +55,20 @@ data class CaptureInstrumentChoice(
     val currency: String,
     /** Effective ledger account, distinct from the selected wallet/card [id]. */
     val accountId: String? = null,
+    /** Bank, issuer or wallet name/preset used to show its logo; null shows a generic icon. */
+    val brandKey: String? = null,
 )
 
-data class CaptureCategoryChoice(val id: String, val label: String, val type: CategoryType)
+data class CaptureCategoryChoice(
+    val id: String,
+    val label: String,
+    val type: CategoryType,
+    val name: String = label,
+    val icon: String = "",
+    val color: String? = null,
+    val parentId: String? = null,
+    val parentName: String? = null,
+)
 
 data class CaptureReviewUiState(
     val isLoading: Boolean = true,
@@ -211,6 +222,7 @@ class CaptureReviewViewModel @Inject constructor(
                             label = account.alias,
                             currency = account.currency.name,
                             accountId = account.linkedAccountId?.value ?: account.id.value,
+                            brandKey = account.preset?.name,
                         )
                     }
                 val cardChoices = cards.filterIsInstance<CreditCard>()
@@ -222,6 +234,7 @@ class CaptureReviewViewModel @Inject constructor(
                             label = "${card.alias?.takeIf(String::isNotBlank) ?: card.issuer} ····${card.lastFourDigits}",
                             currency = card.currency.name,
                             accountId = card.liabilityAccountId.value,
+                            brandKey = card.issuer,
                         )
                     }
                 accountChoices + cardChoices
@@ -246,6 +259,11 @@ class CaptureReviewViewModel @Inject constructor(
                             id = item.category.id.value,
                             label = parent?.let { "${it.displayName} > ${item.displayName}" } ?: item.displayName,
                             type = item.category.categoryType,
+                            name = item.displayName,
+                            icon = item.icon,
+                            color = item.color,
+                            parentId = parent?.category?.id?.value,
+                            parentName = parent?.displayName,
                         )
                     }
                 _state.update { it.copy(categories = categoriesFor(it.direction)) }

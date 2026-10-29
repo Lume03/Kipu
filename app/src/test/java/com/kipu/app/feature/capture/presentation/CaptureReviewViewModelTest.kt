@@ -345,6 +345,7 @@ class CaptureReviewViewModelTest {
         assertNull(parseCaptureAmountMinor("1.2.3"))
         assertEquals("S/ 25.50", formatCaptureAmount(2_550L, "PEN"))
         assertEquals("US$ 15.99", formatCaptureAmount(1_599L, "USD"))
+        assertEquals("S/ 2,450.00", formatCaptureAmount(245_000L, "PEN"))
     }
 
     @Test fun `wallet instruments carry the account id and no card id`() = runTest(dispatcher) {
