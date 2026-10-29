@@ -35,10 +35,10 @@ class TestPlanRefreshRepository @Inject constructor(
     private val evaluator: EffectiveEntitlementEvaluator,
 ) : TestPlanRefresh {
     override suspend fun refresh(): TestPlanRefreshResult {
-        if (!BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return TestPlanRefreshResult(false, "TEST_PLANS_DISABLED")
-        val session = sessions.currentSession() ?: return TestPlanRefreshResult(false, "UNAUTHENTICATED")
-        if (!isCurrentSessionOwner(session.userId.toString())) return TestPlanRefreshResult(false, "SESSION_CHANGED")
         try {
+            val session = sessions.currentSession() ?: sessions.refreshSession()
+                ?: return TestPlanRefreshResult(false, "UNAUTHENTICATED")
+            if (!isCurrentSessionOwner(session.userId.toString())) return TestPlanRefreshResult(false, "SESSION_CHANGED")
             val installation = installationKeys.getOrCreatePublicIdentity()
             val anchor = clock.read()
             val response = when (val result = api.refresh(session, installation.publicKeyBase64)) {
@@ -46,7 +46,9 @@ class TestPlanRefreshRepository @Inject constructor(
                 is RefreshEntitlementApiResult.Success -> result.value
             }
             if (!isCurrentSessionOwner(session.userId.toString())) return TestPlanRefreshResult(false, "SESSION_CHANGED")
-            if (response.source !in setOf("TEST_OVERRIDE", "COMMERCIAL")) return invalid()
+            if (response.source !in setOf("TEST_OVERRIDE", "COMMERCIAL", "DEVELOPER")) return invalid()
+            if (response.source == "TEST_OVERRIDE" && !BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return invalid()
+            if (response.source == "DEVELOPER" && (response.effectiveTier != "PREMIUM" || response.expiresAt != null)) return invalid()
             val entry = when (response.effectiveTier) {
                 "FREE" -> {
                     if (response.offlineEntitlementGrant != null || response.expiresAt != null) return invalid()
@@ -57,7 +59,7 @@ class TestPlanRefreshRepository @Inject constructor(
                 "PREMIUM" -> {
                     val signed = response.offlineEntitlementGrant?.asSignedGrant() ?: return invalid()
                     val claims = verifier.verify(signed, session.userId.toString()) ?: return invalid()
-                    if ((response.source == "TEST_OVERRIDE") != (claims.source == "TEST_OVERRIDE")) return invalid()
+                    if (claims.source != response.source.takeUnless { it == "COMMERCIAL" }) return invalid()
                     val responseExpiry = response.expiresAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
                     if (response.expiresAt != null && responseExpiry == null) return invalid()
                     if (responseExpiry != claims.entitlementEndsAtMillis) return invalid()
@@ -71,7 +73,7 @@ class TestPlanRefreshRepository @Inject constructor(
                         grant = signed,
                         anchorElapsedRealtimeMillis = anchor.elapsedRealtimeMillis,
                         anchorBootCount = anchor.bootCount,
-                    ).copy(source = if (response.source == "TEST_OVERRIDE") "SIGNED_TEST_GRANT" else "SIGNED_SERVER_GRANT")
+                    )
                     if (evaluator.evaluate(session.userId.toString(), verified) !is OfflineEntitlementLeaseDecision.Allowed) return invalid()
                     verified
                 }

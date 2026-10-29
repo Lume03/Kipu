@@ -44,7 +44,6 @@ class TestPlanRefreshRepositoryTest {
 
     @Test
     fun `cancellation from network propagates and does not write cache`() = runTest {
-        assumeTrue(BuildConfig.TEST_PLAN_OVERRIDES_ENABLED)
         val api = mockk<RefreshEntitlementApi>()
         coEvery { api.refresh(session, "spki") } throws CancellationException("cancel")
         val dao = mockk<FeatureAccessCacheDao>()
@@ -58,9 +57,73 @@ class TestPlanRefreshRepositoryTest {
         }
     }
 
-    private fun repository(api: RefreshEntitlementApi, dao: FeatureAccessCacheDao): TestPlanRefreshRepository {
+    @Test
+    fun `developer plan refreshes in every build and validates signed source`() = runTest {
+        val api = mockk<RefreshEntitlementApi>()
+        val grant = com.kipu.app.feature.plans.data.remote.RefreshEntitlementGrantDto("payload", "signature", "key")
+        coEvery { api.refresh(session, "spki") } returns RefreshEntitlementApiResult.Success(
+            RefreshEntitlementResponseDto("PREMIUM", "DEVELOPER", null, grant),
+        )
+        val dao = mockk<FeatureAccessCacheDao>()
+        coEvery { dao.putVerified(any()) } returns Unit
+        val verifier = mockk<OfflineEntitlementGrantVerifier>()
+        val claims = com.kipu.app.feature.plans.domain.model.OfflineEntitlementGrantClaims(
+            1, "key", UUID.randomUUID().toString(), userId.toString(), "thumbprint", 1,
+            "PREMIUM", 1000L, null, 259201000L, "DEVELOPER",
+        )
+        every { verifier.verify(any(), userId.toString()) } returns claims
+        val evaluator = mockk<EffectiveEntitlementEvaluator>()
+        every { evaluator.evaluate(any(), any()) } returns com.kipu.app.feature.plans.domain.model.OfflineEntitlementLeaseDecision.Allowed(1000L)
+        val repository = repository(api, dao, verifier, evaluator)
+        assertEquals(TestPlanRefreshResult(true), repository.refresh())
+        coVerify(exactly = 1) { dao.putVerified(match { it.source == "SIGNED_DEVELOPER_GRANT" && it.entitlementExpiresAt == null }) }
+
+        every { verifier.verify(any(), userId.toString()) } returns claims.copy(source = null)
+        assertEquals("INVALID_VERIFICATION_RESPONSE", repository.refresh().code)
+        coVerify(exactly = 1) { dao.putVerified(any()) }
+    }
+
+    @Test
+    fun `commercial Free reconciles developer revocation in every build`() = runTest {
+        val api = mockk<RefreshEntitlementApi>()
+        coEvery { api.refresh(session, "spki") } returns RefreshEntitlementApiResult.Success(
+            RefreshEntitlementResponseDto("FREE", "COMMERCIAL"),
+        )
+        val dao = mockk<FeatureAccessCacheDao>()
+        coEvery { dao.putVerified(any()) } returns Unit
+        assertEquals(TestPlanRefreshResult(true), repository(api, dao).refresh())
+        coVerify { dao.putVerified(match { it.source == "VERIFIED_SERVER" && it.effectiveTier == "FREE" }) }
+    }
+
+    @Test
+    fun `expired access token is renewed before entitlement refresh`() = runTest {
         val sessions = mockk<AuthenticatedSessionProvider>()
-        coEvery { sessions.currentSession() } returns session
+        var active: AuthenticatedSession? = null
+        coEvery { sessions.currentSession() } answers { active }
+        coEvery { sessions.refreshSession() } answers { active = session; session }
+        val api = mockk<RefreshEntitlementApi>()
+        coEvery { api.refresh(session, "spki") } returns RefreshEntitlementApiResult.Success(
+            RefreshEntitlementResponseDto("FREE", "COMMERCIAL"),
+        )
+        val dao = mockk<FeatureAccessCacheDao>(relaxed = true)
+        assertEquals(TestPlanRefreshResult(true), repository(api, dao, sessionProvider = sessions).refresh())
+        coVerify(exactly = 1) { sessions.refreshSession() }
+        coVerify(exactly = 1) { dao.putVerified(any()) }
+    }
+
+    @Test
+    fun `network failure never replaces the saved plan`() = runTest {
+        val api = mockk<RefreshEntitlementApi>()
+        coEvery { api.refresh(any(), any()) } throws IllegalStateException("offline")
+        val dao = mockk<FeatureAccessCacheDao>()
+        assertEquals("REFRESH_UNAVAILABLE", repository(api, dao).refresh().code)
+        coVerify(exactly = 0) { dao.putVerified(any()) }
+    }
+
+    private fun repository(api: RefreshEntitlementApi, dao: FeatureAccessCacheDao, verifier: OfflineEntitlementGrantVerifier = mockk(relaxed = true), evaluator: EffectiveEntitlementEvaluator = mockk(relaxed = true), sessionProvider: AuthenticatedSessionProvider? = null): TestPlanRefreshRepository {
+        val sessions = sessionProvider ?: mockk<AuthenticatedSessionProvider>().also {
+            coEvery { it.currentSession() } returns session
+        }
         val coordinator = mockk<SessionCoordinator>()
         every { coordinator.currentOwner } returns LocalOwner(userId.toString(), false)
         val keys = object : InstallationSigningKeyProvider {
@@ -76,8 +139,8 @@ class TestPlanRefreshRepositoryTest {
             cache = dao,
             installationKeys = keys,
             clock = clock,
-            verifier = mockk(relaxed = true),
-            evaluator = mockk(relaxed = true),
+            verifier = verifier,
+            evaluator = evaluator,
         )
     }
 }

@@ -83,6 +83,19 @@ class OfflineEntitlementGrantVerifierTest {
         }
     }
 
+    @Test
+    fun acceptsDeveloperSignatureInEveryBuild() {
+        assertEquals("DEVELOPER", verifier.verify(signedGrant(source = "DEVELOPER"), owner)?.source)
+    }
+
+    @Test
+    fun rejectsChangingCommercialPayloadToDeveloperWithoutResigning() {
+        val grant = signedGrant()
+        val payload = String(Base64.getUrlDecoder().decode(grant.payload))
+            .replace("\"tier\":\"PREMIUM\"", "\"source\":\"DEVELOPER\",\"tier\":\"PREMIUM\"")
+        assertNull(verifier.verify(grant.copy(payload = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray())), owner))
+    }
+
     private fun signedGrant(source: String? = null): SignedOfflineEntitlementGrant {
         val sourceField = source?.let { ",\"source\":\"$it\"" }.orEmpty()
         val payload = """{"version":1,"keyId":"test-key-1","grantId":"d45373b2-9b32-4e19-a847-f585e59c50ba","userId":"$owner","installationKeyThumbprint":"$thumbprint","policyVersion":1,"tier":"PREMIUM","serverVerifiedAt":"2026-10-02T12:00:00.000Z","entitlementEndsAt":"2026-10-10T12:00:00.000Z","notAfter":"2026-10-05T12:00:00.000Z"$sourceField}"""

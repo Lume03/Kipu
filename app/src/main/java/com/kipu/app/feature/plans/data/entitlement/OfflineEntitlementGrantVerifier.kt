@@ -92,7 +92,7 @@ class OfflineEntitlementGrantVerifier @Inject constructor(
         )
         if (payload.keyId != grant.keyId || payload.userId != expectedUserId) return null
         if (payload.version != GRANT_VERSION || payload.policyVersion != POLICY_VERSION || payload.tier != PREMIUM_TIER) return null
-        if (payload.source != null && payload.source != TEST_OVERRIDE_SOURCE) return null
+        if (payload.source != null && payload.source != TEST_OVERRIDE_SOURCE && payload.source != "DEVELOPER") return null
         if (payload.source == TEST_OVERRIDE_SOURCE && !BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return null
         UUID.fromString(payload.userId)
         UUID.fromString(payload.grantId)
