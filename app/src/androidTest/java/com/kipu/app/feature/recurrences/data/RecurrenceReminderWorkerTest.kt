@@ -13,6 +13,8 @@ import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.debts.data.sync.DebtNotificationPermissionChecker
 import com.kipu.app.feature.notifications.data.local.LocalReminderEventDao
 import com.kipu.app.feature.notifications.data.local.ReminderScheduleDao
+import com.kipu.app.feature.capture.domain.ExpectedPayment
+import com.kipu.app.feature.capture.domain.ExpectedPaymentStatus
 import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
 import com.kipu.app.feature.recurrences.data.local.RecurrenceEntity
 import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderWorker
@@ -21,6 +23,8 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.flowOf
+import java.time.LocalDate
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,6 +36,9 @@ class RecurrenceReminderWorkerTest {
     private val sessionCoordinator = mockk<SessionCoordinator>()
     private val scheduleDao = mockk<ReminderScheduleDao>(relaxed = true)
     private val eventDao = mockk<LocalReminderEventDao>(relaxed = true)
+    private val expectedPayments = mockk<com.kipu.app.feature.capture.domain.ExpectedPaymentStore> {
+        every { observeByRecurrence(any(), any()) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+    }
 
     @Test
     fun deniedPostNotificationsPersistsLocalEventWithoutRemoteMutation() = runTest {
@@ -65,6 +72,20 @@ class RecurrenceReminderWorkerTest {
     }
 
     @Test
+    fun attendedExpectedPaymentSkipsReminder() = runTest {
+        every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER)
+        coEvery { recurrenceDao.get(OWNER, RECURRENCE) } returns recurrence()
+        every { expectedPayments.observeByRecurrence(OWNER, RECURRENCE) } returns flowOf(
+            listOf(ExpectedPayment("expected-1", OWNER, RECURRENCE, LocalDate.parse(DUE_DATE), 1200L, "PEN", ExpectedPaymentStatus.ATTENDED, "movement-1", "candidate-1", 1L, 1L)),
+        )
+
+        assertTrue(worker(PermissionChecker(true)).doWork() is ListenableWorker.Result.Success)
+
+        coVerify(exactly = 0) { eventDao.upsert(any()) }
+        coVerify(exactly = 0) { scheduleDao.upsert(any()) }
+    }
+
+    @Test
     fun ownerChangeDoesNotReadRecurrenceOrPersistEvent() = runTest {
         every { sessionCoordinator.currentOwner } returns LocalOwner(OTHER_OWNER)
 
@@ -84,7 +105,7 @@ class RecurrenceReminderWorkerTest {
             ))
             .setWorkerFactory(object : WorkerFactory() {
                 override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker =
-                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator())
+                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator(), expectedPayments)
             })
             .build()
 

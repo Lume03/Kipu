@@ -11,6 +11,7 @@ import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderRequest
 import com.kipu.app.feature.recurrences.data.sync.RecurrenceReminderScheduler
 import com.kipu.app.feature.recurrences.domain.RecurrenceCommandHasher
 import com.kipu.app.feature.recurrences.domain.RecurrenceCommandReceipt
+import com.kipu.app.feature.recurrences.domain.GenerateExpectedPayments
 import com.kipu.app.feature.recurrences.domain.RecurrenceDraft
 import com.kipu.app.feature.recurrences.domain.RecurrenceRepository
 import com.kipu.app.feature.recurrences.domain.RecurrenceUpdate
@@ -42,6 +43,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     private val reminderEventReconciler: ReminderEventReconciler,
     private val reminderCoordinator: ReminderReconciliationCoordinator,
     private val clock: Clock,
+    private val generateExpected: GenerateExpectedPayments? = null,
 ) : RecurrenceRepository {
     private val reconciliationMutex = Mutex()
     override fun observeAll(userId: String): Flow<List<RecurrenceRule>> = recurrenceDao.observeAll(userId).map { rows -> rows.map { it.toDomain() } }
@@ -65,6 +67,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         val command = outbox(userId, operationId, recurrenceId, "CREATE_RECURRENCE", null, envelope, now)
         transactionRunner { recurrenceDao.insert(entity); outboxDao.insert(command) }
         reconcileReminder(userId, recurrenceId)
+        generateExpected?.invoke(entity.toDomain())
         RecurrenceCommandResult.Pending(entity.toDomain(), operationId)
     } catch (exception: IllegalArgumentException) {
         RecurrenceCommandResult.Rejected("VALIDATION_FAILED", exception.message ?: "Invalid recurrence")
@@ -105,6 +108,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
         else {
             reconcileReminder(userId, recurrenceId)
+            generateExpected?.invoke(updated.toDomain())
             RecurrenceCommandResult.Pending(updated.toDomain(), operationId)
         }
     } catch (exception: IllegalArgumentException) {
@@ -152,6 +156,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
         else {
             reconcileReminder(userId, recurrenceId)
+            generateExpected?.invoke(current.toDomain().copy(status = RecurrenceStatus.valueOf(target), nextDueDate = nextDate))
             RecurrenceCommandResult.Pending(current.toDomain().copy(
                 status = RecurrenceStatus.valueOf(target), revision = nextRevision, syncState = RecurrenceSyncState.PENDING,
                 nextDueDate = nextDate, updatedAt = Instant.ofEpochMilli(now),

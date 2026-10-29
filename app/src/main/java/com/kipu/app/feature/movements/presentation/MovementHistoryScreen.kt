@@ -682,6 +682,7 @@ fun MovementHistoryRoute(
             Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                 RecurrenceLifecycleScreen(
                     recurrences = recurrenceState.recurrences,
+                    expectedPayments = recurrenceState.expectedPayments,
                     isLoading = recurrenceState.isLoading,
                     errorMessage = recurrenceState.errorMessage,
                     onPause = recurrenceVm::pause,

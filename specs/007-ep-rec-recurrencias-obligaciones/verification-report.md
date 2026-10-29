@@ -51,3 +51,20 @@ Durante las pruebas instrumentadas completas del dispositivo Samsung Galaxy A16 
 | **Git Diff** | `git diff --check` | 0 advertencias | ✅ Aprobado |
 
 **Conclusión:** Veredicto unificado **APPROVED**. Rama autorizada para Release y Merge a `main`.
+
+---
+
+## Incremento Sprint 8 — HU-34: pagos esperados
+
+**Fecha de verificación:** 2026-10-29
+
+**Rama:** `007-ep-rec-recurrencias-obligaciones`
+
+**HEAD de código verificado:** `38a2c9ba1e67b0e25789883e22f0bc776a7a496c`
+
+Este incremento proyecta el estado del pago esperado en el ciclo de recurrencia y evita emitir un recordatorio cuando el pago de esa fecha ya figura como atendido. El almacenamiento Room y su migración pertenecen a EP-AUT y ya están integrados mediante PR #90.
+
+- `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.recurrences.data.RecurrenceReminderWorkerTest` — **4 pruebas aprobadas** en Galaxy A16 (`SM-A165M`, Android 16), incluida la supresión del recordatorio para un pago atendido.
+- `git diff --check origin/main...HEAD` — **PASS**.
+
+Este incremento no agrega SQL ni migraciones remotas. Los resultados de HU-33/HU-35 arriba corresponden a la verificación histórica del 2026-10-19; no se repitieron en esta entrega.
