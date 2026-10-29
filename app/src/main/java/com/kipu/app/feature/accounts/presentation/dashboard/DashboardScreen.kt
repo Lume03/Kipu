@@ -163,7 +163,7 @@ fun DashboardScreen(
                         DashboardLoadingSkeleton()
                     }
                     // H8: nothing is shown as zero when the source failed; retry re-reads it.
-                    state.errorMessage != null -> Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                    state.errorMessage != null && state.dashboardData == null -> Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                         KipuErrorState(
                             title = "No pudimos cargar tu dinero",
                             message = "Tus datos están a salvo en tu cuenta. Revisa tu conexión e inténtalo de nuevo. " +
@@ -176,6 +176,12 @@ fun DashboardScreen(
                         )
                     }
                     else -> Column {
+                        state.errorMessage?.let { message ->
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = viewModel::retryDashboard) { Text("Reintentar") }
+                            }
+                        }
                         creditNotificationsError?.let { message ->
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)

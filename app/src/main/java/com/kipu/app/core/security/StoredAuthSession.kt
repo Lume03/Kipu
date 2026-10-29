@@ -15,6 +15,7 @@ data class StoredAuthSession(
     @SerialName("token_type") val tokenType: String,
     @SerialName("user_id") val userId: String,
     @SerialName("expires_at") val expiresAtEpochSeconds: Long? = null,
+    @SerialName("verified_user") val verifiedUser: io.github.jan.supabase.auth.user.UserInfo? = null,
 ) {
     fun hasValidAccessToken(now: Instant): Boolean =
         expiresAtEpochSeconds?.let { now.epochSecond < it - 30L } == true
@@ -24,7 +25,7 @@ data class StoredAuthSession(
         refreshToken = refreshToken,
         expiresIn = expiresIn,
         tokenType = tokenType,
-        user = null,
+        user = verifiedUser,
         expiresAt = kotlin.time.Instant.fromEpochSeconds(requireNotNull(expiresAtEpochSeconds)),
     )
 
@@ -48,6 +49,7 @@ data class StoredAuthSession(
                 tokenType = session.tokenType,
                 userId = userId,
                 expiresAtEpochSeconds = now.plusSeconds(session.expiresIn).epochSecond,
+                verifiedUser = session.user,
             )
     }
 }

@@ -2,6 +2,7 @@ package com.kipu.app.feature.accounts.data.sync
 
 import android.content.Context
 import androidx.room.withTransaction
+import com.kipu.app.feature.movements.data.sync.requireSyncOwner
 import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -105,7 +106,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             return Result.retry()
         }
 
-        if (currentVerifiedOwner != null && targetUserId != currentVerifiedOwner) {
+        if (targetUserId != currentVerifiedOwner) {
             SecureLog.w("SyncInstrumentWorker", "Target owner differs from verified active owner")
             return Result.retry()
         }
@@ -113,7 +114,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         val recovery = applicationContext.getSharedPreferences("instrument_contract_recovery", android.content.Context.MODE_PRIVATE)
         val recoveryKey = "affiliation-20261021-v4:$targetUserId"
         if (!recovery.getBoolean(recoveryKey, false)) {
-            syncDao.recoverLegacyAffiliationCommands(targetUserId, System.currentTimeMillis() * 1_000L)
+            ownerTransaction(targetUserId) { syncDao.recoverLegacyAffiliationCommands(targetUserId, System.currentTimeMillis() * 1_000L) }
             recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
@@ -135,9 +136,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         json.encodeToString(old.copy(card = old.card.copy(expectedRevision = 1)))
                     }
                 }
-                syncDao.update(edit.copy(payloadJson = payload, expectedRevision = 1,
+                ownerTransaction(targetUserId) { syncDao.update(edit.copy(payloadJson = payload, expectedRevision = 1,
                     payloadHash = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) },
-                    state = "PENDING", errorCode = null, nextAttemptAt = null, leaseExpiresAt = null))
+                    state = "PENDING", errorCode = null, nextAttemptAt = null, leaseExpiresAt = null)) }
             }
             val nowMicros = System.currentTimeMillis() * 1_000L
             val pendingCommands = syncDao.getPendingCommands(targetUserId, nowMicros)
@@ -146,12 +147,12 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             var claimedAny = false
             for (cmd in pendingCommands) {
                 val claimTime = System.currentTimeMillis() * 1_000L
-                val claimed = syncDao.claimCommand(
+                val claimed = ownerTransaction(targetUserId) { syncDao.claimCommand(
                     userId = targetUserId,
                     operationId = cmd.operationId,
                     nowMicros = claimTime,
                     leaseExpiresAt = claimTime + COMMAND_LEASE_MICROS,
-                )
+                ) }
                 if (claimed == 0) continue
                 claimedAny = true
                 if (!processCommand(cmd, claimTime)) return Result.retry()
@@ -162,7 +163,14 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         return Result.retry()
     }
 
+    private suspend fun <T> ownerTransaction(owner: String, block: suspend () -> T): T =
+        database.withTransaction {
+            requireSyncOwner(sessionCoordinator, owner)
+            block().also { requireSyncOwner(sessionCoordinator, owner) }
+        }
+
     private suspend fun processCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean {
+        requireSyncOwner(sessionCoordinator, cmd.userId)
         if (cmd.commandType in setOf("CONFIRM_CREDIT_PURCHASE", "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
             return processCanonicalCreditCommand(cmd, nowMicros)
         }
@@ -177,7 +185,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             when (cmd.commandType) {
                 "CREATE_ACCOUNT" -> {
                     val dto = json.decodeFromString<CreateAccountRequestDto>(cmd.payloadJson)
-                    api.createAccount(dto)
+                    api.createAccount(dto, expectedOwner = cmd.userId)
                 }
                 "REGISTER_CARD" -> {
                     val dto = json.decodeFromString<RegisterCardRequestDto>(cmd.payloadJson)
@@ -185,92 +193,95 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     if (dto.type == "CREDIT" && accountId == null) {
                         FinancialApiResponse.Error(400, "Credit card liability account is missing")
                     } else {
-                        api.registerCard(dto.copy(accountId = accountId ?: dto.accountId))
+                        api.registerCard(dto.copy(accountId = accountId ?: dto.accountId), expectedOwner = cmd.userId)
                     }
                 }
                 "UPDATE_APPEARANCE" -> {
                     val dto = json.decodeFromString<UpdateAppearanceRequestDto>(cmd.payloadJson)
-                    api.updateAppearance(dto)
+                    api.updateAppearance(dto, expectedOwner = cmd.userId)
                 }
                 "SET_ARCHIVED" -> {
                     val dto = json.decodeFromString<SetArchivedRequestDto>(cmd.payloadJson)
-                    api.setArchived(dto)
+                    api.setArchived(dto, expectedOwner = cmd.userId)
                 }
                 "DELETE_UNUSED_CARD" -> {
                     val dto = json.decodeFromString<DeleteUnusedCardRequestDto>(cmd.payloadJson)
-                    api.deleteUnusedCard(dto)
+                    api.deleteUnusedCard(dto, expectedOwner = cmd.userId)
                 }
                 "RECORD_OPENING_ADJUSTMENT" -> {
                     val dto = json.decodeFromString<RecordOpeningAdjustmentRequestDto>(cmd.payloadJson)
-                    api.recordOpeningAdjustment(dto)
+                    api.recordOpeningAdjustment(dto, expectedOwner = cmd.userId)
                 }
                 else -> {
                     SecureLog.w("SyncInstrumentWorker", "Unknown command type: ${cmd.commandType}")
                     FinancialApiResponse.Error(400, "Unknown command type")
                 }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             FinancialApiResponse.NetworkFailure(e)
         }
 
+        requireSyncOwner(sessionCoordinator, cmd.userId)
         return when (result) {
             is FinancialApiResponse.Success -> {
                 val response = result.data as? CommandResponseDto
                 if (response == null || !response.status.equals("APPLIED", true) && !response.status.equals("DUPLICATE", true)) {
-                    syncDao.updateState(cmd.userId, cmd.operationId, "ERROR", System.currentTimeMillis() * 1_000L + 10_000_000L, "INVALID_RESPONSE", System.currentTimeMillis() * 1_000L)
+                    ownerTransaction(cmd.userId) { syncDao.updateState(cmd.userId, cmd.operationId, "ERROR", System.currentTimeMillis() * 1_000L + 10_000_000L, "INVALID_RESPONSE", System.currentTimeMillis() * 1_000L) }
                     return false
                 }
-                database.withTransaction {
+                ownerTransaction(cmd.userId) {
                     when (cmd.aggregateType) {
                         "CARD" -> response.revision?.let {
-                            cardDao.updateRemoteRevision(cmd.userId, response.cardId ?: cmd.aggregateId, it, System.currentTimeMillis() * 1_000L)
+                            ownerTransaction(cmd.userId) { cardDao.updateRemoteRevision(cmd.userId, response.cardId ?: cmd.aggregateId, it, System.currentTimeMillis() * 1_000L) }
                         }
                         "ACCOUNT" -> response.revision?.let {
-                            accountDao.updateRemoteRevision(cmd.userId, response.accountId ?: cmd.aggregateId, it, System.currentTimeMillis() * 1_000L)
+                            ownerTransaction(cmd.userId) { accountDao.updateRemoteRevision(cmd.userId, response.accountId ?: cmd.aggregateId, it, System.currentTimeMillis() * 1_000L) }
                         }
                     }
-                    syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L)
+                    ownerTransaction(cmd.userId) { syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L) }
                 }
                 true
             }
             is FinancialApiResponse.Error -> {
                 if (result.statusCode in 400..499 && result.statusCode != 401 && result.statusCode != 408 && result.statusCode != 429) {
                     val errorState = if (result.statusCode == 409) "CONFLICT" else "FAILED_PERMANENT"
-                    syncDao.updateState(
+                    ownerTransaction(cmd.userId) { syncDao.updateState(
                         userId = cmd.userId,
                         operationId = cmd.operationId,
                         newState = errorState,
                         nextAttemptAt = null,
                         errorCode = result.message,
                         nowMicros = System.currentTimeMillis() * 1000L,
-                    )
+                    ) }
                     true
                 } else {
                     // Retryable error
                     val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
                     val nextAttempt = (System.currentTimeMillis() + backoffSeconds * 1000L) * 1000L
-                    syncDao.updateState(
+                    ownerTransaction(cmd.userId) { syncDao.updateState(
                         userId = cmd.userId,
                         operationId = cmd.operationId,
                         newState = "ERROR",
                         nextAttemptAt = nextAttempt,
                         errorCode = result.message,
                         nowMicros = System.currentTimeMillis() * 1000L,
-                    )
+                    ) }
                     false
                 }
             }
             is FinancialApiResponse.NetworkFailure -> {
                 val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
                 val nextAttempt = (System.currentTimeMillis() + backoffSeconds * 1000L) * 1000L
-                syncDao.updateState(
+                ownerTransaction(cmd.userId) { syncDao.updateState(
                     userId = cmd.userId,
                     operationId = cmd.operationId,
                     newState = "PENDING",
                     nextAttemptAt = nextAttempt,
                     errorCode = result.exception.message,
                     nowMicros = System.currentTimeMillis() * 1000L,
-                )
+                ) }
                 false
             }
         }
@@ -282,6 +293,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     ): Boolean {
         val request = try {
             json.decodeFromString<CreditCommandRequestDto>(cmd.payloadJson)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             SecureLog.e("SyncInstrumentWorker", "Error preparing credit command: " + e.javaClass.simpleName)
             updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
@@ -290,16 +303,19 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         val transactionId = request.transaction.id
         val response = try {
             when (cmd.commandType) {
-                "CONFIRM_CREDIT_PURCHASE" -> api.registerCreditPurchase(request)
-                "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT" -> api.allocateCreditPayment(request)
+                "CONFIRM_CREDIT_PURCHASE" -> api.registerCreditPurchase(request, expectedOwner = cmd.userId)
+                "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT" -> api.allocateCreditPayment(request, expectedOwner = cmd.userId)
                 else -> error("Unsupported canonical credit command")
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             SecureLog.e("SyncInstrumentWorker", "Error sending credit command: " + e.javaClass.simpleName)
             updateCreditCommandState(cmd, "ERROR", nowMicros + 10_000_000L, "NETWORK_ERROR")
             return false
         }
 
+        requireSyncOwner(sessionCoordinator, cmd.userId)
         return when (response) {
             is FinancialApiResponse.Success -> when (response.data.status) {
                 "APPLIED", "DUPLICATE" -> {
@@ -313,14 +329,14 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         updateCreditCommandState(cmd, "ERROR", nowMicros + 10_000_000L, "INSTALLMENT_RECONCILIATION_FAILED")
                         return false
                     }
-                    database.withTransaction {
-                        syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L)
-                        movementDao.updateTransactionSyncStatus(
+                    ownerTransaction(cmd.userId) {
+                        ownerTransaction(cmd.userId) { syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L) }
+                        ownerTransaction(cmd.userId) { movementDao.updateTransactionSyncStatus(
                             userId = cmd.userId,
                             transactionId = transactionId,
                             syncStatus = MovementSyncStatus.SYNCED.name,
                             updatedAt = System.currentTimeMillis(),
-                        )
+                        ) }
                     }
                     if (cmd.commandType == "CONFIRM_CREDIT_PURCHASE") {
                         // The server may have emitted a card utilization alert for this purchase.
@@ -331,9 +347,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 }
                 "CONFLICT" -> {
                     updateCreditCommandState(cmd, "CONFLICT", null, response.data.error?.code ?: "CONFLICT")
-                    movementDao.updateTransactionSyncStatus(
+                    ownerTransaction(cmd.userId) { movementDao.updateTransactionSyncStatus(
                         cmd.userId, transactionId, MovementSyncStatus.CONFLICT.name, System.currentTimeMillis(),
-                    )
+                    ) }
                     true
                 }
                 "REJECTED" -> {
@@ -349,7 +365,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 if (response.statusCode in 400..499 && response.statusCode != 401 && response.statusCode != 408 && response.statusCode != 429) {
                     if (response.statusCode == 409) {
                         updateCreditCommandState(cmd, "CONFLICT", null, "HTTP_409")
-                        movementDao.updateTransactionSyncStatus(cmd.userId, transactionId, MovementSyncStatus.CONFLICT.name, System.currentTimeMillis())
+                        ownerTransaction(cmd.userId) { movementDao.updateTransactionSyncStatus(cmd.userId, transactionId, MovementSyncStatus.CONFLICT.name, System.currentTimeMillis()) }
                     } else {
                         rejectCreditCommand(cmd, transactionId, "HTTP_${response.statusCode}")
                     }
@@ -379,19 +395,22 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     ): Boolean {
         val request = try {
             json.decodeFromString<UpdatePersonalTeaRequestDto>(cmd.payloadJson)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
             return true
         }
-        val response = api.updatePersonalTea(request)
+        val response = api.updatePersonalTea(request, expectedOwner = cmd.userId)
+        requireSyncOwner(sessionCoordinator, cmd.userId)
         return when (response) {
             is FinancialApiResponse.Success -> when (response.data.status) {
                 "APPLIED", "DUPLICATE" -> {
                     response.data.revision?.let {
                         // Local card metadata remains owner-scoped; update revision after server acceptance.
-                        cardDao.updateRemoteRevision(cmd.userId, cmd.aggregateId, it, System.currentTimeMillis() * 1_000L)
+                        ownerTransaction(cmd.userId) { cardDao.updateRemoteRevision(cmd.userId, cmd.aggregateId, it, System.currentTimeMillis() * 1_000L) }
                     }
-                    syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L)
+                    ownerTransaction(cmd.userId) { syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L) }
                     true
                 }
                 "CONFLICT", "REJECTED" -> {
@@ -427,14 +446,15 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
             return true
         }
-        val response = api.updateCreditCardTerms(request)
+        val response = api.updateCreditCardTerms(request, expectedOwner = cmd.userId)
+        requireSyncOwner(sessionCoordinator, cmd.userId)
         return when (response) {
             is FinancialApiResponse.Success -> when (response.data.status) {
                 "APPLIED", "DUPLICATE" -> {
                     response.data.revision?.let {
-                        cardDao.updateRemoteRevision(cmd.userId, cmd.aggregateId, it, System.currentTimeMillis() * 1_000L)
+                        ownerTransaction(cmd.userId) { cardDao.updateRemoteRevision(cmd.userId, cmd.aggregateId, it, System.currentTimeMillis() * 1_000L) }
                     }
-                    syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L)
+                    ownerTransaction(cmd.userId) { syncDao.markSynced(cmd.userId, cmd.operationId, System.currentTimeMillis() * 1_000L) }
                     true
                 }
                 "CONFLICT", "REJECTED" -> {
@@ -464,18 +484,18 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         userId: String,
         request: CreditCommandRequestDto,
         remoteInstallments: List<com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto>,
-    ): Boolean = database.withTransaction {
-        val count = request.transaction.installmentCount ?: return@withTransaction false
-        if (count !in 1..36 || remoteInstallments.size != count) return@withTransaction false
-        if (remoteInstallments.map { it.installmentNumber }.toSet().size != count) return@withTransaction false
-        if (remoteInstallments.sumOf { it.principalMinor } != request.transaction.amountMinor) return@withTransaction false
+    ): Boolean = ownerTransaction(userId) {
+        val count = request.transaction.installmentCount ?: return@ownerTransaction false
+        if (count !in 1..36 || remoteInstallments.size != count) return@ownerTransaction false
+        if (remoteInstallments.map { it.installmentNumber }.toSet().size != count) return@ownerTransaction false
+        if (remoteInstallments.sumOf { it.principalMinor } != request.transaction.amountMinor) return@ownerTransaction false
         val localInstallments = database.creditDao().getInstallmentsForTransaction(userId, request.transaction.id)
-        if (localInstallments.size != count) return@withTransaction false
+        if (localInstallments.size != count) return@ownerTransaction false
         val localByNumber = localInstallments.associateBy { it.installmentNumber }
         val now = System.currentTimeMillis() * 1_000L
         for (remote in remoteInstallments) {
-            if (remote.id.isBlank() || remote.principalMinor < 0L || remote.interestMinor < 0L) return@withTransaction false
-            if (localByNumber[remote.installmentNumber] == null) return@withTransaction false
+            if (remote.id.isBlank() || remote.principalMinor < 0L || remote.interestMinor < 0L) return@ownerTransaction false
+            if (localByNumber[remote.installmentNumber] == null) return@ownerTransaction false
             val updated = database.creditDao().adoptRemoteInstallmentId(
                 userId = userId,
                 transactionId = request.transaction.id,
@@ -488,7 +508,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 revision = 1L,
                 updatedAt = now,
             )
-            if (updated != 1) return@withTransaction false
+            if (updated != 1) return@ownerTransaction false
         }
         true
     }
@@ -499,14 +519,14 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         nextAttemptAt: Long?,
         errorCode: String?,
     ) {
-        syncDao.updateState(
+        ownerTransaction(cmd.userId) { syncDao.updateState(
             userId = cmd.userId,
             operationId = cmd.operationId,
             newState = state,
             nextAttemptAt = nextAttemptAt,
             errorCode = errorCode,
             nowMicros = System.currentTimeMillis() * 1_000L,
-        )
+        ) }
     }
 
     private suspend fun rejectCreditCommand(
@@ -515,7 +535,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         errorCode: String,
     ) {
         val nowMillis = System.currentTimeMillis()
-        database.withTransaction {
+        ownerTransaction(cmd.userId) {
             val transaction = movementDao.getTransactionById(cmd.userId, transactionId)
             val creditDao = database.creditDao()
             val paymentAllocations = if (cmd.commandType in setOf("PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
@@ -708,14 +728,14 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     ),
                 )
             }
-            syncDao.updateState(
+            ownerTransaction(cmd.userId) { syncDao.updateState(
                 userId = cmd.userId,
                 operationId = cmd.operationId,
                 newState = "FAILED_PERMANENT",
                 nextAttemptAt = null,
                 errorCode = errorCode,
                 nowMicros = nowMillis * 1_000L,
-            )
+            ) }
         }
     }
 }

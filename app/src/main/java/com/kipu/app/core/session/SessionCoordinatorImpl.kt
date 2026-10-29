@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 @Singleton
 class SessionCoordinatorImpl @Inject constructor(
     private val movementSyncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler?,
+    private val instrumentSyncScheduler: com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler? = null,
 ) : SessionCoordinator {
     constructor() : this(null)
 
@@ -27,7 +28,7 @@ class SessionCoordinatorImpl @Inject constructor(
     override suspend fun setActiveOwner(userId: String) {
         val previous = _currentOwner?.verifiedUserId
         _currentOwner = LocalOwner(userId, explicitlySignedOut = false)
-        if (previous != null && previous != userId) movementSyncScheduler?.cancelSync(previous)
+        if (previous != null && previous != userId) cancelOwnerSync(previous)
         if (isLocked) {
             _localAccess.value = LocalAccess.Protected(userId, "APP_LOCKED")
         } else {
@@ -40,9 +41,14 @@ class SessionCoordinatorImpl @Inject constructor(
         val previous = _currentOwner?.verifiedUserId
         // Revoke visibility before cancellation: a late response must fail its owner guard.
         _currentOwner = null
-        if (previous != null) movementSyncScheduler?.cancelSync(previous)
+        if (previous != null) cancelOwnerSync(previous)
         _localAccess.value = LocalAccess.NoOwner
         SecureLog.i("SessionCoordinator", "Active owner cleared (explicit=$explicit)")
+    }
+
+    private fun cancelOwnerSync(owner: String) {
+        movementSyncScheduler?.cancelSync(owner)
+        instrumentSyncScheduler?.cancelSync(owner)
     }
 
     override suspend fun updateRemoteSession(session: RemoteSession) {

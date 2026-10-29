@@ -38,7 +38,11 @@ class SupabaseAuthRepository @Inject constructor(
     private val supabaseClient: SupabaseClient,
     private val pendingChangesRepository: PendingChangesRepository,
     private val sessionGate: AuthSessionGate,
+    private val verifier: AuthSessionVerifier,
+    private val planOnboarding: PlanOnboardingStore,
 ) : AuthRepository {
+
+    private var revalidationJob: kotlinx.coroutines.Job? = null
 
     private val _cooldownState = MutableStateFlow(CooldownState())
     override val cooldownState: StateFlow<CooldownState> = _cooldownState.asStateFlow()
@@ -64,6 +68,7 @@ class SupabaseAuthRepository @Inject constructor(
 
         return when (response) {
             is ApiResponse.Success -> {
+                planOnboarding.registered(normalizedEmail)
                 Result.success(AuthResult.ConfirmationRequired(normalizedEmail))
             }
             is ApiResponse.Error -> {
@@ -83,7 +88,10 @@ class SupabaseAuthRepository @Inject constructor(
         }
     }
 
-    override suspend fun signIn(credentials: AuthCredentials): Result<AuthResult> {
+    override suspend fun signIn(credentials: AuthCredentials): Result<AuthResult> =
+        sessionGate.exclusive { signInExclusive(credentials) }
+
+    private suspend fun signInExclusive(credentials: AuthCredentials): Result<AuthResult> {
         if (_cooldownState.value.isBlocked) {
             return Result.failure(Exception("Espera antes de intentar nuevamente."))
         }
@@ -111,6 +119,8 @@ class SupabaseAuthRepository @Inject constructor(
                 val envelope = response.data
                 try {
                     check(accessTokenSubject(envelope.accessToken) == envelope.userId) { "Auth subject mismatch" }
+                    val verifiedUser = verifier.retrieveUser(envelope.accessToken)
+                    check(verifiedUser.id == envelope.userId) { "Auth user mismatch" }
                     val now = Instant.now()
                     val stored = StoredAuthSession(
                         accessToken = envelope.accessToken,
@@ -119,12 +129,12 @@ class SupabaseAuthRepository @Inject constructor(
                         tokenType = envelope.tokenType,
                         userId = envelope.userId,
                         expiresAtEpochSeconds = now.plusSeconds(envelope.expiresIn).epochSecond,
+                        verifiedUser = verifiedUser,
                     )
-                    // Bind the independently decoded token subject before exposing the SDK fast path.
-                    supabaseClient.auth.importSession(stored.toUserSession().copy(
-                        user = UserInfo(aud = "authenticated", id = stored.userId),
-                    ), autoRefresh = false)
+                    // Runs while the entry curtain animates, before any owner is exposed.
+                    supabaseClient.auth.importSession(stored.toUserSession(), autoRefresh = false)
                     sessionStorage.save(StoredAuthSession.encode(stored))
+                    planOnboarding.bindRegisteredOwner(normalizedEmail, envelope.userId)
                     sessionCoordinator.setActiveOwner(envelope.userId)
                     sessionCoordinator.updateRemoteSession(
                         RemoteSession.Valid(envelope.userId, now.plusSeconds(envelope.expiresIn))
@@ -160,13 +170,20 @@ class SupabaseAuthRepository @Inject constructor(
     }
 
     private suspend fun clearFailedSession() {
+        revalidationJob?.cancel()
+        revalidationJob = null
         runCatching { supabaseClient.auth.clearSession() }
         sessionStorage.delete()
         sessionCoordinator.clearActiveOwner(explicit = false)
         sessionCoordinator.updateRemoteSession(RemoteSession.Absent)
     }
 
-    override suspend fun signOut(explicit: Boolean): Result<Unit> {
+    override suspend fun signOut(explicit: Boolean): Result<Unit> =
+        sessionGate.exclusive { signOutExclusive(explicit) }
+
+    private suspend fun signOutExclusive(explicit: Boolean): Result<Unit> {
+        revalidationJob?.cancel()
+        revalidationJob = null
         return try {
             val ownerId = sessionCoordinator.currentOwner?.verifiedUserId
             if (ownerId != null) {
@@ -185,6 +202,58 @@ class SupabaseAuthRepository @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private suspend fun verifyStoredSession(stored: StoredAuthSession): StoredAuthSession {
+        val user = verifier.retrieveUser(stored.accessToken)
+        check(user.id == stored.userId && accessTokenSubject(stored.accessToken) == user.id) { "Auth user mismatch" }
+        return stored.copy(verifiedUser = user)
+    }
+
+    private fun isTransportFailure(error: Throwable): Boolean =
+        error is java.io.IOException || error is java.nio.channels.UnresolvedAddressException ||
+            error is io.ktor.client.plugins.HttpRequestTimeoutException ||
+            error.cause?.let(::isTransportFailure) == true
+
+    private fun scheduleRevalidation(stored: StoredAuthSession) {
+        revalidationJob?.cancel()
+        revalidationJob = verifier.whenOnline {
+            // Network callbacks run in an application scope and never hold startup open.
+            while (sessionCoordinator.currentOwner?.verifiedUserId == stored.userId) {
+                val done = sessionGate.exclusive {
+                    if (sessionCoordinator.currentOwner?.verifiedUserId != stored.userId) return@exclusive true
+                    try {
+                        val current = sessionStorage.load()?.let(StoredAuthSession::parse) ?: return@exclusive true
+                        if (current.userId != stored.userId) return@exclusive true
+                        val candidate = if (current.hasValidAccessToken(Instant.now())) current else {
+                            val refreshed = supabaseClient.auth.refreshSession(current.refreshToken)
+                            check(refreshed.user?.id == current.userId) { "Auth user mismatch" }
+                            StoredAuthSession.fromUserSession(refreshed, current.userId, Instant.now())
+                        }
+                        val verified = verifyStoredSession(candidate)
+                        // Owner might have changed while Auth was in flight.
+                        if (sessionCoordinator.currentOwner?.verifiedUserId != stored.userId) return@exclusive true
+                        sessionStorage.save(StoredAuthSession.encode(verified))
+                        supabaseClient.auth.importSession(verified.toUserSession(), autoRefresh = false)
+                        sessionCoordinator.updateRemoteSession(RemoteSession.Valid(verified.userId,
+                            Instant.ofEpochSecond(requireNotNull(verified.expiresAtEpochSeconds))))
+                        true
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        if (sessionCoordinator.currentOwner?.verifiedUserId != stored.userId) return@exclusive true
+                        if (isTransportFailure(error)) false else {
+                            // Do not cancel the currently executing revalidation while cleaning up.
+                            revalidationJob = null
+                            clearFailedSession()
+                            true
+                        }
+                    }
+                }
+                if (done) break
+                kotlinx.coroutines.delay(30_000L)
+            }
         }
     }
 
@@ -207,19 +276,45 @@ class SupabaseAuthRepository @Inject constructor(
                 clearFailedSession()
                 return Result.failure(IllegalStateException("Auth subject mismatch"))
             }
-            sessionCoordinator.setActiveOwner(userId)
             if (stored.hasValidAccessToken(Instant.now())) {
-                val imported = runCatching {
-                    supabaseClient.auth.importSession(stored.toUserSession().copy(
-                        user = UserInfo(aud = "authenticated", id = stored.userId),
-                    ), autoRefresh = false)
-                }.isSuccess
-                if (imported) {
-                    sessionCoordinator.updateRemoteSession(
-                        RemoteSession.Valid(userId, Instant.ofEpochSecond(requireNotNull(stored.expiresAtEpochSeconds)))
-                    )
-                    return Result.success(AuthResult.Success(userId))
+                val verified = if (verifier.isOnline()) {
+                    try {
+                        verifyStoredSession(stored)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        // Only a transport outage permits use of an already verified encrypted session.
+                        if (stored.verifiedUser?.id != userId || !isTransportFailure(error)) {
+                            clearFailedSession()
+                            return Result.failure(error)
+                        }
+                        stored
+                    }
+                } else {
+                    if (stored.verifiedUser?.id != userId) {
+                        clearFailedSession()
+                        return Result.failure(IllegalStateException("Session requires online verification"))
+                    }
+                    stored
                 }
+                supabaseClient.auth.importSession(verified.toUserSession(), autoRefresh = false)
+                sessionStorage.save(StoredAuthSession.encode(verified))
+                sessionCoordinator.setActiveOwner(userId)
+                if (!verifier.isOnline() || verified === stored) scheduleRevalidation(stored)
+                sessionCoordinator.updateRemoteSession(
+                    RemoteSession.Valid(userId, Instant.ofEpochSecond(requireNotNull(stored.expiresAtEpochSeconds)))
+                )
+                return Result.success(AuthResult.Success(userId))
+            }
+            if (!verifier.isOnline()) {
+                if (stored.verifiedUser?.id != userId) {
+                    clearFailedSession()
+                    return Result.failure(IllegalStateException("Session requires online verification"))
+                }
+                sessionCoordinator.setActiveOwner(userId)
+                sessionCoordinator.updateRemoteSession(RemoteSession.RefreshRequired(userId))
+                scheduleRevalidation(stored)
+                return Result.success(AuthResult.Success(userId))
             }
 
             var refreshError: Exception? = null
@@ -238,23 +333,33 @@ class SupabaseAuthRepository @Inject constructor(
             }
             if (refreshed != null && refreshed.user?.id == userId) {
                 val now = Instant.now()
-                val updated = StoredAuthSession.fromUserSession(refreshed, userId, now)
+                val updated = verifyStoredSession(StoredAuthSession.fromUserSession(refreshed, userId, now))
                 try {
                     sessionStorage.save(StoredAuthSession.encode(updated))
-                    supabaseClient.auth.importSession(updated.toUserSession().copy(user = refreshed.user), autoRefresh = false)
+                    supabaseClient.auth.importSession(updated.toUserSession(), autoRefresh = false)
                 } catch (error: Exception) {
                     clearFailedSession()
                     throw error
                 }
+                sessionCoordinator.setActiveOwner(userId)
                 sessionCoordinator.updateRemoteSession(RemoteSession.Valid(userId, now.plusSeconds(updated.expiresIn)))
             } else {
+                if (stored.verifiedUser?.id != userId || refreshError?.let(::isTransportFailure) != true) {
+                    clearFailedSession()
+                    return Result.failure(refreshError ?: IllegalStateException("Session verification failed"))
+                }
+                sessionCoordinator.setActiveOwner(userId)
+                scheduleRevalidation(stored)
                 sessionCoordinator.updateRemoteSession(
                     if (refreshError?.let(::requiresReauthentication) == true) RemoteSession.ReauthenticationRequired(userId)
                     else RemoteSession.RefreshRequired(userId)
                 )
             }
             Result.success(AuthResult.Success(userId))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            clearFailedSession()
             Result.failure(e)
         }
     }

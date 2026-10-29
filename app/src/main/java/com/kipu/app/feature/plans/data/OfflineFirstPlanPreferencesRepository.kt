@@ -11,7 +11,7 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.*
 
-class OfflineFirstPlanPreferencesRepository @Inject constructor(private val dao: PlanPreferencesDao, private val sessions: AuthenticatedSessionProvider, private val api: PlanSelectionApi, private val scheduler: PlanSyncScheduler, private val clock: Clock) : PlanPreferencesRepository {
+class OfflineFirstPlanPreferencesRepository @Inject constructor(private val dao: PlanPreferencesDao, private val sessions: AuthenticatedSessionProvider, private val api: PlanSelectionApi, private val scheduler: PlanSyncScheduler, private val clock: Clock, private val planOnboarding: com.kipu.app.feature.auth.data.PlanOnboardingStore) : PlanPreferencesRepository {
     private val eligibilityState = MutableStateFlow(TrialEligibilitySnapshot.UNKNOWN)
     override val eligibility: StateFlow<TrialEligibilitySnapshot> = eligibilityState
     override val currentPreference: Flow<PlanSelection?> = flow { val s = sessions.currentSession(); if (s == null) emit(null) else emitAll(dao.observePreference(s.userId).map { it?.selection }) }
@@ -23,6 +23,7 @@ class OfflineFirstPlanPreferencesRepository @Inject constructor(private val dao:
     override suspend fun confirmSelection(selection: PlanSelection, operationId: UUID) {
         val session = requireNotNull(sessions.currentSession())
         dao.confirmSelection(session.userId, selection, clock.instant(), operationId)
+        planOnboarding.completed(session.userId.toString())
         scheduler.enqueue(session.userId)
     }
 }

@@ -7,6 +7,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.kipu.app.feature.accounts.presentation.hasLocalData
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
@@ -243,7 +244,8 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
         val dashboardState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
         val instrumentsState by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
         val notificationsReady by viewModel.creditNotificationsSettled.collectAsStateWithLifecycle()
-        val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading && notificationsReady
+        val hasLocalDashboard = dashboardState.dashboardData?.hasLocalData() == true
+        val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading && (hasLocalDashboard || notificationsReady)
         LaunchedEffect(dashboardLoaded) {
             if (dashboardLoaded) {
                 // Let Compose lay out the resolved data/error state before the iris can expose it.

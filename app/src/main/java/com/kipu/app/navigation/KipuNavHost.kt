@@ -27,7 +27,7 @@ fun NavGraphBuilder.planSelectionDestination(navController: NavController, onCon
  */
 fun NavGraphBuilder.appDestinations(
     navController: NavController,
-    onAuthenticated: (userId: String) -> Unit,
+    onAuthenticated: (com.kipu.app.feature.auth.presentation.AuthNavigationEvent.NavigateToHome) -> Unit,
     onSignOut: () -> Unit,
 ) {
     authDestinations(navController = navController, onAuthenticated = onAuthenticated)

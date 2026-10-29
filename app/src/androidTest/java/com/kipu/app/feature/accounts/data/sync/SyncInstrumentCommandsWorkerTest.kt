@@ -57,7 +57,7 @@ class SyncInstrumentCommandsWorkerTest {
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java).build()
         accountDao = database.accountDao()
-        every { sessionCoordinator.currentOwner } returns null
+        every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(userId)
         every { workerParams.inputData } returns workDataOf(
             SyncInstrumentCommandsWorker.KEY_USER_ID to userId,
         )
@@ -125,7 +125,7 @@ class SyncInstrumentCommandsWorkerTest {
         database.creditDao().insertInstallments(installments)
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(command), emptyList())
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
-        coEvery { api.registerCreditPurchase(any()) } returns FinancialApiResponse.Success(
+        coEvery { api.registerCreditPurchase(any(), userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(status = "DUPLICATE", transactionId = request(command).transaction.id,
                 installments = installments.map { com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto(
                     it.id, it.installmentNumber, "2026-11-05", it.principalMinor, it.interestMinor) }),
@@ -141,9 +141,9 @@ class SyncInstrumentCommandsWorkerTest {
                     it.transaction.operationKind == "CARD_PURCHASE" &&
                     it.transaction.amountMinor == 10_000L &&
                     it.transaction.installmentCount == 3
-            })
+            }, userId)
         }
-        coVerify(exactly = 0) { api.allocateCreditPayment(any()) }
+        coVerify(exactly = 0) { api.allocateCreditPayment(any(), userId) }
         coVerify(exactly = 1) { syncDao.markSynced(userId, command.operationId, any()) }
         coVerify(exactly = 1) {
             movementDao.updateTransactionSyncStatus(
@@ -160,7 +160,7 @@ class SyncInstrumentCommandsWorkerTest {
         val command = command("PAY_CREDIT_CARD", "CARD_PAYMENT")
         coEvery { syncDao.getPendingCommands(userId, any()) } returns listOf(command)
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
-        coEvery { api.allocateCreditPayment(any()) } returns FinancialApiResponse.NetworkFailure(
+        coEvery { api.allocateCreditPayment(any(), userId) } returns FinancialApiResponse.NetworkFailure(
             IOException("offline"),
         )
 
@@ -172,9 +172,9 @@ class SyncInstrumentCommandsWorkerTest {
                 it.idempotencyKey == command.operationId &&
                     it.transaction.operationKind == "CARD_PAYMENT" &&
                     it.transaction.amountMinor == 10_000L
-            })
+            }, userId)
         }
-        coVerify(exactly = 0) { api.registerCreditPurchase(any()) }
+        coVerify(exactly = 0) { api.registerCreditPurchase(any(), userId) }
         coVerify(exactly = 0) { syncDao.delete(userId, command.operationId) }
         coVerify(exactly = 1) {
             syncDao.updateState(
@@ -197,7 +197,7 @@ class SyncInstrumentCommandsWorkerTest {
         val request = request(command)
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(command), emptyList())
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
-        coEvery { api.registerCreditPurchase(any()) } returns FinancialApiResponse.Success(
+        coEvery { api.registerCreditPurchase(any(), userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(
                 status = "REJECTED",
                 error = CreditCommandErrorDto(code = "CREDIT_LIMIT_EXCEEDED", field = "amount_minor"),

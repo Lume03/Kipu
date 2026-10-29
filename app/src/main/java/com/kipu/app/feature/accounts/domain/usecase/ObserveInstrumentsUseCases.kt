@@ -139,6 +139,7 @@ class ObserveFinancialDashboard @Inject constructor(
                     FinancialDashboardData(
                         totalPen = Money(totalPenMinor, Currency.PEN),
                         totalUsd = Money(totalUsdMinor, Currency.USD),
+                        hasStoredInstruments = true,
                         liquidAccounts = displayLiquidAccounts,
                         creditCards = displayCreditCards,
                         activeComputableCount = computableCount,

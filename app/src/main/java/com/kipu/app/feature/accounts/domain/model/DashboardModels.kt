@@ -24,4 +24,5 @@ data class FinancialDashboardData(
     val creditCards: List<CreditCardWithSummary>,
     val activeComputableCount: Int,
     val maxFreeQuota: Int = FreePlanLimits().instruments,
+    val hasStoredInstruments: Boolean = false,
 )

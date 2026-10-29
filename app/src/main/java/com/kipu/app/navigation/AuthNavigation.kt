@@ -36,7 +36,7 @@ fun NavController.navigateToAuthLogin() {
 
 fun NavGraphBuilder.authDestinations(
     navController: NavController,
-    onAuthenticated: (userId: String) -> Unit,
+    onAuthenticated: (com.kipu.app.feature.auth.presentation.AuthNavigationEvent.NavigateToHome) -> Unit,
 ) {
     composable(AUTH_START_ROUTE) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -67,7 +67,7 @@ fun NavGraphBuilder.authDestinations(
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
                 when (event) {
-                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event.userId)
+                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event)
                     is AuthNavigationEvent.NavigateToRegister -> navController.navigate(AUTH_REGISTER_ROUTE)
                     is AuthNavigationEvent.NavigateToRecovery -> navController.navigate(AUTH_RECOVERY_ROUTE)
                     else -> Unit
@@ -98,7 +98,7 @@ fun NavGraphBuilder.authDestinations(
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
                 when (event) {
-                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event.userId)
+                    is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event)
                     is AuthNavigationEvent.NavigateToLogin -> navController.navigate(AUTH_LOGIN_ROUTE)
                     else -> Unit
                 }

@@ -13,28 +13,31 @@ import org.junit.Test
 class SessionOwnerSyncTest {
     @Test fun `owner switch cancels previous sync and late response is rejected`() = runTest {
         val scheduler = mockk<MovementSyncScheduler>(relaxed = true)
-        val coordinator = SessionCoordinatorImpl(scheduler)
+        val instruments = mockk<com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler>(relaxed = true)
+        val coordinator = SessionCoordinatorImpl(scheduler, instruments)
         coordinator.setActiveOwner("A")
         requireSyncOwner(coordinator, "A")
         coordinator.setActiveOwner("B")
-        verify(exactly = 1) { scheduler.cancelSync("A") }
+        verify(exactly = 1) { scheduler.cancelSync("A"); instruments.cancelSync("A") }
         assertTrue(runCatching { requireSyncOwner(coordinator, "A") }.exceptionOrNull() is CancellationException)
         requireSyncOwner(coordinator, "B")
     }
     @Test fun `logout revokes owner before cancelling work`() = runTest {
         val scheduler = mockk<MovementSyncScheduler>(relaxed = true)
-        val coordinator = SessionCoordinatorImpl(scheduler)
+        val instruments = mockk<com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler>(relaxed = true)
+        val coordinator = SessionCoordinatorImpl(scheduler, instruments)
         coordinator.setActiveOwner("A")
         every { scheduler.cancelSync("A") } answers { assertNull(coordinator.currentOwner) }
         coordinator.clearActiveOwner(true)
-        verify { scheduler.cancelSync("A") }
+        verify { scheduler.cancelSync("A"); instruments.cancelSync("A") }
         assertTrue(runCatching { requireSyncOwner(coordinator, "A") }.exceptionOrNull() is CancellationException)
     }
     @Test fun `same owner activation does not cancel its sync`() = runTest {
         val scheduler = mockk<MovementSyncScheduler>(relaxed = true)
-        val coordinator = SessionCoordinatorImpl(scheduler)
+        val instruments = mockk<com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler>(relaxed = true)
+        val coordinator = SessionCoordinatorImpl(scheduler, instruments)
         coordinator.setActiveOwner("A")
         coordinator.setActiveOwner("A")
-        verify(exactly = 0) { scheduler.cancelSync(any()) }
+        verify(exactly = 0) { scheduler.cancelSync(any()); instruments.cancelSync(any()) }
     }
 }

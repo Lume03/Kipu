@@ -157,6 +157,8 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var planPreferencesDao: PlanPreferencesDao
 
+    @Inject lateinit var planOnboardingStore: com.kipu.app.feature.auth.data.PlanOnboardingStore
+
     @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
 
@@ -477,9 +479,10 @@ class MainActivity : FragmentActivity() {
                                 ) {
                                     appDestinations(
                                         navController = navController,
-                                        onAuthenticated = { userId ->
+                                        onAuthenticated = { event ->
                                             scope.launch {
-                                                val destination = postAuthDestination(userId) ?: AUTH_LOGIN_ROUTE
+                                                if (event.accountCreated) planOnboardingStore.markPending(event.userId)
+                                                val destination = postAuthDestination(event.userId) ?: AUTH_LOGIN_ROUTE
                                                 navController.openReminderRoute(destination)
                                                 pendingReminderRoute = null
                                                 sessionEntryCurtain.expectDestination(
@@ -551,8 +554,10 @@ class MainActivity : FragmentActivity() {
 
     private suspend fun postAuthDestination(rawUserId: String): String? {
         val userId = runCatching { UUID.fromString(rawUserId) }.getOrNull() ?: return null
-        return com.kipu.app.navigation.resolvePostAuthDestination(pendingReminderRoute) {
-            planPreferencesDao.findPreference(userId) != null
+        return com.kipu.app.navigation.resolvePostAuthDestination(pendingReminderRoute, planOnboardingStore.isPending(rawUserId)) {
+            (planPreferencesDao.findPreference(userId) != null).also { hasPreference ->
+                if (hasPreference) planOnboardingStore.completed(rawUserId)
+            }
         }
     }
 }

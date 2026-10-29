@@ -247,24 +247,8 @@ class AccountsViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val dashboardUiState: StateFlow<DashboardUiState> = dashboardRetry.flatMapLatest { attempt ->
-        flow {
-            entryPreloader?.awaitInitialData()
-            emitAll(
-                combine(observeFinancialDashboard(), _isMasked) { dashboardData, masked ->
-                    DashboardUiState(
-                        isLoading = false,
-                        dashboardData = dashboardData,
-                        activeAlerts = emptyList(),
-                        isMasked = masked,
-                        errorMessage = null,
-                    )
-                }
-            )
-        }.onStart {
-            if (attempt > 0) emit(DashboardUiState(isLoading = true))
-        }.catch { e ->
-            emit(DashboardUiState(isLoading = false, errorMessage = e.message ?: "Error al cargar el dashboard"))
-        }
+        dashboardEntryStates(observeFinancialDashboard(), _isMasked) { entryPreloader?.awaitInitialData() }
+            .catch { error -> emit(DashboardUiState(isLoading = false, errorMessage = error.message ?: "Error al cargar el dashboard")) }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Lazily,
