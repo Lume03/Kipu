@@ -46,6 +46,7 @@ data class NotificationsUiState(
 
 sealed interface NotificationsUiEvent {
     data class OpenCard(val cardId: String) : NotificationsUiEvent
+    data class OpenCapture(val candidateId: String) : NotificationsUiEvent
     data class OpenBudget(val budgetId: String) : NotificationsUiEvent
     data class ShowMessage(val message: String) : NotificationsUiEvent
 }
@@ -139,6 +140,7 @@ class NotificationsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val destination = destinationResolver.resolve(userId, notification)) {
                 is NotificationDestination.CardDetail -> eventChannel.send(NotificationsUiEvent.OpenCard(destination.cardId))
+                is NotificationDestination.CaptureCandidate -> eventChannel.send(NotificationsUiEvent.OpenCapture(destination.candidateId))
                 is NotificationDestination.BudgetDetail -> eventChannel.send(NotificationsUiEvent.OpenBudget(destination.budgetId))
                 is NotificationDestination.Unavailable -> eventChannel.send(
                     NotificationsUiEvent.ShowMessage(destination.message.ifBlank { UNAVAILABLE_DESTINATION_MESSAGE }),
