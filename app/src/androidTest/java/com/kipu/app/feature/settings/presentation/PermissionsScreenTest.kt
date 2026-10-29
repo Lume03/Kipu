@@ -15,6 +15,9 @@ import com.kipu.app.feature.settings.domain.PermissionSourceGateway
 import com.kipu.app.feature.settings.domain.model.DeviceAuthorization
 import com.kipu.app.feature.settings.domain.model.PermissionSource
 import java.util.UUID
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
@@ -28,6 +31,17 @@ class PermissionsScreenTest {
     val composeTestRule = createComposeRule()
 
     private val userId = UUID.randomUUID()
+
+    private fun viewModel(): PermissionsViewModel {
+        val categories = mockk<com.kipu.app.feature.categories.domain.CategoriesRepository>()
+        every { categories.observePremiumVerified(com.kipu.app.core.finance.domain.model.UserId(userId.toString())) } returns flowOf(false)
+        val gate = object : com.kipu.app.feature.capture.domain.CaptureAccessGate {
+            override fun currentOwnerId() = userId.toString()
+            override suspend fun evaluateCurrent() = com.kipu.app.feature.capture.domain.CaptureAccessDecision.PremiumRequired
+            override suspend fun evaluate(ownerId: String) = com.kipu.app.feature.capture.domain.CaptureAccessDecision.PremiumRequired
+        }
+        return PermissionsViewModel(FakePermissionDao(), FakeGateway(), FakeSessionCoordinator(LocalOwner(userId.toString(), false)), gate, categories)
+    }
 
     private class FakePermissionDao : PermissionConsentDao {
         val consents = MutableStateFlow<List<AccountSourceConsentEntity>>(emptyList())
@@ -60,7 +74,7 @@ class PermissionsScreenTest {
 
     @Test
     fun screen_displays_guarantee_banner_and_permission_cards() {
-        val viewModel = PermissionsViewModel(FakePermissionDao(), FakeGateway(), FakeSessionCoordinator(LocalOwner(userId.toString(), false)))
+        val viewModel = viewModel()
 
         composeTestRule.setContent {
             PermissionsScreen(
@@ -71,14 +85,14 @@ class PermissionsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Permisos y Automatización").assertIsDisplayed()
-        composeTestRule.onNodeWithText("El registro manual siempre permanece 100% operativo sin importar el estado de estos permisos opcionales.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Puedes registrar movimientos manualmente sin estos permisos.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Notificaciones de Kipu").assertIsDisplayed()
         composeTestRule.onNodeWithText("Lectura de Notificaciones Bancarias").assertIsDisplayed()
     }
 
     @Test
     fun clicking_explanation_opens_rationale_dialog() {
-        val viewModel = PermissionsViewModel(FakePermissionDao(), FakeGateway(), FakeSessionCoordinator(LocalOwner(userId.toString(), false)))
+        val viewModel = viewModel()
 
         composeTestRule.setContent {
             PermissionsScreen(
