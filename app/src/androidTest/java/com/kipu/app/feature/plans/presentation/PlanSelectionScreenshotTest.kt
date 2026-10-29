@@ -2,13 +2,14 @@ package com.kipu.app.feature.plans.presentation
 
 import android.graphics.Bitmap
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.ui.theme.KipuTheme
 import java.io.File
@@ -30,12 +31,13 @@ class PlanSelectionScreenshotTest {
     }
 
     private fun captureAfter(dark: Boolean, suffix: String) {
+        val state = mutableStateOf(PlanSelectionUiState(isLoadingEligibility = false))
         compose.setContent {
             KipuTheme(darkTheme = dark) {
                 Surface(modifier = Modifier) {
                     PlanSelectionScreen(
-                        state = PlanSelectionUiState(isLoadingEligibility = false),
-                        onOptionSelected = {},
+                        state = state.value,
+                        onOptionSelected = { state.value = state.value.copy(selectedOption = it) },
                         onConfirm = {},
                         onContinueFree = {},
                     )
@@ -44,7 +46,7 @@ class PlanSelectionScreenshotTest {
         }
 
         capture("plan-selection-$suffix-top")
-        compose.onNodeWithText("Continuar con Plan Free").performScrollTo()
+        compose.onNodeWithText("Free").performClick()
         capture("plan-selection-$suffix-actions")
     }
 

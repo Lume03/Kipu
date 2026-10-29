@@ -86,7 +86,7 @@ class PlanSelectionRouteTest {
         val callbacks = AtomicInteger()
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { callbacks.incrementAndGet() }) }
 
-        compose.onNodeWithText("Confirmar Plan").performScrollTo().performClick()
+        compose.onNodeWithText("Confirmar plan").performClick()
         compose.waitUntil { callbacks.get() == 1 }
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
@@ -105,7 +105,8 @@ class PlanSelectionRouteTest {
         val callbacks = AtomicInteger()
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { callbacks.incrementAndGet() }) }
 
-        compose.onNodeWithText("Continuar con Plan Free").performScrollTo().performClick()
+        compose.onNodeWithTag("plan-tab-FREE").performClick()
+        compose.onNodeWithText("Continuar con Free").performClick()
         compose.waitUntil { callbacks.get() == 1 }
 
         assertEquals(PlanSelection.FREE, repository.lastSelection)
@@ -122,7 +123,7 @@ class PlanSelectionRouteTest {
         compose.setContent { PlanSelectionRoute(viewModel = viewModel, onConfirmed = { confirmed.set(true) }) }
 
         compose.onNodeWithText("Lifetime", substring = true).performScrollTo().performClick()
-        compose.onNodeWithText("Confirmar Plan").performScrollTo().performClick()
+        compose.onNodeWithText("Confirmar plan").performClick()
         compose.waitUntil(timeoutMillis = 2_000) { confirmed.get() }
 
         assertTrue(repository.localCommitCompleted)
