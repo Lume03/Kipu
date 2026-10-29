@@ -378,6 +378,7 @@ private fun NotificationRow(
         else -> Triple(colors.primaryDeep, colors.pillTrack, colors.primaryDeep)
     }
     val eventIcon = when (eventType) {
+        "CAPTURE_REVIEW" -> Icons.Default.NotificationsNone
         "BILLING_DUE" -> Icons.Default.Schedule
         "GOAL_REACHED" -> Icons.Default.CheckCircle
         "BUDGET_ALERT", "CREDIT_THRESHOLD", "CREDIT_UTILIZATION_THRESHOLD_CROSSED" -> Icons.Default.WarningAmber

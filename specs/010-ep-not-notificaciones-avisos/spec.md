@@ -91,7 +91,7 @@ Como usuario, quiero filtrar, marcar avisos como leídos y retirar los que ya no
 - **FR-001**: El centro MUST mostrar en una lista unificada las alertas y los recordatorios del usuario autenticado, ordenados del más reciente al más antiguo.
 - **FR-002**: El centro MUST distinguir visual y textualmente una condición ocurrida de un evento futuro con fecha prevista. MUST reconocer `BUDGET_ALERT`, `BILLING_DUE`, `GOAL_REACHED`, `CREDIT_THRESHOLD` y `SYSTEM`, además del tipo histórico de cruce de crédito que ya emite el servidor.
 - **FR-003**: El centro MUST ofrecer los filtros «Todos», «Alertas» y «Recordatorios» y un estado vacío con el copy «Todo al día. No tienes avisos pendientes».
-- **FR-004**: Al abrir un aviso, el sistema MUST resolver el objeto exacto indicado por su tipo e identificador de referencia (`card`, `budget`, `debt` o `goal`) cuando el objeto y su pantalla estén disponibles.
+- **FR-004**: Al abrir un aviso, el sistema MUST resolver el objeto exacto indicado por su tipo e identificador de referencia (`card`, `budget`, `debt`, `goal` o `CAPTURE_CANDIDATE`) cuando el objeto y su pantalla estén disponibles. `CAPTURE_CANDIDATE` se incorpora por el incremento HU-43 aprobado el 2026-10-28.
 - **FR-005**: Si el objeto referido fue eliminado, no existe o no tiene un destino registrado, el sistema MUST conservar el centro en pantalla, mostrar un mensaje amigable y no lanzar una excepción de navegación.
 - **FR-006**: El sistema MUST permitir marcar un aviso como leído y marcar como leídos todos los avisos activos de la cuenta actual.
 - **FR-007**: El sistema MUST permitir retirar un aviso mediante borrado lógico; las consultas del centro MUST excluir avisos retirados y la operación MUST conservar su registro remoto.
@@ -100,7 +100,7 @@ Como usuario, quiero filtrar, marcar avisos como leídos y retirar los que ya no
 - **FR-010**: El usuario MUST poder consultar la última copia local y ejecutar acciones de lectura o retirada sin conexión; los cambios pendientes MUST converger con el estado remoto cuando se recupere la conexión.
 - **FR-011**: La interfaz MUST ofrecer objetivos táctiles de al menos 48dp, etiquetas semánticas comprensibles y contraste mínimo WCAG AA.
 - **FR-012**: Las transiciones del badge, apertura del centro y retirada de una fila MUST respetar la preferencia de movimiento reducido del sistema operativo.
-- **FR-013**: El centro de avisos financieros (PNOT) MUST permanecer separado de la bandeja de revisión de capturas/importaciones (P19).
+- **FR-013**: El centro financiero PNOT MUST permanecer separado de la bandeja P19. El aviso HU-43 `CAPTURE_REVIEW` abre el candidato referido en P19 por decisión del Owner del 2026-10-28; la campana financiera general sigue separada.
 
 ### Key Entities
 
@@ -194,3 +194,27 @@ Como usuario, quiero recibir un recordatorio configurable antes del vencimiento 
 - **FR-024**: Tocar la notificación MUST abrir el centro de avisos sobre el inicio de la app; la notificación no registra ni modifica movimientos.
 - **FR-025**: El servidor MUST aceptar `CREDIT_THRESHOLD` y `CREDIT_UTILIZATION_THRESHOLD_CROSSED` en `app_notifications.notification_type` (FR-002), de modo que una compra que cruza 50/80/100% del límite se registra y emite su aviso.
 - **FR-026**: El cuerpo de una alerta de presupuesto MUST nombrar el umbral cruzado (50/80/100%) y no el consumo actual, para que cruces simultáneos se distingan.
+
+## Incremento Sprint 8: HU-43 — Aviso de candidato pendiente
+
+**Refined**: 2026-10-28. Por decisión del Owner, el aviso de revisión usa `notification_type = CAPTURE_REVIEW`, referencia `CAPTURE_CANDIDATE`, canal Android `capture-review` («Capturas por revisar»), abre el candidato específico en la bandeja P19, se deduplica por candidato y su fila local no se sincroniza.
+
+**FR-027 (HU-43, escenario 3)**: Un candidato pendiente que requiera revisión genera una entrada de centro local y notificación Android en el canal indicado, con referencia a su candidato; tocarla abre ese candidato en P19.
+
+**FR-028 (HU-43, escenario 4)**: No se genera más de un aviso por candidato. La fila y sus operaciones permanecen locales y no se envían a Supabase.
+
+**FR-029 (HU-43, escenario 1)**: Un exceso presupuestario no bloquea guardar gasto real; el aviso de candidato requiere captura autorizada y no duplica alerta ya emitida para la condición.
+
+**Enmienda de FR-004 y FR-013 (2026-10-28)**: FR-004 amplía los tipos de referencia admitidos con `CAPTURE_CANDIDATE`. FR-013 conserva la separación del centro financiero PNOT y la bandeja P19, con la navegación explícita de un aviso `CAPTURE_REVIEW` al candidato referido como excepción aprobada; la campana financiera general sigue separada.
+
+**Evidencia de verificación 2026-10-28**: en Galaxy A16 se observó aviso `CAPTURE_REVIEW`, apertura del candidato referido desde el centro y un candidato descartado sin efecto financiero (`qa2-3.png`, `qa2-6.png`). Una captura de crédito con presupuesto excedido se confirmó y el aviso apareció sin bloquear el registro (`qa2-7.png`). `CaptureAtomicResolutionTest` pasó 6/6; las unitarias completas pasaron con 1014, 0 fallos/errores y 2 omitidas.
+
+### Evidencia y límites de HU-43 (2026-10-28)
+
+| Escenario | Resultado | Evidencia y límite |
+| --- | --- | --- |
+| Aviso local `CAPTURE_REVIEW` y navegación al candidato | PASS | Aviso visible y apertura del candidato específico desde el centro (`qa2-6.png`). |
+| Presupuesto excedido no bloquea el registro | PASS | Captura de crédito elevó el gasto a S/581.90 ante presupuesto S/500 y mostró exceso S/81.90 (`qa2-7.png`). |
+| Aviso único, limpieza al resolver y aislamiento de sincronización | SIN EVIDENCIA E2E completa | Instrumentación/unidades cubren atomicidad y recuperación; la matriz física no demostró por separado todos estos comportamientos ni tráfico remoto. |
+
+F1 hace durable y reintentable la publicación/limpieza mediante seguimiento persistido y worker; candidato y evento `CANDIDATE_CREATED` se crean atómicamente. El override Premium QA fue temporal; el gate quedó cerrado y los overrides en cero. La pantalla QA3 conservó `Free de pruebas` desde caché (`qa3-7.png`), que no acredita un estado remoto nuevo.

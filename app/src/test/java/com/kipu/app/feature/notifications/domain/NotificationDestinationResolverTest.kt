@@ -19,7 +19,7 @@ class NotificationDestinationResolverTest {
         val cards = mockk<CardDao>()
         val budgets = mockk<BudgetDao>()
         coEvery { cards.getById(USER_ID, CARD_ID) } returns mockk<CardEntity>()
-        val resolver = RegisteredNotificationDestinationResolver(cards, budgets)
+        val resolver = RegisteredNotificationDestinationResolver(cards, budgets, mockk())
 
         assertEquals(NotificationDestination.CardDetail(CARD_ID), resolver.resolve(USER_ID, notification("CARD", CARD_ID)))
         coVerify { cards.getById(USER_ID, CARD_ID) }
@@ -30,7 +30,7 @@ class NotificationDestinationResolverTest {
         val cards = mockk<CardDao>()
         val budgets = mockk<BudgetDao>()
         coEvery { cards.getById(USER_ID, CARD_ID) } returns null
-        val resolver = RegisteredNotificationDestinationResolver(cards, budgets)
+        val resolver = RegisteredNotificationDestinationResolver(cards, budgets, mockk())
 
         assertEquals(NotificationDestination.Unavailable(), resolver.resolve(USER_ID, notification("card", CARD_ID)))
         assertEquals(NotificationDestination.Unavailable(), resolver.resolve(USER_ID, notification("card", null)))
@@ -41,7 +41,7 @@ class NotificationDestinationResolverTest {
         val cards = mockk<CardDao>()
         val budgets = mockk<BudgetDao>()
         coEvery { budgets.getBudget(USER_ID, any()) } returns null
-        val resolver = RegisteredNotificationDestinationResolver(cards, budgets)
+        val resolver = RegisteredNotificationDestinationResolver(cards, budgets, mockk())
 
         listOf("budget", "DEBT", "GOAL", "future-type").forEach { type ->
             assertEquals(NotificationDestination.Unavailable(), resolver.resolve(USER_ID, notification(type, "target")))
@@ -54,13 +54,24 @@ class NotificationDestinationResolverTest {
         val cards = mockk<CardDao>()
         val budgets = mockk<BudgetDao>()
         coEvery { budgets.getBudget(USER_ID, BUDGET_ID) } returns mockk<BudgetEntity>()
-        val resolver = RegisteredNotificationDestinationResolver(cards, budgets)
+        val resolver = RegisteredNotificationDestinationResolver(cards, budgets, mockk())
 
         assertEquals(
             NotificationDestination.BudgetDetail(BUDGET_ID),
             resolver.resolve(USER_ID, notification("BUDGET", BUDGET_ID)),
         )
         coVerify { budgets.getBudget(USER_ID, BUDGET_ID) }
+    }
+
+    @Test
+    fun `capture reference resolves only a pending candidate owned by active user`() = runTest {
+        val candidates = mockk<com.kipu.app.feature.capture.domain.CaptureCandidateStore>()
+        val candidate = mockk<com.kipu.app.feature.capture.domain.CaptureCandidateRecord>()
+        io.mockk.every { candidate.status } returns com.kipu.app.feature.capture.domain.CaptureCandidateStatus.PENDING
+        coEvery { candidates.get(USER_ID, "candidate") } returns candidate
+        val resolver = RegisteredNotificationDestinationResolver(mockk(), mockk(), candidates)
+        assertEquals(NotificationDestination.CaptureCandidate("candidate"), resolver.resolve(USER_ID, notification("CAPTURE_CANDIDATE", "candidate")))
+        assertEquals(NotificationDestination.Unavailable(), resolver.resolve("other", notification("CAPTURE_CANDIDATE", "candidate")))
     }
 
     private fun notification(referenceType: String?, referenceId: String?) = AppNotification(
