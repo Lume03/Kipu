@@ -1,5 +1,6 @@
 package com.kipu.app.feature.settings.presentation
 
+import androidx.compose.ui.res.stringResource
 import com.kipu.app.ui.theme.rememberKipuColors
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.background
@@ -466,14 +467,14 @@ fun ProfileSettingsScreen(
                 if (!state.planCard.clickable) {
                     SettingsCard(
                         icon = Icons.Default.Payments,
-                        title = state.planCard.title,
-                        subtitle = state.planCard.subtitle,
+                        title = stringResource(state.planCard.titleRes),
+                        subtitle = stringResource(state.planCard.subtitleRes, state.planCard.formattedExpiry),
                     )
                 } else {
                     SettingsActionCard(
                         icon = Icons.Default.Payments,
-                        title = state.planCard.title,
-                        subtitle = state.planCard.subtitle,
+                        title = stringResource(state.planCard.titleRes),
+                        subtitle = stringResource(state.planCard.subtitleRes, state.planCard.formattedExpiry),
                         onClick = { showPlanSummary = true },
                     )
                 }

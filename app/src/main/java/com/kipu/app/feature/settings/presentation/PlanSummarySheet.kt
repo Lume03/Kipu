@@ -3,14 +3,11 @@ package com.kipu.app.feature.settings.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.R
+import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.KipuPrimaryButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,30 +26,33 @@ internal fun PlanSummarySheet(
     onDismiss: () -> Unit,
     onViewOffers: (() -> Unit)?,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    KipuBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(plan.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-            Text(plan.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Qué incluye", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(plan.titleRes), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(plan.subtitleRes, plan.formattedExpiry), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.plan_summary_includes), style = MaterialTheme.typography.titleMedium)
             if (plan.plan == SettingsPlan.FREE) {
                 val limits = FreePlanLimits()
-                Text("Hasta ${limits.instruments} instrumentos financieros")
-                Text("Hasta ${limits.customCategories} categorías personalizadas por tipo")
-                Text("Hasta ${limits.debts} deudas, ${limits.goals} metas y ${limits.budgets} presupuestos activos")
-                Text("Registro y consulta de tus movimientos")
+                Text(stringResource(R.string.plan_summary_instruments, limits.instruments))
+                Text(stringResource(R.string.plan_summary_categories, limits.customCategories))
+                Text(stringResource(R.string.plan_summary_planning, limits.debts, limits.goals, limits.budgets))
+                Text(stringResource(R.string.plan_summary_movements))
             } else {
-                Text("Todas las funciones Premium")
-                Text("Instrumentos, categorías personalizadas, deudas, metas y presupuestos sin los límites de cantidad del plan Free")
+                Text(stringResource(R.string.plan_summary_premium))
+                Text(stringResource(R.string.plan_summary_unlimited))
             }
             onViewOffers?.let { navigate ->
-                Button(
+                KipuPrimaryButton(
+                    text = stringResource(R.string.plan_choose_action),
                     onClick = { onDismiss(); navigate() },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                ) { Text(stringResource(R.string.plan_choose_action)) }
+                    minimumHeight = 48.dp,
+                    shape = MaterialTheme.shapes.extraLarge,
+                    textStyle = MaterialTheme.typography.labelLarge,
+                )
                 Text(
                     stringResource(R.string.plan_preference_notice),
                     style = MaterialTheme.typography.bodySmall,

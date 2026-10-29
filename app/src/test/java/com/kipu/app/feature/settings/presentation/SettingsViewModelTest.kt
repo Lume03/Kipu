@@ -1,6 +1,7 @@
 package com.kipu.app.feature.settings.presentation
 
 import com.kipu.app.core.session.LocalOwner
+import com.kipu.app.R
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.settings.data.sync.ProfileSyncScheduler
 import com.kipu.app.feature.settings.domain.ProfilePreferencesRepository
@@ -45,8 +46,8 @@ class SettingsViewModelTest {
             )
             advanceUntilIdle()
             assertTrue(viewModel.uiState.value.isDeveloperPlan)
-            assertEquals("Plan Desarrollador", viewModel.uiState.value.planCard.title)
-            assertEquals("Todas las funciones Premium, sin vencimiento", viewModel.uiState.value.planCard.subtitle)
+            assertEquals(R.string.plan_settings_developer_title, viewModel.uiState.value.planCard.titleRes)
+            assertEquals(R.string.plan_settings_developer_subtitle, viewModel.uiState.value.planCard.subtitleRes)
             assertFalse(viewModel.uiState.value.planCard.clickable)
 
             val expiry = java.time.Instant.parse("2026-12-31T12:00:00Z")
@@ -54,20 +55,21 @@ class SettingsViewModelTest {
                 userId, 1, "PREMIUM", entitlementExpiresAt = expiry, source = "SIGNED_SERVER_GRANT",
             )
             advanceUntilIdle()
-            assertEquals("Plan Premium", viewModel.uiState.value.planCard.title)
+            assertEquals(R.string.plan_settings_premium_title, viewModel.uiState.value.planCard.titleRes)
             assertEquals(expiry, viewModel.uiState.value.planCard.expiresAt)
-            assertTrue(viewModel.uiState.value.planCard.subtitle.contains("2026"))
+            assertEquals(R.string.plan_settings_expires, viewModel.uiState.value.planCard.subtitleRes)
+            assertTrue(viewModel.uiState.value.planCard.formattedExpiry.contains("2026"))
             assertTrue(viewModel.uiState.value.planCard.clickable)
             assertFalse(viewModel.uiState.value.isDeveloperPlan)
 
             access.value = access.value!!.copy(entitlementExpiresAt = null)
             advanceUntilIdle()
-            assertEquals("Acceso Premium sin vencimiento", viewModel.uiState.value.planCard.subtitle)
+            assertEquals(R.string.plan_settings_no_expiry, viewModel.uiState.value.planCard.subtitleRes)
 
             access.value = com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity.verifiedFree(userId)
             advanceUntilIdle()
             assertFalse(viewModel.uiState.value.isDeveloperPlan)
-            assertEquals("Plan Free", viewModel.uiState.value.planCard.title)
+            assertEquals(R.string.plan_free_title, viewModel.uiState.value.planCard.titleRes)
             assertTrue(viewModel.uiState.value.planCard.clickable)
             io.mockk.coVerify(exactly = 0) { refresh.refresh() }
             viewModel.refreshTestPlan()

@@ -1,5 +1,7 @@
 package com.kipu.app.feature.settings.presentation
 
+import androidx.annotation.StringRes
+import com.kipu.app.R
 import com.kipu.app.feature.plans.data.local.FeatureAccessCacheEntity
 import java.time.Instant
 import java.time.ZoneId
@@ -14,18 +16,19 @@ data class SettingsPlanCard(
     val expiresAt: Instant? = null,
 ) {
     val clickable: Boolean get() = plan != SettingsPlan.DEVELOPER
-    val title: String get() = when (plan) {
-        SettingsPlan.FREE -> "Plan Free"
-        SettingsPlan.PREMIUM -> "Plan Premium"
-        SettingsPlan.DEVELOPER -> "Plan Desarrollador"
+    val titleRes: Int
+        @StringRes get() = when (plan) {
+        SettingsPlan.FREE -> R.string.plan_free_title
+        SettingsPlan.PREMIUM -> R.string.plan_settings_premium_title
+        SettingsPlan.DEVELOPER -> R.string.plan_settings_developer_title
     }
-    val subtitle: String get() = when (plan) {
-        SettingsPlan.FREE -> "Ver qué incluye y mejorar a Premium"
-        SettingsPlan.DEVELOPER -> "Todas las funciones Premium, sin vencimiento"
-        SettingsPlan.PREMIUM -> expiresAt?.let {
-            "Vigencia hasta el ${DATE_FORMAT.format(it.atZone(ZoneId.systemDefault()))}"
-        } ?: "Acceso Premium sin vencimiento"
+    val subtitleRes: Int
+        @StringRes get() = when (plan) {
+        SettingsPlan.FREE -> R.string.plan_settings_free_subtitle
+        SettingsPlan.DEVELOPER -> R.string.plan_settings_developer_subtitle
+        SettingsPlan.PREMIUM -> if (expiresAt != null) R.string.plan_settings_expires else R.string.plan_settings_no_expiry
     }
+    val formattedExpiry: String get() = expiresAt?.let { DATE_FORMAT.format(it.atZone(ZoneId.systemDefault())) }.orEmpty()
 
     companion object {
         private val DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))
