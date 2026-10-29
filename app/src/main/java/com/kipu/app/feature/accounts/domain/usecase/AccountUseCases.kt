@@ -7,6 +7,8 @@ import com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import java.time.Instant
+import com.kipu.app.feature.plans.domain.VerifiedPlanAccess
+import com.kipu.app.feature.plans.domain.FreePlanAccess
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 
@@ -15,6 +17,7 @@ class QuotaExceededException(message: String = "Límite de instrumentos activos 
 
 class CreateLiquidAccount @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
+    private val planAccess: VerifiedPlanAccess = FreePlanAccess,
 ) {
     suspend operator fun invoke(
         account: Account,
@@ -28,7 +31,7 @@ class CreateLiquidAccount @Inject constructor(
         }
         if (account.isComputableForQuota) {
             val currentCount = repository.getActiveComputableCount()
-            if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS) {
+            if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS && !planAccess.isPremiumVerified()) {
                 return Result.failure(QuotaExceededException("Límite de instrumentos activos alcanzado para el plan Free (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
             }
         }
@@ -99,6 +102,7 @@ class ArchiveInstrument @Inject constructor(
 
 class ReactivateInstrument @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
+    private val planAccess: VerifiedPlanAccess = FreePlanAccess,
 ) {
     suspend operator fun invoke(
         instrumentId: String,
@@ -108,7 +112,7 @@ class ReactivateInstrument @Inject constructor(
     ): Result<Unit> {
         if (isComputableForQuota) {
             val currentCount = repository.getActiveComputableCount()
-            if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS) {
+            if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS && !planAccess.isPremiumVerified()) {
                 return Result.failure(QuotaExceededException("No se puede reactivar: límite de instrumentos activos alcanzado (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
             }
         }

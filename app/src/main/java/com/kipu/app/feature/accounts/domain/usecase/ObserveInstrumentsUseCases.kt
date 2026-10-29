@@ -10,21 +10,29 @@ import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
+import com.kipu.app.feature.plans.domain.VerifiedPlanAccess
+import com.kipu.app.feature.plans.domain.FreePlanAccess
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 class ObserveInstruments @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
+    private val planAccess: VerifiedPlanAccess = FreePlanAccess,
 ) {
     fun observeAccounts(activeOnly: Boolean = false): Flow<List<Account>> =
         repository.observeAccounts(activeOnly)
 
     fun observeCards(activeOnly: Boolean = false): Flow<List<Card>> =
         repository.observeCards(activeOnly)
+
+    fun observeMaxQuota(): Flow<Int> = planAccess.observePremiumVerified().map { premium ->
+        if (premium) 0 else FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS
+    }
 
     fun observeActiveComputableCount(): Flow<Int> =
         repository.observeActiveComputableCount()
@@ -33,15 +41,19 @@ class ObserveInstruments @Inject constructor(
 @OptIn(ExperimentalCoroutinesApi::class)
 class ObserveFinancialDashboard @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
+    private val planAccess: VerifiedPlanAccess = FreePlanAccess,
 ) {
     operator fun invoke(): Flow<FinancialDashboardData> {
         return combine(
             repository.observeAccounts(activeOnly = false),
             repository.observeCards(activeOnly = false),
             repository.observeActiveComputableCount(),
-        ) { accounts, cards, computableCount ->
-            Triple(accounts, cards, computableCount)
-        }.flatMapLatest { (accounts, cards, computableCount) ->
+            planAccess.observePremiumVerified(),
+        ) { accounts, cards, computableCount, premium ->
+            Triple(accounts, cards, computableCount) to premium
+        }.flatMapLatest { (instruments, premium) ->
+            val (accounts, cards, computableCount) = instruments
+            val maxQuota = if (premium) 0 else FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS
             if (accounts.isEmpty() && cards.isEmpty()) {
                 flowOf(
                     FinancialDashboardData(
@@ -50,7 +62,7 @@ class ObserveFinancialDashboard @Inject constructor(
                         liquidAccounts = emptyList(),
                         creditCards = emptyList(),
                         activeComputableCount = computableCount,
-                        maxFreeQuota = FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS,
+                        maxFreeQuota = maxQuota,
                     )
                 )
             } else {
@@ -130,7 +142,7 @@ class ObserveFinancialDashboard @Inject constructor(
                         liquidAccounts = displayLiquidAccounts,
                         creditCards = displayCreditCards,
                         activeComputableCount = computableCount,
-                        maxFreeQuota = FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS,
+                        maxFreeQuota = maxQuota,
                     )
                 }
             }

@@ -7,6 +7,8 @@ import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
+import com.kipu.app.feature.plans.domain.VerifiedPlanAccess
+import com.kipu.app.feature.plans.domain.FreePlanAccess
 import javax.inject.Inject
 
 class RegisterDebitCard @Inject constructor(
@@ -27,13 +29,14 @@ class RegisterDebitCard @Inject constructor(
 
 class RegisterCreditCard @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
+    private val planAccess: VerifiedPlanAccess = FreePlanAccess,
 ) {
     suspend operator fun invoke(
         card: CreditCard,
         operationId: OperationId = OperationId.generate(),
     ): Result<CreditCard> {
         val currentCount = repository.getActiveComputableCount()
-        if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS) {
+        if (currentCount >= FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS && !planAccess.isPremiumVerified()) {
             return Result.failure(QuotaExceededException("Límite de instrumentos activos alcanzado para el plan Free (máx. ${FinancialInstrumentsRepository.FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS})"))
         }
 

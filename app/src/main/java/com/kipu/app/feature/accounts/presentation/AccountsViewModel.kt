@@ -252,8 +252,9 @@ class AccountsViewModel @Inject constructor(
         observeInstruments.observeCards(activeOnly = false),
         observeInstruments.observeActiveComputableCount(),
         financialInstrumentsRepository.observeSelectedFreeInstrumentIds(),
-        _isMasked,
-    ) { accounts, cards, computableCount, selectedIds, masked ->
+        combine(_isMasked, observeInstruments.observeMaxQuota()) { masked, quota -> masked to quota },
+    ) { accounts, cards, computableCount, selectedIds, maskAndQuota ->
+        val (masked, maxQuota) = maskAndQuota
         val activeAccounts = accounts.filter { !it.isArchived }
         val archivedAccounts = accounts.filter { it.isArchived }
         val activeCards = cards.filter { !it.isArchived }
@@ -266,6 +267,7 @@ class AccountsViewModel @Inject constructor(
             activeCards = activeCards,
             archivedCards = archivedCards,
             activeComputableCount = computableCount,
+            maxFreeQuota = maxQuota,
             selectedFreeInstrumentIds = selectedIds,
             isMasked = masked,
         )

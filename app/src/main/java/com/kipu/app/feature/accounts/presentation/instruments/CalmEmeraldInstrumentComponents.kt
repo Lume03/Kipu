@@ -239,6 +239,7 @@ fun CalmEmeraldQuotaNotice(
     onNavigateToPlans: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    if (maxQuota <= 0) return
     val calmColors = rememberCalmEmeraldColors()
     Surface(
         shape = RoundedCornerShape(14.dp),
