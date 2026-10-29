@@ -37,15 +37,20 @@ class DashboardEntryPreloader @Inject constructor(
             .build()
         val manager = WorkManager.getInstance(context)
         manager.enqueueUniqueWork("${SyncMovementsWorker.WORK_PREFIX}_$owner", ExistingWorkPolicy.REPLACE, request)
-        awaitDashboardSync(manager.getWorkInfoByIdFlow(request.id))
+        awaitDashboardSync(manager.getWorkInfoByIdFlow(request.id)) { manager.cancelWorkById(request.id) }
         check(sessionCoordinator.currentOwner?.verifiedUserId == owner) { "La sesión cambió." }
     }
 }
 
-internal suspend fun awaitDashboardSync(work: Flow<WorkInfo?>) {
-    val result = withTimeoutOrNull(15_000L) {
-        work.filterNotNull().first { it.state.isFinished || it.runAttemptCount > 0 }
+internal suspend fun awaitDashboardSync(work: Flow<WorkInfo?>, cancelWork: () -> Unit = {}) {
+    try {
+        val result = withTimeoutOrNull(15_000L) {
+            work.filterNotNull().first { it.state.isFinished || it.runAttemptCount > 0 }
+        }
+        // An explicit retry screen is a resolved destination; a loading skeleton is not.
+        check(result?.state == WorkInfo.State.SUCCEEDED) { "No se pudo preparar tu dinero. Intenta nuevamente." }
+    } finally {
+        // Includes timeout and caller cancellation; never leave entry work orphaned.
+        cancelWork()
     }
-    // An explicit retry screen is a resolved destination; a loading skeleton is not.
-    check(result?.state == WorkInfo.State.SUCCEEDED) { "No se pudo preparar tu dinero. Intenta nuevamente." }
 }

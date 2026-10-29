@@ -4,6 +4,7 @@ import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.network.requiresReauthentication
 import kotlinx.coroutines.CancellationException
 import com.kipu.app.core.security.KeystoreEncryptedSessionStorage
+import com.kipu.app.core.security.accessTokenSubject
 import com.kipu.app.core.security.StoredAuthSession
 import com.kipu.app.core.session.PendingChangesRepository
 import com.kipu.app.core.session.RemoteSession
@@ -109,6 +110,7 @@ class SupabaseAuthRepository @Inject constructor(
             is ApiResponse.Success -> {
                 val envelope = response.data
                 try {
+                    check(accessTokenSubject(envelope.accessToken) == envelope.userId) { "Auth subject mismatch" }
                     val now = Instant.now()
                     val stored = StoredAuthSession(
                         accessToken = envelope.accessToken,
@@ -118,8 +120,7 @@ class SupabaseAuthRepository @Inject constructor(
                         userId = envelope.userId,
                         expiresAtEpochSeconds = now.plusSeconds(envelope.expiresIn).epochSecond,
                     )
-                    // The verified server envelope already supplies the owner. Keeping it in
-                    // the SDK session avoids a Keystore read/decryption for every API request.
+                    // Bind the independently decoded token subject before exposing the SDK fast path.
                     supabaseClient.auth.importSession(stored.toUserSession().copy(
                         user = UserInfo(aud = "authenticated", id = stored.userId),
                     ), autoRefresh = false)
@@ -131,8 +132,10 @@ class SupabaseAuthRepository @Inject constructor(
                     _cooldownState.value = CooldownState(0, null)
                     Result.success(AuthResult.Success(envelope.userId))
                 } catch (e: CancellationException) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { clearFailedSession() }
                     throw e
                 } catch (e: Exception) {
+                    clearFailedSession()
                     SecureLog.e("SupabaseAuthRepository", "Failed to activate owner session", e)
                     Result.failure(Exception("Error al inicializar la sesión."))
                 }
@@ -154,6 +157,13 @@ class SupabaseAuthRepository @Inject constructor(
                 Result.failure(Exception("Se requiere conexión a internet para iniciar sesión."))
             }
         }
+    }
+
+    private suspend fun clearFailedSession() {
+        runCatching { supabaseClient.auth.clearSession() }
+        sessionStorage.delete()
+        sessionCoordinator.clearActiveOwner(explicit = false)
+        sessionCoordinator.updateRemoteSession(RemoteSession.Absent)
     }
 
     override suspend fun signOut(explicit: Boolean): Result<Unit> {
@@ -193,6 +203,10 @@ class SupabaseAuthRepository @Inject constructor(
                 return Result.success(null)
             }
             val userId = stored.userId
+            if (accessTokenSubject(stored.accessToken) != userId) {
+                clearFailedSession()
+                return Result.failure(IllegalStateException("Auth subject mismatch"))
+            }
             sessionCoordinator.setActiveOwner(userId)
             if (stored.hasValidAccessToken(Instant.now())) {
                 val imported = runCatching {
@@ -217,16 +231,21 @@ class SupabaseAuthRepository @Inject constructor(
                 refreshError = error
                 null
             }
-            if (refreshed != null && refreshed.user?.id != userId) {
-                sessionCoordinator.clearActiveOwner(explicit = false)
+            if (refreshed != null && (refreshed.user?.id != userId || accessTokenSubject(refreshed.accessToken) != userId)) {
+                clearFailedSession()
                 sessionCoordinator.updateRemoteSession(RemoteSession.ReauthenticationRequired(userId))
                 return Result.failure(IllegalStateException("La sesión restaurada no corresponde al usuario local"))
             }
             if (refreshed != null && refreshed.user?.id == userId) {
                 val now = Instant.now()
                 val updated = StoredAuthSession.fromUserSession(refreshed, userId, now)
-                supabaseClient.auth.importSession(updated.toUserSession(), autoRefresh = false)
-                sessionStorage.save(StoredAuthSession.encode(updated))
+                try {
+                    sessionStorage.save(StoredAuthSession.encode(updated))
+                    supabaseClient.auth.importSession(updated.toUserSession().copy(user = refreshed.user), autoRefresh = false)
+                } catch (error: Exception) {
+                    clearFailedSession()
+                    throw error
+                }
                 sessionCoordinator.updateRemoteSession(RemoteSession.Valid(userId, now.plusSeconds(updated.expiresIn)))
             } else {
                 sessionCoordinator.updateRemoteSession(

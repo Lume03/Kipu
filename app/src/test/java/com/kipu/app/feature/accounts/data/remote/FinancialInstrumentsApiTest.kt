@@ -66,6 +66,14 @@ class FinancialInstrumentsApiTest {
         assertTrue(requestedSelect.orEmpty().split(',').none { it == "institution_name" })
     }
 
+    @Test fun `pull never dispatches credentials for a different owner`() = runTest {
+        val client = HttpClient(MockEngine { error("Wrong-owner request must never be sent") })
+        try {
+            val response = FinancialInstrumentsApi(client, Sessions()).pullChanges(PullChangesRequestDto(afterSequence = 0), "owner-A")
+            assertEquals(401, (response as FinancialApiResponse.Error).statusCode)
+        } finally { client.close() }
+    }
+
     private class Sessions : AuthenticatedSessionProvider {
         private val session = AuthenticatedSession(UUID.randomUUID(), "test-token")
         override suspend fun currentSession(): AuthenticatedSession = session

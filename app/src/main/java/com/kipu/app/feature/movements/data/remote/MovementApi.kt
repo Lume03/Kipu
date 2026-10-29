@@ -30,16 +30,18 @@ class MovementApi @Inject constructor(
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
     private val commandJson = Json { encodeDefaults = true; explicitNulls = true }
-    private suspend fun getAuthHeader(): String? {
+    private suspend fun getAuthHeader(expectedOwner: String? = null): String? {
         val session = sessionProvider.currentSession() ?: sessionProvider.refreshSession() ?: return null
+        if (expectedOwner != null && session.userId.toString() != expectedOwner) return null
         return "Bearer ${session.accessToken}"
     }
 
     suspend fun registerTransaction(
         request: RegisterTransactionRequestDto,
+        expectedOwner: String? = null,
     ): MovementApiResponse<RegisterTransactionResponseDto> {
         return try {
-            val auth = getAuthHeader() ?: return MovementApiResponse.Error(401, "No active session")
+            val auth = getAuthHeader(expectedOwner) ?: return MovementApiResponse.Error(401, "No active session")
             val rpc = when (request.contractVersion) {
                 1 -> "register_transaction_v1"
                 2 -> "register_transaction_v2"
@@ -63,9 +65,10 @@ class MovementApi @Inject constructor(
 
     suspend fun registerRefund(
         request: RefundTransactionRequestDto,
+        expectedOwner: String? = null,
     ): MovementApiResponse<RefundTransactionResponseDto> {
         return try {
-            val auth = getAuthHeader() ?: return MovementApiResponse.Error(401, "No active session")
+            val auth = getAuthHeader(expectedOwner) ?: return MovementApiResponse.Error(401, "No active session")
             val response = httpClient.post("rest/v1/rpc/refund_transaction_v1") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, auth)
@@ -84,9 +87,10 @@ class MovementApi @Inject constructor(
 
     suspend fun reviseOrVoidTransaction(
         request: ReviseOrVoidTransactionRequestDto,
+        expectedOwner: String? = null,
     ): MovementApiResponse<ReviseOrVoidTransactionResponseDto> {
         return try {
-            val auth = getAuthHeader() ?: return MovementApiResponse.Error(401, "No active session")
+            val auth = getAuthHeader(expectedOwner) ?: return MovementApiResponse.Error(401, "No active session")
             val rpc = when (request.commandType) {
                 "REVISE_TRANSACTION" -> "revise_transaction_v1"
                 "VOID_TRANSACTION" -> "void_transaction_v1"

@@ -92,10 +92,10 @@ class KeystoreEncryptedSessionStorage @Inject constructor(
                     fos.write(encryptedBytes)
                     fos.flush()
                 }
-                if (sessionFile.exists()) sessionFile.delete()
-                tempFile.renameTo(sessionFile)
+                check(tempFile.renameTo(sessionFile)) { "Could not commit encrypted session" }
             } catch (e: Exception) {
                 SecureLog.e(TAG, "Failed to save encrypted session", e)
+                throw e
             }
         }
     }

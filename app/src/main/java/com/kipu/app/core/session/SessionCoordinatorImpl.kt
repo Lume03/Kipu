@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 @Singleton
-class SessionCoordinatorImpl @Inject constructor() : SessionCoordinator {
+class SessionCoordinatorImpl @Inject constructor(
+    private val movementSyncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler?,
+) : SessionCoordinator {
+    constructor() : this(null)
 
     private val _remoteSession = MutableStateFlow<RemoteSession>(RemoteSession.Absent)
     override val remoteSession: StateFlow<RemoteSession> = _remoteSession.asStateFlow()
@@ -16,13 +19,15 @@ class SessionCoordinatorImpl @Inject constructor() : SessionCoordinator {
     private val _localAccess = MutableStateFlow<LocalAccess>(LocalAccess.NoOwner)
     override val localAccess: StateFlow<LocalAccess> = _localAccess.asStateFlow()
 
-    private var _currentOwner: LocalOwner? = null
+    @Volatile private var _currentOwner: LocalOwner? = null
     override val currentOwner: LocalOwner? get() = _currentOwner
 
     private var isLocked: Boolean = false
 
     override suspend fun setActiveOwner(userId: String) {
+        val previous = _currentOwner?.verifiedUserId
         _currentOwner = LocalOwner(userId, explicitlySignedOut = false)
+        if (previous != null && previous != userId) movementSyncScheduler?.cancelSync(previous)
         if (isLocked) {
             _localAccess.value = LocalAccess.Protected(userId, "APP_LOCKED")
         } else {
@@ -32,7 +37,10 @@ class SessionCoordinatorImpl @Inject constructor() : SessionCoordinator {
     }
 
     override suspend fun clearActiveOwner(explicit: Boolean) {
-        _currentOwner = _currentOwner?.copy(explicitlySignedOut = explicit)
+        val previous = _currentOwner?.verifiedUserId
+        // Revoke visibility before cancellation: a late response must fail its owner guard.
+        _currentOwner = null
+        if (previous != null) movementSyncScheduler?.cancelSync(previous)
         _localAccess.value = LocalAccess.NoOwner
         SecureLog.i("SessionCoordinator", "Active owner cleared (explicit=$explicit)")
     }

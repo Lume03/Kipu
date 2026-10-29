@@ -31,6 +31,7 @@ class SessionEntryCurtain @Inject constructor() {
         val authenticated: Boolean = false,
         val registering: Boolean = false,
         val confirmationRequired: Boolean = false,
+        val destinationRoute: String? = null,
     )
 
     private val _state = MutableStateFlow<State?>(null)
@@ -43,6 +44,10 @@ class SessionEntryCurtain @Inject constructor() {
 
     fun authenticated() {
         _state.update { it?.copy(authenticated = true) }
+    }
+
+    fun expectDestination(route: String) {
+        _state.update { it?.copy(destinationRoute = route) }
     }
 
     fun requireConfirmation() {
@@ -82,9 +87,18 @@ fun SessionEntryCurtainHost(curtain: SessionEntryCurtain, currentRoute: String?,
         if (!reducedMotion) delay(SessionEntryTiming.MIN_VISIBLE_MILLIS)
         minElapsed = true
     }
+    // Non-dashboard destinations (plan onboarding or explicit reminders) resolve behind the same opaque curtain.
+    LaunchedEffect(current.id, current.destinationRoute, currentRoute) {
+        if (current.destinationRoute != null && current.destinationRoute != dashboardRoute &&
+            currentRoute == current.destinationRoute) {
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
+            curtain.markHomeReady()
+        }
+    }
     val ready = SessionEntryTiming.isReady(
         minElapsed, current.authenticated,
-        current.homeReady && currentRoute == dashboardRoute,
+        current.homeReady && currentRoute == (current.destinationRoute ?: dashboardRoute),
     )
     key(current.id) {
         if (current.registering && (current.authenticated || current.confirmationRequired)) {

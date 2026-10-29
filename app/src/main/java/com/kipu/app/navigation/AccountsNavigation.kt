@@ -242,7 +242,7 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
         val entryCurtain = LocalSessionEntryCurtain.current
         val dashboardState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
         val instrumentsState by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
-        val notificationsReady by viewModel.creditNotificationsReady.collectAsStateWithLifecycle()
+        val notificationsReady by viewModel.creditNotificationsSettled.collectAsStateWithLifecycle()
         val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading && notificationsReady
         LaunchedEffect(dashboardLoaded) {
             if (dashboardLoaded) {

@@ -58,6 +58,26 @@ class DashboardEntryPreloaderTest {
         assertTrue(result.exceptionOrNull() is IllegalStateException)
     }
 
+    @Test fun `timeout cancels its exact scheduled work`() = runTest {
+        var cancelled = false
+        val result = runCatching {
+            awaitDashboardSync(MutableStateFlow(work(WorkInfo.State.RUNNING))) { cancelled = true }
+        }
+        assertTrue(result.isFailure)
+        assertTrue(cancelled)
+    }
+
+    @Test fun `caller cancellation cancels its exact scheduled work`() = runTest {
+        var cancelled = false
+        val waiting = async {
+            awaitDashboardSync(MutableStateFlow(work(WorkInfo.State.RUNNING))) { cancelled = true }
+        }
+        runCurrent()
+        waiting.cancel()
+        waiting.join()
+        assertTrue(cancelled)
+    }
+
     @Test
     fun `offline work has a bounded wait and does not silently reveal partial data`() = runTest {
         val result = async {

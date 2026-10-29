@@ -108,6 +108,7 @@ fun DashboardScreen(
     val state by viewModel.dashboardUiState.collectAsStateWithLifecycle()
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
     val creditNotifications by viewModel.creditNotifications.collectAsStateWithLifecycle()
+    val creditNotificationsError by viewModel.creditNotificationsError.collectAsStateWithLifecycle()
     var showQuotaSelection by remember { mutableStateOf(false) }
     var showRegisterMovementSheet by rememberSaveable { mutableStateOf(false) }
     var isArchivedExpanded by rememberSaveable { mutableStateOf(false) }
@@ -174,25 +175,33 @@ fun DashboardScreen(
                             modifier = Modifier.padding(top = 20.dp).testTag(DASHBOARD_ERROR_TAG),
                         )
                     }
-                    else -> DashboardContent(
-                        data = state.dashboardData,
-                        instruments = instruments,
-                        creditNotifications = creditNotifications,
-                        isMasked = isMasked,
-                        isFirstUse = shouldShowEmptyDashboard(state, instruments),
-                        isArchivedExpanded = isArchivedExpanded,
-                        onToggleArchived = { isArchivedExpanded = !isArchivedExpanded },
-                        onToggleMasked = toggleMasked,
-                        onAccountClick = onAccountClick,
-                        onCardClick = onCardClick,
-                        onManageQuota = { showQuotaSelection = true },
-                        onNavigateToPlans = onNavigateToPlans,
-                        onNavigateToNewAccount = onNavigateToNewAccount,
-                        onNavigateToNewCard = onNavigateToNewCard,
-                        netWorthState = netWorthState,
-                        onRetryNetWorth = onRetryNetWorth,
-                        onNavigateToCalendar = onNavigateToCalendar,
-                    )
+                    else -> Column {
+                        creditNotificationsError?.let { message ->
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                TextButton(onClick = viewModel::retryDashboard) { Text("Reintentar") }
+                            }
+                        }
+                        DashboardContent(
+                            data = state.dashboardData,
+                            instruments = instruments,
+                            creditNotifications = creditNotifications,
+                            isMasked = isMasked,
+                            isFirstUse = shouldShowEmptyDashboard(state, instruments),
+                            isArchivedExpanded = isArchivedExpanded,
+                            onToggleArchived = { isArchivedExpanded = !isArchivedExpanded },
+                            onToggleMasked = toggleMasked,
+                            onAccountClick = onAccountClick,
+                            onCardClick = onCardClick,
+                            onManageQuota = { showQuotaSelection = true },
+                            onNavigateToPlans = onNavigateToPlans,
+                            onNavigateToNewAccount = onNavigateToNewAccount,
+                            onNavigateToNewCard = onNavigateToNewCard,
+                            netWorthState = netWorthState,
+                            onRetryNetWorth = onRetryNetWorth,
+                            onNavigateToCalendar = onNavigateToCalendar,
+                        )
+                    }
                 }
             }
         }

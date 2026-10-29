@@ -23,6 +23,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MovementApiTest {
+    @Test fun `sync command refuses credentials for another owner before HTTP`() = runTest {
+        val http = HttpClient(MockEngine { error("Wrong-owner request must never be dispatched") })
+        try {
+            val api = MovementApi(http, Sessions())
+            assertEquals(401, (api.registerTransaction(io.mockk.mockk(), "owner-A") as MovementApiResponse.Error).statusCode)
+            assertEquals(401, (api.registerRefund(io.mockk.mockk(), "owner-A") as MovementApiResponse.Error).statusCode)
+            assertEquals(401, (api.reviseOrVoidTransaction(io.mockk.mockk(), "owner-A") as MovementApiResponse.Error).statusCode)
+        } finally { http.close() }
+    }
+
     @Test
     fun `refund uses its dedicated versioned rpc and preserves the refund request contract`() = runTest {
         val client = client(MockEngine { request ->

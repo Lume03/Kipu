@@ -267,7 +267,7 @@ class MainActivity : FragmentActivity() {
 
             LaunchedEffect(currentUserId, pendingReminderRoute) {
                 val route = pendingReminderRoute
-                if (currentUserId != null && route != null) {
+                if (currentUserId != null && route != null && sessionEntryCurtain.state.value == null) {
                     navController.openReminderRoute(route)
                     pendingReminderRoute = null
                 }
@@ -478,11 +478,14 @@ class MainActivity : FragmentActivity() {
                                     appDestinations(
                                         navController = navController,
                                         onAuthenticated = { userId ->
-                                            // Compose Mi dinero immediately behind the curtain. Plan selection
-                                            // remains available from settings; a local missing preference must
-                                            // not redirect a successful interactive sign-in away from home.
-                                            navController.openReminderRoute(ACCOUNTS_DASHBOARD_ROUTE)
-                                            pendingReminderRoute = null
+                                            scope.launch {
+                                                val destination = postAuthDestination(userId) ?: AUTH_LOGIN_ROUTE
+                                                navController.openReminderRoute(destination)
+                                                pendingReminderRoute = null
+                                                sessionEntryCurtain.expectDestination(
+                                                    navController.currentDestination?.route ?: destination,
+                                                )
+                                            }
                                         },
                                         onSignOut = {
                                             navController.clearBackStack(ACCOUNTS_DASHBOARD_ROUTE)
@@ -548,10 +551,8 @@ class MainActivity : FragmentActivity() {
 
     private suspend fun postAuthDestination(rawUserId: String): String? {
         val userId = runCatching { UUID.fromString(rawUserId) }.getOrNull() ?: return null
-        return if (planPreferencesDao.findPreference(userId) == null) {
-            PLAN_SELECTION_ROUTE
-        } else {
-            ACCOUNTS_DASHBOARD_ROUTE
+        return com.kipu.app.navigation.resolvePostAuthDestination(pendingReminderRoute) {
+            planPreferencesDao.findPreference(userId) != null
         }
     }
 }

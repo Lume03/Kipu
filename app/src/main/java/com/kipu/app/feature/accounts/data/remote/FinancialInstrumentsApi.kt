@@ -25,8 +25,9 @@ class FinancialInstrumentsApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
-    private suspend fun getAuthHeader(): String? {
+    private suspend fun getAuthHeader(expectedOwner: String? = null): String? {
         val session = sessionProvider.currentSession() ?: sessionProvider.refreshSession() ?: return null
+        if (expectedOwner != null && session.userId.toString() != expectedOwner) return null
         return "Bearer ${session.accessToken}"
     }
 
@@ -119,9 +120,9 @@ class FinancialInstrumentsApi @Inject constructor(
         }
     }
 
-    suspend fun pullChanges(request: PullChangesRequestDto): FinancialApiResponse<PullChangesResponseDto> {
+    suspend fun pullChanges(request: PullChangesRequestDto, expectedOwner: String? = null): FinancialApiResponse<PullChangesResponseDto> {
         return try {
-            val auth = getAuthHeader() ?: return FinancialApiResponse.Error(401, "No active session")
+            val auth = getAuthHeader(expectedOwner) ?: return FinancialApiResponse.Error(401, "No active session")
             val response = httpClient.post("rest/v1/rpc/pull_financial_changes_v1") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, auth)

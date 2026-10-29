@@ -118,6 +118,10 @@ class AccountsViewModel @Inject constructor(
     private val _creditNotifications = MutableStateFlow<List<CreditUtilizationNotification>>(emptyList())
     val creditNotifications: StateFlow<List<CreditUtilizationNotification>> = _creditNotifications.asStateFlow()
     private val creditNotificationsLoaded = MutableStateFlow(false)
+    private val _creditNotificationsError = MutableStateFlow<String?>(null)
+    val creditNotificationsError: StateFlow<String?> = _creditNotificationsError.asStateFlow()
+    private val _creditNotificationsSettled = MutableStateFlow(false)
+    val creditNotificationsSettled: StateFlow<Boolean> = _creditNotificationsSettled.asStateFlow()
     val creditNotificationsReady: StateFlow<Boolean> = creditNotificationsLoaded.asStateFlow()
 
     private val _purchaseCategories = MutableStateFlow<List<PurchaseCategoryOption>>(emptyList())
@@ -142,15 +146,25 @@ class AccountsViewModel @Inject constructor(
 
     fun refreshCreditUtilizationNotifications(cardId: String? = null) {
         viewModelScope.launch {
+            _creditNotificationsSettled.value = false
+            creditNotificationsLoaded.value = false
             try {
-                withTimeoutOrNull(10_000L) {
-                    financialInstrumentsRepository.getCreditUtilizationNotifications(cardId).fold(
-                        onSuccess = { _creditNotifications.value = it },
-                        onFailure = { /* Keep the last snapshot on transient failures. */ },
-                    )
+                val result = withTimeoutOrNull(10_000L) {
+                    financialInstrumentsRepository.getCreditUtilizationNotifications(cardId)
                 }
+                if (result?.isSuccess == true) {
+                    _creditNotifications.value = result.getOrThrow()
+                    creditNotificationsLoaded.value = true
+                    _creditNotificationsError.value = null
+                } else {
+                    _creditNotificationsError.value = "No se pudieron cargar los avisos de cr?dito."
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _creditNotificationsError.value = "No se pudieron cargar los avisos de cr?dito."
             } finally {
-                creditNotificationsLoaded.value = true
+                _creditNotificationsSettled.value = true
             }
         }
     }
@@ -258,6 +272,7 @@ class AccountsViewModel @Inject constructor(
     )
 
     fun retryDashboard() {
+        refreshCreditUtilizationNotifications()
         dashboardRetry.value += 1
     }
 

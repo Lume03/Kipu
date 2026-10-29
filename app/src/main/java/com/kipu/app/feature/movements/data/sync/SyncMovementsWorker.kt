@@ -108,6 +108,19 @@ class SyncMovementsWorker @AssistedInject constructor(
         )
     }
 
+    private fun requireOwner(userId: String) = requireSyncOwner(sessionCoordinator, userId)
+
+    private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T {
+        requireOwner(userId)
+        return request().also { requireOwner(userId) }
+    }
+
+    private suspend fun <T> ownerTransaction(userId: String, block: suspend () -> T): T =
+        database.withTransaction {
+            requireOwner(userId)
+            block().also { requireOwner(userId) }
+        }
+
     override suspend fun doWork(): Result {
         val currentVerifiedOwner = sessionCoordinator.currentOwner?.verifiedUserId
         val targetUserId = inputData.getString(KEY_USER_ID) ?: currentVerifiedOwner
@@ -117,33 +130,36 @@ class SyncMovementsWorker @AssistedInject constructor(
             return Result.retry()
         }
 
-        if (currentVerifiedOwner != null && targetUserId != currentVerifiedOwner) {
+        if (targetUserId != currentVerifiedOwner) {
             SecureLog.w("SyncMovementsWorker", "Target owner differs from verified active owner")
-            return Result.retry()
+            return Result.failure()
         }
 
+        requireOwner(targetUserId)
         val recovery = applicationContext.getSharedPreferences("movement_contract_recovery", android.content.Context.MODE_PRIVATE)
         val recoveryKey = "wallet-channel-20261021-v4:$targetUserId"
         if (!recovery.getBoolean(recoveryKey, false)) {
-            movementDao.recoverMissingRegistrationEndpoint(targetUserId, System.currentTimeMillis())
+            ownerTransaction(targetUserId) { movementDao.recoverMissingRegistrationEndpoint(targetUserId, System.currentTimeMillis()) }
             recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
-        if (movementDao.recoverAuthRejectedOutbox(targetUserId, System.currentTimeMillis()) > 0) {
-            movementDao.markOutboxTransactionsPending(targetUserId)
+        ownerTransaction(targetUserId) {
+            if (movementDao.recoverAuthRejectedOutbox(targetUserId, System.currentTimeMillis()) > 0) {
+                movementDao.markOutboxTransactionsPending(targetUserId)
+            }
         }
 
         val remoteSession = sessionCoordinator.remoteSession.value
         if (remoteSession is RemoteSession.Valid && remoteSession.userId == targetUserId &&
             remoteSession.expiresAt.isAfter(Instant.now())) {
-            movementDao.clearAuthRetryBackoff(targetUserId, System.currentTimeMillis())
+            ownerTransaction(targetUserId) { movementDao.clearAuthRetryBackoff(targetUserId, System.currentTimeMillis()) }
         }
 
         var anyFailed = false
         // Lease immediately before each network call, rather than leasing a waiting batch.
         for (index in 0 until 10) {
             val now = System.currentTimeMillis()
-            val cmd = movementDao.claimPendingOutbox(targetUserId, now, limit = 1).firstOrNull() ?: break
+            val cmd = ownerTransaction(targetUserId) { movementDao.claimPendingOutbox(targetUserId, now, limit = 1).firstOrNull() } ?: break
             if (!processCommand(cmd, now)) anyFailed = true
         }
 
@@ -163,13 +179,13 @@ class SyncMovementsWorker @AssistedInject constructor(
     private suspend fun pullChanges(userId: String): Boolean {
         var checkpoint = movementDao.getSyncCheckpoint(userId)?.sequence ?: 0L
         repeat(20) {
-            when (val response = financialApi.pullChanges(PullChangesRequestDto(afterSequence = checkpoint))) {
+            when (val response = ownerRequest(userId) { financialApi.pullChanges(PullChangesRequestDto(afterSequence = checkpoint), userId) }) {
                 is FinancialApiResponse.Success -> {
                     val page = response.data
                     if (page.changes.isEmpty()) return page.nextSequence == checkpoint
                     if (!SyncFeedCursor.isValidPage(checkpoint, page)) return false
                     val appliedPage = try {
-                        database.withTransaction {
+                        ownerTransaction(userId) {
                             var expectedSequence = checkpoint
                             for (change in page.changes.sortedBy { it.sequence }) {
                                 val payload = change.payload
@@ -244,7 +260,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         var cursor = 0L
         while (cursor < checkpoint) {
             val response = try {
-                financialApi.pullChanges(PullChangesRequestDto(afterSequence = cursor))
+                ownerRequest(userId) { financialApi.pullChanges(PullChangesRequestDto(afterSequence = cursor), userId) }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -262,12 +278,12 @@ class SyncMovementsWorker @AssistedInject constructor(
                 try {
                     val remote = json.decodeFromJsonElement<SyncTransactionPayload>(payload)
                     if (remote.status.equals("VOIDED", ignoreCase = true)) continue
-                    database.withTransaction {
-                        val local = movementDao.getTransactionById(userId, remote.id) ?: return@withTransaction
+                    ownerTransaction(userId) {
+                        val local = movementDao.getTransactionById(userId, remote.id) ?: return@ownerTransaction
                         if (local.revision != change.revision || local.status == "VOIDED" ||
                             movementDao.getPendingOutboxForTransaction(userId, local.id).isNotEmpty()
-                        ) return@withTransaction
-                        if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) return@withTransaction
+                        ) return@ownerTransaction
+                        if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) return@ownerTransaction
                         movementDao.getLedgerEntriesForTransaction(userId, local.id).map { it.accountId }.distinct().forEach { accountId ->
                             val account = accountDao.getById(userId, accountId) ?: return@forEach
                             movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
@@ -290,18 +306,18 @@ class SyncMovementsWorker @AssistedInject constructor(
     }
 
     private suspend fun applyPulledAccount(userId: String, remote: SyncAccountPayload, revision: Long): Boolean =
-        database.withTransaction {
+        ownerTransaction(userId) {
             if (remote.id.isBlank() || remote.currency !in setOf("PEN", "USD") || remote.initialBalanceMinorUnits < 0L) {
-                return@withTransaction false
+                return@ownerTransaction false
             }
             if (remote.type == "CREDIT_LIABILITY" && remote.initialBalanceMinorUnits != 0L) {
-                return@withTransaction false
+                return@ownerTransaction false
             }
-            if (remote.linkedAccountId != null && remote.type != "WALLET") return@withTransaction false
+            if (remote.linkedAccountId != null && remote.type != "WALLET") return@ownerTransaction false
             val existing = accountDao.getById(userId, remote.id)
             val localType = if (remote.type == "WALLET") "DIGITAL_WALLET" else remote.type
             if (existing != null && (existing.type != localType || existing.currency != remote.currency)) {
-                return@withTransaction false
+                return@ownerTransaction false
             }
             if (existing == null) {
                 val openedAt = parseFeedInstant(remote.openedAt).toEpochMilli()
@@ -332,7 +348,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 )
             }
             accountDao.updateRemoteRevision(userId, remote.id, revision, System.currentTimeMillis() * 1_000L)
-            val account = accountDao.getById(userId, remote.id) ?: return@withTransaction false
+            val account = accountDao.getById(userId, remote.id) ?: return@ownerTransaction false
             val balance = movementDao.calculateLedgerSumForAccount(userId, remote.id)
                 ?: remote.initialBalanceMinorUnits
             movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
@@ -343,22 +359,22 @@ class SyncMovementsWorker @AssistedInject constructor(
         }
 
     private suspend fun applyPulledCard(userId: String, remote: SyncCardPayload, revision: Long): Boolean =
-        database.withTransaction {
-            if (remote.id.isBlank() || remote.id != remote.id.trim()) return@withTransaction false
-            if (remote.type !in setOf("CREDIT", "DEBIT") || remote.currency !in setOf("PEN", "USD")) return@withTransaction false
-            if (!Card.isValidLastFourDigits(remote.lastFourDigits)) return@withTransaction false
-            if (remote.issuer.trim().length !in 1..80 || Card.isForbiddenSensitiveCardInput(remote.issuer)) return@withTransaction false
-            if (remote.alias?.let { it.trim().length !in 1..80 } == true) return@withTransaction false
-            if (remote.network !in setOf("VISA", "MASTERCARD", "AMEX", "DINERS", "OTHER")) return@withTransaction false
+        ownerTransaction(userId) {
+            if (remote.id.isBlank() || remote.id != remote.id.trim()) return@ownerTransaction false
+            if (remote.type !in setOf("CREDIT", "DEBIT") || remote.currency !in setOf("PEN", "USD")) return@ownerTransaction false
+            if (!Card.isValidLastFourDigits(remote.lastFourDigits)) return@ownerTransaction false
+            if (remote.issuer.trim().length !in 1..80 || Card.isForbiddenSensitiveCardInput(remote.issuer)) return@ownerTransaction false
+            if (remote.alias?.let { it.trim().length !in 1..80 } == true) return@ownerTransaction false
+            if (remote.network !in setOf("VISA", "MASTERCARD", "AMEX", "DINERS", "OTHER")) return@ownerTransaction false
             val accountId = remote.accountId
             if (remote.type == "DEBIT") {
-                val linkedAccount = accountId?.let { accountDao.getById(userId, it) } ?: return@withTransaction false
-                if (linkedAccount.type == "CREDIT_LIABILITY" || linkedAccount.currency != remote.currency) return@withTransaction false
+                val linkedAccount = accountId?.let { accountDao.getById(userId, it) } ?: return@ownerTransaction false
+                if (linkedAccount.type == "CREDIT_LIABILITY" || linkedAccount.currency != remote.currency) return@ownerTransaction false
             }
             if (remote.type == "CREDIT") {
                 if (accountId == null || remote.creditLimitMinorUnits == null || remote.creditLimitMinorUnits < 0L ||
                     remote.billingDay !in 1..31 || remote.dueDay !in 1..31
-                ) return@withTransaction false
+                ) return@ownerTransaction false
                 var liabilityAccount = accountDao.getById(userId, accountId)
                 if (liabilityAccount == null) {
                     val openedAt = remote.createdAt?.let { runCatching { parseFeedInstant(it).toEpochMilli() }.getOrNull() }
@@ -386,9 +402,9 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
                 if (liabilityAccount?.type != "CREDIT_LIABILITY" || liabilityAccount.currency != remote.currency ||
                     liabilityAccount.initialBalanceMinorUnits != 0L
-                ) return@withTransaction false
+                ) return@ownerTransaction false
             }
-            if (remote.type == "DEBIT" && (remote.creditLimitMinorUnits != null || remote.billingDay != null || remote.dueDay != null)) return@withTransaction false
+            if (remote.type == "DEBIT" && (remote.creditLimitMinorUnits != null || remote.billingDay != null || remote.dueDay != null)) return@ownerTransaction false
 
             val existing = cardDao.getById(userId, remote.id)
             val nowMicros = System.currentTimeMillis() * 1_000L
@@ -424,9 +440,9 @@ class SyncMovementsWorker @AssistedInject constructor(
         }
 
     private suspend fun applyPulledCardDeletion(userId: String, cardId: String): Boolean =
-        database.withTransaction {
-            val existing = cardDao.getById(userId, cardId) ?: return@withTransaction true
-            if (cardDao.countTransactionsForCard(userId, cardId) != 0) return@withTransaction false
+        ownerTransaction(userId) {
+            val existing = cardDao.getById(userId, cardId) ?: return@ownerTransaction true
+            if (cardDao.countTransactionsForCard(userId, cardId) != 0) return@ownerTransaction false
             cardDao.delete(userId, existing.id)
             true
         }
@@ -435,50 +451,50 @@ class SyncMovementsWorker @AssistedInject constructor(
         userId: String,
         remote: SyncTransactionPayload,
         revision: Long,
-    ): Boolean = database.withTransaction {
+    ): Boolean = ownerTransaction(userId) {
         // The server names an ordinary movement STANDARD; locally that kind is null.
         val remoteKind = remote.operationKind?.takeUnless { it.equals("STANDARD", ignoreCase = true) }
         val existing = movementDao.getTransactionById(userId, remote.id)
         val accountIds = remote.ledgerEntries.map { it.accountId }.distinct()
-        if (accountIds.any { accountDao.getById(userId, it) == null }) return@withTransaction false
+        if (accountIds.any { accountDao.getById(userId, it) == null }) return@ownerTransaction false
         val isCardPurchase = remoteKind.equals("CARD_PURCHASE", true)
         val isCardPayment = remoteKind.equals("CARD_PAYMENT", true)
         if (isCardPurchase || isCardPayment) {
-            val cardId = remote.cardId ?: return@withTransaction false
-            val card = cardDao.getById(userId, cardId) ?: return@withTransaction false
-            if (card.type != "CREDIT" || card.currency != remote.currencyCode) return@withTransaction false
-            if (isCardPurchase && (remote.type != "EXPENSE" || remote.sourceAccountId != null || remote.installmentCount?.let { it in 1..36 } != true || remote.categoryId.isNullOrBlank())) return@withTransaction false
-            if (isCardPayment && (remote.type != "TRANSFER" || remote.sourceAccountId == null || remote.destinationAccountId != null)) return@withTransaction false
+            val cardId = remote.cardId ?: return@ownerTransaction false
+            val card = cardDao.getById(userId, cardId) ?: return@ownerTransaction false
+            if (card.type != "CREDIT" || card.currency != remote.currencyCode) return@ownerTransaction false
+            if (isCardPurchase && (remote.type != "EXPENSE" || remote.sourceAccountId != null || remote.installmentCount?.let { it in 1..36 } != true || remote.categoryId.isNullOrBlank())) return@ownerTransaction false
+            if (isCardPayment && (remote.type != "TRANSFER" || remote.sourceAccountId == null || remote.destinationAccountId != null)) return@ownerTransaction false
         } else if (remote.cardId != null || remote.installments.isNotEmpty() || remote.allocations.isNotEmpty()) {
-            return@withTransaction false
+            return@ownerTransaction false
         }
         if (isCardPurchase) {
-            val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@withTransaction false
-            val liabilityId = card.accountId ?: return@withTransaction false
-            val liability = remote.ledgerEntries.singleOrNull() ?: return@withTransaction false
+            val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@ownerTransaction false
+            val liabilityId = card.accountId ?: return@ownerTransaction false
+            val liability = remote.ledgerEntries.singleOrNull() ?: return@ownerTransaction false
             if (liability.accountId != liabilityId || liability.role != "LIABILITY" ||
                 liability.signedAmountMinor != -remote.amountMinor || liability.currencyCode != remote.currencyCode
-            ) return@withTransaction false
+            ) return@ownerTransaction false
         }
         if (isCardPayment) {
-            val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@withTransaction false
-            val liabilityId = card.accountId ?: return@withTransaction false
-            val sourceId = remote.sourceAccountId ?: return@withTransaction false
+            val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@ownerTransaction false
+            val liabilityId = card.accountId ?: return@ownerTransaction false
+            val sourceId = remote.sourceAccountId ?: return@ownerTransaction false
             val entries = remote.ledgerEntries
             if (remote.allocations.isEmpty() || entries.size != 2 ||
                 entries.count { it.accountId == sourceId && it.role == "SOURCE" && it.signedAmountMinor == -remote.amountMinor && it.currencyCode == remote.currencyCode } != 1 ||
                 entries.count { it.accountId == liabilityId && it.role == "LIABILITY" && it.signedAmountMinor == remote.amountMinor && it.currencyCode == remote.currencyCode } != 1 ||
                 entries.sumOf { it.signedAmountMinor } != 0L
-            ) return@withTransaction false
+            ) return@ownerTransaction false
         }
 
         if (existing != null) {
             if (revision < existing.revision) {
-                return@withTransaction true
+                return@ownerTransaction true
             }
             if (existing.cardId != remote.cardId || existing.operationKind != remoteKind ||
                 existing.installmentCount != remote.installmentCount
-            ) return@withTransaction false
+            ) return@ownerTransaction false
 
             val pendingLocal = movementDao.getPendingOutboxForTransaction(userId, remote.id)
             if (pendingLocal.isNotEmpty() && revision > existing.revision) {
@@ -504,13 +520,13 @@ class SyncMovementsWorker @AssistedInject constructor(
                     )
                 }
                 movementDao.updateTransactionSyncStatus(userId, remote.id, MovementSyncStatus.CONFLICT.name)
-                return@withTransaction true
+                return@ownerTransaction true
             }
 
             val occurredAt = runCatching { parseFeedInstant(remote.occurredAt).toEpochMilli() }.getOrNull() ?: existing.occurredAt
-            if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
-            if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false
-            if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@withTransaction false
+            if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@ownerTransaction false
+            if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@ownerTransaction false
+            if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@ownerTransaction false
 
             movementDao.updateTransactionFromRemote(
                 userId = userId,
@@ -539,7 +555,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                     currencyCode = account.currency, lastTransactionAt = occurredAt,
                 ))
             }
-            return@withTransaction true
+            return@ownerTransaction true
         }
         val occurredAt = parseFeedInstant(remote.occurredAt).toEpochMilli()
         movementDao.insertPulledTransaction(TransactionEntity(
@@ -556,11 +572,11 @@ class SyncMovementsWorker @AssistedInject constructor(
             installmentCount = remote.installmentCount,
             source = remote.paymentChannel,
         ))
-        if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@withTransaction false
-        if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@withTransaction false
-        if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@withTransaction false
+        if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@ownerTransaction false
+        if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@ownerTransaction false
+        if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@ownerTransaction false
         accountIds.forEach { accountId ->
-            val account = accountDao.getById(userId, accountId) ?: return@withTransaction false
+            val account = accountDao.getById(userId, accountId) ?: return@ownerTransaction false
             val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
             movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
                 userId = userId, accountId = accountId, balanceMinor = balance,
@@ -736,6 +752,7 @@ class SyncMovementsWorker @AssistedInject constructor(
     }
 
     private suspend fun processCommand(cmd: MovementOutboxEntity, now: Long): Boolean {
+        requireOwner(cmd.userId)
         return try {
             when (cmd.commandType) {
                 "CREATE_REFUND" -> processRefundCommand(cmd, now)
@@ -771,44 +788,47 @@ class SyncMovementsWorker @AssistedInject constructor(
             }
         }
 
-        return when (val response = api.registerRefund(request)) {
-            is MovementApiResponse.Success -> when (response.data.status) {
-                "APPLIED", "DUPLICATE" -> {
-                    if (response.data.transactionId != null && response.data.transactionId != cmd.aggregateId) {
-                        finishRefund(cmd, "FAILED_PERMANENT", null, "TRANSACTION_ID_MISMATCH", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
-                    } else {
-                        finishRefund(cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name, "SYNCED")
+        val response = ownerRequest(cmd.userId) { api.registerRefund(request, cmd.userId) }
+        return ownerTransaction(cmd.userId) {
+            when (response) {
+                is MovementApiResponse.Success -> when (response.data.status) {
+                    "APPLIED", "DUPLICATE" -> {
+                        if (response.data.transactionId != null && response.data.transactionId != cmd.aggregateId) {
+                            finishRefund(cmd, "FAILED_PERMANENT", null, "TRANSACTION_ID_MISMATCH", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+                        } else {
+                            finishRefund(cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name, "SYNCED")
+                        }
+                    }
+                    "REJECTED" -> finishRefund(
+                        cmd,
+                        "FAILED_PERMANENT",
+                        null,
+                        response.data.error?.code ?: "REJECTED",
+                        MovementSyncStatus.FAILED_PERMANENT.name,
+                        "REJECTED",
+                    )
+                    "CONFLICT" -> finishRefund(
+                        cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name, "CONFLICT",
+                    )
+                    else -> {
+                        retryCommand(cmd, now, "UNKNOWN_STATUS")
+                        false
                     }
                 }
-                "REJECTED" -> finishRefund(
-                    cmd,
-                    "FAILED_PERMANENT",
-                    null,
-                    response.data.error?.code ?: "REJECTED",
-                    MovementSyncStatus.FAILED_PERMANENT.name,
-                    "REJECTED",
-                )
-                "CONFLICT" -> finishRefund(
-                    cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name, "CONFLICT",
-                )
-                else -> {
-                    retryCommand(cmd, now, "UNKNOWN_STATUS")
+                is MovementApiResponse.Error -> {
+                    val permanent = isPermanentHttpFailure(response.statusCode)
+                    if (permanent) {
+                        finishRefund(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
+                    } else {
+                        retryCommand(cmd, now, "HTTP_${response.statusCode}")
+                        false
+                    }
+                }
+                is MovementApiResponse.NetworkFailure -> {
+                    if (response.exception is CancellationException) throw response.exception
+                    retryCommand(cmd, now, "NETWORK_ERROR")
                     false
                 }
-            }
-            is MovementApiResponse.Error -> {
-                val permanent = isPermanentHttpFailure(response.statusCode)
-                if (permanent) {
-                    finishRefund(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
-                } else {
-                    retryCommand(cmd, now, "HTTP_${response.statusCode}")
-                    false
-                }
-            }
-            is MovementApiResponse.NetworkFailure -> {
-                if (response.exception is CancellationException) throw response.exception
-                retryCommand(cmd, now, "NETWORK_ERROR")
-                false
             }
         }
     }
@@ -820,7 +840,7 @@ class SyncMovementsWorker @AssistedInject constructor(
         errorCode: String?,
         transactionSyncStatus: String,
         receiptStatus: String,
-    ): Boolean = database.withTransaction {
+    ): Boolean = ownerTransaction(cmd.userId) {
         val updated = movementDao.completeClaimedOutbox(
             cmd, outboxState, nextAttemptAt, errorCode, transactionSyncStatus,
         )
@@ -844,48 +864,51 @@ class SyncMovementsWorker @AssistedInject constructor(
                 return false
             }
         }
-        return when (val response = api.registerTransaction(requestDto)) {
-            is MovementApiResponse.Success -> when (response.data.status) {
-                "APPLIED", "DUPLICATE" -> {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name,
-                    )
-                    true
+        val response = ownerRequest(cmd.userId) { api.registerTransaction(requestDto, cmd.userId) }
+        return ownerTransaction(cmd.userId) {
+            when (response) {
+                is MovementApiResponse.Success -> when (response.data.status) {
+                    "APPLIED", "DUPLICATE" -> {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name,
+                        )
+                        true
+                    }
+                    "CONFLICT" -> {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name,
+                        )
+                        false
+                    }
+                    "REJECTED" -> {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
+                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        )
+                        false
+                    }
+                    else -> {
+                        movementDao.completeClaimedOutbox(cmd, "RETRY", now + 10_000L, "UNKNOWN_STATUS")
+                        false
+                    }
                 }
-                "CONFLICT" -> {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name,
-                    )
+                is MovementApiResponse.Error -> {
+                    val isPermanent = isPermanentHttpFailure(response.statusCode)
+                    if (isPermanent) {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
+                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        )
+                    } else {
+                        retryCommand(cmd, now, "HTTP_${response.statusCode}")
+                    }
                     false
                 }
-                "REJECTED" -> {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
-                        MovementSyncStatus.FAILED_PERMANENT.name,
-                    )
+                is MovementApiResponse.NetworkFailure -> {
+                    if (response.exception is CancellationException) throw response.exception
+                    retryCommand(cmd, now, "NETWORK_ERROR")
                     false
                 }
-                else -> {
-                    movementDao.completeClaimedOutbox(cmd, "RETRY", now + 10_000L, "UNKNOWN_STATUS")
-                    false
-                }
-            }
-            is MovementApiResponse.Error -> {
-                val isPermanent = isPermanentHttpFailure(response.statusCode)
-                if (isPermanent) {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
-                        MovementSyncStatus.FAILED_PERMANENT.name,
-                    )
-                } else {
-                    retryCommand(cmd, now, "HTTP_${response.statusCode}")
-                }
-                false
-            }
-            is MovementApiResponse.NetworkFailure -> {
-                if (response.exception is CancellationException) throw response.exception
-                retryCommand(cmd, now, "NETWORK_ERROR")
-                false
             }
         }
     }
@@ -896,109 +919,126 @@ class SyncMovementsWorker @AssistedInject constructor(
             if (parentReceipt == null || parentReceipt.status !in listOf("APPLIED", "REVISED", "VOIDED")) {
                 val parentOutbox = movementDao.getOutboxById(cmd.userId, cmd.dependsOnCommandId)
                 if (parentOutbox?.state in listOf("CONFLICT", "FAILED_PERMANENT")) {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "FAILED_PERMANENT", null, "DEPENDENCY_FAILED",
-                        MovementSyncStatus.FAILED_PERMANENT.name,
-                    )
+                    ownerTransaction(cmd.userId) {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "FAILED_PERMANENT", null, "DEPENDENCY_FAILED",
+                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        )
+                    }
                     return false
                 }
-                movementDao.updateOutboxResult(cmd.userId, cmd.id, "PENDING", now + 2_000L, "WAITING_DEPENDENCY")
+                ownerTransaction(cmd.userId) {
+                    movementDao.updateOutboxResult(cmd.userId, cmd.id, "PENDING", now + 2_000L, "WAITING_DEPENDENCY")
+                }
                 return false
             }
         }
 
         val requestDto = json.decodeFromString<ReviseOrVoidTransactionRequestDto>(cmd.payload)
-        return when (val response = api.reviseOrVoidTransaction(requestDto)) {
-            is MovementApiResponse.Success -> when (response.data.status) {
-                "APPLIED", "DUPLICATE" -> {
-                    movementDao.insertOrUpdateReceipt(
-                        LocalCommandReceiptEntity(
-                            userId = cmd.userId,
-                            idempotencyKey = cmd.idempotencyKey,
-                            requestHash = requestDto.requestHash,
-                            transactionId = cmd.aggregateId,
-                            status = response.data.result ?: "APPLIED",
-                            responsePayload = cmd.payload,
-                            contractVersion = requestDto.contractVersion,
-                            commandType = cmd.commandType,
-                            expectedRevision = cmd.expectedRevision,
-                            resultingRevision = response.data.resultingRevision,
-                            createdAt = now,
-                            updatedAt = now,
-                        )
-                    )
-                    movementDao.completeClaimedOutbox(
-                        cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name,
-                    )
-                    true
-                }
-                "CONFLICT" -> {
-                    val existingProposal = movementDao.getConflictProposals(cmd.userId, cmd.aggregateId)
-                        .firstOrNull { it.commandId == cmd.idempotencyKey }
-                    if (existingProposal == null) {
-                        val latestRevision = movementDao.getRevisions(cmd.userId, cmd.aggregateId).lastOrNull()
-                        if (latestRevision != null) {
-                            movementDao.insertConflictProposal(
-                                com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity(
-                                    userId = cmd.userId,
-                                    proposalId = UUID.randomUUID().toString(),
-                                    transactionId = cmd.aggregateId,
-                                    commandId = cmd.idempotencyKey,
-                                    baseRevision = cmd.expectedRevision ?: 1L,
-                                    proposedRevisionId = latestRevision.revisionId,
-                                    proposedSnapshot = cmd.payload,
-                                    localRevisionIds = latestRevision.revisionId,
-                                    remoteRevisionId = response.data.currentRevision?.toString(),
-                                    resolution = "UNRESOLVED",
-                                    createdAt = now,
-                                    updatedAt = now,
-                                )
+        val response = ownerRequest(cmd.userId) { api.reviseOrVoidTransaction(requestDto, cmd.userId) }
+        return ownerTransaction(cmd.userId) {
+            when (response) {
+                is MovementApiResponse.Success -> when (response.data.status) {
+                    "APPLIED", "DUPLICATE" -> {
+                        movementDao.insertOrUpdateReceipt(
+                            LocalCommandReceiptEntity(
+                                userId = cmd.userId,
+                                idempotencyKey = cmd.idempotencyKey,
+                                requestHash = requestDto.requestHash,
+                                transactionId = cmd.aggregateId,
+                                status = response.data.result ?: "APPLIED",
+                                responsePayload = cmd.payload,
+                                contractVersion = requestDto.contractVersion,
+                                commandType = cmd.commandType,
+                                expectedRevision = cmd.expectedRevision,
+                                resultingRevision = response.data.resultingRevision,
+                                createdAt = now,
+                                updatedAt = now,
                             )
-                        }
+                        )
+                        movementDao.completeClaimedOutbox(
+                            cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name,
+                        )
+                        true
                     }
-                    movementDao.completeClaimedOutbox(
-                        cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name,
-                    )
+                    "CONFLICT" -> {
+                        val existingProposal = movementDao.getConflictProposals(cmd.userId, cmd.aggregateId)
+                            .firstOrNull { it.commandId == cmd.idempotencyKey }
+                        if (existingProposal == null) {
+                            val latestRevision = movementDao.getRevisions(cmd.userId, cmd.aggregateId).lastOrNull()
+                            if (latestRevision != null) {
+                                movementDao.insertConflictProposal(
+                                    com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity(
+                                        userId = cmd.userId,
+                                        proposalId = UUID.randomUUID().toString(),
+                                        transactionId = cmd.aggregateId,
+                                        commandId = cmd.idempotencyKey,
+                                        baseRevision = cmd.expectedRevision ?: 1L,
+                                        proposedRevisionId = latestRevision.revisionId,
+                                        proposedSnapshot = cmd.payload,
+                                        localRevisionIds = latestRevision.revisionId,
+                                        remoteRevisionId = response.data.currentRevision?.toString(),
+                                        resolution = "UNRESOLVED",
+                                        createdAt = now,
+                                        updatedAt = now,
+                                    )
+                                )
+                            }
+                        }
+                        movementDao.completeClaimedOutbox(
+                            cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name,
+                        )
+                        false
+                    }
+                    "REJECTED" -> {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
+                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        )
+                        false
+                    }
+                    else -> {
+                        movementDao.completeClaimedOutbox(cmd, "RETRY", now + 10_000L, "UNKNOWN_STATUS")
+                        false
+                    }
+                }
+                is MovementApiResponse.Error -> {
+                    val isPermanent = isPermanentHttpFailure(response.statusCode)
+                    if (isPermanent) {
+                        movementDao.completeClaimedOutbox(
+                            cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
+                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        )
+                    } else {
+                        retryCommand(cmd, now, "HTTP_${response.statusCode}")
+                    }
                     false
                 }
-                "REJECTED" -> {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
-                        MovementSyncStatus.FAILED_PERMANENT.name,
-                    )
+                is MovementApiResponse.NetworkFailure -> {
+                    if (response.exception is CancellationException) throw response.exception
+                    retryCommand(cmd, now, "NETWORK_ERROR")
                     false
                 }
-                else -> {
-                    movementDao.completeClaimedOutbox(cmd, "RETRY", now + 10_000L, "UNKNOWN_STATUS")
-                    false
-                }
-            }
-            is MovementApiResponse.Error -> {
-                val isPermanent = isPermanentHttpFailure(response.statusCode)
-                if (isPermanent) {
-                    movementDao.completeClaimedOutbox(
-                        cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
-                        MovementSyncStatus.FAILED_PERMANENT.name,
-                    )
-                } else {
-                    retryCommand(cmd, now, "HTTP_${response.statusCode}")
-                }
-                false
-            }
-            is MovementApiResponse.NetworkFailure -> {
-                if (response.exception is CancellationException) throw response.exception
-                retryCommand(cmd, now, "NETWORK_ERROR")
-                false
             }
         }
     }
 
     private suspend fun retryCommand(cmd: MovementOutboxEntity, now: Long, errorCode: String) {
-        val nextBackoff = now + (5_000L * (1L shl (cmd.attemptCount.coerceAtMost(5))))
-        movementDao.completeClaimedOutbox(cmd, "RETRY", nextBackoff, errorCode)
+        ownerTransaction(cmd.userId) {
+            val nextBackoff = now + (5_000L * (1L shl (cmd.attemptCount.coerceAtMost(5))))
+            movementDao.completeClaimedOutbox(cmd, "RETRY", nextBackoff, errorCode)
+        }
     }
 }
 
 /** 401/403 mean the session expired, not that the command is wrong; 408/429 are transient. */
 internal fun isPermanentHttpFailure(statusCode: Int): Boolean =
     statusCode in 400..499 && statusCode !in setOf(401, 403, 408, 429)
+
+/** A late response is cancellation, never a retry that can write for the next session. */
+internal fun requireSyncOwner(coordinator: SessionCoordinator, userId: String) {
+    val owner = coordinator.currentOwner
+    if (owner == null || owner.explicitlySignedOut || owner.verifiedUserId != userId) {
+        throw CancellationException("Sync owner is no longer active")
+    }
+}
