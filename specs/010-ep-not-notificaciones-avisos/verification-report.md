@@ -55,3 +55,20 @@ El Owner formaliza la resolución ejecutiva (2026-10-19):
 | **UI Compose** | Componentes de selección de anticipación y flujos de registro integrados. | Aprobado por Owner |
 
 **Conclusión:** Veredicto **APPROVED FOR MERGE — DECISIÓN DEL OWNER (2026-10-19)** para HU-44 (5 Story Points).
+
+---
+
+## Incremento Sprint 8 — destinos de revisión de captura
+
+**Fecha de verificación:** 2026-10-29
+
+**Rama:** `010-ep-not-notificaciones-avisos`
+
+**HEAD de código verificado:** `b8c7937c`
+
+Este incremento permite que una notificación local de revisión navegue a una captura que todavía pertenece al usuario activo y sigue pendiente. El aislamiento local de los eventos `CAPTURE_REVIEW` ya está integrado mediante PR #90.
+
+- `:app:testDebugUnitTest --tests com.kipu.app.feature.notifications.domain.NotificationDestinationResolverTest` — **5 aprobadas, 0 fallas, 0 errores, 0 omitidas**.
+- `git diff --check origin/main...HEAD` — **PASS**.
+
+Las evidencias históricas de HU-44 arriba corresponden a la entrega de 2026-10-19; no se repitieron en este incremento. No se agregan cambios SQL ni migraciones remotas.
