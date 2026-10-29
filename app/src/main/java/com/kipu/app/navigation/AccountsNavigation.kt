@@ -7,7 +7,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -236,6 +238,12 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
         val viewModel: AccountsViewModel = hiltViewModel()
         val settingsViewModel: SettingsViewModel = hiltViewModel()
         val notificationBadgeViewModel: NotificationBadgeViewModel = hiltViewModel()
+        // Tells the "Hola de nuevo" curtain, if one is waiting after a sign-in, that the data is on screen.
+        val entryCurtain = LocalSessionEntryCurtain.current
+        val dashboardState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
+        val instrumentsState by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
+        val dashboardLoaded = !dashboardState.isLoading && !instrumentsState.isLoading
+        LaunchedEffect(dashboardLoaded) { if (dashboardLoaded) entryCurtain?.markHomeReady() }
         val unreadNotificationCount by notificationBadgeViewModel.unreadCount.collectAsStateWithLifecycle()
         val feedback by backStackEntry.savedStateHandle
             .getStateFlow<String?>(ACCOUNT_DASHBOARD_FEEDBACK_KEY, null)

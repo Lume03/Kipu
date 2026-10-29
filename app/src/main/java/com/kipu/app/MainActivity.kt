@@ -58,6 +58,9 @@ import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
 import com.kipu.app.feature.budgets.data.sync.BudgetSyncScheduler
 import com.kipu.app.feature.movements.data.sync.MovementSyncScheduler
 import com.kipu.app.feature.auth.domain.AuthRepository
+import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
+import com.kipu.app.feature.auth.presentation.SessionEntryCurtain
+import com.kipu.app.feature.auth.presentation.SessionEntryCurtainHost
 import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
 import com.kipu.app.feature.settings.data.local.ProfilePreferencesDao
@@ -102,6 +105,8 @@ import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.LocalStatusBarIconsOverride
+import com.kipu.app.ui.theme.StatusBarIconsOverride
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 import javax.inject.Inject
@@ -154,6 +159,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
+
+    @Inject
+    lateinit var sessionEntryCurtain: SessionEntryCurtain
 
     private var pendingDeepLink by mutableStateOf<DeepLinkResult?>(null)
     private var pendingReminderRoute by mutableStateOf<String?>(null)
@@ -279,14 +287,21 @@ class MainActivity : FragmentActivity() {
 
             KipuTheme(darkTheme = isDark) {
                 val background = MaterialTheme.colorScheme.background
+                // Full-bleed teal screens (sign-in header, welcome screens) ask for light status bar icons.
+                val statusBarOverride = remember { StatusBarIconsOverride() }
+                val isLightBackground = background.luminance() > 0.5f
+                val lightStatusBars = statusBarOverride.lightStatusBars ?: isLightBackground
                 SideEffect {
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                    val isLightBackground = background.luminance() > 0.5f
-                    insetsController.isAppearanceLightStatusBars = isLightBackground
+                    insetsController.isAppearanceLightStatusBars = lightStatusBars
                     insetsController.isAppearanceLightNavigationBars = isLightBackground
                 }
 
-                CompositionLocalProvider(LocalBalanceMasked provides isMasked) {
+                CompositionLocalProvider(
+                    LocalBalanceMasked provides isMasked,
+                    LocalSessionEntryCurtain provides sessionEntryCurtain,
+                    LocalStatusBarIconsOverride provides statusBarOverride,
+                ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
@@ -480,6 +495,9 @@ class MainActivity : FragmentActivity() {
                                     )
                                 }
                             }
+
+                            // Covers the first load after a sign-in; the lock screen still goes above it.
+                            SessionEntryCurtainHost(sessionEntryCurtain, currentRoute, ACCOUNTS_DASHBOARD_ROUTE)
 
                             if (lockState == LocalLockState.LOCKED) {
                                 LockScreenOverlay(
