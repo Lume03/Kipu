@@ -1,7 +1,7 @@
 # Feature Specification: EP-AUT — Captura Automática e Import Inbox
 
-**Feature Branch**: `011-ep-aut-captura-inbox`  
-**Created**: 2026-10-28  
+**Feature Branch**: `011-ep-aut-captura-inbox`
+**Created**: 2026-10-28
 **Status**: Incremento S8 documentado; evidencia en dispositivo pendiente.
 
 ## Scope & Traceability
