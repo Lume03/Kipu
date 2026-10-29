@@ -67,7 +67,7 @@ class AndroidFinancialAlertSystemNotifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
             .setContentTitle(notice.title)
             .setContentText(notice.body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(notice.body))

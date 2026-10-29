@@ -1,5 +1,6 @@
 package com.kipu.app.feature.capture.data
 
+import com.kipu.app.feature.notifications.data.KIPU_NOTIFICATION_COLOR
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -14,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.kipu.app.MainActivity
 import com.kipu.app.feature.capture.domain.*
+import com.kipu.app.feature.capture.presentation.displayName
 import com.kipu.app.feature.notifications.data.local.AppNotificationDao
 import com.kipu.app.feature.notifications.data.local.AppNotificationEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,7 +46,7 @@ class CaptureReviewNotifier @Inject constructor(
         if (candidates.get(candidate.ownerId, candidate.id)?.status != CaptureCandidateStatus.PENDING) return
         val notice = AppNotificationEntity(
             id = key(candidate.ownerId, candidate.id), userId = candidate.ownerId,
-            title = "Captura por revisar", body = "Tienes un movimiento detectado por revisar (${candidate.provider.name}).",
+            title = "Captura por revisar", body = "Tienes un movimiento de ${candidate.provider.displayName()} por revisar.",
             notificationType = "CAPTURE_REVIEW", referenceEntityType = "CAPTURE_CANDIDATE",
             referenceEntityId = candidate.id, isRead = false, createdAt = Instant.ofEpochMilli(clock.millis()),
             deletedAt = null, eventPayloadJson = "{}",
@@ -85,10 +87,11 @@ class AndroidCaptureReviewSystemNotifier @Inject constructor(
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pending = PendingIntent.getActivity(context, notice.id.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val publicVersion = NotificationCompat.Builder(context, CHANNEL).setSmallIcon(android.R.drawable.ic_dialog_info)
+        val publicVersion = NotificationCompat.Builder(context, CHANNEL).setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
             .setContentTitle("Kipu").setContentText("Tienes un aviso pendiente").build()
-        val notification = NotificationCompat.Builder(context, CHANNEL).setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(notice.title).setContentText(notice.body).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
+        val notification = NotificationCompat.Builder(context, CHANNEL).setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
+            .setContentTitle(notice.title).setContentText(notice.body).setSubText("Capturas").setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicVersion).build()
         try { NotificationManagerCompat.from(context).notify(notice.id, 0, notification) } catch (_: SecurityException) { }
     }

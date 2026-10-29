@@ -1,5 +1,6 @@
 package com.kipu.app.feature.recurrences.data.sync
 
+import com.kipu.app.feature.notifications.data.KIPU_NOTIFICATION_COLOR
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -93,7 +94,7 @@ class RecurrenceReminderWorker @AssistedInject constructor(
                 "recurrence-reminder:$userId:$recurrenceId",
                 0,
                 NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+                    .setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
                     .setContentTitle("Recordatorio de recurrencia")
                     .setContentText("Tienes un movimiento recurrente planificado para el $dueDate.")
                     .setAutoCancel(true)

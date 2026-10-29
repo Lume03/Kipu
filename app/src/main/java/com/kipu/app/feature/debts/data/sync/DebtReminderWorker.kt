@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.data.sync
 
+import com.kipu.app.feature.notifications.data.KIPU_NOTIFICATION_COLOR
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -110,7 +111,7 @@ class DebtReminderWorker @AssistedInject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+            .setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
             .setContentTitle("Recordatorio de cuota")
             .setContentText("Cuota $number de $counterparty: $amount. Este aviso no registra un pago.")
             .setStyle(NotificationCompat.BigTextStyle().bigText(
