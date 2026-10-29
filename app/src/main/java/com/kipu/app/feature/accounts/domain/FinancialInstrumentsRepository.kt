@@ -1,6 +1,7 @@
 package com.kipu.app.feature.accounts.domain
 
 import com.kipu.app.core.finance.domain.model.AccountId
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.FinancialMovement
 import com.kipu.app.core.finance.domain.model.Money
@@ -21,7 +22,7 @@ import kotlinx.coroutines.flow.flowOf
 
 interface FinancialInstrumentsRepository {
     companion object {
-        const val FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS = 4
+        const val FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS = FreePlanLimits.DEFAULT_INSTRUMENTS
     }
 
     // Account operations

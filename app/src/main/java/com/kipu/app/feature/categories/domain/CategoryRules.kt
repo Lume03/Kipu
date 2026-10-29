@@ -1,6 +1,7 @@
 package com.kipu.app.feature.categories.domain
 
 import com.kipu.app.feature.categories.domain.model.Category
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.feature.categories.domain.model.CategoryId
 import com.kipu.app.feature.categories.domain.model.CategoryOrigin
 import com.kipu.app.feature.categories.domain.model.CategoryType
@@ -40,9 +41,9 @@ data class CustomCategoryQuotaEvaluation(
 
 object CategoryRules {
 
-    const val MAX_FREE_ACTIVE_CUSTOM_ROOTS = 5
-    const val MAX_FREE_ACTIVE_CUSTOM_EXPENSE_ROOTS = 5
-    const val MAX_FREE_ACTIVE_CUSTOM_INCOME_ROOTS = 5
+    const val MAX_FREE_ACTIVE_CUSTOM_ROOTS = FreePlanLimits.DEFAULT_CUSTOM_CATEGORIES
+    const val MAX_FREE_ACTIVE_CUSTOM_EXPENSE_ROOTS = FreePlanLimits.DEFAULT_CUSTOM_CATEGORIES
+    const val MAX_FREE_ACTIVE_CUSTOM_INCOME_ROOTS = FreePlanLimits.DEFAULT_CUSTOM_CATEGORIES
 
     /**
      * Validates that adding or editing a category does not violate hierarchy constraints:

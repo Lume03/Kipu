@@ -1,6 +1,7 @@
 package com.kipu.app.feature.debts.data.local
 
 import androidx.room.withTransaction
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.local.FinancialMovementDao
@@ -949,7 +950,7 @@ class DebtLocalDataSource @Inject constructor(
         UUID.nameUUIDFromBytes("$operationId:opening-event".toByteArray(Charsets.UTF_8)).toString()
 
     companion object {
-        private const val FREE_ACTIVE_DEBT_LIMIT = 2
+        internal const val FREE_ACTIVE_DEBT_LIMIT = FreePlanLimits.DEFAULT_DEBTS
         private const val OPEN_DEBT_COMMAND = "OPEN_DEBT"
         private const val EDIT_DEBT_COMMAND = "EDIT_DEBT_DETAILS"
         private const val DELETE_DEBT_COMMAND = "DELETE_DEBT_IF_UNREFERENCED"

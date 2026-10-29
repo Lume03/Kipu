@@ -1,5 +1,6 @@
 package com.kipu.app.feature.categories.presentation.categories
 
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.finance.domain.model.UserId
@@ -57,7 +58,7 @@ data class CategoriesUiState(
     val activeCustomRootsCount: Int = 0,
     val activeCustomExpenseRootsCount: Int = 0,
     val activeCustomIncomeRootsCount: Int = 0,
-    val maxCustomRoots: Int = 5,
+    val maxCustomRoots: Int = FreePlanLimits().customCategories,
     val isPremiumVerified: Boolean = false,
     val isCreateDialogOpen: Boolean = false,
     val editingCategoryId: CategoryId? = null,

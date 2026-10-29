@@ -1,5 +1,6 @@
 package com.kipu.app.feature.goals.data
 
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.data.local.GoalLocalDataSource
@@ -514,6 +515,6 @@ class OfflineFirstGoalRepository @Inject constructor(
 
     private companion object {
         const val DELETE_PENDING = "DELETE_PENDING"
-        const val FREE_ACTIVE_GOAL_LIMIT = 2
+        const val FREE_ACTIVE_GOAL_LIMIT = FreePlanLimits.DEFAULT_GOALS
     }
 }

@@ -1,6 +1,7 @@
 package com.kipu.app.feature.goals.presentation
 
 import com.kipu.app.feature.goals.domain.GoalProgress
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.feature.goals.domain.model.Goal
 import com.kipu.app.feature.goals.domain.model.GoalBackingAccount
 
@@ -36,6 +37,6 @@ data class GoalManagementUiState(
     val freeGoalLimitReached: Boolean get() = !hasPremiumAccess && activeGoalCount >= FREE_GOAL_LIMIT
 
     companion object {
-        const val FREE_GOAL_LIMIT = 2
+        const val FREE_GOAL_LIMIT = FreePlanLimits.DEFAULT_GOALS
     }
 }

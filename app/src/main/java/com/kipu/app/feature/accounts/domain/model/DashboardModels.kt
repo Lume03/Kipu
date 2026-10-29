@@ -1,6 +1,7 @@
 package com.kipu.app.feature.accounts.domain.model
 
 import com.kipu.app.core.finance.domain.model.Currency
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.finance.domain.model.Money
 
 data class AccountWithBalance(
@@ -22,5 +23,5 @@ data class FinancialDashboardData(
     val liquidAccounts: List<AccountWithBalance>,
     val creditCards: List<CreditCardWithSummary>,
     val activeComputableCount: Int,
-    val maxFreeQuota: Int = 4,
+    val maxFreeQuota: Int = FreePlanLimits().instruments,
 )

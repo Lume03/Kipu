@@ -1,6 +1,7 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.lifecycle.ViewModel
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
@@ -40,7 +41,7 @@ data class DebtListUiState(
 
     companion object {
         /** Shared between payables and receivables; mirrors DebtLocalDataSource. */
-        const val FREE_ACTIVE_DEBT_LIMIT = 2
+        const val FREE_ACTIVE_DEBT_LIMIT = FreePlanLimits.DEFAULT_DEBTS
     }
 }
 
