@@ -1292,6 +1292,75 @@ val MIGRATION_27_28 = object : Migration(27, 28) {
     }
 }
 
+/** EP-AUT capture inbox and HU-34 expected payments. Local-only tables: no outbox, no sync. */
+val MIGRATION_28_29 = object : Migration(28, 29) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `capture_source_events` (
+            `owner_id` TEXT NOT NULL,
+            `event_fingerprint` TEXT NOT NULL,
+            `source_package` TEXT NOT NULL,
+            `received_at` INTEGER NOT NULL,
+            `outcome` TEXT NOT NULL,
+            PRIMARY KEY(`owner_id`, `event_fingerprint`)
+        )""")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `capture_candidates` (
+            `id` TEXT NOT NULL,
+            `owner_id` TEXT NOT NULL,
+            `source_package` TEXT NOT NULL,
+            `provider` TEXT NOT NULL,
+            `source_event_fingerprint` TEXT NOT NULL,
+            `status` TEXT NOT NULL,
+            `direction` TEXT,
+            `amount_minor` INTEGER,
+            `currency` TEXT,
+            `occurred_at` INTEGER,
+            `occurred_at_inferred` INTEGER NOT NULL,
+            `merchant_source_text` TEXT,
+            `merchant_id` TEXT,
+            `category_id` TEXT,
+            `card_last4` TEXT,
+            `instrument_kind` TEXT,
+            `account_id` TEXT,
+            `card_id` TEXT,
+            `instrument_ambiguous` INTEGER NOT NULL,
+            `confidence` TEXT NOT NULL,
+            `confidence_reasons` TEXT NOT NULL,
+            `credit_mode` TEXT,
+            `installment_count` INTEGER,
+            `resolved_transaction_id` TEXT,
+            `resolution_key` TEXT,
+            `evidence_snippet` TEXT,
+            `evidence_expires_at` INTEGER,
+            `user_corrected_fields` TEXT NOT NULL,
+            `created_at` INTEGER NOT NULL,
+            `updated_at` INTEGER NOT NULL,
+            `resolved_at` INTEGER,
+            `expected_match_state` TEXT,
+            `followups_pending` INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(`id`)
+        )""")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_capture_candidates_owner_id_status_created_at` ON `capture_candidates` (`owner_id`, `status`, `created_at`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_capture_candidates_owner_id_source_event_fingerprint` ON `capture_candidates` (`owner_id`, `source_event_fingerprint`)")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `recurrence_expected_payments` (
+            `id` TEXT NOT NULL,
+            `owner_id` TEXT NOT NULL,
+            `recurrence_id` TEXT NOT NULL,
+            `due_date` TEXT NOT NULL,
+            `expected_amount_minor` INTEGER,
+            `currency` TEXT NOT NULL,
+            `status` TEXT NOT NULL,
+            `matched_transaction_id` TEXT,
+            `matched_candidate_id` TEXT,
+            `created_at` INTEGER NOT NULL,
+            `updated_at` INTEGER NOT NULL,
+            PRIMARY KEY(`id`)
+        )""")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recurrence_expected_payments_owner_id_recurrence_id_due_date` ON `recurrence_expected_payments` (`owner_id`, `recurrence_id`, `due_date`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recurrence_expected_payments_owner_id_matched_candidate_id` ON `recurrence_expected_payments` (`owner_id`, `matched_candidate_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurrence_expected_payments_owner_id_status_due_date` ON `recurrence_expected_payments` (`owner_id`, `status`, `due_date`)")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {
