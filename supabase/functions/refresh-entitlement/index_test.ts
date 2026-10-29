@@ -122,3 +122,31 @@ Deno.test("signing or plan lookup failures fail closed without leaking credentia
   const unavailable = await harness({ planError: true }).handler(request());
   assert(unavailable.status === 503 && (await unavailable.json()).code === "ENTITLEMENT_UNAVAILABLE", "RPC outage fails closed");
 });
+
+Deno.test("developer refresh ignores disabled QA gate and signs permanent server source", async () => {
+  const h = harness({ plan: { effective_tier: "PREMIUM", source: "DEVELOPER", expires_at: null, test_plans_enabled: false } });
+  const response = await h.handler(request());
+  const body = await response.json();
+  assert(response.status === 200 && body.source === "DEVELOPER" && body.expiresAt === null, "permanent developer plan refreshes without QA");
+  const input = h.calls.grants[0] as Record<string, unknown>;
+  assert(input.source === "DEVELOPER" && input.entitlementEndsAt === null, "developer source is signed with no entitlement expiry");
+  assert((await h.handler(request({ installationPublicKey: "key", source: "DEVELOPER" }))).status === 400, "client cannot select developer source");
+});
+
+Deno.test("developer revocation can refresh commercial Free with disabled QA gate", async () => {
+  const h = harness({ plan: { effective_tier: "FREE", source: "COMMERCIAL", expires_at: null, test_plans_enabled: false } });
+  const response = await h.handler(request());
+  const body = await response.json();
+  assert(response.status === 200 && body.effectiveTier === "FREE" && body.offlineEntitlementGrant === null, "server revocation clears cached developer grants");
+  assert(h.calls.grants.length === 0, "Free must never sign");
+});
+
+Deno.test("malformed developer projections fail closed", async () => {
+  for (const plan of [
+    { effective_tier: "FREE", source: "DEVELOPER", expires_at: null, test_plans_enabled: false },
+    { effective_tier: "PREMIUM", source: "DEVELOPER", expires_at: premium.expires_at, test_plans_enabled: false },
+  ] as PlanSnapshot[]) {
+    const h = harness({ plan });
+    assert((await h.handler(request())).status === 503 && h.calls.grants.length === 0, "invalid developer state cannot sign");
+  }
+});

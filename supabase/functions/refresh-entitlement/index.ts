@@ -5,7 +5,7 @@ import {
 
 export type PlanSnapshot = {
   effective_tier: "FREE" | "PREMIUM";
-  source: "TEST_OVERRIDE" | "COMMERCIAL";
+  source: "TEST_OVERRIDE" | "COMMERCIAL" | "DEVELOPER";
   expires_at: string | null;
   test_plans_enabled: boolean;
 };
@@ -18,7 +18,7 @@ export type Dependencies = {
     installationPublicKey: string;
     effectivePremium: boolean;
     entitlementEndsAt: string | null;
-    source?: "TEST_OVERRIDE";
+    source?: "TEST_OVERRIDE" | "DEVELOPER";
   }) => Promise<OfflineEntitlementGrant | null>;
 };
 
@@ -76,9 +76,10 @@ export function createRefreshEntitlementHandler(deps: Dependencies) {
     } catch {
       return error("ENTITLEMENT_UNAVAILABLE", 503, true);
     }
-    if (!plan.test_plans_enabled) return error("TEST_PLANS_DISABLED", 403);
+    if (plan.source === "TEST_OVERRIDE" && !plan.test_plans_enabled) return error("TEST_PLANS_DISABLED", 403);
     if ((plan.effective_tier !== "FREE" && plan.effective_tier !== "PREMIUM") ||
-      (plan.source !== "TEST_OVERRIDE" && plan.source !== "COMMERCIAL") ||
+      (plan.source !== "TEST_OVERRIDE" && plan.source !== "COMMERCIAL" && plan.source !== "DEVELOPER") ||
+      (plan.source === "DEVELOPER" && (plan.effective_tier !== "PREMIUM" || plan.expires_at !== null)) ||
       (plan.expires_at !== null && !Number.isFinite(Date.parse(plan.expires_at)))) {
       return error("ENTITLEMENT_UNAVAILABLE", 503, true);
     }
@@ -94,7 +95,7 @@ export function createRefreshEntitlementHandler(deps: Dependencies) {
           installationPublicKey: payload.installationPublicKey,
           effectivePremium: true,
           entitlementEndsAt: expiresAt,
-          ...(plan.source === "TEST_OVERRIDE" ? { source: "TEST_OVERRIDE" as const } : {}),
+          ...(plan.source !== "COMMERCIAL" ? { source: plan.source } : {}),
         });
       } catch {
         grant = null;
