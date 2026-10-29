@@ -184,7 +184,13 @@ fun PermissionsScreen(
     // Contextual Rationale Dialog
     state.showRationaleFor?.let { source ->
         val item = state.items.find { it.source == source }
-        if (item != null) {
+        if (item != null && source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT) {
+            com.kipu.app.feature.capture.presentation.CaptureConsentSheet(
+                requiresPremium = item.requiresPremium,
+                onConsent = { viewModel.grantConsent(source) },
+                onDismiss = { viewModel.dismissRationale() },
+            )
+        } else if (item != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissRationale() },
                 icon = {

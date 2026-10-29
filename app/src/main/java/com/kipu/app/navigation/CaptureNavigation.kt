@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.kipu.app.feature.capture.presentation.CAPTURE_CANDIDATE_ID_ARG
+import com.kipu.app.feature.capture.presentation.CaptureHowItWorksScreen
 import com.kipu.app.feature.capture.presentation.CaptureInboxScreen
 import com.kipu.app.feature.capture.presentation.CaptureInboxViewModel
 import com.kipu.app.feature.capture.presentation.CaptureReviewEvent
@@ -24,6 +25,12 @@ const val CAPTURE_CANDIDATE_ROUTE = "capture/candidate/{$CAPTURE_CANDIDATE_ID_AR
 /** Opened by the HU-43 review notification and the notification center. */
 const val CAPTURE_CANDIDATE_DEEP_LINK = "kipu://capture/candidate/{$CAPTURE_CANDIDATE_ID_ARG}"
 private const val CAPTURE_MESSAGE_KEY = "capture_inbox_message"
+
+const val CAPTURE_HOW_ROUTE = "capture/how-it-works"
+
+fun NavController.navigateToCaptureHowItWorks() {
+    navigate(CAPTURE_HOW_ROUTE) { launchSingleTop = true }
+}
 
 fun NavController.navigateToCaptureInbox() {
     navigate(CAPTURE_INBOX_ROUTE) { launchSingleTop = true }
@@ -53,7 +60,11 @@ fun NavGraphBuilder.captureDestinations(navController: NavController) {
             onDiscard = viewModel::discard,
             onOpenPermissions = { navController.navigate(PERMISSIONS_ROUTE) },
             onDismissMessage = viewModel::dismissMessage,
+            onOpenHowItWorks = navController::navigateToCaptureHowItWorks,
         )
+    }
+    composable(CAPTURE_HOW_ROUTE) {
+        CaptureHowItWorksScreen(onClose = { navController.popBackStack() })
     }
     composable(
         route = CAPTURE_CANDIDATE_ROUTE,
