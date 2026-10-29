@@ -145,7 +145,7 @@ class AuthViewModel @Inject constructor(
                             _uiState.update { it.copy(confirmationRequiredEmail = authResult.email) }
                         }
                         is AuthResult.Success -> {
-                            _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId))
+                            _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId, accountCreated = true))
                         }
                     }
                 },

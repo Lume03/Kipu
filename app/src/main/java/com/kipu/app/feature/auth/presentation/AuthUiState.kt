@@ -16,7 +16,8 @@ data class AuthUiState(
 }
 
 sealed interface AuthNavigationEvent {
-    data class NavigateToHome(val userId: String) : AuthNavigationEvent
+    /** [accountCreated] is true when a new account was just registered: it gets a welcome screen before going on. */
+    data class NavigateToHome(val userId: String, val accountCreated: Boolean = false) : AuthNavigationEvent
     data object NavigateToLogin : AuthNavigationEvent
     data object NavigateToRegister : AuthNavigationEvent
     data object NavigateToRecovery : AuthNavigationEvent

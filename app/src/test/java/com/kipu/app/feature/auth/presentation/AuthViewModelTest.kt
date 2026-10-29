@@ -188,6 +188,42 @@ class AuthViewModelTest {
     }
 
     @Test
+    fun `login success is not flagged as a new account`() = runTest {
+        fakeSignInResult = Result.success(AuthResult.Success("user-456"))
+        val viewModel = AuthViewModel(fakeRepository)
+        viewModel.onEmailChanged("test@example.com")
+        viewModel.onPasswordChanged("Password123")
+
+        var emittedEvent: AuthNavigationEvent? = null
+        val job = launch { emittedEvent = viewModel.navigationEvents.first() }
+
+        viewModel.login()
+        advanceUntilIdle()
+
+        assertEquals(false, (emittedEvent as AuthNavigationEvent.NavigateToHome).accountCreated)
+        job.cancel()
+    }
+
+    @Test
+    fun `register success emits NavigateToHome flagged as a new account`() = runTest {
+        fakeRegisterResult = Result.success(AuthResult.Success("user-789"))
+        val viewModel = AuthViewModel(fakeRepository)
+        viewModel.onEmailChanged("new@example.com")
+        viewModel.onPasswordChanged("Password123")
+
+        var emittedEvent: AuthNavigationEvent? = null
+        val job = launch { emittedEvent = viewModel.navigationEvents.first() }
+
+        viewModel.register()
+        advanceUntilIdle()
+
+        val event = emittedEvent as AuthNavigationEvent.NavigateToHome
+        assertEquals("user-789", event.userId)
+        assertEquals(true, event.accountCreated)
+        job.cancel()
+    }
+
+    @Test
     fun `register with existing email sets existing account dialog per FR-051`() = runTest {
         fakeRegisterResult = Result.success(AuthResult.AccountAlreadyExists)
         val viewModel = AuthViewModel(fakeRepository)
