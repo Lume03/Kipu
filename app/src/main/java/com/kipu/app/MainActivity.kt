@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.kipu.app.feature.plans.data.sync.PlanEntitlementRefreshCoordinator
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -112,6 +114,7 @@ import kotlinx.coroutines.currentCoroutineContext
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    @Inject lateinit var planEntitlementRefresh: PlanEntitlementRefreshCoordinator
 
     @Inject
     lateinit var authRepository: AuthRepository
@@ -160,6 +163,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch { planEntitlementRefresh.onForeground() }
         (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.let { access ->
             budgetMaintenanceScheduler.scheduleNow(access.userId)
             budgetSyncScheduler.scheduleSync(access.userId)

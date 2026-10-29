@@ -8,9 +8,15 @@ import com.kipu.app.feature.capture.data.work.EvidencePurgeScheduler
 import com.kipu.app.feature.recurrences.data.sync.ExpectedPaymentScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import com.kipu.app.feature.plans.data.sync.PlanEntitlementRefreshCoordinator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 @HiltAndroidApp
 class KipuApplication : Application(), Configuration.Provider {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject lateinit var planEntitlementRefresh: PlanEntitlementRefreshCoordinator
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
@@ -24,6 +30,7 @@ class KipuApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        planEntitlementRefresh.start(applicationScope)
         budgetMaintenanceScheduler.ensurePeriodic()
         evidencePurgeScheduler.ensurePeriodic()
         expectedPaymentScheduler.ensurePeriodic()
