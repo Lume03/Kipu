@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
@@ -72,7 +71,7 @@ fun OnboardingScreen(
                 }
             }
             HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth().testTag("auth-intro-pager"), userScrollEnabled = !saving) { page ->
-                OnboardingPage(page)
+                OnboardingPage(page, active = pager.currentPage == page)
             }
             OnboardingIndicator(pager.currentPage)
             AuthErrorMessage(error)
@@ -108,49 +107,40 @@ internal fun OnboardingIndicator(page: Int) {
     }
 }
 
+/** Each page restarts its own animation clock when it becomes the current one. */
 @Composable
-private fun OnboardingPage(page: Int) {
-    if (page == 2) {
-        OnboardingPrivacyPage()
-        return
-    }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.SpaceEvenly) {
-        Spacer(Modifier.height(32.dp))
-        when (page) {
-            0 -> OnboardingMoneyIllustration()
-            1 -> OnboardingLedgerIllustration()
-        }
-        Spacer(Modifier.height(32.dp))
-        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-            if (page < 2) {
-                Text(if (page == 0) "Tu dinero, en un solo lugar" else "Menos registro. Más control.",
-                    style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(12.dp))
-                Text(if (page == 0) "Revisa cuentas, efectivo, tarjetas y movimientos sin perder de vista cuánto tienes realmente disponible."
-                    else "Registra gastos, ingresos y transferencias rápidamente. Kipu también puede ayudarte a detectar movimientos desde fuentes compatibles.",
-                    style = MaterialTheme.typography.bodyLarge)
+private fun OnboardingPage(page: Int, active: Boolean) {
+    val clock = rememberSceneClock(active)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            when (page) {
+                0 -> OnboardingMoneyIllustration(clock)
+                1 -> OnboardingLedgerIllustration(clock)
+                else -> OnboardingPrivacyIllustration(clock)
             }
         }
-    }
-}
-
-@Composable
-private fun OnboardingPrivacyPage() {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val availableHeight = maxHeight
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .heightIn(min = availableHeight).padding(top = 24.dp, bottom = 72.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center) {
-            OnboardingPrivacyIllustration()
-            Spacer(Modifier.height(20.dp))
-            Text("Tus finanzas son tuyas", style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(16.dp))
-            Text("Kipu organiza la información que registras, pero no mueve tu dinero ni necesita tus contraseñas bancarias.",
-                style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp))
+        Spacer(Modifier.height(24.dp))
+        Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            Text(
+                when (page) {
+                    0 -> "Tu dinero, en un solo lugar"
+                    1 -> "Menos registro. Más control."
+                    else -> "Tus finanzas son tuyas"
+                },
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.sceneReveal(clock, OnboardingTimeline.Copy.TITLE, 0.55f),
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                when (page) {
+                    0 -> "Revisa cuentas, efectivo, tarjetas y movimientos sin perder de vista cuánto tienes realmente disponible."
+                    1 -> "Registra gastos, ingresos y transferencias rápidamente. Kipu también puede ayudarte a detectar movimientos desde fuentes compatibles."
+                    else -> "Kipu organiza la información que registras, pero no mueve tu dinero ni necesita tus contraseñas bancarias."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.sceneReveal(clock, OnboardingTimeline.Copy.BODY, 0.55f),
+            )
         }
     }
 }
