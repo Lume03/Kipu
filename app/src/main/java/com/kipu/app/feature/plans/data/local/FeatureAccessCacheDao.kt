@@ -14,13 +14,14 @@ interface FeatureAccessCacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putVerified(entity: FeatureAccessCacheEntity)
 
-    /** Commercial billing refreshes must not erase an explicit QA override for this owner. */
+    /** Billing refreshes cannot erase operator grants; server refresh reconciles revocations. */
     @Transaction
     suspend fun putCommercialVerified(
         entity: FeatureAccessCacheEntity,
         preserveTestOverrides: Boolean = BuildConfig.TEST_PLAN_OVERRIDES_ENABLED,
     ): Boolean {
         val current = get(entity.userId)
+        if (current?.source == "SIGNED_DEVELOPER_GRANT") return false
         if (preserveTestOverrides && (current?.source == "SIGNED_TEST_GRANT" || current?.source == "TEST_OVERRIDE")) return false
         putVerified(entity)
         return true

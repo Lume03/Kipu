@@ -35,7 +35,11 @@ data class FeatureAccessCacheEntity(
             effectiveTier = "PREMIUM",
             entitlementExpiresAt = claims.entitlementEndsAtMillis?.let(Instant::ofEpochMilli),
             verifiedAt = Instant.ofEpochMilli(claims.serverVerifiedAtMillis),
-            source = "SIGNED_SERVER_GRANT",
+            source = when (claims.source) {
+                "DEVELOPER" -> "SIGNED_DEVELOPER_GRANT"
+                "TEST_OVERRIDE" -> "SIGNED_TEST_GRANT"
+                else -> "SIGNED_SERVER_GRANT"
+            },
             offlineGrantPayload = grant.payload,
             offlineGrantSignature = grant.signature,
             offlineGrantKeyId = grant.keyId,
