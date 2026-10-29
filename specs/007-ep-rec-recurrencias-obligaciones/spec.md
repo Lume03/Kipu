@@ -174,3 +174,57 @@ La función de canonización recibe valores Unicode ya interpretados por JSONB y
 ### TECH-REC-CALENDAR-01 — límites y ancla de calendario
 
 Usar fechas gregorianas estrictas `YYYY-MM-DD` en el rango común `0001-01-01`..`9999-12-31`; rechazar valores inválidos, desbordamiento o fechas fuera del rango. Las frecuencias WEEKLY, BIWEEKLY, MONTHLY y ANNUALLY llevan `interval_count=1`; CUSTOM requiere `custom_interval_unit` `WEEK` o `MONTH` e intervalo entero 1..5200 semanas o 1..1200 meses. Para mensual/anual y CUSTOM/MONTH, cada ocurrencia se calcula desde `start_date` original y su día/mes ancla, recortando al último día válido sin deriva; semanal y CUSTOM/WEEK se calculan sumando semanas completas al ancla; BIWEEKLY suma 14 días. `next_due_date` debe pertenecer a esa secuencia, no anteceder `start_date` ni exceder `end_date` cuando esté definido. Cálculo fuera de rango se rechaza, nunca se trunca/satura. Los topes son guardrails técnicos acotados a 100 años por unidad personalizada, no expansión funcional.
+
+## Incremento Sprint 8: HU-34 — Pagos esperados y coincidencia con captura
+
+**Refined**: 2026-10-28. HU-34 se incorpora como incremento S8; la especificación aprobada de HU-33 se conserva intacta. Fuente: `docs/producto/backlog.md` HU-34 y decisiones del Owner registradas en el diseño técnico Sprint 8.
+
+**Alcance**: desde recurrencias vigentes generar pagos esperados locales, sin crear transacciones financieras ni rellenar periodos pasados; asociar movimientos capturados ya confirmados. La tabla local `recurrence_expected_payments` usa unicidad (`owner_id`, `recurrence_id`, `due_date`) y estados `EXPECTED`, `ATTENDED`, `SKIPPED`; «atendida» significa `ATTENDED`. Vincular un candidato confirmado reutiliza el movimiento, no registra gasto. Una elección entre varias coincidencias debe persistir hasta que la persona elija una opción o «Ninguno». Free conserva su recordatorio ordinario de recurrencia de HU-44.
+
+### Escenarios de aceptación (HU-34)
+
+1. Dado que vence una recurrencia, cuando se genera el esperado, aparece el recordatorio sin cambiar banco, ledger o saldo.
+2. Dado que un candidato confirmado coincide con una obligación, cuando se vincula, se marca atendida sin duplicar gasto.
+3. Si varias obligaciones coinciden, la elección queda persistida y se recupera después de salir/reabrir; elegir «Ninguno» la resuelve sin otro movimiento.
+
+### Requisitos funcionales
+
+- **FR-012 (HU-34, escenario 1)**: Para reglas `ACTIVE`, generar de manera idempotente un esperado por recurrencia/fecha, sin periodos perdidos y sin efecto en ledger, saldo o presupuesto.
+- **FR-013 (HU-34, escenario 2)**: Una coincidencia única por importe, moneda y ventana de fecha MUST vincular el movimiento existente, marcar `ATTENDED` y no crear otro movimiento.
+- **FR-014 (HU-34, escenario 3)**: Coincidencias múltiples MUST conservar una elección pendiente; actualizar expectativa y candidato de modo atómico. El mismo vínculo repetido es idempotente.
+- **FR-015 (HU-34/Free)**: Free conserva recordatorios ordinarios; el estado esperado no suprime recordatorios antes de ser atendido.
+
+### Evidencia pendiente en dispositivo
+
+`impl-T6b.md` reporta generación, sincronización de importes esperados, elección persistente y vínculo atómico, con compilación exitosa; no ejecutó pruebas ni ADB. Pendiente validar recordatorio Free, ausencia de periodos anteriores, sin segundo movimiento, recuperación de elección tras cerrar/reabrir y comportamiento de recordatorios para `ATTENDED`.
+
+
+### Escenarios de aceptación (HU-34)
+
+1. Dado que vence una recurrencia, cuando se genera el esperado, aparece el recordatorio sin cambiar banco, ledger o saldo.
+2. Dado que un candidato confirmado coincide con una obligación, cuando se vincula, se marca atendida sin duplicar gasto.
+3. Si varias obligaciones coinciden, la elección queda persistida y se recupera después de salir/reabrir; elegir «Ninguno» la resuelve sin otro movimiento.
+
+### Requisitos funcionales
+
+- **FR-012 (HU-34, escenario 1)**: Para reglas `ACTIVE`, generar de manera idempotente un esperado por recurrencia/fecha, sin periodos perdidos y sin efecto en ledger, saldo o presupuesto.
+- **FR-013 (HU-34, escenario 2)**: Una coincidencia única por importe, moneda y ventana de fecha MUST vincular el movimiento existente, marcar `ATTENDED` y no crear otro movimiento.
+- **FR-014 (HU-34, escenario 3)**: Coincidencias múltiples MUST conservar una elección pendiente; actualizar expectativa y candidato de modo atómico. El mismo vínculo repetido es idempotente.
+- **FR-015 (HU-34/Free)**: Free conserva recordatorios ordinarios; el estado esperado no suprime recordatorios antes de ser atendido.
+
+### Evidencia pendiente en dispositivo
+
+`impl-T6b.md` reporta generación, sincronización de importes esperados, elección persistente y vínculo atómico, con compilación exitosa; no ejecutó pruebas ni ADB. Pendiente validar recordatorio Free, ausencia de periodos anteriores, sin segundo movimiento, recuperación de elección tras cerrar/reabrir y comportamiento de recordatorios para `ATTENDED`.
+
+## Evidencia de verificación Sprint 8 — HU-34 (2026-10-28)
+
+La instrumentación `ExpectedPaymentAssociationTest` pasó 4/4 y `RecurrenceReminderWorkerTest` pasó 3/3. La suite unitaria total pasó con 1014 pruebas, 0 fallos, 0 errores y 2 omitidas. En E2E con Premium QA temporal, una recurrencia mensual S/40 creó un esperado `EXPECTED` sin movimiento adicional; una captura confirmada vinculó el movimiento existente y dejó el esperado `ATTENDED/LINKED`. Para dos esperados coincidentes se presentó una elección persistente; al elegir uno quedó `ATTENDED` y el otro `EXPECTED`, sin crear otro movimiento. Evidencia: `qa2-8.png`, `qa2-9.png`.
+
+| Escenario | Resultado | Límite |
+| --- | --- | --- |
+| Generación de esperado sin efecto financiero | PASS | Demostrado en dispositivo para recurrencia mensual S/40. |
+| Asociación única con movimiento existente | PASS | Se reutilizó el movimiento; no hubo otro registro. |
+| Asociación ambigua y elección persistente | PASS | Dos opciones sobrevivieron navegación/reapertura; se eligió una sin segundo movimiento. |
+| Recordatorio Free, periodos omitidos y casos `ATTENDED` adicionales | SIN EVIDENCIA E2E | Las pruebas instrumentadas del worker/asociación no sustituyen estas comprobaciones físicas específicas. |
+
+La asociación usa `expected_match_state` = `PENDING_CHOICE`, `LINKED` o `NONE`. Los seguimientos pendientes se conservan y son reintentables por worker; asociar un esperado no crea ni modifica un movimiento. Premium QA fue temporal: gate cerrado y 0 overrides al final. Esta prueba local no demuestra despliegue remoto.
