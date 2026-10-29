@@ -27,6 +27,7 @@ enum class NotificationOrigin {
 
 sealed interface NotificationDestination {
     data class CardDetail(val cardId: String) : NotificationDestination
+    data class CaptureCandidate(val candidateId: String) : NotificationDestination
     data class BudgetDetail(val budgetId: String) : NotificationDestination
     data class Unavailable(val message: String = UNAVAILABLE_DESTINATION_MESSAGE) : NotificationDestination
 }

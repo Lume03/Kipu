@@ -12,6 +12,7 @@ enum class NotificationReferenceType {
     BUDGET,
     DEBT,
     GOAL,
+    CAPTURE_CANDIDATE,
 }
 
 object NotificationType {
@@ -27,6 +28,7 @@ object NotificationType {
         "BUDGET" -> NotificationReferenceType.BUDGET
         "DEBT" -> NotificationReferenceType.DEBT
         "GOAL" -> NotificationReferenceType.GOAL
+        "CAPTURE_CANDIDATE" -> NotificationReferenceType.CAPTURE_CANDIDATE
         else -> null
     }
 
