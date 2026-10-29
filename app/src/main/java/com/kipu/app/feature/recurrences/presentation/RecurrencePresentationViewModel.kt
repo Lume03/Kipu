@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.capture.domain.ExpectedPayment
+import com.kipu.app.feature.capture.domain.ExpectedPaymentStore
 import com.kipu.app.feature.recurrences.domain.RecurrenceDraft
 import com.kipu.app.feature.recurrences.domain.RecurrenceLifecycleUseCase
 import com.kipu.app.feature.recurrences.domain.RecurrenceRepository
@@ -15,12 +17,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RecurrencePresentationState(
     val recurrences: List<RecurrenceRule> = emptyList(),
+    val expectedPayments: List<ExpectedPayment> = emptyList(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
@@ -33,6 +37,7 @@ class RecurrencePresentationViewModel @Inject constructor(
     private val repository: RecurrenceRepository,
     private val lifecycle: RecurrenceLifecycleUseCase,
     private val sessionCoordinator: SessionCoordinator,
+    private val expectedPayments: ExpectedPaymentStore,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RecurrencePresentationState())
     val state = _state.asStateFlow()
@@ -44,9 +49,10 @@ class RecurrencePresentationViewModel @Inject constructor(
                 val userId = (access as? LocalAccess.Available)?.userId
                 activeUserId = userId
                 _state.value = RecurrencePresentationState(isLoading = userId != null)
-                if (userId != null) repository.observeAll(userId).collectLatest { rules ->
-                    if (activeUserId == userId) _state.update { it.copy(recurrences = rules, isLoading = false) }
-                }
+                if (userId != null) combine(repository.observeAll(userId), expectedPayments.observeByOwner(userId)) { rules, payments -> rules to payments }
+                    .collectLatest { (rules, payments) ->
+                        if (activeUserId == userId) _state.update { it.copy(recurrences = rules, expectedPayments = payments, isLoading = false) }
+                    }
             }
         }
     }
