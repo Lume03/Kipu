@@ -1,71 +1,34 @@
 package com.kipu.app.feature.plans.presentation
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.kipu.app.R
 import com.kipu.app.feature.plans.domain.model.CommercialOption
+import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.ui.theme.KipuTheme
-import com.kipu.app.ui.theme.KipuSelectionRing
-import com.kipu.app.ui.theme.KipuSurfaceContainerLowest
-import com.kipu.app.ui.theme.KipuMotionTokens
-
-private val CardShape = RoundedCornerShape(16.dp)
-private val ControlShape = RoundedCornerShape(12.dp)
-private val ConfirmPlanRestColor = Color(0xFF0F766E)
-private val ConfirmPlanPressedColor = Color(0xFF005C55)
 
 @Composable
 fun PlanSelectionScreen(
@@ -73,285 +36,189 @@ fun PlanSelectionScreen(
     onOptionSelected: (CommercialOption) -> Unit,
     onConfirm: () -> Unit,
     onContinueFree: () -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
 ) {
-    val confirmInteractionSource = remember { MutableInteractionSource() }
-    val isConfirmPressed by confirmInteractionSource.collectIsPressedAsState()
-    val confirmContainerColor = if (isConfirmPressed) {
-        ConfirmPlanPressedColor
-    } else {
-        ConfirmPlanRestColor
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(stringResource(R.string.plan_selection_title), style = MaterialTheme.typography.headlineMedium)
-        Text(
-            stringResource(R.string.plan_selection_subtitle),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-
-        FreePlanCard()
-        PremiumTrialCard()
-
+    val isFree = state.selectedOption == CommercialOption.FREE
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.plan_preference_notice), Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.error != null) Text(stringResource(R.string.plan_confirmation_failed), color = MaterialTheme.colorScheme.error)
+                Button(
+                    onClick = if (isFree) onContinueFree else onConfirm,
+                    enabled = !state.isConfirming,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("plan-confirm"),
+                ) {
+                    if (state.isConfirming) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(stringResource(if (state.isConfirming) R.string.plan_confirming else if (isFree) R.string.plan_continue_free else R.string.plan_confirm), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        },
+    ) { padding ->
         Column(
-            modifier = Modifier.fillMaxWidth().selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxSize().padding(padding).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            PremiumOptionCard(
-                option = CommercialOption.ANNUAL,
-                title = R.string.plan_annual_title,
-                price = R.string.plan_annual_price,
-                summary = R.string.plan_annual_summary,
-                selected = state.selectedOption == CommercialOption.ANNUAL,
-                badge = R.string.plan_annual_badge,
-                supporting = R.string.plan_annual_savings,
-                onSelected = onOptionSelected,
-            )
-            PremiumOptionCard(
-                option = CommercialOption.MONTHLY,
-                title = R.string.plan_monthly_title,
-                price = R.string.plan_monthly_price,
-                summary = R.string.plan_monthly_summary,
-                selected = state.selectedOption == CommercialOption.MONTHLY,
-                onSelected = onOptionSelected,
-            )
-            PremiumOptionCard(
-                option = CommercialOption.LIFETIME,
-                title = R.string.plan_lifetime_title,
-                price = R.string.plan_lifetime_price,
-                summary = R.string.plan_lifetime_summary,
-                selected = state.selectedOption == CommercialOption.LIFETIME,
-                badge = R.string.plan_lifetime_badge,
-                onSelected = onOptionSelected,
-            )
-        }
-
-        CommercialInfoNote()
-
-        state.errorMessage?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        }
-
-        Button(
-            onClick = onConfirm,
-            interactionSource = confirmInteractionSource,
-            enabled = !state.isConfirming,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = ControlShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = confirmContainerColor,
-                contentColor = Color.White,
-            ),
-        ) {
-            if (state.isConfirming) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
+            if (onNavigateBack != null) {
+                IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.plan_back)) }
+            } else Spacer(Modifier.height(24.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.plan_selection_title), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.plan_selection_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(if (state.isConfirming) stringResource(R.string.plan_confirming) else stringResource(R.string.plan_confirm))
-        }
-
-        FilledTonalButton(
-            onClick = onContinueFree,
-            enabled = !state.isConfirming,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = ControlShape,
-        ) {
-            Text(stringResource(R.string.plan_continue_free))
-        }
-
-        Text(
-            stringResource(R.string.plan_scope_note),
-            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-private fun FreePlanCard() {
-    val features = listOf(
-        R.string.plan_free_feature_core,
-        R.string.plan_free_feature_instruments,
-        R.string.plan_free_feature_categories,
-        R.string.plan_free_feature_debts,
-        R.string.plan_free_feature_goals,
-        R.string.plan_free_feature_budgets,
-    )
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag("plan-free-card"),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.plan_free_title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                PlanBadge(R.string.plan_free_badge)
+            PlanSegments(listOf(R.string.plan_tab_free, R.string.plan_tab_premium), if (isFree) 0 else 1, !state.isConfirming) {
+                onOptionSelected(if (it == 0) CommercialOption.FREE else state.premiumOption)
             }
-            Text(stringResource(R.string.plan_free_summary), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.plan_free_no_payment), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-            features.forEach { feature -> FreeFeatureRow(feature) }
+            if (isFree) FreePlanCard(state.freeLimits, !state.isConfirming) { onOptionSelected(state.premiumOption) }
+            else PremiumPlanCard(state.selectedOption, !state.isConfirming, onOptionSelected)
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun FreeFeatureRow(@StringRes feature: Int) {
-    val included = stringResource(R.string.plan_included_content_description)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Box(
-            modifier = Modifier.size(48.dp).semantics { contentDescription = included },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Text(stringResource(feature), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-private fun PremiumTrialCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag("plan-trial-card"),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.plan_trial_title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                PlanBadge(R.string.plan_trial_badge)
+private fun PlanSegments(options: List<Int>, selectedIndex: Int, enabled: Boolean, onSelected: (Int) -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(4.dp).selectableGroup()) {
+            options.forEachIndexed { index, title ->
+                val selected = selectedIndex == index
+                Surface(
+                    modifier = Modifier.weight(1f).testTag(when (title) {
+                        R.string.plan_tab_annual -> "plan-option-ANNUAL"
+                        R.string.plan_tab_monthly -> "plan-option-MONTHLY"
+                        R.string.plan_tab_lifetime -> "plan-option-LIFETIME"
+                        R.string.plan_tab_free -> "plan-tab-FREE"
+                        else -> "plan-tab-PREMIUM"
+                    }).selectable(selected, enabled = enabled, role = Role.Tab, onClick = { onSelected(index) }),
+                    color = if (selected) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = if (selected) 2.dp else 0.dp,
+                ) {
+                    Box(Modifier.heightIn(min = 44.dp).padding(horizontal = 4.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                        Text(stringResource(title), fontWeight = FontWeight.Bold, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
-            Text(stringResource(R.string.plan_trial_summary), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun PremiumOptionCard(
-    option: CommercialOption,
-    @StringRes title: Int,
-    @StringRes price: Int,
-    @StringRes summary: Int,
-    selected: Boolean,
-    onSelected: (CommercialOption) -> Unit,
-    @StringRes badge: Int? = null,
-    @StringRes supporting: Int? = null,
-) {
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        animationSpec = tween(KipuMotionTokens.FeedbackMillis),
-        label = "plan-option-border-color",
-    )
-    val borderWidth by animateDpAsState(
-        targetValue = if (selected) 2.dp else 1.dp,
-        animationSpec = tween(KipuMotionTokens.FeedbackMillis),
-        label = "plan-option-border-width",
-    )
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = { onSelected(option) })
-            .minimumInteractiveComponentSize()
-            .testTag("plan-option-${option.name}"),
-        shape = CardShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(borderWidth, borderColor),
-    ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-            RadioButton(selected = selected, onClick = null)
+private fun PremiumPlanCard(option: CommercialOption, enabled: Boolean, onSelected: (CommercialOption) -> Unit) {
+    val options = listOf(CommercialOption.MONTHLY, CommercialOption.ANNUAL, CommercialOption.LIFETIME)
+    val price = when (option) {
+        CommercialOption.MONTHLY -> R.string.plan_display_monthly_price
+        CommercialOption.LIFETIME -> R.string.plan_display_lifetime_price
+        else -> R.string.plan_display_annual_price
+    }
+    val period = when (option) {
+        CommercialOption.MONTHLY -> R.string.plan_period_monthly
+        CommercialOption.LIFETIME -> R.string.plan_period_lifetime
+        else -> R.string.plan_period_annual
+    }
+    Card(Modifier.fillMaxWidth().testTag("plan-premium-card"), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest), border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            PlanSegments(listOf(R.string.plan_tab_monthly, R.string.plan_tab_annual, R.string.plan_tab_lifetime), options.indexOf(option), enabled) { onSelected(options[it]) }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("plan-price-${option.name}"))
+                    Text(stringResource(period), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                }
+                if (option == CommercialOption.ANNUAL) {
+                    Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50)) {
+                        Text(stringResource(R.string.plan_display_savings), Modifier.padding(horizontal = 10.dp, vertical = 3.dp), color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            PremiumFeature(Icons.Outlined.AllInclusive, R.string.plan_premium_unlimited)
+            PremiumFeature(Icons.Outlined.Bolt, R.string.plan_premium_capture)
+            PremiumFeature(Icons.Outlined.CreditCard, R.string.plan_premium_accounts)
+            Text(stringResource(when (option) {
+                CommercialOption.MONTHLY -> R.string.plan_display_monthly_trial
+                CommercialOption.LIFETIME -> R.string.plan_display_lifetime_note
+                else -> R.string.plan_display_annual_trial
+            }), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun PremiumFeature(icon: ImageVector, @StringRes title: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FeatureIcon(icon)
+        Text(stringResource(title), modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun FeatureIcon(icon: ImageVector) {
+    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) { Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp)) }
+    }
+}
+
+@Composable
+private fun FreePlanCard(limits: FreePlanLimits, enabled: Boolean, onPremium: () -> Unit) {
+    Card(Modifier.fillMaxWidth().testTag("plan-free-card"), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.plan_display_free_price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.plan_without_card), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Text(stringResource(R.string.plan_forever), Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            HorizontalDivider()
+            FreeFeature(Icons.Outlined.CreditCard, R.string.plan_limit_accounts, R.string.plan_limit_accounts_detail, limits.instruments)
+            FreeFeature(Icons.Outlined.Sell, R.string.plan_limit_categories, R.string.plan_limit_categories_detail, limits.customCategories)
+            FreeFeature(Icons.AutoMirrored.Outlined.ReceiptLong, R.string.plan_limit_debts, R.string.plan_limit_active, limits.debts)
+            FreeFeature(Icons.Outlined.TrackChanges, R.string.plan_limit_goals, R.string.plan_limit_active, limits.goals)
+            FreeFeature(Icons.Outlined.PieChart, R.string.plan_limit_budgets, R.string.plan_limit_monthly, limits.budgets)
+            FreeFeature(Icons.Outlined.Edit, R.string.plan_manual, R.string.plan_manual_detail, null)
+        }
+        HorizontalDivider()
+        TextButton(onClick = onPremium, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Outlined.LockOpen, null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(title), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                    badge?.let { PlanBadge(it) }
-                }
-                Text(
-                    stringResource(price),
-                    modifier = Modifier.testTag("plan-price-${option.name}"),
-                    style = MaterialTheme.typography.titleMedium.merge(TextStyle(fontFeatureSettings = "tnum")),
-                )
-                Text(stringResource(summary), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                supporting?.let {
-                    Text(stringResource(it), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                }
-            }
+            Text(stringResource(R.string.plan_remove_limits), Modifier.weight(1f), fontWeight = FontWeight.Bold)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
         }
     }
 }
 
 @Composable
-private fun CommercialInfoNote() {
-    val description = stringResource(R.string.plan_trial_info_content_description)
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = ControlShape,
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(
-                modifier = Modifier.size(48.dp).semantics { contentDescription = description },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Info,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                stringResource(R.string.plan_trial_info),
-                modifier = Modifier.weight(1f).padding(top = 4.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+private fun FreeFeature(icon: ImageVector, @StringRes title: Int, @StringRes subtitle: Int, limit: Int?) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        FeatureIcon(icon)
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(title), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (limit != null) {
+            Text(stringResource(R.string.plan_up_to), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(limit.toString(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        } else {
+            Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.plan_included_content_description), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
     }
+    if (limit != null) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
-@Composable
-private fun PlanBadge(@StringRes label: Int) {
-    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(999.dp)) {
-        Text(
-            stringResource(label),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Preview(name = "Pantalla 1B", showBackground = true, widthDp = 411, heightDp = 891)
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun PlanSelectionScreenPreview() {
-    KipuTheme {
-        PlanSelectionScreen(
-            state = PlanSelectionUiState(isLoadingEligibility = false),
-            onOptionSelected = {},
-            onConfirm = {},
-            onContinueFree = {},
-        )
-    }
+    KipuTheme { PlanSelectionScreen(PlanSelectionUiState(), {}, {}, {}) }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun FreePlanSelectionScreenPreview() {
+    KipuTheme { PlanSelectionScreen(PlanSelectionUiState(selectedOption = CommercialOption.FREE), {}, {}, {}) }
 }
