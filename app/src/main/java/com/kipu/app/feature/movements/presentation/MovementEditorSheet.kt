@@ -95,7 +95,12 @@ import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.movements.domain.model.MovementType
+import com.kipu.app.ui.component.KipuAmountCard
 import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.KipuChipTone
+import com.kipu.app.ui.component.KipuFieldRow
+import com.kipu.app.ui.component.KipuFieldRowDivider
+import com.kipu.app.ui.component.KipuStatusChip
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
@@ -787,20 +792,8 @@ fun MovementEditorContent(
 }
 
 @Composable
-private fun EditorChip(text: String, highlighted: Boolean, ec: CalmEmeraldColors, modifier: Modifier = Modifier) {
-    Surface(
-        shape = CircleShape,
-        color = if (highlighted) ec.incomeBg else ec.pillTrack,
-        border = if (highlighted) BorderStroke(1.dp, ec.incomeBorder) else null,
-        modifier = modifier,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-            color = if (highlighted) ec.primaryDeep else ec.secondaryMuted,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
-    }
+private fun EditorChip(text: String, highlighted: Boolean, @Suppress("UNUSED_PARAMETER") ec: CalmEmeraldColors, modifier: Modifier = Modifier) {
+    KipuStatusChip(text, if (highlighted) KipuChipTone.POSITIVE else KipuChipTone.NEUTRAL, modifier)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -818,110 +811,73 @@ private fun EditorAmountCard(
     val symbol = currency.symbol()
     val modified = parsedAmount != null && parsedAmount != uiState.initialAmountMinor
     val hasError = uiState.amountError != null || amountInvalid
-    val accent = when {
-        hasError -> ec.expenseText
-        modified -> ec.primaryDeep
-        else -> ec.borderSubtle
-    }
     val amountColor = when (uiState.movementType) {
         MovementType.EXPENSE -> ec.expenseText
         MovementType.INCOME -> ec.incomeText
         MovementType.TRANSFER -> ec.transferBlue
     }
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = ec.surfaceCard,
-        border = BorderStroke(if (hasError || modified) 2.dp else 1.dp, accent),
-        modifier = Modifier.fillMaxWidth(),
+    KipuAmountCard(
+        label = stringResource(R.string.movement_amount_label),
+        symbol = symbol,
+        amountText = uiState.amountText,
+        onAmountChanged = onAmountChanged,
+        amountColor = amountColor,
+        inputTag = "editor_amount_input",
+        enabled = enabled,
+        accent = when {
+            hasError -> ec.expenseText
+            modified -> ec.primaryDeep
+            else -> null
+        },
+        placeholder = "",
+        visualTransformation = if (masked) PasswordVisualTransformation() else VisualTransformation.None,
+        inputModifier = Modifier.privateAmount(masked, enabled, onChange = onAmountChanged),
+        chip = { EditorChip(if (modified) "Modificado" else "Original", modified, ec) },
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+        when {
+            hasError -> Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = ec.expenseText, modifier = Modifier.size(16.dp))
                 Text(
-                    text = stringResource(R.string.movement_amount_label),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = ec.primaryText,
-                )
-                EditorChip(if (modified) "Modificado" else "Original", modified, ec)
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp),
-            ) {
-                Text(
-                    text = symbol,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = ec.secondaryMuted,
-                )
-                Spacer(Modifier.width(8.dp))
-                BasicTextField(
-                    value = uiState.amountText,
-                    onValueChange = onAmountChanged,
-                    enabled = enabled,
-                    singleLine = true,
-                    visualTransformation = if (masked) PasswordVisualTransformation() else VisualTransformation.None,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    textStyle = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontFeatureSettings = "tnum",
-                        color = amountColor,
-                    ),
-                    cursorBrush = SolidColor(ec.primaryDeep),
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 56.dp)
-                        .testTag("editor_amount_input")
-                        .privateAmount(masked, enabled, onChange = onAmountChanged),
+                    text = uiState.amountError ?: "Ingresa un monto mayor a $symbol 0.00",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = ec.expenseText,
+                    modifier = Modifier.testTag("error_amount"),
                 )
             }
-            when {
-                uiState.amountError != null || amountInvalid -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = ec.expenseText, modifier = Modifier.size(16.dp))
-                    Text(
-                        text = uiState.amountError ?: "Ingresa un monto mayor a $symbol 0.00",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = ec.expenseText,
-                        modifier = Modifier.testTag("error_amount"),
-                    )
-                }
-                modified -> {
-                    val diff = parsedAmount!! - uiState.initialAmountMinor
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row {
-                            Text("Antes: ", style = MaterialTheme.typography.bodySmall, color = ec.secondaryMuted)
-                            MoneyText(
-                                formatMinorUnits(uiState.initialAmountMinor),
-                                currencySymbol = symbol,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = ec.secondaryMuted,
-                            )
-                        }
-                        Row {
-                            Text("Diferencia ", style = MaterialTheme.typography.bodySmall, color = ec.secondaryMuted)
-                            MoneyText(
-                                (if (diff < 0) "-" else "+") + formatMinorUnits(abs(diff)),
-                                currencySymbol = symbol,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = ec.secondaryMuted,
-                            )
-                        }
+            modified -> {
+                val diff = parsedAmount!! - uiState.initialAmountMinor
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row {
+                        Text("Antes: ", style = MaterialTheme.typography.bodySmall, color = ec.secondaryMuted)
+                        MoneyText(
+                            formatMinorUnits(uiState.initialAmountMinor),
+                            currencySymbol = symbol,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ec.secondaryMuted,
+                        )
+                    }
+                    Row {
+                        Text("Diferencia ", style = MaterialTheme.typography.bodySmall, color = ec.secondaryMuted)
+                        MoneyText(
+                            (if (diff < 0) "-" else "+") + formatMinorUnits(abs(diff)),
+                            currencySymbol = symbol,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ec.secondaryMuted,
+                        )
                     }
                 }
-                else -> Unit
             }
+            else -> Unit
         }
     }
 }
 
 @Composable
-private fun EditorRowDivider(ec: CalmEmeraldColors) {
-    HorizontalDivider(color = ec.borderSubtle, modifier = Modifier.padding(start = 68.dp))
+private fun EditorRowDivider(@Suppress("UNUSED_PARAMETER") ec: CalmEmeraldColors) {
+    KipuFieldRowDivider()
 }
 
 @Composable
@@ -935,66 +891,25 @@ private fun EditorRow(
     before: String?,
     enabled: Boolean,
     tag: String,
-    ec: CalmEmeraldColors,
+    @Suppress("UNUSED_PARAMETER") ec: CalmEmeraldColors,
     onClick: () -> Unit,
     error: String? = null,
     errorTag: String = "",
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 64.dp)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .testTag(tag),
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(iconBg, RoundedCornerShape(12.dp)),
-            ) {
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.labelMedium, color = ec.secondaryMuted)
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = ec.primaryText,
-                )
-                if (modified && before != null) {
-                    Text(
-                        text = "Antes: $before",
-                        style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.LineThrough),
-                        color = ec.secondaryMuted,
-                    )
-                }
-            }
-            if (modified) {
-                Spacer(Modifier.width(8.dp))
-                EditorChip("Modificado", true, ec)
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ec.secondaryMuted,
-            )
-        }
-        if (error != null) {
-            Text(
-                text = error,
-                color = ec.expenseText,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .padding(start = 68.dp, end = 16.dp, bottom = 8.dp)
-                    .testTag(errorTag),
-            )
-        }
-    }
+    KipuFieldRow(
+        icon = icon,
+        iconBg = iconBg,
+        iconTint = iconTint,
+        label = label,
+        value = value,
+        onClick = onClick,
+        tag = tag,
+        enabled = enabled,
+        modified = modified,
+        before = before,
+        error = error,
+        errorTag = errorTag,
+    )
 }
 
 @Composable
