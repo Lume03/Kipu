@@ -15,6 +15,9 @@ import com.kipu.app.feature.notifications.data.local.LocalReminderEventEntity
 import com.kipu.app.feature.notifications.data.local.ReminderScheduleDao
 import com.kipu.app.feature.notifications.data.local.ReminderScheduleEntity
 import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
+import com.kipu.app.feature.capture.domain.ExpectedPaymentStore
+import com.kipu.app.feature.capture.domain.ExpectedPaymentStatus
+import kotlinx.coroutines.flow.first
 import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -34,6 +37,7 @@ class RecurrenceReminderWorker @AssistedInject constructor(
     private val reminderScheduleDao: ReminderScheduleDao,
     private val localReminderEventDao: LocalReminderEventDao,
     private val coordinator: ReminderReconciliationCoordinator,
+    private val expectedPayments: ExpectedPaymentStore,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result = coordinator.exclusive { runReminder() }
 
@@ -50,6 +54,10 @@ class RecurrenceReminderWorker @AssistedInject constructor(
             recurrence.nextDueDate != dueDate.toString() || recurrence.reminderLeadDays != leadDays ||
             leadDays !in 1..30 || recurrence.endDate?.let { dueDate > LocalDate.parse(it) } == true
         ) return Result.success()
+
+        if (expectedPayments.observeByRecurrence(userId, recurrenceId).first().any {
+                it.dueDate == dueDate && it.status == ExpectedPaymentStatus.ATTENDED
+            }) return Result.success()
 
         val now = Instant.now()
         reminderScheduleDao.cancelReplacedSchedules(userId, recurrenceId, dueDate.toString(), now)

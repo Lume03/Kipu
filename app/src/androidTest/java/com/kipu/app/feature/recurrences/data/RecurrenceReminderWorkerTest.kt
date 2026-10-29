@@ -32,6 +32,9 @@ class RecurrenceReminderWorkerTest {
     private val sessionCoordinator = mockk<SessionCoordinator>()
     private val scheduleDao = mockk<ReminderScheduleDao>(relaxed = true)
     private val eventDao = mockk<LocalReminderEventDao>(relaxed = true)
+    private val expectedPayments = mockk<com.kipu.app.feature.capture.domain.ExpectedPaymentStore> {
+        every { observeByRecurrence(any(), any()) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+    }
 
     @Test
     fun deniedPostNotificationsPersistsLocalEventWithoutRemoteMutation() = runTest {
@@ -84,7 +87,7 @@ class RecurrenceReminderWorkerTest {
             ))
             .setWorkerFactory(object : WorkerFactory() {
                 override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker =
-                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator())
+                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator(), expectedPayments)
             })
             .build()
 
