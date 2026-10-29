@@ -136,3 +136,15 @@ Deno.test("rejects malformed installation public keys and expired commercial rig
     "already-ended entitlement must not produce a grant",
   );
 });
+
+Deno.test("developer source is signed without entitlement expiry and retains Premium offline lease", async () => {
+  const fixture = await createSignerFixture();
+  const grant = await fixture.issuer({ ...input, installationPublicKey: fixture.publicKey, source: "DEVELOPER", entitlementEndsAt: null });
+  assert(grant !== null, "developer receives signed Premium without a purchase");
+  const payload = Uint8Array.from(atob(grant.payload.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  const claims = JSON.parse(new TextDecoder().decode(payload));
+  assert(claims.source === "DEVELOPER" && claims.entitlementEndsAt === null, "permanent developer source is in signed claims");
+  assert(claims.notAfter === "2026-10-05T12:00:00.000Z", "same 72-hour offline lease as lifetime Premium");
+  assert(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, fixture.verificationKey,
+    Uint8Array.from(atob(grant.signature.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0)), payload), "developer claim signature verifies");
+});

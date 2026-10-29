@@ -9,7 +9,7 @@ export type OfflineGrantIssueInput = {
   installationPublicKey?: string;
   effectivePremium: boolean;
   entitlementEndsAt: string | null;
-  source?: "TEST_OVERRIDE";
+  source?: "TEST_OVERRIDE" | "DEVELOPER";
 };
 
 type Env = { get(name: string): string | undefined };
@@ -119,7 +119,7 @@ export function createOfflineEntitlementGrantIssuer(
         ? null
         : new Date(entitlementEndsAt).toISOString(),
       notAfter: new Date(notAfter).toISOString(),
-      ...(input.source === "TEST_OVERRIDE" ? { source: "TEST_OVERRIDE" } : {}),
+      ...(input.source === "TEST_OVERRIDE" || input.source === "DEVELOPER" ? { source: input.source } : {}),
     };
     const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObject));
 
