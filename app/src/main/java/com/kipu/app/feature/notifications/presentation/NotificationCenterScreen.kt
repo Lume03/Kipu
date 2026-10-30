@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,17 +22,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.PieChart
+import com.kipu.app.ui.component.FilterOption
+import com.kipu.app.ui.component.OptionFilterButton
+import com.kipu.app.ui.component.OptionFilterSheet
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -53,12 +53,12 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationCategory
-import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
@@ -246,82 +245,36 @@ private fun HeaderActions(
 }
 
 @Composable
-private fun NotificationFilterButton(
-    selected: NotificationFilter,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun notificationFilterOptions(): List<FilterOption<NotificationFilter>> {
     val colors = rememberCalmEmeraldColors()
-    val active = selected != NotificationFilter.ALL
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = if (active) colors.primaryDeep else colors.surfaceCard,
-        contentColor = if (active) colors.onPrimaryDeep else colors.primaryText,
-        border = if (active) null else BorderStroke(1.dp, colors.pillTrack),
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .testTag("notification-filter-button")
-            .semantics { contentDescription = "Filtrar notificaciones: ${selected.label}" },
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(selected.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+    return NotificationFilter.entries.map { filter ->
+        val (icon, tint) = when (filter) {
+            NotificationFilter.ALL -> Icons.Default.NotificationsNone to colors.primaryDeep
+            NotificationFilter.BUDGETS -> Icons.Default.PieChart to colors.warningText
+            NotificationFilter.GOALS -> Icons.Default.Flag to colors.incomeText
+            NotificationFilter.ALERTS -> Icons.Default.WarningAmber to colors.expenseText
+            NotificationFilter.REMINDERS -> Icons.Default.Schedule to colors.warningText
         }
+        FilterOption(filter, filter.label, icon, tint, "notification-filter-${filter.name.lowercase()}")
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NotificationFilterSheet(
-    selected: NotificationFilter,
-    onSelect: (NotificationFilter) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val colors = rememberCalmEmeraldColors()
-    KipuBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surfaceCard,
-        header = {
-            Text(
-                "Filtrar notificaciones",
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.primaryText,
-            )
-        },
-    ) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-            NotificationFilter.entries.forEach { filter ->
-                val isSelected = filter == selected
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp)
-                        .clickable { onSelect(filter) }
-                        .padding(horizontal = 24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        filter.label,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) colors.primaryDeep else colors.primaryText,
-                    )
-                    if (isSelected) {
-                        Icon(Icons.Default.Check, contentDescription = "Seleccionado", tint = colors.primaryDeep)
-                    }
-                }
-            }
-        }
-    }
+private fun NotificationFilterButton(selected: NotificationFilter, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val option = notificationFilterOptions().first { it.value == selected }
+    OptionFilterButton(
+        label = selected.label,
+        active = selected != NotificationFilter.ALL,
+        description = "Filtrar notificaciones: ${selected.label}",
+        icon = if (selected == NotificationFilter.ALL) Icons.Default.FilterList else option.icon,
+        onClick = onClick,
+        modifier = modifier.testTag("notification-filter-button"),
+    )
+}
+
+@Composable
+private fun NotificationFilterSheet(selected: NotificationFilter, onSelect: (NotificationFilter) -> Unit, onDismiss: () -> Unit) {
+    OptionFilterSheet("Filtrar notificaciones", notificationFilterOptions(), selected, onSelect, onDismiss)
 }
 
 @Composable
@@ -380,8 +333,9 @@ private fun NotificationRow(
     val eventIcon = when (eventType) {
         "CAPTURE_REVIEW" -> Icons.Default.NotificationsNone
         "BILLING_DUE" -> Icons.Default.Schedule
-        "GOAL_REACHED" -> Icons.Default.CheckCircle
-        "BUDGET_ALERT", "CREDIT_THRESHOLD", "CREDIT_UTILIZATION_THRESHOLD_CROSSED" -> Icons.Default.WarningAmber
+        "GOAL_REACHED" -> Icons.Default.Flag
+        "BUDGET_ALERT" -> Icons.Default.PieChart
+        "CREDIT_THRESHOLD", "CREDIT_UTILIZATION_THRESHOLD_CROSSED" -> Icons.Default.WarningAmber
         else -> Icons.Default.Info
     }
     val timestampFormatter = remember {
