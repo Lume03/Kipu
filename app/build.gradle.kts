@@ -173,6 +173,7 @@ dependencies {
     // Bundled Latin model: receipt OCR works offline, including the first import.
     implementation(libs.mlkit.text.recognition)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.pdfbox.android)
     implementation(libs.androidx.biometric)
     implementation(libs.play.billing)
 
@@ -197,6 +198,7 @@ dependencies {
     testImplementation(libs.mockk.jvm)
     testImplementation(libs.androidx.navigation.testing)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.compiler)
 

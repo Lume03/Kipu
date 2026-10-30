@@ -9,7 +9,7 @@ class FeatureAccessPolicy @Inject constructor() {
         val limit = when (request.capability) {
             Capability.FreeCore -> return FeatureAccessDecision.Allowed(AccessReason.FREE_CAPABILITY)
             Capability.YapeReceiptOcr -> return FeatureAccessDecision.Allowed(AccessReason.FREE_CAPABILITY)
-            Capability.PremiumOnly -> return FeatureAccessDecision.Denied(AccessReason.PREMIUM_ENTITLEMENT_REQUIRED)
+            Capability.PremiumOnly, Capability.CardStatementImport -> return FeatureAccessDecision.Denied(AccessReason.PREMIUM_ENTITLEMENT_REQUIRED)
             Capability.Instruments -> request.freeLimits.instruments
             Capability.CustomCategories -> request.freeLimits.customCategories
             Capability.Debts -> request.freeLimits.debts

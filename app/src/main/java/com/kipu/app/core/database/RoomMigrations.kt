@@ -1361,6 +1361,35 @@ val MIGRATION_28_29 = object : Migration(28, 29) {
     }
 }
 
+/** PDF review candidates are local-only; neither source document nor password is retained. */
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `statement_imports` (
+            `id` TEXT NOT NULL, `owner_id` TEXT NOT NULL, `statement_fingerprint` TEXT NOT NULL,
+            `issuer` TEXT NOT NULL, `card_last_four` TEXT NOT NULL,
+            `cycle_start` TEXT NOT NULL, `cycle_end` TEXT NOT NULL, `due_date` TEXT,
+            `reconciled_pen` INTEGER, `reconciled_usd` INTEGER, `card_id` TEXT,
+            `status` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `expires_at` INTEGER NOT NULL,
+            PRIMARY KEY(`id`)
+        )""")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_statement_imports_owner_id_statement_fingerprint` ON `statement_imports` (`owner_id`, `statement_fingerprint`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_imports_owner_id_status_created_at` ON `statement_imports` (`owner_id`, `status`, `created_at`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_statement_imports_owner_id_id` ON `statement_imports` (`owner_id`, `id`)")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS `statement_import_lines` (
+            `id` TEXT NOT NULL, `import_id` TEXT NOT NULL, `owner_id` TEXT NOT NULL,
+            `line_fingerprint` TEXT NOT NULL, `position` INTEGER NOT NULL, `kind` TEXT NOT NULL,
+            `process_date` TEXT NOT NULL, `occurred_date` TEXT NOT NULL, `description` TEXT NOT NULL,
+            `amount_minor` INTEGER NOT NULL, `currency` TEXT NOT NULL, `installment_count` INTEGER,
+            `selected` INTEGER NOT NULL, `category_id` TEXT, `merchant_id` TEXT, `source_account_id` TEXT,
+            `possible_duplicate` INTEGER NOT NULL, `status` TEXT NOT NULL, `registered_movement_id` TEXT,
+            PRIMARY KEY(`id`), FOREIGN KEY(`owner_id`, `import_id`)
+                REFERENCES `statement_imports`(`owner_id`, `id`) ON UPDATE NO ACTION ON DELETE CASCADE
+        )""")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_statement_import_lines_import_id_line_fingerprint` ON `statement_import_lines` (`import_id`, `line_fingerprint`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_statement_import_lines_owner_id_import_id` ON `statement_import_lines` (`owner_id`, `import_id`)")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

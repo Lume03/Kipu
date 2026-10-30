@@ -14,3 +14,6 @@
 -keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }
 -keep class com.google.android.gms.internal.mlkit_vision_common.** { *; }
 -keep class com.google.android.gms.internal.mlkit_common.** { *; }
+
+# PdfBox-Android references an optional JPEG 2000 decoder that is not bundled; statements only need text.
+-dontwarn com.gemalto.jp2.JP2Decoder

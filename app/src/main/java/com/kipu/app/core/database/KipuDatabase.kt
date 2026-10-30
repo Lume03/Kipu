@@ -3,6 +3,10 @@ package com.kipu.app.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.kipu.app.feature.statements.data.local.StatementImportEntity
+import com.kipu.app.feature.statements.data.local.StatementImportLineEntity
+import com.kipu.app.feature.statements.data.local.StatementImportDao
+import com.kipu.app.feature.statements.data.local.StatementImportMatchingDao
 import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.accounts.data.local.CardDao
@@ -96,6 +100,8 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
 
 @Database(
     entities = [
+        StatementImportEntity::class,
+        StatementImportLineEntity::class,
         PlanPreferencesEntity::class,
         PlanSelectionSyncStateEntity::class,
         PlanQuotaSelectionEntity::class,
@@ -159,11 +165,13 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CaptureCandidateEntity::class,
         ExpectedPaymentEntity::class,
     ],
-    version = 29,
+    version = 30,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
 abstract class KipuDatabase : RoomDatabase() {
+    abstract fun statementImportDao(): StatementImportDao
+    abstract fun statementImportMatchingDao(): StatementImportMatchingDao
     abstract fun planPreferencesDao(): PlanPreferencesDao
     abstract fun featureAccessCacheDao(): FeatureAccessCacheDao
     abstract fun planQuotaSelectionDao(): PlanQuotaSelectionDao

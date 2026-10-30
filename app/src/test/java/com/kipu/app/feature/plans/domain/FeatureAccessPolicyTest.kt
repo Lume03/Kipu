@@ -12,6 +12,16 @@ class FeatureAccessPolicyTest {
     private val policy = FeatureAccessPolicy()
     private val limits = FreePlanLimits()
 
+    @Test fun statementImportRequiresVerifiedPremium() {
+        for (entitlement in listOf(null,
+            com.kipu.app.feature.plans.domain.model.EffectiveEntitlement(false, null))) {
+            assertEquals(FeatureAccessDecision.Denied(AccessReason.PREMIUM_ENTITLEMENT_REQUIRED),
+                policy.evaluate(FeatureAccessRequest(Capability.CardStatementImport, 0, limits, entitlement)))
+        }
+        assertEquals(allowed(), policy.evaluate(FeatureAccessRequest(Capability.CardStatementImport, 0, limits,
+            com.kipu.app.feature.plans.domain.model.EffectiveEntitlement(true, null))))
+    }
+
     @Test
     fun freeCoreIsAllowed() {
         assertEquals(allowed(), evaluate(Capability.FreeCore))
