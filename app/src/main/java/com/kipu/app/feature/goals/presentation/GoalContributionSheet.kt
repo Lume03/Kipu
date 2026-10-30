@@ -1,15 +1,10 @@
 package com.kipu.app.feature.goals.presentation
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.KipuFilterChip
@@ -65,6 +60,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.Money
+import com.kipu.app.feature.movements.presentation.AccountSelectionRow
+import com.kipu.app.feature.movements.presentation.formatAccountSubtitle
 import com.kipu.app.feature.goals.domain.model.GoalBackingAccount
 import com.kipu.app.feature.goals.domain.model.GoalStatus
 import java.math.BigDecimal
@@ -229,11 +226,8 @@ fun GoalContributionSheet(
                     Text("Liberar de la reserva", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text("El dinero vuelve a estar disponible en la misma cuenta. No crea ingreso ni transfiere dinero.", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
                     releasable.forEach { account ->
-                        OutlinedButton(onClick = { releaseAccountId = account.id }, modifier = Modifier.fillMaxWidth(),
-                            border = BorderStroke(if (releaseAccount?.id == account.id) 2.dp else 1.dp, if (releaseAccount?.id == account.id) colors.primaryDeep else colors.borderSubtle)) {
-                            Column(Modifier.weight(1f)) { Text(account.name, fontWeight = FontWeight.Bold); Text("Reservado en esta meta", style = MaterialTheme.typography.bodySmall) }
-                            MoneyText(reserves[account.id] ?: 0L, currency = account.currency, fontWeight = FontWeight.Bold)
-                        }
+                        GoalAccountRow(account, Money(reserves[account.id] ?: 0L, account.currency),
+                            releaseAccount?.id == account.id, "Reservado en esta meta") { releaseAccountId = account.id }
                     }
                     if (releasable.isEmpty()) PlanningNotice("Sin dinero reservado", "Esta meta no tiene reservas que puedas retirar.")
                     if (amount != null && amount.minorUnits > maxRelease) PlanningNotice("Revisa el importe", "El importe supera lo reservado en esta cuenta para esta meta.", isError = true)
@@ -251,22 +245,10 @@ fun GoalContributionSheet(
                     style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
                 Column(Modifier.selectableGroup().testTag("goal_backing_account_picker"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     accounts.forEach { account ->
-                        val selected = account.id == chosenBackingId
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
-                                onClick = { focusManager.clearFocus(); keyboard?.hide(); backingAccountId = account.id }),
-                            color = if (selected) colors.incomeBg else colors.surfaceCard,
-                            border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primaryDeep else colors.borderSubtle),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Row(Modifier.padding(12.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                RadioButton(selected = selected, onClick = null)
-                                Column(Modifier.weight(1f)) {
-                                    Text(account.name, fontWeight = FontWeight.SemiBold)
-                                    Text("Disponible para reservar", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
-                                }
-                                MoneyText(account.available, modifier = Modifier.weight(0.8f), style = MaterialTheme.typography.titleSmall.copy(textAlign = androidx.compose.ui.text.style.TextAlign.End), fontWeight = FontWeight.Bold)
-                            }
+                        GoalAccountRow(account, account.available, account.id == chosenBackingId, "Disponible para reservar") {
+                            focusManager.clearFocus()
+                            keyboard?.hide()
+                            backingAccountId = account.id
                         }
                     }
                 }
@@ -361,3 +343,21 @@ private fun parseContributionAmount(raw: String, currency: com.kipu.app.core.fin
 }.getOrNull()
 
 private fun Long.asCurrency(): String = BigDecimal.valueOf(this, 2).toPlainString()
+
+@Composable
+private fun GoalAccountRow(account: GoalBackingAccount, balance: Money, selected: Boolean, label: String, onSelect: () -> Unit) {
+    val colors = rememberPlanningColors()
+    AccountSelectionRow(
+        alias = account.name,
+        subtitle = formatAccountSubtitle(account.accountType, account.currency.name, account.preset),
+        type = account.accountType,
+        preset = account.preset,
+        balance = balance,
+        isSelected = selected,
+        onSelect = onSelect,
+        statusText = label,
+        amountColor = if (balance.minorUnits < 0L) colors.expenseText else colors.primaryText,
+        statusColor = colors.incomeText,
+        testTag = "goal_account_${account.id}",
+    )
+}

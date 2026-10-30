@@ -8,6 +8,8 @@ data class GoalBackingAccountRow(
     @ColumnInfo(name = "currency_code") val currencyCode: String,
     @ColumnInfo(name = "confirmed_balance_minor") val confirmedBalanceMinor: Long,
     @ColumnInfo(name = "reserved_minor") val reservedMinor: Long,
+    @ColumnInfo(name = "account_type") val accountType: String = "BANK",
+    @ColumnInfo(name = "preset_id") val presetId: String? = null,
 ) {
     val availableMinor: Long get() = Math.subtractExact(confirmedBalanceMinor, reservedMinor)
     val shortfallMinor: Long

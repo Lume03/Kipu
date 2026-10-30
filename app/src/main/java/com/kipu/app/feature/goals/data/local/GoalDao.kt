@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 private const val BACKING_ACCOUNT_POSITION_QUERY = """
     SELECT a.id AS account_id,
            a.alias AS account_name,
+           a.type AS account_type,
+           a.preset_id AS preset_id,
            a.currency AS currency_code,
            COALESCE(b.confirmed_balance_minor, 0) AS confirmed_balance_minor,
            COALESCE(r.reserved_minor, 0) AS reserved_minor

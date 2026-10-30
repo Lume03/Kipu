@@ -1,5 +1,7 @@
 package com.kipu.app.feature.goals.data.local
 
+import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.model.Goal
@@ -85,5 +87,7 @@ fun GoalBackingAccountRow.toDomain(): GoalBackingAccount {
         reserved = Money(reservedMinor, currency),
         available = Money(availableMinor, currency),
         shortfall = Money(shortfallMinor, currency),
+        accountType = AccountType.valueOf(accountType),
+        preset = AccountPreset.fromId(presetId),
     )
 }

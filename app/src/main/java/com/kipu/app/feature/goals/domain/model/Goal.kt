@@ -1,5 +1,7 @@
 package com.kipu.app.feature.goals.domain.model
 
+import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import java.time.Instant
@@ -54,4 +56,6 @@ data class GoalBackingAccount(
     val reserved: Money,
     val available: Money,
     val shortfall: Money,
+    val accountType: AccountType = AccountType.BANK,
+    val preset: AccountPreset? = null,
 )
