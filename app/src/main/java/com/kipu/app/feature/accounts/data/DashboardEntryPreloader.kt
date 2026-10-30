@@ -7,6 +7,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.await
 import androidx.work.workDataOf
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.auth.presentation.SessionEntryCurtain
@@ -16,6 +17,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Await the existing owner-scoped sync (including all feed pages), never a second partial pull. */
@@ -36,21 +38,32 @@ class DashboardEntryPreloader @Inject constructor(
             .setInputData(workDataOf(SyncMovementsWorker.KEY_USER_ID to owner))
             .build()
         val manager = WorkManager.getInstance(context)
-        manager.enqueueUniqueWork("${SyncMovementsWorker.WORK_PREFIX}_$owner", ExistingWorkPolicy.REPLACE, request)
-        awaitDashboardSync(manager.getWorkInfoByIdFlow(request.id)) { manager.cancelWorkById(request.id) }
+        val name = "${SyncMovementsWorker.WORK_PREFIX}_$owner"
+        // Retry joins a running sync; REPLACE only wakes one that is idle or backing off.
+        val running = manager.getWorkInfosForUniqueWorkFlow(name).first().any { it.state == WorkInfo.State.RUNNING }
+        // Awaited so a SUCCEEDED left by an earlier sync is never read as this entry's result.
+        manager.enqueueUniqueWork(name, if (running) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE, request).await()
+        // Follow the unique name: other schedulers may REPLACE this request while we wait.
+        awaitDashboardSync(manager.getWorkInfosForUniqueWorkFlow(name).map { it.currentSync() })
         check(sessionCoordinator.currentOwner?.verifiedUserId == owner) { "La sesión cambió." }
     }
 }
 
-internal suspend fun awaitDashboardSync(work: Flow<WorkInfo?>, cancelWork: () -> Unit = {}) {
-    try {
-        val result = withTimeoutOrNull(15_000L) {
-            work.filterNotNull().first { it.state.isFinished || it.runAttemptCount > 0 }
+internal fun List<WorkInfo>.currentSync(): WorkInfo? =
+    firstOrNull { !it.state.isFinished } ?: firstOrNull { it.state == WorkInfo.State.SUCCEEDED } ?: lastOrNull()
+
+/**
+ * Stops waiting, never syncing: the work keeps running after a timeout or error, and the
+ * dashboard observes Room, so it recovers on its own once the data lands.
+ */
+internal suspend fun awaitDashboardSync(work: Flow<WorkInfo?>) {
+    val result = withTimeoutOrNull(15_000L) {
+        // runAttemptCount already counts the attempt in progress; only a re-enqueued attempt is a retry.
+        work.filterNotNull().first {
+            it.state == WorkInfo.State.SUCCEEDED || it.state == WorkInfo.State.FAILED ||
+                (it.state == WorkInfo.State.ENQUEUED && it.runAttemptCount > 0)
         }
-        // An explicit retry screen is a resolved destination; a loading skeleton is not.
-        check(result?.state == WorkInfo.State.SUCCEEDED) { "No se pudo preparar tu dinero. Intenta nuevamente." }
-    } finally {
-        // Includes timeout and caller cancellation; never leave entry work orphaned.
-        cancelWork()
     }
+    // An explicit retry screen is a resolved destination; a loading skeleton is not.
+    check(result?.state == WorkInfo.State.SUCCEEDED) { "No se pudo preparar tu dinero. Intenta nuevamente." }
 }

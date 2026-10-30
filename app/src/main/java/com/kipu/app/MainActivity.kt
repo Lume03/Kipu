@@ -225,10 +225,11 @@ class MainActivity : FragmentActivity() {
                 }
             }.collectAsState(initial = null)
 
+            // Light is the default; only an explicit SYSTEM choice follows the device.
             val isDark = when (profileState.value?.themeMode) {
                 "DARK" -> true
-                "LIGHT" -> false
-                else -> isSystemInDarkTheme()
+                "SYSTEM" -> isSystemInDarkTheme()
+                else -> false
             }
             val isMasked = profileState.value?.hideBalances ?: false
 

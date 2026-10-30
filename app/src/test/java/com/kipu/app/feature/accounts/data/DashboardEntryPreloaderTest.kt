@@ -58,24 +58,36 @@ class DashboardEntryPreloaderTest {
         assertTrue(result.exceptionOrNull() is IllegalStateException)
     }
 
-    @Test fun `timeout cancels its exact scheduled work`() = runTest {
-        var cancelled = false
-        val result = runCatching {
-            awaitDashboardSync(MutableStateFlow(work(WorkInfo.State.RUNNING))) { cancelled = true }
-        }
-        assertTrue(result.isFailure)
-        assertTrue(cancelled)
+    @Test
+    fun `a running first attempt keeps waiting instead of failing`() = runTest {
+        // WorkManager counts the attempt in progress, so RUNNING already reports one attempt.
+        val states = MutableStateFlow<WorkInfo?>(work(WorkInfo.State.RUNNING, attempts = 1))
+        val ready = async { awaitDashboardSync(states) }
+        runCurrent()
+        assertFalse(ready.isCompleted)
+        states.value = work(WorkInfo.State.SUCCEEDED, attempts = 1)
+        ready.await()
     }
 
-    @Test fun `caller cancellation cancels its exact scheduled work`() = runTest {
-        var cancelled = false
-        val waiting = async {
-            awaitDashboardSync(MutableStateFlow(work(WorkInfo.State.RUNNING))) { cancelled = true }
-        }
+    @Test
+    fun `work replaced by another scheduler is followed to its replacement`() = runTest {
+        val states = MutableStateFlow<WorkInfo?>(work(WorkInfo.State.CANCELLED))
+        val ready = async { awaitDashboardSync(states) }
         runCurrent()
-        waiting.cancel()
-        waiting.join()
-        assertTrue(cancelled)
+        assertFalse(ready.isCompleted)
+        states.value = listOf(work(WorkInfo.State.CANCELLED), work(WorkInfo.State.RUNNING, attempts = 1)).currentSync()
+        runCurrent()
+        assertFalse(ready.isCompleted)
+        states.value = work(WorkInfo.State.SUCCEEDED, attempts = 1)
+        ready.await()
+    }
+
+    @Test
+    fun `the unfinished sync wins over finished history for the same owner`() {
+        val running = work(WorkInfo.State.RUNNING, attempts = 1)
+        assertTrue(listOf(work(WorkInfo.State.SUCCEEDED), running).currentSync() === running)
+        val succeeded = work(WorkInfo.State.SUCCEEDED)
+        assertTrue(listOf(work(WorkInfo.State.CANCELLED), succeeded).currentSync() === succeeded)
     }
 
     @Test
