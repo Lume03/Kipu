@@ -11,6 +11,8 @@ interface ReceiptCandidateDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(entity: ReceiptCandidateEntity): Long
     @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND status='PENDING' ORDER BY created_at DESC")
     fun observePending(ownerId: String): Flow<List<ReceiptCandidateEntity>>
+    @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND provider='YAPE' AND status='CONFIRMED' ORDER BY updated_at DESC")
+    fun observeConfirmed(ownerId: String): Flow<List<ReceiptCandidateEntity>>
     @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND candidate_id=:id")
     suspend fun get(ownerId: String, id: String): ReceiptCandidateEntity?
     @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND image_fingerprint=:fingerprint LIMIT 1")
@@ -23,4 +25,6 @@ interface ReceiptCandidateDao {
     suspend fun confirm(owner: String, id: String, now: Long): Int
     @Query("UPDATE receipt_candidates SET status='DISCARDED', updated_at=:now WHERE owner_id=:owner AND candidate_id=:id AND status='PENDING'")
     suspend fun discard(owner: String, id: String, now: Long): Int
+    @Query("UPDATE receipt_candidates SET status='PENDING', created_at=:now, updated_at=:now WHERE owner_id=:owner AND candidate_id=:id AND status='DISCARDED'")
+    suspend fun restore(owner: String, id: String, now: Long): Int
 }

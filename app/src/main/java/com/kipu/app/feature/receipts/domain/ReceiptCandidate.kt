@@ -42,6 +42,10 @@ interface ReceiptCandidateStore {
     suspend fun edit(ownerId: String, candidateId: String, edit: ReceiptCandidateEdit): ReceiptCandidate?
     suspend fun markConfirmed(ownerId: String, candidateId: String): Boolean
     suspend fun discard(ownerId: String, candidateId: String): Boolean
+    suspend fun restore(ownerId: String, candidateId: String): Boolean = false
+    suspend fun registeredMovementId(ownerId: String, candidateId: String): String? = null
+    fun observeRegistered(ownerId: String): kotlinx.coroutines.flow.Flow<List<RegisteredYapeReceipt>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
 }
 
 internal fun String?.normalizedReference(): String? = this?.trim()?.replace(Regex("\\s+"), " ")?.uppercase()

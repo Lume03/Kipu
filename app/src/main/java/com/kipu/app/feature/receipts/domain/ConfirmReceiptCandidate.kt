@@ -3,8 +3,6 @@ package com.kipu.app.feature.receipts.domain
 import com.kipu.app.feature.movements.domain.RegisterTransaction
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionResult
-import java.nio.charset.StandardCharsets
-import java.util.UUID
 import javax.inject.Inject
 
 /** Always routes through the existing movement validator/repository and uses a stable retry key. */
@@ -31,8 +29,7 @@ class ConfirmReceiptCandidate @Inject constructor(
         )) ?: return RegisterTransactionResult.ValidationError("receipt", "No se pudo actualizar el comprobante")
         // Candidate identity is stable even when a missing or misread reference is corrected.
         // The unique reference index separately links repeat imports to this same candidate.
-        val keyMaterial = "$ownerId|YAPE|candidate|$candidateId"
-        val key = UUID.nameUUIDFromBytes(keyMaterial.toByteArray(StandardCharsets.UTF_8)).toString()
+        val key = receiptRegistrationKey(ownerId, candidateId)
         // Keep the same idempotency key across duplicate-warning confirmation and retries.
         val result = registerTransaction(command.copy(idempotencyKey = key))
         if (result is RegisterTransactionResult.Success) store.markConfirmed(ownerId, candidateId)

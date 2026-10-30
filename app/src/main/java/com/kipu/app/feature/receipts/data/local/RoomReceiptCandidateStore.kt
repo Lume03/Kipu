@@ -15,6 +15,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import com.kipu.app.feature.receipts.domain.RegisteredYapeReceipt
+import com.kipu.app.feature.receipts.domain.receiptRegistrationKey
 
 @Singleton
 class RoomReceiptCandidateStore @Inject constructor(
@@ -62,6 +65,33 @@ class RoomReceiptCandidateStore @Inject constructor(
 
     override suspend fun discard(ownerId: String, candidateId: String): Boolean =
         dao.discard(UUID.fromString(ownerId).toString(), candidateId, System.currentTimeMillis()) == 1
+
+    override suspend fun restore(ownerId: String, candidateId: String): Boolean =
+        dao.restore(UUID.fromString(ownerId).toString(), candidateId, System.currentTimeMillis()) == 1
+
+    override suspend fun registeredMovementId(ownerId: String, candidateId: String): String? {
+        val owner = UUID.fromString(ownerId).toString()
+        return database.movementDao().getReceipt(owner, receiptRegistrationKey(owner, candidateId))?.transactionId
+    }
+
+    override fun observeRegistered(ownerId: String): Flow<List<RegisteredYapeReceipt>> {
+        val owner = UUID.fromString(ownerId).toString()
+        val movements = database.movementDao()
+        return combine(dao.observeConfirmed(owner), movements.observeTransactions(owner)) { rows, transactions ->
+            val active = transactions.filter { it.status == "ACTIVE" }.associateBy { it.id }
+            buildList {
+                for (row in rows) {
+                    val key = receiptRegistrationKey(owner, row.candidateId)
+                    val transactionId = movements.getReceipt(owner, key)?.transactionId ?: continue
+                    val movement = active[transactionId] ?: continue
+                    add(RegisteredYapeReceipt(row.toDomain().copy(amountMinor = movement.amountMinor,
+                        occurredAt = movement.occurredAt, recipient = movement.merchantProvisionalText ?: row.recipient,
+                        isIncome = movement.type == "INCOME"), transactionId))
+                    if (size == 3) break
+                }
+            }
+        }
+    }
 
     private fun ReceiptCandidate.toEntity() = ReceiptCandidateEntity(
         id, ownerId, provider, amountMinor, occurredAt, recipient, reference, referenceFingerprint,

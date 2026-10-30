@@ -8,6 +8,9 @@ import com.kipu.app.feature.receipts.data.local.RoomReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateSaveResult
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateStatus
 import com.kipu.app.feature.receipts.domain.YapeReceiptFields
+import com.kipu.app.feature.receipts.domain.receiptRegistrationKey
+import com.kipu.app.feature.movements.data.local.TransactionEntity
+import com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -72,5 +75,44 @@ class ReceiptCandidateRoomTest {
         val other = (store.import(owner, "other-payment", YapeReceiptFields(reference = "00012346"), false) as ReceiptCandidateSaveResult.Saved).candidate
         assertEquals(null, store.edit(owner, other.id, edit))
         assertEquals("00012346", store.get(owner, other.id)?.reference)
+    }
+
+    @Test fun restoreOnlyRevivesDiscardedReceiptOfSameOwnerAndKeepsDedupIdentity() = runBlocking {
+        val owner = UUID.randomUUID().toString()
+        val candidate = (store.import(owner, "restore-image", YapeReceiptFields(2500, 1, "Carlos", "00123456"), false)
+            as ReceiptCandidateSaveResult.Saved).candidate
+        assertEquals(false, store.restore(owner, candidate.id))
+        assertEquals(true, store.discard(owner, candidate.id))
+        assertEquals(false, store.restore(UUID.randomUUID().toString(), candidate.id))
+        assertEquals(true, store.restore(owner, candidate.id))
+        val restored = store.get(owner, candidate.id)!!
+        assertEquals(ReceiptCandidateStatus.PENDING, restored.status)
+        assertEquals(candidate.imageFingerprint, restored.imageFingerprint)
+        assertEquals(candidate.referenceFingerprint, restored.referenceFingerprint)
+        assertEquals(ReceiptCandidateSaveResult.Duplicate(candidate.id),
+            store.import(owner, "other-photo", YapeReceiptFields(reference = "00123456"), false))
+        assertEquals(true, store.markConfirmed(owner, candidate.id))
+        assertEquals(false, store.restore(owner, candidate.id))
+    }
+
+    @Test fun registeredSectionRequiresRealActiveMovementLinkedByReceiptCommand() = runBlocking {
+        val owner = UUID.randomUUID().toString()
+        val candidate = (store.import(owner, "registered-image", YapeReceiptFields(2500, 1, "Carlos", "ref-registered"), false)
+            as ReceiptCandidateSaveResult.Saved).candidate
+        store.markConfirmed(owner, candidate.id)
+        assertEquals(emptyList<Any>(), store.observeRegistered(owner).first())
+        val movement = TransactionEntity(id = UUID.randomUUID().toString(), userId = owner, type = "EXPENSE",
+            amountMinor = 3000, currencyCode = "PEN", occurredAt = 2)
+        database.movementDao().insertTransaction(movement)
+        database.movementDao().insertOrUpdateReceipt(LocalCommandReceiptEntity(userId = owner,
+            idempotencyKey = receiptRegistrationKey(owner, candidate.id), requestHash = "hash",
+            transactionId = movement.id, status = "APPLIED"))
+        val registered = store.observeRegistered(owner).first().single()
+        assertEquals(movement.id, registered.transactionId)
+        assertEquals(3000L, registered.candidate.amountMinor)
+        assertEquals(movement.id, store.registeredMovementId(owner, candidate.id))
+        assertEquals(emptyList<Any>(), store.observeRegistered(UUID.randomUUID().toString()).first())
+        database.movementDao().updateTransaction(movement.copy(status = "VOIDED"))
+        assertEquals(emptyList<Any>(), store.observeRegistered(owner).first())
     }
 }
