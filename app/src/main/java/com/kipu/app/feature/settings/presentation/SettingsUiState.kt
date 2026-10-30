@@ -9,7 +9,7 @@ data class SettingsUiState(
     val currencyCode: String = "PEN",
     val monthStart: Int = 1,
     val hideBalances: Boolean = false,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val syncState: SyncState = SyncState.SYNCED,
     val monthStartError: String? = null,
     val errorMessage: String? = null,

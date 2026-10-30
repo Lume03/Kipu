@@ -24,7 +24,7 @@ data class UserProfile(
     val timeZone: String? = null,
     val monthStart: Int = 1,
     val hideBalances: Boolean = false,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val remoteRevision: Long = 1L,
     val remoteUpdatedAt: Instant? = null,
     val syncState: SyncState = SyncState.SYNCED,

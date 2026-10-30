@@ -192,7 +192,7 @@ flowchart LR
 | `time_zone` | TEXT | No | 'America/Lima' | Zona horaria IANA para proyección de fechas civiles. |
 | `month_start` | SMALLINT | No | 1 | Día de inicio de mes financiero (1..28). |
 | `hide_balances` | BOOLEAN | No | false | Enmascaramiento de saldos en UI (`MoneyText`). |
-| `theme_mode` | TEXT | No | 'SYSTEM' | Preferencia visual: LIGHT, DARK, SYSTEM. |
+| `theme_mode` | TEXT | No | 'LIGHT' | Preferencia visual: LIGHT, DARK, SYSTEM. |
 | `biometric_enabled` | BOOLEAN | No | false | Flag de bloqueo biométrico local. |
 | `preferences` | JSONB | No | '{}' | Preferencias estéticas y funcionales ampliables. |
 | `created_at` | TIMESTAMPTZ | No | now() | Fecha de creación del registro. |

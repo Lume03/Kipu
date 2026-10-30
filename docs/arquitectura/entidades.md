@@ -31,7 +31,7 @@ El sistema distribuye sus entidades en tres capas de persistencia y visibilidad:
 | `time_zone` | `TEXT` | `TEXT` | No | `'America/Lima'` | | Zona horaria IANA para cómputo de fechas civiles. |
 | `month_start` | `SMALLINT` | `INTEGER` | No | `1` | CHECK `(month_start >= 1 AND month_start <= 28)` | Día de inicio del mes financiero. |
 | `hide_balances` | `BOOLEAN` | `INTEGER` | No | `false` | | Flag para ocultamiento con máscara `MoneyText`. |
-| `theme_mode` | `TEXT` | `TEXT` | No | `'SYSTEM'` | CHECK `theme_mode IN ('LIGHT','DARK','SYSTEM')` | Modo del tema visual de la UI. |
+| `theme_mode` | `TEXT` | `TEXT` | No | `'LIGHT'` | CHECK `theme_mode IN ('LIGHT','DARK','SYSTEM')` | Modo del tema visual de la UI. |
 | `biometric_enabled`| `BOOLEAN` | `INTEGER` | No | `false` | | Flag de autenticación biométrica requerida. |
 | `preferences` | `JSONB` | `TEXT` | No | `'{}'` | | Diccionario extensible de preferencias del cliente. |
 | `created_at` | `TIMESTAMPTZ` | `INTEGER` | No | `now()` | | Timestamp de creación. |

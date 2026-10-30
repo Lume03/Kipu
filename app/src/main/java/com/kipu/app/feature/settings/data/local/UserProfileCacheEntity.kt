@@ -22,7 +22,7 @@ data class UserProfileCacheEntity(
     @ColumnInfo(name = "hide_balances")
     val hideBalances: Boolean = false,
     @ColumnInfo(name = "theme_mode")
-    val themeMode: String = "SYSTEM",
+    val themeMode: String = "LIGHT",
     @ColumnInfo(name = "remote_revision")
     val remoteRevision: Long = 1L,
     @ColumnInfo(name = "remote_updated_at")
