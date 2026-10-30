@@ -1,6 +1,9 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -71,7 +74,7 @@ class DebtPlanningTabTest {
         }
 
         compose.onNodeWithText("Todavía no tienes deudas ni préstamos").assertIsDisplayed()
-        compose.onNodeWithText("Todas 0").assertIsDisplayed()
+        compose.onNodeWithTag("debt_filter_button").assertIsDisplayed()
         compose.onNodeWithTag("debt_shortcut_payable").performClick()
         compose.runOnIdle { assertEquals(1, payable) }
         compose.onNodeWithTag("debt_empty_register").performClick()
@@ -90,9 +93,7 @@ class DebtPlanningTabTest {
             }
         }
 
-        compose.onNodeWithText("Todas 2").assertIsDisplayed()
-        compose.onNodeWithText("Debo 1").assertIsDisplayed()
-        compose.onNodeWithText("Me deben 1").assertIsDisplayed()
+        compose.onNodeWithTag("debt_filter_button").assertIsDisplayed()
         compose.onNodeWithText("Vence en 4 días").assertIsDisplayed()
         compose.onNodeWithText("Vencida hace 3 días").assertIsDisplayed()
         compose.onNodeWithText("40%").assertIsDisplayed()
@@ -115,6 +116,27 @@ class DebtPlanningTabTest {
         compose.onNodeWithText("Llegaste al límite de tu Plan Básico").assertIsDisplayed()
         compose.onNodeWithText("2 de 2 deudas o préstamos activos", substring = true).assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, created) }
+    }
+
+    @Test fun filterSheetKeepsSelectionAndDispatchesBothDebtDirections() {
+        var selected by androidx.compose.runtime.mutableStateOf<DebtObligationType?>(null)
+        compose.setContent {
+            KipuTheme {
+                DebtListScreen(emptyList(), selected, { selected = it }, {}, {}, {}, embedded = true)
+            }
+        }
+        compose.onNodeWithTag("debt_filter_button").performClick()
+        compose.onNodeWithTag("debt_filter_all").assertIsSelected()
+        compose.onNodeWithTag("debt_filter_payable").performClick()
+        compose.runOnIdle { assertEquals(DebtObligationType.PAYABLE, selected) }
+        compose.onNodeWithTag("debt_filter_payable").assertDoesNotExist()
+        compose.onNodeWithTag("debt_filter_button").performClick()
+        compose.onNodeWithTag("debt_filter_payable").assertIsSelected()
+        compose.onNodeWithTag("debt_filter_receivable").performClick()
+        compose.runOnIdle { assertEquals(DebtObligationType.RECEIVABLE, selected) }
+        compose.onNodeWithTag("debt_filter_button").performClick()
+        compose.onNodeWithTag("debt_filter_all").performClick()
+        compose.runOnIdle { assertEquals(null, selected) }
     }
 
     private fun debt(

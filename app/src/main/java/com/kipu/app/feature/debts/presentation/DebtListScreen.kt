@@ -3,7 +3,6 @@ package com.kipu.app.feature.debts.presentation
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,7 +38,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,13 +45,13 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +61,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -75,7 +71,9 @@ import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
-import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.FilterOption
+import com.kipu.app.ui.component.OptionFilterButton
+import com.kipu.app.ui.component.OptionFilterSheet
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
@@ -334,30 +332,23 @@ private fun DebtFilterRow(
     onTypeSelected: (DebtObligationType?) -> Unit,
 ) {
     val colors = rememberPlanningColors()
-    val filters = listOf(
-        Triple<DebtObligationType?, String, String>(null, "Todas", "debt_filter_all"),
-        Triple(DebtObligationType.PAYABLE, "Debo", "debt_filter_payable"),
-        Triple(DebtObligationType.RECEIVABLE, "Me deben", "debt_filter_receivable"),
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    val options = listOf(
+        FilterOption<DebtObligationType?>(null, "Todas", Icons.Default.AccountBalance, colors.primaryDeep, "debt_filter_all"),
+        FilterOption<DebtObligationType?>(DebtObligationType.PAYABLE, "Debo", Icons.AutoMirrored.Filled.CallMade, colors.expenseText, "debt_filter_payable"),
+        FilterOption<DebtObligationType?>(DebtObligationType.RECEIVABLE, "Me deben", Icons.AutoMirrored.Filled.CallReceived, colors.incomeText, "debt_filter_receivable"),
     )
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        filters.forEach { (type, label, tag) ->
-            KipuFilterChip(
-                selected = selectedType == type,
-                onClick = { onTypeSelected(type) },
-                label = { Text(label, fontWeight = FontWeight.SemiBold) },
-                modifier = Modifier.testTag(tag),
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = colors.primaryText,
-                    selectedContainerColor = colors.primaryDeep,
-                    selectedLabelColor = colors.onPrimaryDeep,
-                ),
-            )
-        }
+    OptionFilterButton(
+        label = options.first { it.value == selectedType }.label,
+        active = selectedType != null,
+        description = "Filtrar deudas: ${options.first { it.value == selectedType }.label}",
+        onClick = { showFilters = true },
+        modifier = Modifier.testTag("debt_filter_button"),
+    )
+    if (showFilters) {
+        OptionFilterSheet("Filtrar deudas", options, selectedType,
+            onSelect = { onTypeSelected(it); showFilters = false },
+            onDismiss = { showFilters = false })
     }
 }
 
