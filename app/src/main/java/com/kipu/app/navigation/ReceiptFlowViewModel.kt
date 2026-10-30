@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
 import java.util.UUID
 
 data class ReceiptFlowState(
@@ -28,6 +29,18 @@ data class ReceiptFlowState(
     val warningTitle: String? = null,
     val readyForMovement: Boolean = false,
     val importConsumed: Boolean = false,
+    val registered: List<RegisteredYapeReceipt> = emptyList(),
+    val queue: ReceiptReviewQueue? = null,
+    val savedCandidate: ReceiptCandidate? = null,
+    val savedMovementId: String? = null,
+    val newCandidateId: String? = null,
+    val addedEventId: String? = null,
+    val notice: ReceiptImportNotice? = null,
+    val duplicateCandidate: ReceiptCandidate? = null,
+    val duplicateMovementId: String? = null,
+    val pendingImportUri: String? = null,
+    val fileName: String? = null,
+    val fileSize: Long? = null,
 )
 
 @HiltViewModel
@@ -55,9 +68,11 @@ class ReceiptFlowViewModel @Inject constructor(
                     )
                 } else {
                     if (_state.value.selected == null) savedState.get<String>("selectedCandidate")?.let { loadCandidate(it) }
-                    store.observe(requireNotNull(owner))
+                    combine(store.observe(requireNotNull(owner)), store.observeRegistered(requireNotNull(owner))) { rows, registered ->
+                        pendingReceipts(rows) to registered
+                    }
                         .catch { _state.update { it.copy(message = "No se pudo cargar la bandeja.") } }
-                        .collect { rows -> if (hasAccess()) _state.update { it.copy(candidates = rows) } }
+                        .collect { (rows, registered) -> if (hasAccess()) _state.update { it.copy(candidates = rows, registered = registered) } }
                 }
             }
         }
@@ -72,23 +87,56 @@ class ReceiptFlowViewModel @Inject constructor(
         when (result) {
             is ReceiptImportResult.CandidateCreated -> {
                 consumeImport()
-                loadCandidate(result.candidate.id)
-                message("Lectura local terminada. Revisa los datos: todavía no se modificó tu saldo.")
+                closeEditor()
+                _state.update { it.copy(newCandidateId = result.candidate.id, addedEventId = result.candidate.id,
+                    message = null, notice = null) }
             }
             is ReceiptImportResult.Duplicate -> {
                 consumeImport()
-                loadCandidate(result.existingCandidateId, duplicate = true)
+                val duplicate = store.get(requireNotNull(owner), result.existingCandidateId)
+                if (!hasAccess()) return@work
+                val movement = duplicate?.takeIf { it.status == ReceiptCandidateStatus.CONFIRMED }
+                    ?.let { store.registeredMovementId(requireNotNull(owner), it.id) }
+                if (!hasAccess()) return@work
+                _state.update { it.copy(notice = receiptImportNotice(result, duplicate?.status),
+                    duplicateCandidate = duplicate, duplicateMovementId = movement) }
             }
             ReceiptImportResult.AccessDenied -> {
                 consumeImport()
                 message("No se pudo autorizar la lectura local. Puedes registrar el movimiento manualmente sin leer la imagen.")
             }
-            ReceiptImportResult.Unreadable -> {
+            ReceiptImportResult.Unreadable, ReceiptImportResult.NotYape, ReceiptImportResult.UnsupportedFormat -> {
                 consumeImport()
-                message("No se pudo leer la imagen. Puedes continuar manualmente o volver a compartir un comprobante legible.")
+                _state.update { it.copy(notice = receiptImportNotice(result), message = null) }
             }
             ReceiptImportResult.ConsentRequired -> message("Autoriza la lectura local antes de continuar.")
         }
+    }
+
+    fun requestImport(uri: String, name: String?, size: Long?) {
+        if (!hasAccess() || _state.value.busy) return
+        savedState["importConsumed"] = false
+        closeEditor()
+        _state.update { it.copy(pendingImportUri = uri, importConsumed = false, fileName = name,
+            fileSize = size, notice = null, message = null) }
+    }
+
+    fun cancelImport() { consumeImport(); _state.update { it.copy(pendingImportUri = null) } }
+    fun dismissNotice() { _state.update { it.copy(notice = null, duplicateCandidate = null, duplicateMovementId = null) } }
+    fun consumeAddedEvent() { _state.update { it.copy(addedEventId = null) } }
+    fun reviewDuplicate() {
+        val id = _state.value.duplicateCandidate?.id ?: return
+        dismissNotice()
+        select(id)
+    }
+    fun restoreDuplicate() = work {
+        val id = _state.value.duplicateCandidate?.id ?: return@work
+        val restored = store.restore(requireNotNull(owner), id)
+        if (!hasAccess()) return@work
+        if (restored) {
+            dismissNotice()
+            _state.update { it.copy(newCandidateId = id, addedEventId = id) }
+        } else message("No se pudo agregar el comprobante de nuevo.")
     }
 
     private fun consumeImport() {
@@ -102,7 +150,29 @@ class ReceiptFlowViewModel @Inject constructor(
         if (result is ReceiptCandidateSaveResult.Saved) loadCandidate(result.candidate.id)
     }
 
-    fun select(id: String) = work { loadCandidate(id) }
+    fun select(id: String) = work {
+        _state.update { it.copy(queue = ReceiptReviewQueue.start(it.candidates, id), savedCandidate = null) }
+        loadCandidate(id)
+    }
+    fun startReview() { _state.value.candidates.firstOrNull()?.let { select(it.id) } }
+    fun reviewNext() = work {
+        val next = _state.value.queue?.next(_state.value.candidates.map { it.id }.toSet())
+        if (next?.currentId == null) closeEditor()
+        else {
+            _state.update { it.copy(queue = next, savedCandidate = null, message = null) }
+            loadCandidate(requireNotNull(next.currentId))
+        }
+    }
+    fun movementSaved() {
+        val selected = _state.value.selected ?: return
+        savedState.remove<String>("selectedCandidate")
+        _state.update { current ->
+            val remaining = current.candidates.filterNot { it.id == selected.id }
+            val next = current.queue?.next(remaining.map { it.id }.toSet())
+            current.copy(selected = null, readyForMovement = false, candidates = remaining,
+                savedCandidate = selected.takeIf { next != null }, queue = current.queue.takeIf { next != null }, message = null)
+        }
+    }
 
     private suspend fun loadCandidate(id: String, duplicate: Boolean = false) {
         if (!hasAccess()) return
@@ -132,6 +202,7 @@ class ReceiptFlowViewModel @Inject constructor(
     fun edit(edit: ReceiptCandidateEdit) = work {
         val id = _state.value.selected?.id ?: return@work
         val updated = store.edit(requireNotNull(owner), id, edit)
+        if (!hasAccess()) return@work
         if (updated == null) message("La referencia ya está en otro comprobante o el candidato ya no está pendiente. Revisa la bandeja; tu saldo no cambió.")
         else _state.update { it.copy(selected = updated, readyForMovement = true) }
     }
@@ -144,14 +215,19 @@ class ReceiptFlowViewModel @Inject constructor(
         if (!hasAccess() || command.userId != owner) {
             return RegisterTransactionResult.ValidationError("receipt", "Desbloquea tu sesión para confirmar.")
         }
-        return confirmer(requireNotNull(owner), candidateId, command)
+        val result = confirmer(requireNotNull(owner), candidateId, command)
+        if (hasAccess() && result is RegisterTransactionResult.Success) {
+            val confirmed = store.get(requireNotNull(owner), candidateId)
+            if (hasAccess()) _state.update { it.copy(selected = confirmed ?: it.selected, savedMovementId = result.transaction.id) }
+        }
+        return result
     }
 
     fun discard(id: String) = work { store.discard(requireNotNull(owner), id) }
 
     fun closeEditor() {
         savedState.remove<String>("selectedCandidate")
-        _state.update { it.copy(selected = null, readyForMovement = false) }
+        _state.update { it.copy(selected = null, readyForMovement = false, queue = null, savedCandidate = null, savedMovementId = null) }
     }
 
     fun closeMovement() { _state.update { it.copy(readyForMovement = false) } }

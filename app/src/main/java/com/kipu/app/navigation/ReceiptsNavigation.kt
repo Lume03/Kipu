@@ -1,5 +1,19 @@
 package com.kipu.app.navigation
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.provider.OpenableColumns
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.kipu.app.feature.receipts.presentation.ReceiptSavedContent
+import com.kipu.app.feature.receipts.presentation.ReceiptShareGuide
+import com.kipu.app.feature.receipts.presentation.ReceiptImportNoticeSheet
+import com.kipu.app.feature.receipts.presentation.ReceiptQueuePosition
+import com.kipu.app.feature.receipts.presentation.ReceiptQueueSegments
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 
@@ -16,20 +30,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
@@ -37,7 +46,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -45,13 +53,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.*
@@ -70,7 +74,6 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 const val RECEIPTS_ROUTE = "receipts"
 private const val RECEIPT_IMPORT_ROUTE = "receipts?uri={uri}"
@@ -90,6 +93,7 @@ fun NavGraphBuilder.receiptDestinations(navController: NavController) {
             sharedUri = entry.arguments?.getString("uri"),
             onBack = { navController.popBackStack() },
             onHistory = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
+            onMovement = { navController.navigateToMovementEditor(it) },
             onNewAccount = { navController.navigateToAccountForm() },
         )
     }
@@ -101,6 +105,7 @@ private fun ReceiptFlowScreen(
     sharedUri: String?,
     onBack: () -> Unit,
     onHistory: () -> Unit,
+    onMovement: (String) -> Unit,
     onNewAccount: () -> Unit,
     viewModel: ReceiptFlowViewModel = hiltViewModel(),
     movementViewModel: QuickMovementViewModel = hiltViewModel(),
@@ -109,218 +114,124 @@ private fun ReceiptFlowScreen(
     var reviewedType by rememberSaveable { mutableStateOf(MovementType.EXPENSE) }
     var showShareHelp by rememberSaveable { mutableStateOf(false) }
     val palette = rememberCalmEmeraldColors()
-    val shareHelpSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val candidate = state.selected
-    val selected = candidate
-
+    val importUri = state.pendingImportUri ?: sharedUri
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var inboxBottomBarHeight by remember { mutableStateOf(0.dp) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch {
+            val details = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                        if (!cursor.moveToFirst()) return@use null
+                        val name = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        val size = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        (if (name >= 0) cursor.getString(name) else null) to
+                            (if (size >= 0 && !cursor.isNull(size)) cursor.getLong(size) else null)
+                    }
+                }.getOrNull()
+            }
+            viewModel.requestImport(uri.toString(), details?.first, details?.second)
+        }
+    }
+    val upload = { picker.launch("image/*") }
+    LaunchedEffect(state.addedEventId) {
+        state.addedEventId?.let { id ->
+            viewModel.consumeAddedEvent()
+            if (snackbar.showSnackbar("Comprobante agregado", "Ver", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) viewModel.select(id)
+        }
+    }
+    BackHandler(enabled = candidate != null || state.savedCandidate != null) { viewModel.closeEditor() }
     Scaffold(
-        modifier = if (showShareHelp) Modifier.blur(4.dp) else Modifier,
         containerColor = palette.background,
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom =
+            if (candidate == null && state.savedCandidate == null && state.candidates.isNotEmpty()) inboxBottomBarHeight else 0.dp)) },
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = if (selected == null) "Comprobantes Yape" else "Revisar comprobante",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+                title = { Text(if (candidate != null) "Revisar comprobante" else if (state.savedCandidate != null) "Registrado" else "Comprobantes Yape",
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
-                    IconButton(onClick = { if (selected != null) viewModel.closeEditor() else onBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    IconButton(onClick = { if (candidate != null || state.savedCandidate != null) viewModel.closeEditor() else onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
                     }
                 },
                 actions = {
-                    if (selected != null) {
-                        Surface(
-                            modifier = Modifier.padding(end = 16.dp),
-                            shape = RoundedCornerShape(50),
-                            color = if (palette.isDark) MaterialTheme.colorScheme.secondaryContainer else palette.incomeBg,
-                            contentColor = palette.primaryDeep,
-                            border = BorderStroke(1.dp, if (palette.isDark) MaterialTheme.colorScheme.outlineVariant else palette.incomeBorder),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                            ) {
-                                Icon(Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(17.dp))
-                                Text("OCR YAPE", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            }
+                    if (candidate != null) {
+                        state.queue?.let { queue ->
+                            ReceiptQueuePosition(queue)
                         }
-                    } else {
-                        IconButton(
-                            onClick = { showShareHelp = true },
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .testTag("receipt_share_help_top_bar")
-                                .semantics { contentDescription = "Ayuda para compartir desde Yape" },
-                        ) {
-                            Icon(Icons.Filled.HelpOutline, contentDescription = null)
+                    } else if (state.candidates.isNotEmpty() || state.registered.isNotEmpty()) {
+                        IconButton(onClick = { showShareHelp = true }, modifier = Modifier.size(48.dp).testTag("receipt_share_help_top_bar")) {
+                            Icon(Icons.Filled.HelpOutline, "Ayuda para compartir desde Yape")
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = palette.surfaceCard,
-                    titleContentColor = palette.primaryText,
-                    navigationIconContentColor = palette.primaryText,
-                    actionIconContentColor = palette.primaryDeep,
-                ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.background,
+                    titleContentColor = palette.primaryText, navigationIconContentColor = palette.primaryText),
             )
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            val visibleMessage = state.message?.takeUnless { selected != null && it.startsWith("Lectura local terminada.") }
-            visibleMessage?.let { message ->
-                ReceiptFeedbackBanner(
-                    message = message,
-                    warningTitle = state.warningTitle,
-                    onDismiss = viewModel::dismissMessage,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
-                        .testTag("receipt_feedback"),
-                )
+            state.message?.let { message ->
+                ReceiptFeedbackBanner(message, warningTitle = state.warningTitle, onDismiss = viewModel::dismissMessage,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp).testTag("receipt_feedback"))
             }
-            if (selected != null) {
-                ReceiptMetadataEditor(
-                    candidate = selected,
-                    busy = state.busy,
-                    onContinue = { edit, type ->
-                        reviewedType = type
-                        viewModel.edit(edit)
-                    },
-                    modifier = Modifier.weight(1f),
-                    showNotice = visibleMessage == null,
-                )
-            } else if (sharedUri != null && !state.importConsumed) {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        "Recibimos una imagen compartida",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    ReceiptInfoNotice(
-                        text = "Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.",
-                        prominent = true,
-                    )
-                    Text(
-                        "La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = palette.secondaryMuted,
-                    )
-                    Button(
-                        onClick = { viewModel.import(sharedUri) },
-                        enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_authorize_ocr"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = palette.primaryDeep,
-                            contentColor = palette.onPrimaryDeep,
-                        ),
-                    ) {
-                        Text("Autorizar OCR local de Yape", fontWeight = FontWeight.SemiBold)
+            when {
+                candidate != null -> {
+                    state.queue?.let { queue ->
+                        ReceiptQueueSegments(queue)
                     }
-                    OutlinedButton(
-                        onClick = viewModel::manual,
-                        enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                        shape = RoundedCornerShape(14.dp),
-                    ) {
-                        Text("Continuar sin OCR")
+                    ReceiptMetadataEditor(candidate, state.busy, onContinue = { edit, type -> reviewedType = type; viewModel.edit(edit) },
+                        modifier = Modifier.weight(1f), showNotice = state.message == null,
+                        onDiscard = { viewModel.discard(candidate.id); viewModel.closeEditor() })
+                }
+                state.savedCandidate != null -> {
+                    val saved = requireNotNull(state.savedCandidate)
+                    ReceiptSavedContent(saved, pendingCount = com.kipu.app.feature.receipts.domain.pendingReceipts(state.candidates).size,
+                        onNext = viewModel::reviewNext, onMovement = state.savedMovementId?.let { id -> { onMovement(id) } }, onInbox = viewModel::closeEditor)
+                }
+                importUri != null && !state.importConsumed -> {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("Recibimos una imagen compartida", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        ReceiptInfoNotice("Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.", prominent = true)
+                        Text("La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.", color = palette.secondaryMuted)
+                        Button(onClick = { viewModel.import(importUri) }, enabled = !state.busy,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_authorize_ocr")) { Text("Autorizar OCR local de Yape") }
+                        OutlinedButton(onClick = viewModel::cancelImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Cancelar") }
                     }
                 }
-            } else {
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        OutlinedButton(
-                            onClick = viewModel::manual,
-                            enabled = !state.busy,
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = palette.surfaceCard,
-                                contentColor = palette.primaryDeep,
-                            ),
-                        ) {
-                            Icon(Icons.Filled.AddCircleOutline, contentDescription = null, modifier = Modifier.size(21.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Registro manual", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                        }
-                        OutlinedButton(
-                            onClick = onHistory,
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = palette.surfaceCard,
-                                contentColor = palette.secondaryMuted,
-                            ),
-                        ) {
-                            Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Ver movimientos", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    ReceiptInfoNotice(
-                        text = if (state.candidates.isEmpty()) {
-                            "Comparte un comprobante desde Yape para revisarlo aquí. Tu saldo no cambia hasta que confirmes el movimiento."
-                        } else {
-                            "Comparte un comprobante desde Yape para leerlo aquí. Nada se registra sin tu confirmación previa."
-                        },
-                        prominent = state.candidates.isEmpty(),
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
-                    )
-                    ReceiptReviewScreen(
-                        candidates = state.candidates,
-                        onReview = viewModel::select,
-                        onEdit = viewModel::editCandidate,
-                        onDiscard = viewModel::discard,
-                        onHowToShare = { showShareHelp = true },
-                        isBusy = state.busy,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                else -> ReceiptReviewScreen(candidates = state.candidates, onReview = viewModel::select,
+                    onEdit = viewModel::editCandidate, onDiscard = viewModel::discard,
+                    onHowToShare = { showShareHelp = true }, isBusy = state.busy,
+                    modifier = Modifier.weight(1f), registered = state.registered, onUpload = upload,
+                    onStartReview = viewModel::startReview, onHistory = onHistory, onMovement = onMovement,
+                    newCandidateId = state.newCandidateId, onBottomBarHeightChanged = { inboxBottomBarHeight = it })
             }
         }
     }
-    if (showShareHelp) {
-        ModalBottomSheet(
-            onDismissRequest = { showShareHelp = false },
-            sheetState = shareHelpSheetState,
-            containerColor = palette.surfaceCard,
-            contentColor = palette.primaryText,
-        ) {
-            ReceiptShareHelpContent(onDismiss = { showShareHelp = false })
-        }
+    if (showShareHelp) Dialog(onDismissRequest = { showShareHelp = false },
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        ReceiptShareGuide(onDismiss = { showShareHelp = false })
+    }
+    state.notice?.let { notice ->
+        ReceiptImportNoticeSheet(notice = notice, onDismiss = viewModel::dismissNotice,
+            onPickAnother = { viewModel.dismissNotice(); upload() }, onReview = viewModel::reviewDuplicate,
+            onMovement = { val id = state.duplicateMovementId; viewModel.dismissNotice(); if (id != null) onMovement(id) else onHistory() },
+            onRestore = viewModel::restoreDuplicate, candidate = state.duplicateCandidate,
+            fileName = state.fileName, fileSize = state.fileSize, busy = state.busy)
     }
     if (state.readyForMovement && candidate != null) {
         LaunchedEffect(candidate.id) {
-            movementViewModel.prepareReceiptDraft(
-                candidateId = candidate.id, amountMinor = candidate.amountMinor,
-                occurredAt = candidate.occurredAt, recipient = candidate.recipient,
-                movementType = reviewedType,
-                onConfirm = { command -> viewModel.confirm(candidate.id, command) },
-            )
+            movementViewModel.prepareReceiptDraft(candidateId = candidate.id, amountMinor = candidate.amountMinor,
+                occurredAt = candidate.occurredAt, recipient = candidate.recipient, movementType = reviewedType,
+                onConfirm = { command -> viewModel.confirm(candidate.id, command) })
         }
-        QuickMovementBottomSheet(
-            viewModel = movementViewModel,
-            onDismissRequest = {
-                movementViewModel.resetForm()
-                viewModel.closeMovement()
-            },
-            onSaved = { viewModel.closeEditor() },
-            onMessage = viewModel::message,
-            onNavigateToNewAccount = onNewAccount,
-        )
+        QuickMovementBottomSheet(viewModel = movementViewModel,
+            onDismissRequest = { movementViewModel.resetForm(); viewModel.closeMovement() },
+            onSaved = { viewModel.movementSaved() }, onMessage = viewModel::message, onNavigateToNewAccount = onNewAccount)
     }
 }
 
@@ -435,150 +346,13 @@ private fun ReceiptInfoNotice(
 }
 
 @Composable
-private fun ReceiptShareHelpContent(onDismiss: () -> Unit) {
-    val palette = rememberCalmEmeraldColors()
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                "¿Cómo compartir desde Yape?",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.semantics { contentDescription = "Cerrar ayuda" },
-            ) {
-                Icon(Icons.Filled.Close, contentDescription = null)
-            }
-        }
-        Text(
-            "Sigue estos 3 pasos sencillos para registrar tus operaciones al instante sin digitar nada:",
-            style = MaterialTheme.typography.bodyLarge,
-            color = palette.secondaryMuted,
-        )
-        ReceiptShareStep(
-            step = 1,
-            icon = Icons.Filled.Share,
-            title = "Haz tu operación en Yape",
-            detail = "Al terminar de yapear o recibir un pago, pulsa el botón «Compartir» que aparece en la confirmación.",
-        )
-        ReceiptShareStep(
-            step = 2,
-            icon = Icons.Filled.PhoneAndroid,
-            title = "Elige Kipu en la lista",
-            detail = "En el menú de aplicaciones para compartir de tu teléfono, selecciona el ícono de Kipu.",
-        )
-        ReceiptShareStep(
-            step = 3,
-            icon = Icons.Filled.CheckCircle,
-            title = "Revisa y confirma",
-            detail = "Kipu leerá automáticamente los datos sin registrar nada definitivo hasta que tú lo apruebes.",
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            color = palette.warningBg,
-            contentColor = palette.warningText,
-            border = BorderStroke(1.dp, palette.warningBorder),
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(Icons.Filled.Lightbulb, contentDescription = null, tint = palette.warningAmber, modifier = Modifier.size(23.dp))
-                Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Tip de tranquilidad: ") }
-                        append("También puedes compartir una captura de pantalla guardada en tu galería desde la app Fotos.")
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-        Button(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp).padding(bottom = 8.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
-        ) {
-            Text("Entendido, volver a comprobantes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun ReceiptShareStep(
-    step: Int,
-    icon: ImageVector,
-    title: String,
-    detail: String,
-) {
-    val palette = rememberCalmEmeraldColors()
-    val scheme = MaterialTheme.colorScheme
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = palette.surfaceCard),
-        border = BorderStroke(1.dp, palette.borderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
-                border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(26.dp))
-                }
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
-                        contentColor = palette.primaryDeep,
-                        border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
-                    ) {
-                        Text(
-                            "Paso $step",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                }
-                Text(detail, style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted)
-            }
-        }
-    }
-}
-
-@Composable
 internal fun ReceiptMetadataEditor(
     candidate: ReceiptCandidate,
     busy: Boolean,
     onContinue: (ReceiptCandidateEdit, MovementType) -> Unit,
     modifier: Modifier = Modifier,
     showNotice: Boolean = true,
+    onDiscard: (() -> Unit)? = null,
 ) {
     val lima = remember { ZoneId.of("America/Lima") }
     val context = LocalContext.current
@@ -608,6 +382,11 @@ internal fun ReceiptMetadataEditor(
                 prominent = true,
             )
 
+            onDiscard?.let { discard ->
+                TextButton(onClick = discard, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Descartar comprobante", color = scheme.error)
+                }
+            }
             ReceiptDirectionSelector(
                 selectedType = type,
                 onSelect = { type = it },
