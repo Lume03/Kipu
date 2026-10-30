@@ -549,8 +549,8 @@ fun ProfileSettingsScreen(
                 onNavigateToReceipts?.let {
                     SettingsActionCard(
                         icon = Icons.Default.Payments,
-                        title = "Comprobantes Yape",
-                        subtitle = "Revisa los candidatos compartidos antes de registrar",
+                        title = "Importar movimientos",
+                        subtitle = "Comprobantes de Yape y estados de cuenta de tarjeta",
                         onClick = it,
                     )
                 }

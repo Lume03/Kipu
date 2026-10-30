@@ -102,6 +102,9 @@ enum class AccountSelectorPurpose {
     /** Transfer origin: own money only (accounts and cash). */
     TRANSFER_SOURCE,
 
+    /** Source of a credit-card payment: liquid accounts only. */
+    CARD_PAYMENT,
+
     /** Transfer destination: accounts, cash and credit cards (registered as a card payment). */
     TRANSFER_DESTINATION,
 
@@ -122,6 +125,7 @@ object AccountSelectorDefaults {
         AccountSelectorPurpose.EXPENSE_SOURCE -> "Elige de dónde se descuenta el gasto"
         AccountSelectorPurpose.INCOME_DESTINATION -> "Elige dónde recibir el ingreso"
         AccountSelectorPurpose.TRANSFER_SOURCE -> "Elige desde dónde sale el dinero"
+        AccountSelectorPurpose.CARD_PAYMENT -> "Elige la cuenta de origen del pago de tarjeta"
         AccountSelectorPurpose.TRANSFER_DESTINATION -> "Elige a dónde llega el dinero"
         AccountSelectorPurpose.FILTER -> "Puedes elegir varias"
         AccountSelectorPurpose.GENERIC -> "Selecciona la cuenta para este gasto"
@@ -131,6 +135,7 @@ object AccountSelectorDefaults {
     fun allowsCreditCards(purpose: AccountSelectorPurpose, callerAllows: Boolean): Boolean = when (purpose) {
         AccountSelectorPurpose.GENERIC -> callerAllows
         AccountSelectorPurpose.INCOME_DESTINATION,
+        AccountSelectorPurpose.CARD_PAYMENT,
         AccountSelectorPurpose.TRANSFER_SOURCE -> false
         AccountSelectorPurpose.EXPENSE_SOURCE,
         AccountSelectorPurpose.TRANSFER_DESTINATION,

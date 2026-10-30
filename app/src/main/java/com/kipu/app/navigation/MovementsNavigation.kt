@@ -115,6 +115,7 @@ internal fun MovementHistoryContent(navController: NavController, historyEntry: 
             onReauthenticate = { navController.navigate(AUTH_LOGIN_ROUTE) { launchSingleTop = true } },
             onNavigateToNewAccount = { navController.navigateToAccountForm() },
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+            onNavigateToImport = { navController.navigate(IMPORT_HUB_ROUTE) },
             onToggleMasked = hiltViewModel<SettingsViewModel>()::toggleHideBalances,
             openRegisterMovement = openRegisterMovement && (movementsSelected?.value != false),
             onConsumeRegisterMovement = { historyEntry.savedStateHandle["open_register_movement"] = false },

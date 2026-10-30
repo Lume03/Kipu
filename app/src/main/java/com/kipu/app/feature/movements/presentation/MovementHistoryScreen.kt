@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Button
@@ -144,6 +145,7 @@ fun MovementHistoryRoute(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToNewAccount: () -> Unit = {},
     onNavigateToPlans: () -> Unit = {},
+    onNavigateToImport: (() -> Unit)? = null,
     onToggleMasked: () -> Unit = {},
     viewModel: MovementHistoryViewModel = hiltViewModel(),
     recurrenceViewModel: RecurrencePresentationViewModel? = null,
@@ -266,6 +268,22 @@ fun MovementHistoryRoute(
                     )
                 },
                 actions = {
+                    onNavigateToImport?.let { openImport ->
+                        IconButton(
+                            onClick = openImport,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("btn_import_movements")
+                                .semantics { contentDescription = "Importar movimientos" },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.FileUpload,
+                                contentDescription = null,
+                                tint = emeraldColors.primaryText,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = onToggleMasked,
                         modifier = Modifier
