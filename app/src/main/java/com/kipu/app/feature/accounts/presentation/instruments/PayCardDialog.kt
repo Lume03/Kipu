@@ -3,30 +3,22 @@ package com.kipu.app.feature.accounts.presentation.instruments
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +29,14 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.domain.model.AccountType
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
+import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.symbol
+import com.kipu.app.feature.movements.presentation.AccountSelectionRow
+import com.kipu.app.feature.movements.presentation.formatAccountSubtitle
 import com.kipu.app.ui.component.formatMinorUnits
 
 typealias CreditCardPaymentHandler = (
@@ -56,6 +56,7 @@ fun PayCardDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = com.kipu.app.ui.theme.rememberCalmEmeraldColors()
     val card = creditCardWithSummary.card
     val debt = creditCardWithSummary.debt
 
@@ -64,23 +65,24 @@ fun PayCardDialog(
     }
 
     var selectedAccount by remember { mutableStateOf(matchingAccounts.firstOrNull()) }
-    var isAccountDropdownExpanded by remember { mutableStateOf(false) }
     var amountInput by remember { mutableStateOf(formatMinorUnits(debt.minorUnits)) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    KipuBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+        containerColor = colors.surfaceCard,
+        header = {
             Text(
                 text = "Pagar Tarjeta de Crédito",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
         },
-        text = {
+        content = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -89,7 +91,7 @@ fun PayCardDialog(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Deuda actual: ${card.currency.name} ${formatMinorUnits(debt.minorUnits)}",
+                    text = "Deuda actual: ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -118,34 +120,18 @@ fun PayCardDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 } else {
-                    ExposedDropdownMenuBox(
-                        expanded = isAccountDropdownExpanded,
-                        onExpandedChange = { isAccountDropdownExpanded = it },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        OutlinedTextField(
-                            value = selectedAccount?.let { "${it.account.alias} (Saldo: ${formatMinorUnits(it.balance.minorUnits)})" } ?: "Seleccionar",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Pagar desde") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isAccountDropdownExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = isAccountDropdownExpanded,
-                            onDismissRequest = { isAccountDropdownExpanded = false },
-                        ) {
-                            matchingAccounts.forEach { acc ->
-                                DropdownMenuItem(
-                                    text = { Text("${acc.account.alias} • Saldo: ${formatMinorUnits(acc.balance.minorUnits)}") },
-                                    onClick = {
-                                        selectedAccount = acc
-                                        isAccountDropdownExpanded = false
-                                    }
-                                )
-                            }
+                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        matchingAccounts.forEach { acc ->
+                            AccountSelectionRow(
+                                alias = acc.account.alias,
+                                subtitle = formatAccountSubtitle(acc.account),
+                                type = acc.account.type,
+                                preset = acc.account.preset,
+                                balance = acc.balance,
+                                isSelected = selectedAccount?.account?.id == acc.account.id,
+                                onSelect = { selectedAccount = acc },
+                                testTag = "card_payment_account_${acc.account.id.value}",
+                            )
                         }
                     }
                 }
@@ -172,59 +158,68 @@ fun PayCardDialog(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
+                    KipuFilterChip(
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                            containerColor = colors.surfaceCard,
+                            labelColor = colors.primaryDeep,
+                            selectedContainerColor = colors.incomeBg,
+                            selectedLabelColor = colors.primaryDeep,
+                        ),
                         selected = amountInput == formatMinorUnits(debt.minorUnits),
                         onClick = {
                             amountInput = formatMinorUnits(debt.minorUnits)
                             errorMessage = null
                         },
-                        label = { Text("Total") },
+                        label = { Text("Pagar total ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}") },
                     )
                 }
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val minorUnits = parseAmountToMinorUnits(amountInput)
-                    if (minorUnits == null || minorUnits <= 0L) {
-                        errorMessage = "Ingresa un monto mayor a cero"
-                        return@Button
-                    }
-                    if (minorUnits > debt.minorUnits) {
-                        errorMessage = "El monto no puede exceder la deuda actual (${formatMinorUnits(debt.minorUnits)})"
-                        return@Button
-                    }
-                    val sourceAcc = selectedAccount
-                    if (sourceAcc == null) {
-                        errorMessage = "Selecciona una cuenta de origen"
-                        return@Button
-                    }
-                    if (minorUnits > sourceAcc.balance.minorUnits) {
-                        errorMessage = "Fondos insuficientes en la cuenta origen (${formatMinorUnits(sourceAcc.balance.minorUnits)})"
-                        return@Button
-                    }
+        footer = {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.primaryDeep, contentColor = colors.onPrimaryDeep),
+                    onClick = {
+                        val minorUnits = parseAmountToMinorUnits(amountInput)
+                        if (minorUnits == null || minorUnits <= 0L) {
+                            errorMessage = "Ingresa un monto mayor a cero"
+                            return@Button
+                        }
+                        if (minorUnits > debt.minorUnits) {
+                            errorMessage = "El monto no puede exceder la deuda actual (${formatMinorUnits(debt.minorUnits)})"
+                            return@Button
+                        }
+                        val sourceAcc = selectedAccount
+                        if (sourceAcc == null) {
+                            errorMessage = "Selecciona una cuenta de origen"
+                            return@Button
+                        }
+                        if (minorUnits > sourceAcc.balance.minorUnits) {
+                            errorMessage = "Fondos insuficientes en la cuenta origen (${formatMinorUnits(sourceAcc.balance.minorUnits)})"
+                            return@Button
+                        }
 
-                    isSubmitting = true
-                    onPayCreditCard(
-                        card.id,
-                        sourceAcc.account.id,
-                        Money(minorUnits, card.currency),
-                        onDismiss,
-                        { message ->
-                            isSubmitting = false
-                            errorMessage = message
-                        },
-                    )
-                },
-                enabled = !isSubmitting && selectedAccount != null && debt.minorUnits > 0L,
-            ) {
-                Text(if (isSubmitting) "Procesando..." else "Confirmar Pago")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                        isSubmitting = true
+                        onPayCreditCard(
+                            card.id,
+                            sourceAcc.account.id,
+                            Money(minorUnits, card.currency),
+                            onDismiss,
+                            { message ->
+                                isSubmitting = false
+                                errorMessage = message
+                            },
+                        )
+                    },
+                    enabled = !isSubmitting && selectedAccount != null && debt.minorUnits > 0L,
+                ) {
+                    Text(if (isSubmitting) "Procesando..." else "Confirmar Pago")
+                }
+
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cancelar")
+                }
             }
         },
         modifier = modifier,

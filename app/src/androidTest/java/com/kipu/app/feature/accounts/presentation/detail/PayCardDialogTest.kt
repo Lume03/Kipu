@@ -2,6 +2,7 @@ package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.kipu.app.core.finance.domain.model.CardId
@@ -44,11 +45,11 @@ class PayCardDialogTest {
             }
         }
 
-        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual: S/ 90.00").assertIsDisplayed()
         compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
         compose.onNodeWithText("90.00").assertIsDisplayed()
 
-        compose.onNodeWithText("Total").performClick()
+        compose.onNodeWithText("Pagar total S/ 90.00").performClick()
         compose.onNodeWithText("90.00").assertIsDisplayed()
         compose.onNodeWithText("Confirmar Pago").performClick()
 
@@ -68,8 +69,36 @@ class PayCardDialogTest {
             }
         }
 
-        compose.onNodeWithText("Deuda actual: PEN 90.00").assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual: S/ 90.00").assertIsDisplayed()
         compose.onNodeWithText("Importe a Pagar").assertIsDisplayed()
+    }
+
+    @Test
+    fun accountRowsSelectThePaymentSourceWithoutChangingTheAmount() {
+        val first = paymentAccount()
+        val second = first.copy(account = first.account.copy(id = AccountId.generate(), alias = "Segunda cuenta"))
+        var confirmedSource: AccountId? = null
+        var confirmedAmount: Money? = null
+        compose.setContent {
+            KipuTheme {
+                PayCardDialog(
+                    creditCardWithSummary = summary(),
+                    eligibleAccounts = listOf(first, second),
+                    onPayCreditCard = { _, source, amount, _, _ ->
+                        confirmedSource = source
+                        confirmedAmount = amount
+                    },
+                    onDismiss = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("card_payment_account_${second.account.id.value}").performClick()
+        compose.onNodeWithText("Confirmar Pago").performClick()
+        compose.runOnIdle {
+            assertEquals(second.account.id, confirmedSource)
+            assertEquals(Money(9_000L, Currency.PEN), confirmedAmount)
+        }
     }
 
     private fun summary(): CreditCardWithSummary {

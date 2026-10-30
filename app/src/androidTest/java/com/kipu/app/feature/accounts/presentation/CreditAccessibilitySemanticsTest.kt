@@ -169,11 +169,11 @@ class CreditAccessibilitySemanticsTest {
             }
         }
 
-        compose.onNodeWithText("Pagar desde").assertIsDisplayed()
+        compose.onNodeWithText("Cuenta de Origen").assertIsDisplayed()
         compose.onNodeWithText("Monto (PEN)").assertIsDisplayed()
-        compose.onNodeWithText("Deuda actual: PEN 250.00").assertIsDisplayed()
-        compose.onNodeWithText("Pagar desde").assertIsDisplayed()
-        compose.onNodeWithText("Total").assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual: S/ 250.00").assertIsDisplayed()
+        compose.onNodeWithText("Cuenta de Origen").assertIsDisplayed()
+        compose.onNodeWithText("Pagar total S/ 250.00").assertIsDisplayed()
         compose.onNodeWithText("Confirmar Pago").assertIsEnabled()
         compose.onNodeWithText("no suma como gasto operativo.", substring = true).assertIsDisplayed()
         compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
