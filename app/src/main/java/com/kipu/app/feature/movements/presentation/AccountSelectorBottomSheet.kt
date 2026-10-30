@@ -3,7 +3,6 @@ package com.kipu.app.feature.movements.presentation
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
-import com.kipu.app.ui.theme.readableContentColor
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,13 +24,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,14 +37,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -636,132 +630,22 @@ private fun AccountItemRow(
         append(if (isSelected) ". Seleccionada" else ". No seleccionada")
     }
 
-    SelectableInstrumentSurface(
+    AccountSelectionRow(
+        alias = account.alias,
+        subtitle = subtitle,
+        type = account.type,
+        preset = account.preset,
+        balance = balance,
         isSelected = isSelected,
-        multiSelect = multiSelect,
         onSelect = onSelect,
-        contentDesc = contentDesc,
-        testTag = "account_item_${account.id.value}",
         modifier = modifier,
-    ) {
-        AccountBadge(account = account)
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = account.alias,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = TextPrimarySlate,
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextSecondarySlate,
-                    fontSize = 12.sp,
-                ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (balance != null) {
-                MoneyText(
-                    money = balance,
-                    color = TextPrimarySlate,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                    ),
-                )
-                Text(
-                    text = statusText,
-                    color = if (isAffiliated) TextSecondarySlate else MintBadgeContent,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
-                    ),
-                )
-            } else {
-                Text(
-                    text = missingBalanceText,
-                    color = TextSecondarySlate,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(88.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        SelectionIndicator(selected = isSelected, multiSelect = multiSelect)
-    }
-}
-
-@Composable
-private fun SelectableInstrumentSurface(
-    isSelected: Boolean,
-    multiSelect: Boolean,
-    onSelect: () -> Unit,
-    contentDesc: String,
-    testTag: String,
-    modifier: Modifier = Modifier,
-    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) {
-    val background = if (isSelected) SurfaceSelectedMint else SurfaceRow
-    val borderColor = if (isSelected) AndeanTealPrimary else BorderNeutralSlate
-    val shape = RoundedCornerShape(18.dp)
-    val selection = if (multiSelect) {
-        Modifier.toggleable(value = isSelected, onValueChange = { onSelect() }, role = Role.Checkbox)
-    } else {
-        Modifier.selectable(selected = isSelected, onClick = onSelect, role = Role.RadioButton)
-    }
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .clip(shape)
-            .border(BorderStroke(2.dp, borderColor), shape)
-            .then(selection)
-            .semantics { contentDescription = contentDesc }
-            .testTag(testTag),
-        color = background,
-        shape = shape,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
-    }
+        statusText = statusText,
+        statusColor = if (isAffiliated) TextSecondarySlate else MintBadgeContent,
+        missingBalanceText = missingBalanceText,
+        multiSelect = multiSelect,
+        testTag = "account_item_${account.id.value}",
+        contentDescription = contentDesc,
+    )
 }
 
 @Composable
@@ -897,83 +781,6 @@ private fun CreditCardItemRow(
     }
 }
 
-/** Bank and wallet rows use the shared brand logo; cash keeps the plain icon. */
-@Composable
-internal fun AccountBadge(
-    account: Account,
-    modifier: Modifier = Modifier,
-) {
-    if (account.type == AccountType.CASH) {
-        val container = rememberKipuColors().positiveContainer
-        Box(
-            modifier = modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(container),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Payments,
-                contentDescription = null,
-                tint = readableContentColor(container),
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        return
-    }
-    val brand = account.preset
-        ?.takeIf { it != AccountPreset.GENERIC && it != AccountPreset.CASH }
-        ?.let { KipuBrand.from(it.name) }
-        ?: KipuBrand.from(account.alias)
-    BrandLogo(
-        brand = brand,
-        fallbackName = account.alias,
-        contentDescription = null,
-        modifier = modifier,
-        size = 44.dp,
-    )
-}
-
-@Composable
-private fun SelectionIndicator(
-    selected: Boolean,
-    multiSelect: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    if (multiSelect) {
-        val shape = RoundedCornerShape(6.dp)
-        Box(
-            modifier = modifier
-                .size(24.dp)
-                .clip(shape)
-                .then(
-                    if (selected) Modifier.background(AndeanTealPrimary)
-                    else Modifier.border(BorderStroke(2.dp, DragHandleSlate), shape),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = rememberKipuColors().onPrimary,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    } else {
-        // Radio ring as in the reference: a thick teal ring when selected.
-        Box(
-            modifier = modifier
-                .size(24.dp)
-                .border(
-                    BorderStroke(if (selected) 7.dp else 2.dp, if (selected) AndeanTealPrimary else DragHandleSlate),
-                    CircleShape,
-                ),
-        )
-    }
-}
-
 private fun networkLabel(network: CardNetwork): String = when (network) {
     CardNetwork.VISA -> "VISA"
     CardNetwork.MASTERCARD -> "Mastercard"
@@ -1001,8 +808,13 @@ internal fun formatAccountSubtitle(account: Account, linkedAccount: Account? = n
         return linkedAccount?.let { "${prefix}Comparte saldo con ${it.alias}" }
             ?: "${prefix}Saldo compartido · ${account.currency.name}"
     }
-    val typeName = accountTypeLabel(account.type)
-    val currency = account.currency.name
+    return formatAccountSubtitle(account.type, account.currency.name, account.preset)
+}
+
+internal fun formatAccountSubtitle(type: AccountType, currency: String, preset: AccountPreset?): String {
+    if (type == AccountType.CASH) return "Billetera física · $currency"
+    val institution = preset?.defaultName
+    val typeName = accountTypeLabel(type)
     return if (institution != null && institution != "Otro") {
         "$institution · $typeName $currency"
     } else {
