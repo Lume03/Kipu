@@ -9,7 +9,11 @@ sealed interface ReceiptImportResult {
     data object AccessDenied : ReceiptImportResult
     data object ConsentRequired : ReceiptImportResult
     data object Unreadable : ReceiptImportResult
+    data object NotYape : ReceiptImportResult
+    data object UnsupportedFormat : ReceiptImportResult
 }
+
+class UnsupportedReceiptImageFormat : Exception()
 
 fun interface ReceiptImageRecognizer {
     suspend fun recognize(uri: Uri): RecognizedReceiptText?
@@ -27,7 +31,11 @@ class ImportYapeReceipt @Inject constructor(
     suspend operator fun invoke(ownerId: String, uri: Uri, userConsented: Boolean): ReceiptImportResult {
         if (!userConsented) return ReceiptImportResult.ConsentRequired
         if (!access.canScan(ownerId)) return ReceiptImportResult.AccessDenied
-        val recognized = recognizer.recognize(uri) ?: return ReceiptImportResult.Unreadable
+        val recognized = try { recognizer.recognize(uri) }
+        catch (_: UnsupportedReceiptImageFormat) { return ReceiptImportResult.UnsupportedFormat }
+            ?: return ReceiptImportResult.Unreadable
+        if (recognized.text.isBlank()) return ReceiptImportResult.Unreadable
+        if (!parser.looksLikeYape(recognized.text)) return ReceiptImportResult.NotYape
         val fields = parser.parse(recognized.text)
         return when (val result = store.import(ownerId, recognized.imageFingerprint, fields, fields.isIncome)) {
             is ReceiptCandidateSaveResult.Saved -> ReceiptImportResult.CandidateCreated(result.candidate)

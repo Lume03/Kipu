@@ -18,6 +18,9 @@ data class YapeReceiptFields(
 
 class YapeReceiptParser @Inject constructor() {
 
+    fun looksLikeYape(text: String): Boolean =
+        Regex("(?i)\\byape(?:aste|aron|o|r)?\\b|\\byape!|\\byapeó\\b").containsMatchIn(text)
+
     fun parse(text: String): YapeReceiptFields {
         if (text.isBlank()) {
             return YapeReceiptFields(

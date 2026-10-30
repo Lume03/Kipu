@@ -6,9 +6,38 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import io.mockk.mockk
+import io.mockk.coVerify
 import kotlin.test.assertIs
 
 class ImportYapeReceiptTest {
+    @Test fun nonYapeAndBlankImagesNeverCreateCandidates() = runTest {
+        val store = mockk<ReceiptCandidateStore>()
+        for ((text, expected) in listOf("Transferencia de otro banco" to ReceiptImportResult.NotYape,
+            "   " to ReceiptImportResult.Unreadable)) {
+            val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
+                ReceiptImageRecognizer { RecognizedReceiptText(text, "hash") }, YapeReceiptParser(), store)
+            assertEquals(expected, useCase("owner", mockk<Uri>(), true))
+        }
+        coVerify(exactly = 0) { store.import(any(), any(), any(), any()) }
+    }
+
+    @Test fun unsupportedFormatIsDistinctFromUnreadable() = runTest {
+        val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
+            ReceiptImageRecognizer { throw UnsupportedReceiptImageFormat() }, YapeReceiptParser(), mockk())
+        assertEquals(ReceiptImportResult.UnsupportedFormat, useCase("owner", mockk<Uri>(), true))
+    }
+
+    @Test fun yapeMarkersAllowIncompleteReceiptsToReachReview() = runTest {
+        val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
+            ReceiptImageRecognizer { RecognizedReceiptText("¡Yapeaste! S/ 12.50", "hash") },
+            YapeReceiptParser(), object : ReceiptCandidateStore by mockk() {
+                override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?) =
+                    ReceiptCandidateSaveResult.Saved(newReceiptCandidate(ownerId, imageFingerprint, fields, isIncome))
+            })
+        val result = assertIs<ReceiptImportResult.CandidateCreated>(useCase("owner", mockk<Uri>(), true))
+        assertEquals(1250L, result.candidate.amountMinor)
+        assertEquals(null, result.candidate.occurredAt)
+    }
     @Test fun consentIsRequiredBeforeAnyImageAccess() = runTest {
         var opened = false
         val useCase = importer(allowed = true, opened = { opened = true })

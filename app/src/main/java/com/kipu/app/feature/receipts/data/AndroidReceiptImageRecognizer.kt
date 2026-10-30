@@ -12,6 +12,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.feature.receipts.domain.ReceiptImageRecognizer
 import com.kipu.app.feature.receipts.domain.RecognizedReceiptText
+import com.kipu.app.feature.receipts.domain.UnsupportedReceiptImageFormat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -30,6 +31,10 @@ class AndroidReceiptImageRecognizer @Inject constructor(
 ) : ReceiptImageRecognizer {
     override suspend fun recognize(uri: Uri): RecognizedReceiptText? = withContext(Dispatchers.IO) {
         if (uri.scheme != ContentResolver.SCHEME_CONTENT) return@withContext unreadable("unsupported scheme")
+        val mime = context.contentResolver.getType(uri)
+        if (mime != null && mime !in setOf("image/png", "image/jpeg", "image/jpg", "image/webp", "application/octet-stream")) {
+            throw UnsupportedReceiptImageFormat()
+        }
         val bytes = readBounded(uri) ?: return@withContext unreadable("image not readable")
         recognizeBytes(bytes)
     }
@@ -39,6 +44,10 @@ class AndroidReceiptImageRecognizer @Inject constructor(
         if (bytes.isEmpty() || bytes.size > MAX_BYTES) return@withContext unreadable("size out of bounds")
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outMimeType !in setOf("image/png", "image/jpeg", "image/webp")) {
+            if (bounds.outMimeType != null) throw UnsupportedReceiptImageFormat()
+            return@withContext unreadable("decode failed")
+        }
         if (bounds.outWidth !in 1..MAX_DIMENSION || bounds.outHeight !in 1..MAX_DIMENSION ||
             bounds.outWidth.toLong() * bounds.outHeight > MAX_PIXELS) return@withContext unreadable("dimensions out of bounds")
         val options = BitmapFactory.Options().apply {
