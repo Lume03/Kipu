@@ -2,11 +2,14 @@ package com.kipu.app.feature.receipts.presentation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,31 +17,31 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.NorthEast
-import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.SwipeLeft
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,29 +49,47 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateEdit
+import com.kipu.app.feature.receipts.domain.ReceiptReviewQueue
+import com.kipu.app.feature.receipts.domain.RegisteredYapeReceipt
+import com.kipu.app.feature.receipts.domain.missingDataCount
+import com.kipu.app.feature.receipts.domain.pendingReceipts
+import com.kipu.app.feature.receipts.domain.receiptBalanceEffect
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Review queue. Financial account/category entry remains in QuickMovementScreen. */
+/** Receipt inbox in its three states (empty, pending, caught up); the financial editor remains the only place that records a movement. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun ReceiptReviewScreen(
@@ -79,365 +100,206 @@ fun ReceiptReviewScreen(
     onHowToShare: () -> Unit,
     isBusy: Boolean = false,
     modifier: Modifier = Modifier,
+    registered: List<RegisteredYapeReceipt> = emptyList(),
+    onUpload: () -> Unit = {},
+    onStartReview: () -> Unit = { candidates.firstOrNull()?.let { onReview(it.id) } },
+    onHistory: () -> Unit = {},
+    onMovement: (String) -> Unit = {},
+    newCandidateId: String? = null,
+    onBottomBarHeightChanged: (Dp) -> Unit = {},
 ) {
     val palette = rememberCalmEmeraldColors()
+    val density = LocalDensity.current
+    val pending = pendingReceipts(candidates)
     var candidateToDiscard by remember { mutableStateOf<ReceiptCandidate?>(null) }
-    val contentModifier = if (candidateToDiscard == null) modifier else modifier.blur(4.dp)
-
-    if (candidates.isEmpty()) {
-        Column(
-            modifier = contentModifier.fillMaxSize().padding(horizontal = 20.dp),
-        ) {
-            PendingReceiptsHeader(count = 0)
-            EmptyReceiptsState(
-                modifier = Modifier.weight(1f),
-                onHowToShare = onHowToShare,
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = contentModifier.fillMaxSize().padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item { PendingReceiptsHeader(count = candidates.size) }
-            items(candidates, key = ReceiptCandidate::id) { candidate ->
-                ReceiptCandidateCard(
-                    candidate = candidate,
-                    isBusy = isBusy,
-                    onReview = { onReview(candidate.id) },
-                    onDiscard = { candidateToDiscard = candidate },
-                )
-            }
-            item { Spacer(Modifier.height(8.dp)) }
-        }
-    }
-
-    candidateToDiscard?.let { candidate ->
-        ReceiptDiscardConfirmationDialog(
-            candidate = candidate,
-            onDismiss = { candidateToDiscard = null },
-            onConfirm = {
-                candidateToDiscard = null
-                onDiscard(candidate.id)
-            },
-        )
-    }
-}
-
-@Composable
-private fun PendingReceiptsHeader(count: Int) {
-    val palette = rememberCalmEmeraldColors()
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = "Comprobantes pendientes",
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = palette.primaryText,
-        )
-        Surface(
-            shape = if (count == 0) CircleShape else RoundedCornerShape(50),
-            color = if (count == 0) scheme.surfaceContainerHigh else palette.incomeBg,
-            contentColor = if (count == 0) scheme.onSurfaceVariant else palette.incomeText,
-            modifier = Modifier.semantics { contentDescription = "$count comprobantes pendientes" },
-        ) {
-            Text(
-                text = if (count == 0) "0" else "$count pendientes",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyReceiptsState(
-    onHowToShare: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val palette = rememberCalmEmeraldColors()
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(104.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
-            border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.ReceiptLong,
-                    contentDescription = null,
-                    tint = palette.primaryDeep,
-                    modifier = Modifier.size(48.dp),
-                )
-            }
-        }
-        Spacer(Modifier.height(32.dp))
-        Text(
-            text = "No tienes comprobantes pendientes",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            color = palette.primaryText,
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Los comprobantes que compartas desde Yape aparecerán aquí para su revisión.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = palette.secondaryMuted,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(28.dp))
-        OutlinedButton(
-            onClick = onHowToShare,
-            modifier = Modifier.heightIn(min = 56.dp).testTag("receipt_how_to_share_empty"),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = palette.surfaceCard,
-                contentColor = palette.primaryDeep,
-            ),
-        ) {
-            Icon(Icons.Filled.HelpOutline, contentDescription = null, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(10.dp))
-            Text("¿Cómo compartir desde Yape?", style = MaterialTheme.typography.titleSmall)
-        }
-    }
-}
-
-@Composable
-private fun ReceiptCandidateCard(
-    candidate: ReceiptCandidate,
-    isBusy: Boolean,
-    onReview: () -> Unit,
-    onDiscard: () -> Unit,
-) {
-    val palette = rememberCalmEmeraldColors()
-    val scheme = MaterialTheme.colorScheme
-    val isIncome = candidate.isIncome
-    val counterpart = candidate.recipient?.takeIf(String::isNotBlank) ?: "Contraparte pendiente de completar"
-    val amount = candidate.amountMinor?.let(::formatReceiptAmount)
-    val directionLabel = when (isIncome) {
-        true -> "Te yapearon"
-        false -> "Yapeaste"
-        null -> "Dirección por confirmar"
-    }
-    val directionColor = when (isIncome) {
-        true -> palette.incomeText
-        false -> palette.expenseText
-        null -> palette.secondaryMuted
-    }
-    val directionBackground = when (isIncome) {
-        true -> palette.incomeBg
-        false -> palette.expenseBg
-        null -> scheme.surfaceContainerHigh
-    }
-    val directionBorder = when (isIncome) {
-        true -> palette.incomeBorder
-        false -> palette.expenseBorder
-        null -> scheme.outlineVariant
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag("receipt_candidate_${candidate.id}"),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = palette.surfaceCard),
-        border = BorderStroke(1.dp, palette.borderSubtle),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = if (palette.isDark) scheme.secondaryContainer else palette.incomeBg,
-                    border = BorderStroke(1.dp, if (palette.isDark) scheme.outlineVariant else palette.incomeBorder),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = receiptInitials(candidate.recipient),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = palette.primaryDeep,
-                        )
+    Column(modifier.fillMaxSize()) {
+        when {
+            pending.isNotEmpty() -> {
+                val ready = pending.count { it.missingDataCount == 0 }
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Por revisar", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold,
+                                color = palette.primaryText, letterSpacing = (-.5).sp)
+                            ReceiptCountBadge(pending.size)
+                        }
+                        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReceiptStateChip("$ready listos", ChipTone.Ready, readyChipIcon())
+                            if (ready < pending.size) ReceiptStateChip("${pending.size - ready} con datos faltantes", ChipTone.Warning, warningChipIcon())
+                        }
                     }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = when (isIncome) {
-                            true -> "REMITENTE"
-                            false -> "DESTINATARIO"
-                            null -> "CONTRAPARTE"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.secondaryMuted,
-                        letterSpacing = 0.5.sp,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = counterpart,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = palette.primaryText,
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Filled.ReceiptLong,
-                    contentDescription = "Comprobante Yape leído localmente",
-                    tint = palette.primaryDeep,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-
-            HorizontalReceiptDivider()
-
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = when (isIncome) {
-                                true -> "Monto recibido"
-                                false -> "Monto enviado"
-                                null -> "Monto"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = palette.secondaryMuted,
-                        )
-                        Text(
-                            text = amount ?: "Pendiente de completar",
-                            style = if (amount == null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (amount == null) palette.secondaryMuted else palette.primaryText,
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = directionBackground,
-                        contentColor = directionColor,
-                        border = BorderStroke(1.dp, directionBorder),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = when (isIncome) {
-                                    true -> Icons.Filled.ArrowDownward
-                                    false -> Icons.Filled.NorthEast
-                                    null -> Icons.Filled.ReceiptLong
+                    Column(Modifier.fillMaxWidth().shadow(1.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(palette.surfaceCard)
+                        .border(1.dp, palette.borderSubtle, RoundedCornerShape(22.dp))) {
+                        pending.forEachIndexed { index, candidate ->
+                            val dismiss = rememberSwipeToDismissBoxState(confirmValueChange = { value ->
+                                if (value == SwipeToDismissBoxValue.EndToStart && !isBusy) candidateToDiscard = candidate
+                                false // The row stays until the user confirms the discard.
+                            })
+                            SwipeToDismissBox(
+                                state = dismiss, enableDismissFromStartToEnd = false, enableDismissFromEndToStart = !isBusy,
+                                backgroundContent = {
+                                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal = 24.dp),
+                                        contentAlignment = Alignment.CenterEnd) {
+                                        Icon(Icons.Filled.DeleteOutline, "Descartar comprobante", tint = MaterialTheme.colorScheme.onErrorContainer)
+                                    }
                                 },
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(directionLabel, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            ) {
+                                ReceiptInboxRow(candidate, newCandidateId == candidate.id, onClick = { onReview(candidate.id) }, enabled = !isBusy,
+                                    onDiscard = { candidateToDiscard = candidate })
+                            }
+                            if (index < pending.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(palette.borderSubtle))
+                        }
+                    }
+                    Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.SwipeLeft, null, Modifier.size(16.dp), tint = palette.secondaryMuted)
+                        Text("Desliza a la izquierda para descartar.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                    }
+                    if (ready > 0) ReceiptBalanceCard(ready, receiptBalanceEffect(pending))
+                    Spacer(Modifier.height(4.dp))
+                }
+                Surface(modifier = Modifier.onSizeChanged { onBottomBarHeightChanged(with(density) { it.height.toDp() }) },
+                    color = palette.surfaceCard, shadowElevation = 8.dp) {
+                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Button(onClick = onStartReview, enabled = !isBusy, shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_start_review")) {
+                            Text("Empezar a revisar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(10.dp))
+                            Box(Modifier.defaultMinSize(minWidth = 24.dp, minHeight = 24.dp).clip(CircleShape).background(palette.onPrimaryDeep.copy(alpha = .22f)).padding(horizontal = 7.dp),
+                                contentAlignment = Alignment.Center) {
+                                Text(pending.size.toString(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                        TextButton(onClick = onUpload, enabled = !isBusy, modifier = Modifier.heightIn(min = 48.dp).testTag("receipt_upload_link")) {
+                            Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(19.dp)); Spacer(Modifier.width(8.dp))
+                            Text("Subir una imagen", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(scheme.surfaceContainerLow, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ReceiptMetadataItem(
-                        icon = Icons.Filled.Tag,
-                        label = "N.º operación",
-                        value = candidate.reference?.takeIf(String::isNotBlank) ?: "No detectado",
-                        modifier = Modifier.weight(1f),
-                    )
-                    Box(
-                        modifier = Modifier.width(1.dp).height(42.dp).background(scheme.outlineVariant),
-                    )
-                    ReceiptMetadataItem(
-                        icon = Icons.Filled.Schedule,
-                        label = "Fecha y hora",
-                        value = candidate.occurredAt?.let(::formatReceiptDate) ?: "Pendiente",
-                        modifier = Modifier.weight(1f),
-                    )
+            }
+            registered.isEmpty() -> {
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    ReceiptEmptyHero(onHowToShare)
+                    ReceiptTrustCard()
                 }
-
-                Button(
-                    onClick = onReview,
-                    enabled = !isBusy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_review_${candidate.id}"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = palette.primaryDeep,
-                        contentColor = palette.onPrimaryDeep,
-                    ),
-                ) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text("Revisar", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReceiptSectionLabel("¿TIENES UNA CAPTURA?", Modifier.padding(horizontal = 4.dp))
+                    ReceiptUploadRow(onUpload, !isBusy)
                 }
-                TextButton(
-                    onClick = onDiscard,
-                    enabled = !isBusy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("receipt_discard_${candidate.id}"),
-                    colors = ButtonDefaults.textButtonColors(contentColor = palette.secondaryMuted),
-                ) {
-                    Text("Descartar", style = MaterialTheme.typography.titleSmall)
+            }
+            else -> {
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(palette.tealTint(.16f), palette.tealTint(.06f))))
+                        .border(1.dp, palette.tealTint(.3f), RoundedCornerShape(24.dp)).padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Box(Modifier.size(56.dp).shadow(8.dp, CircleShape, spotColor = palette.primaryDeep).clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF12998C)))), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.CheckCircle, null, Modifier.size(30.dp), tint = Color.White)
+                        }
+                        Column {
+                            Text("Estás al día", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
+                            Text("No tienes comprobantes por revisar.", style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted,
+                                modifier = Modifier.padding(top = 3.dp))
+                        }
+                    }
+                    Column {
+                        Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ReceiptSectionLabel("REGISTRADOS DESDE YAPE", Modifier.weight(1f))
+                            TextButton(onClick = onHistory, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Ver todos", fontWeight = FontWeight.Bold)
+                                Icon(Icons.Filled.ChevronRight, null, Modifier.size(18.dp))
+                            }
+                        }
+                        Column(Modifier.fillMaxWidth().shadow(1.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(palette.surfaceCard)
+                            .border(1.dp, palette.borderSubtle, RoundedCornerShape(20.dp))) {
+                            val shown = registered.take(3)
+                            shown.forEachIndexed { index, receipt ->
+                                ReceiptInboxRow(receipt.candidate, false, { onMovement(receipt.transactionId) }, registered = true)
+                                if (index < shown.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(palette.borderSubtle))
+                            }
+                        }
+                    }
+                    ReceiptShareNudge(onHowToShare)
                 }
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)) { ReceiptUploadRow(onUpload, !isBusy) }
             }
         }
     }
+    candidateToDiscard?.let { candidate ->
+        ReceiptDiscardConfirmationDialog(candidate, onDismiss = { candidateToDiscard = null }, onConfirm = {
+            candidateToDiscard = null; onDiscard(candidate.id)
+        })
+    }
 }
 
+/** What the "listos" would do to the balance; computed locally from complete receipts only. */
 @Composable
-private fun ReceiptMetadataItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
+private fun ReceiptBalanceCard(ready: Int, effect: java.math.BigInteger) {
     val palette = rememberCalmEmeraldColors()
-    Column(
-        modifier = modifier.padding(horizontal = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Icon(icon, contentDescription = null, tint = palette.secondaryMuted, modifier = Modifier.size(15.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = palette.secondaryMuted)
+    val positive = effect.signum() >= 0
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(palette.tealTint(.07f)).border(1.dp, palette.tealTint(.22f), RoundedCornerShape(18.dp))
+        .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(Icons.Filled.AccountBalanceWallet, null, Modifier.size(22.dp), tint = palette.primaryDeep)
+        Column(Modifier.weight(1f)) {
+            Text("Si confirmas los $ready listos", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = palette.primaryText)
+            Text("tu saldo cambiaría en", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
         }
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = palette.primaryText,
-        )
+        Text((if (positive) "+" else "−") + "S/ " + BigDecimal(effect.abs(), 2).toPlainString(), style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold, color = if (positive) palette.incomeText else palette.expenseText, maxLines = 1)
     }
 }
 
 @Composable
-private fun HorizontalReceiptDivider() {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-    )
+internal fun ReceiptInboxRow(candidate: ReceiptCandidate, isNew: Boolean, onClick: () -> Unit,
+    enabled: Boolean = true, registered: Boolean = false, onDiscard: (() -> Unit)? = null, solid: Boolean = true) {
+    val palette = rememberCalmEmeraldColors()
+    val missing = candidate.missingDataCount
+    val tone = when (candidate.isIncome) { true -> palette.incomeText; false -> palette.expenseText; null -> palette.secondaryMuted }
+    val compact = registered
+    Row(Modifier.fillMaxWidth().background(if (solid) palette.surfaceCard else Color.Transparent).background(if (isNew) palette.tealTint(.1f) else Color.Transparent)
+        .drawBehind { if (isNew) drawRect(palette.primaryDeep, Offset.Zero, Size(4.dp.toPx(), size.height)) }
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick).testTag("receipt_candidate_${candidate.id}")
+        .semantics { onDiscard?.let { discard -> customActions = listOf(CustomAccessibilityAction("Descartar comprobante") { discard(); true }) } }
+        .heightIn(min = if (compact) 68.dp else 80.dp).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        val named = !candidate.recipient.isNullOrBlank()
+        Box(Modifier.size(if (compact) 40.dp else 44.dp).clip(CircleShape).background(if (named) palette.tealTint(.14f) else palette.pillTrack), contentAlignment = Alignment.Center) {
+            if (named) Text(receiptInitials(candidate.recipient), fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
+                style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall)
+            else Icon(Icons.Filled.Person, null, Modifier.size(22.dp), tint = palette.secondaryMuted)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(candidate.recipient?.takeIf(String::isNotBlank) ?: "Sin contraparte", fontWeight = FontWeight.Bold, color = palette.primaryText,
+                style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (missing > 0 && !registered) {
+                Text("Faltan $missing datos", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.warningText,
+                    modifier = Modifier.padding(top = 3.dp))
+            } else {
+                Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    if (!registered) Icon(receiptTypeIcon(candidate.isIncome), null, Modifier.size(14.dp), tint = tone)
+                    Text(candidate.occurredAt?.let { receiptWhen(it, registered) } ?: "Fecha por completar", style = MaterialTheme.typography.bodySmall,
+                        color = palette.secondaryMuted, maxLines = 2)
+                }
+            }
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            candidate.amountMinor?.let {
+                Text((if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else "") + formatReceiptAmount(it),
+                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = tone, maxLines = 1)
+            }
+            if (!registered) when {
+                isNew -> ReceiptStateChip("Nuevo", ChipTone.Solid)
+                missing == 0 -> ReceiptStateChip("Listo", ChipTone.Ready, readyChipIcon())
+                else -> ReceiptStateChip("Completar", ChipTone.Warning)
+            }
+        }
+        if (!registered) Icon(Icons.Filled.ChevronRight, null, Modifier.size(20.dp), tint = palette.secondaryMuted.copy(alpha = .8f))
+    }
 }
 
 @Composable
@@ -587,8 +449,39 @@ private fun receiptInitials(name: String?): String {
 private fun formatReceiptAmount(amountMinor: Long): String =
     "S/ ${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}"
 
-private fun formatReceiptDate(timestamp: Long): String =
-    LIMA_FORMAT.format(Instant.ofEpochMilli(timestamp).atZone(LIMA_ZONE))
-
 private val LIMA_ZONE: ZoneId = ZoneId.of("America/Lima")
-private val LIMA_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm", Locale("es", "PE"))
+private val MONTHS = listOf("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+
+/** "Hoy · 12:41" and "Ayer · 20:03" for registered rows, "24 Oct · 12:41" for pending ones. */
+private fun receiptWhen(timestamp: Long, relative: Boolean): String {
+    val at = Instant.ofEpochMilli(timestamp).atZone(LIMA_ZONE)
+    val time = String.format(Locale.ROOT, "%02d:%02d", at.hour, at.minute)
+    val today = LocalDate.now(LIMA_ZONE)
+    val day = at.toLocalDate()
+    return when {
+        relative && day == today -> "Hoy · $time"
+        relative && day == today.minusDays(1) -> "Ayer · $time"
+        else -> "${at.dayOfMonth} ${MONTHS[at.monthValue - 1]} · $time"
+    }
+}
+
+/** "1 de 3" chip in the top bar while a queue is being reviewed. */
+@Composable
+fun ReceiptQueuePosition(queue: ReceiptReviewQueue) {
+    val palette = rememberCalmEmeraldColors()
+    Box(Modifier.padding(end = 12.dp).heightIn(min = 30.dp).clip(RoundedCornerShape(50)).background(palette.tealTint(.14f)).padding(horizontal = 12.dp)
+        .testTag("receipt_queue_position"), contentAlignment = Alignment.Center) {
+        Text(queue.position, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep)
+    }
+}
+
+/** One segment per receipt in the queue; the ones already reviewed and the current one are filled. */
+@Composable
+fun ReceiptQueueSegments(queue: ReceiptReviewQueue) {
+    val palette = rememberCalmEmeraldColors()
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(queue.ids.size) { index ->
+            Box(Modifier.weight(1f).height(5.dp).background(if (index <= queue.index) palette.primaryDeep else palette.borderSubtle, RoundedCornerShape(3.dp)))
+        }
+    }
+}
