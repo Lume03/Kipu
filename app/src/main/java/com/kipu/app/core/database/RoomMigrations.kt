@@ -1420,15 +1420,20 @@ val MIGRATION_31_32 = object : Migration(31, 32) {
             JOIN cards c ON c.user_id = t.user_id AND c.id = t.card_id
             WHERE c.billing_day BETWEEN 1 AND 31 AND c.due_day BETWEEN 1 AND 31""").use { rows ->
             while (rows.moveToNext()) {
-                val config = com.kipu.app.core.finance.domain.BillingCycleConfiguration(
-                    rows.getInt(4), rows.getInt(5), rows.getInt(6) != 0,
-                    com.kipu.app.core.finance.domain.CycleDateBasis.fromValue(rows.getString(7)),
-                )
-                val date = java.time.Instant.ofEpochMilli(rows.getLong(3)).atZone(java.time.ZoneId.of("America/Lima")).toLocalDate()
-                val first = com.kipu.app.core.finance.domain.BillingCycleCalculator.cycleForPurchase(config, date)
-                val closing = com.kipu.app.core.finance.domain.BillingCycleCalculator.nextCycle(config, first, rows.getInt(2) - 1).closingDate
+                val closing = try {
+                    val config = com.kipu.app.core.finance.domain.BillingCycleConfiguration(
+                        rows.getInt(4), rows.getInt(5), rows.getInt(6) != 0,
+                        com.kipu.app.core.finance.domain.CycleDateBasis.fromValue(rows.getString(7)),
+                    )
+                    val date = java.time.Instant.ofEpochMilli(rows.getLong(3)).atZone(java.time.ZoneId.of("America/Lima")).toLocalDate()
+                    val first = com.kipu.app.core.finance.domain.BillingCycleCalculator.cycleForPurchase(config, date)
+                    com.kipu.app.core.finance.domain.BillingCycleCalculator.nextCycle(config, first, (rows.getInt(2) - 1).coerceAtLeast(0)).closingDate
+                } catch (_: Exception) {
+                    // An invalid legacy row must not prevent the database upgrade.
+                    null
+                }
                 db.execSQL("UPDATE credit_installments SET billing_closing_date = ? WHERE user_id = ? AND id = ?",
-                    arrayOf(closing.toEpochDay(), rows.getString(0), rows.getString(1)))
+                    arrayOf<Any?>(closing?.toEpochDay(), rows.getString(0), rows.getString(1)))
             }
         }
         // Cascade remote identity adoption even if a payment was made while the purchase was offline.

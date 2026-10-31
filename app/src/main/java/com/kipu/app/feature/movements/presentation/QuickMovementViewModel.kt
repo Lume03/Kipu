@@ -944,16 +944,23 @@ class QuickMovementViewModel @Inject constructor(
     }
 
     private fun executeCreditPurchase(state: QuickMovementUiState, amountMinor: Long, terms: PurchaseTerms) {
-        val cardId = state.selectedSourceCardId?.let(::CardId) ?: return
+        val card = state.availableCreditCards.firstOrNull { it.id.value == state.selectedSourceCardId }
+        if (card == null) {
+            _uiState.update { it.copy(isSaving = false, accountError = "Selecciona una tarjeta de crédito válida") }
+            return
+        }
+        if (state.currency != card.currency.name) {
+            _uiState.update { it.copy(isSaving = false, generalError = "La moneda de la compra debe coincidir con la moneda de la tarjeta (${card.currency.name}).") }
+            return
+        }
         val merchant = state.merchantProvisionalText
             ?: state.merchantName.takeIf(String::isNotBlank)
             ?: "Compra con tarjeta"
-        val currency = runCatching { Currency.valueOf(state.currency) }.getOrDefault(Currency.PEN)
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, generalError = null) }
             confirmCreditPurchaseUseCase(
-                cardId = cardId,
-                amount = Money(amountMinor, currency),
+                cardId = card.id,
+                amount = Money(amountMinor, card.currency),
                 merchant = merchant,
                 effectiveAt = Instant.ofEpochMilli(state.occurredAt),
                 installments = terms.installmentsCount,

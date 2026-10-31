@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.withTransaction
 import com.kipu.app.feature.movements.data.sync.requireSyncOwner
 import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -60,6 +61,7 @@ class InstrumentSyncScheduler @Inject constructor(
                     .build()
             )
             .setInputData(workDataOf(SyncInstrumentCommandsWorker.KEY_USER_ID to userId))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -118,6 +120,11 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
+        val attemptedOperations = mutableSetOf<String>()
+        var retryRequired = false
+        suspend fun resultForRemainingCommands(): Result =
+            if (retryRequired || syncDao.getPendingCount(targetUserId) > 0) Result.retry() else Result.success()
+
         // Re-query after each batch so a just-acknowledged predecessor can unlock its
         // successor in this run. Claim is a conditional Room update, so overlapping
         // workers cannot dispatch the same live lease.
@@ -142,7 +149,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             }
             val nowMicros = System.currentTimeMillis() * 1_000L
             val pendingCommands = syncDao.getPendingCommands(targetUserId, nowMicros)
-            if (pendingCommands.isEmpty()) return Result.success()
+                .filterNot { it.operationId in attemptedOperations }
+            if (pendingCommands.isEmpty()) return resultForRemainingCommands()
 
             var claimedAny = false
             for (cmd in pendingCommands) {
@@ -155,9 +163,12 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 ) }
                 if (claimed == 0) continue
                 claimedAny = true
-                if (!processCommand(cmd, claimTime)) return Result.retry()
+                attemptedOperations += cmd.operationId
+                // Defer recoverable failures once per run without blocking independent
+                // commands. The DAO still gates successors on their predecessor's SYNCED state.
+                if (!processCommand(cmd, claimTime)) retryRequired = true
             }
-            if (!claimedAny) return Result.success()
+            if (!claimedAny) return resultForRemainingCommands()
         }
         SecureLog.w("SyncInstrumentWorker", "Command batch limit reached; scheduling another pass")
         return Result.retry()
@@ -326,7 +337,13 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     if (cmd.commandType == "CONFIRM_CREDIT_PURCHASE" &&
                         !reconcilePurchaseInstallments(cmd.userId, request, response.data.installments)
                     ) {
-                        updateCreditCommandState(cmd, "ERROR", nowMicros + 10_000_000L, "INSTALLMENT_RECONCILIATION_FAILED")
+                        ownerTransaction(cmd.userId) {
+                            updateCreditCommandState(cmd, "ERROR", System.currentTimeMillis() * 1_000L + 30_000_000L,
+                                "INSTALLMENT_RECONCILIATION_FAILED")
+                            movementDao.updateTransactionSyncStatus(cmd.userId, transactionId,
+                                MovementSyncStatus.PENDING.name, System.currentTimeMillis())
+                        }
+                        SecureLog.w("SyncInstrumentWorker", "Credit purchase schedule reconciliation failed; local terms preserved, retry deferred to WorkManager backoff")
                         return false
                     }
                     ownerTransaction(cmd.userId) {
