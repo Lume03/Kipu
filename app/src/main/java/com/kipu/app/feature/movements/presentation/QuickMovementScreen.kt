@@ -123,6 +123,8 @@ import com.kipu.app.R
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerViewModel
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
+import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseDraft
+import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseTermsSection
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.movements.domain.model.MovementType
@@ -216,6 +218,7 @@ fun QuickMovementBottomSheet(
             onOpenDatePicker = { showDatePicker = true },
             onToggleMoreDetails = viewModel::onToggleMoreDetails,
             onSave = viewModel::onSave,
+            onCreditPurchaseDraftChanged = viewModel::onCreditPurchaseDraftChanged,
             onClose = onDismissRequest,
             accountBalances = uiState.accountBalances,
             creditCardDebts = uiState.creditCardDebts,
@@ -326,6 +329,7 @@ fun QuickMovementContent(
     categoryCreationError: String?,
     modifier: Modifier = Modifier,
     onDestinationCardSelected: (String) -> Unit = {},
+    onCreditPurchaseDraftChanged: (CreditPurchaseDraft) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -340,12 +344,14 @@ fun QuickMovementContent(
     val balanceMasked = LocalBalanceMasked.current
 
     // Separate field validation errors from general transient errors
-    val fieldErrors = remember(uiState.amountError, uiState.accountError, uiState.categoryError, uiState.destinationAccountError) {
+    val fieldErrors = remember(uiState.amountError, uiState.accountError, uiState.categoryError, uiState.destinationAccountError, uiState.creditPurchaseValidation, uiState.selectedSourceCardId, uiState.type) {
         listOfNotNull(
             uiState.amountError,
             uiState.accountError,
             uiState.categoryError,
             uiState.destinationAccountError,
+            uiState.creditPurchaseValidation.installmentsError.takeIf { uiState.type == MovementType.EXPENSE && uiState.selectedSourceCardId != null },
+            uiState.creditPurchaseValidation.teaError.takeIf { uiState.type == MovementType.EXPENSE && uiState.selectedSourceCardId != null },
         ).distinct()
     }
     val hasFieldErrors = fieldErrors.isNotEmpty()
@@ -819,6 +825,15 @@ fun QuickMovementContent(
                 Text("Este gasto suma a la deuda de tu tarjeta. No mueve dinero propio.",
                     color = emeraldColors.secondaryMuted, style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.testTag("credit_purchase_impact"))
+                CreditPurchaseTermsSection(
+                    draft = uiState.creditPurchaseDraft,
+                    validation = uiState.creditPurchaseValidation,
+                    simulation = uiState.creditPurchaseSimulation,
+                    onDraftChanged = onCreditPurchaseDraftChanged,
+                    referenceLoading = uiState.creditReferenceLoading,
+                    previewError = uiState.creditPreviewError,
+                    enabled = !uiState.isSaving,
+                )
             }
             uiState.budgetImpacts.forEach { impact ->
                 val exceeded = impact.projected.isExceeded

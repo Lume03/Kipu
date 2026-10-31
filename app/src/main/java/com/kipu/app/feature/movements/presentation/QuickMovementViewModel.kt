@@ -10,13 +10,27 @@ import com.kipu.app.feature.budgets.domain.GetBudgetConsumption
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import java.time.ZoneId
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
+import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseDraft
+import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseValidation
+import com.kipu.app.feature.accounts.presentation.components.validateCreditPurchaseDraft
+import com.kipu.app.feature.accounts.domain.model.PurchaseTerms
+import com.kipu.app.feature.accounts.domain.model.PurchaseType
+import com.kipu.app.feature.accounts.domain.model.Financing
+import com.kipu.app.feature.accounts.domain.model.PurchaseRateSource
+import com.kipu.app.feature.accounts.domain.model.InstallmentSimulation
+import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
+import com.kipu.app.feature.accounts.domain.model.CreditProductReference
+import com.kipu.app.feature.accounts.domain.usecase.GetReferentialRates
+import com.kipu.app.feature.accounts.domain.usecase.SimulateInstallments
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.core.session.LocalAccess
@@ -120,6 +134,19 @@ data class QuickMovementUiState(
     val showDuplicateWarning: Boolean = false,
     val duplicateExistingTransaction: com.kipu.app.feature.movements.domain.model.Transaction? = null,
     val pendingCommandForDuplicate: RegisterTransactionCommand? = null,
+    val creditPurchaseDraft: CreditPurchaseDraft = CreditPurchaseDraft(),
+    val creditPurchaseValidation: CreditPurchaseValidation = validateCreditPurchaseDraft(CreditPurchaseDraft()),
+    val creditPurchaseSimulation: InstallmentSimulation? = null,
+    val creditPreviewError: String? = null,
+    val creditReferenceLoading: Boolean = false,
+)
+
+private data class CreditPreviewInput(
+    val type: MovementType,
+    val card: CreditCard?,
+    val amountText: String,
+    val occurredAt: Long,
+    val draft: CreditPurchaseDraft,
 )
 
 data class QuickMovementBudgetImpact(
@@ -153,10 +180,17 @@ class QuickMovementViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     private val getBudgetConsumption: GetBudgetConsumption,
     private val budgetCategories: BudgetCategoryLookup,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    private val getReferentialRates: GetReferentialRates? = null,
+    private val simulateInstallments: SimulateInstallments = SimulateInstallments(),
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(QuickMovementUiState())
+    private val _uiState = MutableStateFlow(restoreForm())
     val uiState: StateFlow<QuickMovementUiState> = _uiState.asStateFlow()
+
+    private var creditProducts: List<CreditProductReference> = emptyList()
+    private var creditCatalogLoaded = false
+    private var creditCatalogJob: Job? = null
 
     private var allCategoryOptions: List<CategoryOption> = emptyList()
     private val rememberedMerchantCategories = mutableMapOf<String, String>()
@@ -202,6 +236,36 @@ class QuickMovementViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
+            _uiState.onEach(::persistForm).map { state ->
+                CreditPreviewInput(state.type,
+                    state.availableCreditCards.firstOrNull { it.id.value == state.selectedSourceCardId },
+                    state.amountText, state.occurredAt, state.creditPurchaseDraft)
+            }.distinctUntilChanged().collect { input ->
+                val draft = input.card?.let { input.draft.forCard(it, creditProducts) } ?: input.draft
+                persistCreditPurchaseDraft(draft)
+                val validation = validateCreditPurchaseDraft(draft)
+                var error: String? = null
+                val amount = parseAmountMinor(input.amountText)
+                val simulation = if (input.type == MovementType.EXPENSE && input.card != null &&
+                    amount != null && amount > 0 && validation.terms != null) {
+                    try {
+                        simulateInstallments(
+                            candidate = PurchaseCandidate("quick-credit-preview", input.card.id,
+                                Money(amount, input.card.currency), "Compra con tarjeta", Instant.ofEpochMilli(input.occurredAt)),
+                            card = input.card, terms = validation.terms,
+                        )
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { error = "No se pudo calcular el cronograma. Revisa el monto y las condiciones."; null }
+                } else null
+                _uiState.update { current ->
+                    if (current.creditPurchaseDraft != input.draft) current else current.copy(
+                        creditPurchaseDraft = draft, creditPurchaseValidation = validation,
+                        creditPurchaseSimulation = simulation, creditPreviewError = error,
+                    )
+                }
+            }
+        }
         val ownerId = getUserId()
         if (ownerId != null) {
             viewModelScope.launch {
@@ -293,6 +357,7 @@ class QuickMovementViewModel @Inject constructor(
                             ?.takeIf { destination -> accounts.any { it.id.value == destination } },
                     )
                 }
+                loadCreditReferenceIfNeeded()
             }
         }
         viewModelScope.launch {
@@ -397,8 +462,97 @@ class QuickMovementViewModel @Inject constructor(
                 accountError = null,
                 destinationAccountError = null,
                 selectedDestinationCardId = null,
+                creditPurchaseDraft = current.creditPurchaseDraft.forCard(card, creditProducts),
             )
         }
+        loadCreditReferenceIfNeeded()
+    }
+
+    fun onCreditPurchaseDraftChanged(draft: CreditPurchaseDraft) {
+        _uiState.update { current -> if (current.isSaving) current else current.copy(
+            creditPurchaseDraft = draft, creditPurchaseValidation = validateCreditPurchaseDraft(draft), generalError = null,
+        ) }
+    }
+
+    private fun loadCreditReferenceIfNeeded() {
+        val card = _uiState.value.availableCreditCards.firstOrNull { it.id.value == _uiState.value.selectedSourceCardId } ?: return
+        if (card.personalTeaBps?.let { it > 0 } == true || creditCatalogLoaded || creditCatalogJob?.isActive == true || getReferentialRates == null) return
+        creditCatalogJob = viewModelScope.launch {
+            _uiState.update { it.copy(creditReferenceLoading = true) }
+            try {
+                getReferentialRates.invoke().onSuccess { products ->
+                    creditProducts = products
+                    creditCatalogLoaded = true
+                    _uiState.update { current ->
+                        val selected = current.availableCreditCards.firstOrNull { it.id.value == current.selectedSourceCardId }
+                        current.copy(creditPurchaseDraft = selected?.let { current.creditPurchaseDraft.forCard(it, products) }
+                            ?: current.creditPurchaseDraft)
+                    }
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* An unavailable reference never prevents entering a contractual rate. */ }
+            finally { _uiState.update { it.copy(creditReferenceLoading = false) } }
+        }
+    }
+
+    // Save only editable values, never loading flags, transient errors or an in-flight command.
+    private fun restoreForm(): QuickMovementUiState {
+        val draft = restoreCreditPurchaseDraft()
+        return QuickMovementUiState(
+            type = MovementType.entries.firstOrNull { it.name == savedStateHandle.get<String>("movement.type") } ?: MovementType.EXPENSE,
+            amountText = savedStateHandle["movement.amount"] ?: "",
+            currency = savedStateHandle["movement.currency"] ?: "PEN",
+            selectedSourceAccountId = savedStateHandle["movement.sourceAccount"],
+            selectedSourceCardId = savedStateHandle["movement.sourceCard"],
+            selectedDestinationAccountId = savedStateHandle["movement.destinationAccount"],
+            selectedDestinationCardId = savedStateHandle["movement.destinationCard"],
+            selectedCategoryId = savedStateHandle["movement.category"],
+            merchantName = savedStateHandle["movement.merchant"] ?: "",
+            selectedMerchantId = savedStateHandle["movement.merchantId"],
+            merchantProvisionalText = savedStateHandle["movement.merchantProvisional"],
+            occurredAt = savedStateHandle["movement.occurredAt"] ?: System.currentTimeMillis(),
+            isDateManuallySelected = savedStateHandle["movement.manualDate"] ?: false,
+            note = savedStateHandle["movement.note"] ?: "",
+            isMoreDetailsExpanded = savedStateHandle["movement.moreDetails"] ?: false,
+            creditPurchaseDraft = draft,
+            creditPurchaseValidation = validateCreditPurchaseDraft(draft),
+        )
+    }
+
+    private fun persistForm(state: QuickMovementUiState) {
+        savedStateHandle["movement.type"] = state.type.name
+        savedStateHandle["movement.amount"] = state.amountText
+        savedStateHandle["movement.currency"] = state.currency
+        savedStateHandle["movement.sourceAccount"] = state.selectedSourceAccountId
+        savedStateHandle["movement.sourceCard"] = state.selectedSourceCardId
+        savedStateHandle["movement.destinationAccount"] = state.selectedDestinationAccountId
+        savedStateHandle["movement.destinationCard"] = state.selectedDestinationCardId
+        savedStateHandle["movement.category"] = state.selectedCategoryId
+        savedStateHandle["movement.merchant"] = state.merchantName
+        savedStateHandle["movement.merchantId"] = state.selectedMerchantId
+        savedStateHandle["movement.merchantProvisional"] = state.merchantProvisionalText
+        savedStateHandle["movement.occurredAt"] = state.occurredAt
+        savedStateHandle["movement.manualDate"] = state.isDateManuallySelected
+        savedStateHandle["movement.note"] = state.note
+        savedStateHandle["movement.moreDetails"] = state.isMoreDetailsExpanded
+    }
+
+    private fun restoreCreditPurchaseDraft() = CreditPurchaseDraft(
+        purchaseType = PurchaseType.entries.firstOrNull { it.name == savedStateHandle.get<String>("credit.purchaseType") } ?: PurchaseType.DIRECT,
+        financing = Financing.entries.firstOrNull { it.name == savedStateHandle.get<String>("credit.financing") } ?: Financing.INTEREST_FREE,
+        installmentsText = savedStateHandle["credit.installments"] ?: "3",
+        teaPercentText = savedStateHandle["credit.tea"] ?: "",
+        rateSource = PurchaseRateSource.entries.firstOrNull { it.name == savedStateHandle.get<String>("credit.rateSource") },
+        initializedCardId = savedStateHandle["credit.cardId"],
+    )
+
+    private fun persistCreditPurchaseDraft(draft: CreditPurchaseDraft) {
+        savedStateHandle["credit.purchaseType"] = draft.purchaseType.name
+        savedStateHandle["credit.financing"] = draft.financing.name
+        savedStateHandle["credit.installments"] = draft.installmentsText
+        savedStateHandle["credit.tea"] = draft.teaPercentText
+        savedStateHandle["credit.rateSource"] = draft.rateSource?.name
+        savedStateHandle["credit.cardId"] = draft.initializedCardId
     }
 
     fun onDestinationAccountSelected(accountId: String) {
@@ -720,7 +874,14 @@ class QuickMovementViewModel @Inject constructor(
         }
         _uiState.update { it.copy(isSaving = true, generalError = null) }
         if (state.selectedSourceCardId != null) {
-            executeCreditPurchase(state, amountMinor)
+            val validation = validateCreditPurchaseDraft(state.creditPurchaseDraft)
+            val terms = validation.terms
+            if (terms == null) {
+                _uiState.update { it.copy(isSaving = false, creditPurchaseValidation = validation,
+                    generalError = validation.installmentsError ?: validation.teaError) }
+                return
+            }
+            executeCreditPurchase(state, amountMinor, terms)
             return
         }
 
@@ -782,7 +943,7 @@ class QuickMovementViewModel @Inject constructor(
         executeRegister(command)
     }
 
-    private fun executeCreditPurchase(state: QuickMovementUiState, amountMinor: Long) {
+    private fun executeCreditPurchase(state: QuickMovementUiState, amountMinor: Long, terms: PurchaseTerms) {
         val cardId = state.selectedSourceCardId?.let(::CardId) ?: return
         val merchant = state.merchantProvisionalText
             ?: state.merchantName.takeIf(String::isNotBlank)
@@ -795,7 +956,8 @@ class QuickMovementViewModel @Inject constructor(
                 amount = Money(amountMinor, currency),
                 merchant = merchant,
                 effectiveAt = Instant.ofEpochMilli(state.occurredAt),
-                installments = 1,
+                installments = terms.installmentsCount,
+                terms = terms,
                 categoryId = requireNotNull(state.selectedCategoryId),
                 merchantId = state.selectedMerchantId,
                 note = state.note.takeIf(String::isNotBlank),
@@ -805,8 +967,8 @@ class QuickMovementViewModel @Inject constructor(
                     _events.send(QuickMovementUiEvent.TransactionSaved("Compra con tarjeta registrada y pendiente de sincronización"))
                     resetForm()
                 },
-                onFailure = { error ->
-                    _uiState.update { it.copy(isSaving = false, generalError = error.message ?: "No se pudo registrar la compra") }
+                onFailure = {
+                    _uiState.update { it.copy(isSaving = false, generalError = "No se pudo registrar la compra. Revisa la tarjeta, el monto y las condiciones e intenta de nuevo.") }
                 },
             )
         }

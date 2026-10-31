@@ -98,6 +98,8 @@ class AccountsViewModel @Inject constructor(
     private val observeCategories: ObserveCategories,
     private val sessionCoordinator: SessionCoordinator,
     private val entryPreloader: com.kipu.app.feature.accounts.data.DashboardEntryPreloader? = null,
+    private val observeCardInstallmentsUseCase: com.kipu.app.feature.accounts.domain.usecase.ObserveCardInstallments =
+        com.kipu.app.feature.accounts.domain.usecase.ObserveCardInstallments(financialInstrumentsRepository, java.time.Clock.systemUTC()),
 ) : ViewModel() {
 
     private val _isMasked = MutableStateFlow(false)
@@ -297,6 +299,9 @@ class AccountsViewModel @Inject constructor(
     fun toggleMasked() {
         _isMasked.value = !_isMasked.value
     }
+
+    fun observeCardInstallments(cardId: CardId): Flow<com.kipu.app.feature.accounts.domain.model.CardInstallmentsSummary> =
+        observeCardInstallmentsUseCase(cardId)
 
     fun observeCardMovements(cardId: CardId): Flow<List<CardMovementDisplay>> =
         financialInstrumentsRepository.observeMovementsByCard(cardId)

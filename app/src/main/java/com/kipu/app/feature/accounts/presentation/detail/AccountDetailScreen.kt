@@ -1,5 +1,8 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
+import com.kipu.app.feature.accounts.presentation.components.CardInstallmentsSection
+import com.kipu.app.feature.accounts.presentation.components.CardInstallmentsUiState
+import kotlinx.coroutines.flow.catch
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -92,6 +95,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -217,6 +221,15 @@ fun AccountDetailScreen(
         } ?: flowOf(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     val effectiveCardMovements = cardMovements ?: observedCardMovements
+    var cardInstallmentsRetry by rememberSaveable(instrumentId) { mutableStateOf(0) }
+    val cardInstallmentsState by remember(card?.id, cardInstallmentsRetry, viewModel) {
+        (card as? CreditCard)?.let { target ->
+            viewModel.observeCardInstallments(target.id)
+                .map { CardInstallmentsUiState(summary = it, isLoading = false) }
+                .catch { emit(CardInstallmentsUiState(isLoading = false, error = "No se pudieron cargar las cuotas. Intenta de nuevo.")) }
+        } ?: flowOf(CardInstallmentsUiState(isLoading = false))
+    }.collectAsStateWithLifecycle(initialValue = CardInstallmentsUiState())
+
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -302,6 +315,8 @@ fun AccountDetailScreen(
         creditCardSummary = creditCardSummary,
         creditNotifications = creditNotifications.filter { it.cardId == instrumentId },
         cardMovements = effectiveCardMovements,
+        cardInstallmentsState = cardInstallmentsState,
+        onRetryCardInstallments = { cardInstallmentsRetry++ },
         isLoading = instruments.isLoading,
         modifier = modifier,
         snackbarHostState = snackbarHostState,
@@ -890,6 +905,8 @@ fun AccountDetailContent(
     onNavigateToTransfer: ((Account) -> Unit)? = null,
     debitAccount: Account? = null,
     onNavigateToLinkedAccount: (String) -> Unit = {},
+    cardInstallmentsState: CardInstallmentsUiState = CardInstallmentsUiState(isLoading = false),
+    onRetryCardInstallments: () -> Unit = {},
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -1087,6 +1104,12 @@ fun AccountDetailContent(
                         onEditCreditTerms = onEditCreditCardTerms,
                         onArchiveClick = { showArchiveConfirmation = true },
                         onReactivateClick = { showReactivateConfirmation = true },
+                    )
+
+                    CardInstallmentsSection(
+                        cardId = card.id.value,
+                        state = cardInstallmentsState,
+                        onRetry = onRetryCardInstallments,
                     )
 
                     // R10 Movements Section
