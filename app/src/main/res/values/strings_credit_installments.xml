@@ -31,15 +31,14 @@
     <string name="credit_installment_due">Vence el %1$s</string>
     <string name="credit_installments_title">Cuotas</string>
     <string name="credit_installments_outstanding">Saldo pendiente total</string>
-    <string name="credit_installments_upcoming_total">Próximas a vencer · 7 días</string>
+    <string name="credit_installments_upcoming_total">Próximas · 7 días</string>
     <string name="credit_installments_overdue_total">Vencidas</string>
-    <string name="credit_installments_paid_total">Total pagado</string>
+    <string name="credit_installments_paid_total">Pagado</string>
     <string name="credit_installments_all">Todas</string>
     <string name="credit_installments_pending">Pendientes</string>
     <string name="credit_installments_upcoming">Próximas</string>
     <string name="credit_installments_overdue">Vencidas</string>
     <string name="credit_installments_paid">Pagadas</string>
-    <string name="credit_installments_group_by_status">Agrupar por estado</string>
     <string name="credit_installments_loading">Cargando cuotas…</string>
     <string name="credit_installments_empty">Todavía no hay compras con cuotas registradas en esta tarjeta.</string>
     <string name="credit_installments_filter_empty">No hay cuotas en este estado.</string>

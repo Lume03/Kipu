@@ -1,6 +1,20 @@
 package com.kipu.app.feature.accounts.presentation.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.EventNote
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,12 +82,12 @@ fun CreditPurchaseTermsSection(
     Surface(
         modifier = modifier.fillMaxWidth().testTag("credit_purchase_terms"),
         color = colors.surfaceCard,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, colors.borderSubtle),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.credit_purchase_terms_title), style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, color = colors.primaryText, modifier = Modifier.semantics { heading() })
+                fontWeight = FontWeight.ExtraBold, color = colors.primaryText, modifier = Modifier.semantics { heading() })
             KipuSegmentedControl(
                 options = PurchaseType.entries, selected = draft.purchaseType,
                 onSelect = { onDraftChanged(draft.copy(purchaseType = it)) },
@@ -94,7 +108,12 @@ fun CreditPurchaseTermsSection(
                         val label = stringResource(R.string.credit_purchase_count_option, count)
                         FilterChip(selected = draft.installmentsText == count.toString(),
                             onClick = { onDraftChanged(draft.copy(installmentsText = count.toString())) },
-                            label = { Text(label) }, enabled = enabled,
+                            label = { Text(label, fontWeight = FontWeight.SemiBold) }, enabled = enabled,
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = colors.surfaceCard, labelColor = colors.primaryText,
+                                selectedContainerColor = colors.primaryDeep, selectedLabelColor = colors.onPrimaryDeep,
+                            ),
                             modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = label })
                     }
                 }
@@ -145,46 +164,106 @@ fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier 
     val colors = rememberCalmEmeraldColors()
     val first = simulation.schedule.first()
     val last = simulation.schedule.last()
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val formatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))
     var expanded by rememberSaveable(simulation.cardId.value) { mutableStateOf(false) }
-    Column(modifier.fillMaxWidth().testTag("credit_purchase_preview"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth().testTag("credit_purchase_preview").animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         HorizontalDivider(color = colors.borderSubtle)
-        Text(stringResource(R.string.credit_purchase_preview_title), fontWeight = FontWeight.SemiBold, color = colors.primaryText)
-        CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_payment_amount), first.amount)
-        if (last.amount != first.amount) CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_last_payment), last.amount)
-        CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_interest_total), simulation.totalInterest)
-        CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_total), simulation.totalFinanced)
+        Text(stringResource(R.string.credit_purchase_preview_title).uppercase(), style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.ExtraBold, color = colors.primaryDeep)
+
+        // Hero: "6 × S/ 222.58"
+        Surface(shape = RoundedCornerShape(16.dp), color = colors.incomeBg, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.credit_purchase_payment_amount), style = MaterialTheme.typography.labelMedium, color = colors.secondaryMuted)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (simulation.installmentsCount > 1) Text("${simulation.installmentsCount} ×",
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
+                    MoneyText(first.amount, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = colors.primaryText)
+                }
+                if (last.amount != first.amount) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.credit_purchase_last_payment) + ":", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                    MoneyText(last.amount, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = colors.secondaryMuted)
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PreviewStat(stringResource(R.string.credit_purchase_interest_total), simulation.totalInterest, Modifier.weight(1f))
+            PreviewStat(stringResource(R.string.credit_purchase_total), simulation.totalFinanced, Modifier.weight(1f))
+        }
+
+        // Rate
         simulation.appliedTeaBps?.let { tea ->
             val source = stringResource(when (simulation.terms.rateSource) {
                 PurchaseRateSource.PERSONAL -> R.string.credit_purchase_rate_personal
                 PurchaseRateSource.REFERENCE -> R.string.credit_purchase_rate_reference
                 else -> R.string.credit_purchase_rate_user
             })
-            Text(stringResource(R.string.credit_purchase_applied_tea, BigDecimal.valueOf(tea.toLong(), 2).toPlainString()),
-                style = MaterialTheme.typography.bodySmall)
-            simulation.appliedTemPercentage?.let { tem ->
-                Text(stringResource(R.string.credit_purchase_applied_tem, String.format(Locale.forLanguageTag("es-PE"), "%.4f", tem)),
-                    style = MaterialTheme.typography.bodySmall)
-            }
+            val tem = simulation.appliedTemPercentage?.let {
+                " · " + stringResource(R.string.credit_purchase_applied_tem, String.format(Locale.forLanguageTag("es-PE"), "%.4f", it))
+            }.orEmpty()
+            Text(stringResource(R.string.credit_purchase_applied_tea, BigDecimal.valueOf(tea.toLong(), 2).toPlainString()) + tem,
+                style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = colors.primaryText)
             Text(source, style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
-            if (simulation.terms.rateSource == PurchaseRateSource.REFERENCE) Text(
-                stringResource(R.string.credit_purchase_reference_estimate), style = MaterialTheme.typography.bodySmall, color = colors.warningText)
+            if (simulation.terms.rateSource == PurchaseRateSource.REFERENCE) Surface(shape = RoundedCornerShape(10.dp), color = colors.warningBg) {
+                Text(stringResource(R.string.credit_purchase_reference_estimate), Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall, color = colors.warningText)
+            }
         } ?: Text(stringResource(R.string.credit_purchase_zero_rates), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
-        first.billingClosingDate?.let { Text(stringResource(R.string.credit_purchase_closing, it.format(formatter)), style = MaterialTheme.typography.bodySmall) }
-        Text(stringResource(R.string.credit_purchase_first_due, first.dueDate.format(formatter)), style = MaterialTheme.typography.bodySmall)
+
+        // Cycle timeline: closing -> first due
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            first.billingClosingDate?.let {
+                CyclePoint(stringResource(R.string.credit_purchase_closing, it.format(formatter)), Icons.Outlined.EventNote, Modifier.weight(1f))
+                Box(Modifier.width(20.dp).height(2.dp).background(colors.borderSubtle))
+            }
+            CyclePoint(stringResource(R.string.credit_purchase_first_due, first.dueDate.format(formatter)), Icons.Outlined.Event, Modifier.weight(1f))
+        }
         Text(stringResource(R.string.credit_purchase_cycle_validation), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+
         val scheduleState = stringResource(if (expanded) R.string.credit_purchase_schedule_expanded else R.string.credit_purchase_schedule_collapsed)
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .semantics { stateDescription = scheduleState }) {
-            Text(stringResource(if (expanded) R.string.credit_purchase_hide_schedule else R.string.credit_purchase_show_schedule))
+            Text(stringResource(if (expanded) R.string.credit_purchase_hide_schedule else R.string.credit_purchase_show_schedule),
+                color = colors.primaryDeep, fontWeight = FontWeight.Bold)
+            Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null, tint = colors.primaryDeep)
         }
-        if (expanded) simulation.schedule.forEach { item ->
-            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                CreditInstallmentAmountRow(stringResource(R.string.credit_installment_number, item.installmentNumber, simulation.installmentsCount), item.amount)
-                Text(stringResource(R.string.credit_installment_due, item.dueDate.format(formatter)), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+        if (expanded) Surface(shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, colors.borderSubtle), color = colors.surfaceCard) {
+            Column {
+                simulation.schedule.forEachIndexed { index, item ->
+                    if (index > 0) HorizontalDivider(color = colors.borderSubtle)
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${item.installmentNumber}/${simulation.installmentsCount}", Modifier.width(48.dp),
+                            style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = colors.primaryDeep)
+                        Text(item.dueDate.format(formatter), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = colors.secondaryMuted)
+                        MoneyText(item.amount, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = colors.primaryText)
+                    }
+                }
             }
         }
         Text(stringResource(R.string.credit_purchase_terms_confirmation), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+    }
+}
+
+@Composable
+private fun PreviewStat(label: String, amount: Money, modifier: Modifier) {
+    val colors = rememberCalmEmeraldColors()
+    Surface(shape = RoundedCornerShape(14.dp), color = colors.pillTrack, modifier = modifier) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = colors.secondaryMuted)
+            MoneyText(amount, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = colors.primaryText)
+        }
+    }
+}
+
+@Composable
+private fun CyclePoint(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
+    val colors = rememberCalmEmeraldColors()
+    Surface(shape = RoundedCornerShape(12.dp), color = colors.transferBg, modifier = modifier) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, contentDescription = null, tint = colors.transferBlue, modifier = Modifier.size(16.dp))
+            Text(text, style = MaterialTheme.typography.labelMedium, color = colors.primaryText)
+        }
     }
 }
 
