@@ -16,6 +16,7 @@ class SimulateInstallments @Inject constructor() {
         installmentsCount: Int = candidate.suggestedInstallments,
         acceptedReferenceTeaBps: Int? = null,
         zeroInterestPromotion: Boolean = false,
+        terms: com.kipu.app.feature.accounts.domain.model.PurchaseTerms? = null,
     ): InstallmentSimulation {
         require(candidate.cardId == card.id) { "Purchase candidate belongs to another card" }
         require(candidate.amount.currency == card.currency) { "Purchase currency does not match the card" }
@@ -32,17 +33,18 @@ class SimulateInstallments @Inject constructor() {
         val simulation = InstallmentCalculator.simulateForPurchase(
             cardId = card.id,
             principal = candidate.amount,
-            installmentsCount = installmentsCount,
+            installmentsCount = terms?.installmentsCount ?: installmentsCount,
             configuration = card.billingCycleConfiguration,
             operationDate = purchaseDateInPeru,
             processingDate = candidate.processedAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate(),
             teaBps = teaBps,
             rateSource = rateSource,
             candidateId = candidate.id,
+            terms = terms,
         )
-        return if (zeroInterestPromotion) {
+        return if (zeroInterestPromotion && terms == null) {
             simulation.copy(
-                disclaimer = "Vista previa basada en la promoción sin intereses que indicaste del comercio. Kipu no verifica la promoción; el registro de la compra conserva únicamente el principal.",
+                disclaimer = "Vista previa basada en la promoción sin intereses que indicaste del comercio. Al confirmar se guardan los términos sin interés indicados.",
             )
         } else simulation
     }

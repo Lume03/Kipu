@@ -5,6 +5,7 @@ data class DuePrincipalInstallment(
     val dueDateEpochDay: Long,
     val purchaseOccurredAtMillis: Long,
     val installmentNumber: Int,
+    /** Compatibility name: this amount includes unpaid principal and interest. */
     val outstandingPrincipalMinor: Long,
 )
 
@@ -14,11 +15,11 @@ data class PrincipalPaymentAllocation(
     val fullyPaid: Boolean,
 )
 
-/** Applies a payment to posted principal in strict due-date FIFO order. */
+/** Applies a payment to the outstanding installment total (principal + interest) in strict due-date FIFO order. */
 object CreditPaymentAllocator {
     fun allocate(paymentMinor: Long, installments: List<DuePrincipalInstallment>): List<PrincipalPaymentAllocation> {
         require(paymentMinor > 0L) { "Payment must be positive" }
-        require(installments.all { it.outstandingPrincipalMinor > 0L }) { "Outstanding principal must be positive" }
+        require(installments.all { it.outstandingPrincipalMinor > 0L }) { "Outstanding balance must be positive" }
         val ordered = installments.sortedWith(
             compareBy<DuePrincipalInstallment>(
                 { it.dueDateEpochDay },
@@ -28,7 +29,7 @@ object CreditPaymentAllocator {
             ),
         )
         val totalOutstanding = ordered.fold(0L) { sum, item -> Math.addExact(sum, item.outstandingPrincipalMinor) }
-        require(paymentMinor <= totalOutstanding) { "Payment exceeds outstanding principal" }
+        require(paymentMinor <= totalOutstanding) { "Payment exceeds outstanding balance" }
 
         var remaining = paymentMinor
         return ordered.mapNotNull { installment ->

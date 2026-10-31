@@ -5,6 +5,10 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.InstallmentScheduleItem
 import com.kipu.app.feature.accounts.domain.model.InstallmentSimulation
 import com.kipu.app.feature.accounts.domain.model.RateSource
+import com.kipu.app.feature.accounts.domain.model.PurchaseTerms
+import com.kipu.app.feature.accounts.domain.model.PurchaseType
+import com.kipu.app.feature.accounts.domain.model.Financing
+import com.kipu.app.feature.accounts.domain.model.PurchaseRateSource
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
@@ -22,6 +26,7 @@ object InstallmentCalculator {
         teaBps: Int? = null,
         rateSource: RateSource = if (teaBps != null && teaBps > 0) RateSource.PERSONAL_TEA else RateSource.NONE,
         candidateId: String? = null,
+        terms: PurchaseTerms? = null,
     ): InstallmentSimulation {
         val cycles = BillingCycleCalculator.installmentCycles(
             configuration, operationDate, installmentsCount, processingDate,
@@ -36,6 +41,7 @@ object InstallmentCalculator {
             rateSource = rateSource,
             candidateId = candidateId,
             billingCycles = cycles,
+            terms = terms,
         )
     }
 
@@ -53,6 +59,7 @@ object InstallmentCalculator {
         rateSource: RateSource = if (teaBps != null && teaBps > 0) RateSource.PERSONAL_TEA else RateSource.NONE,
         candidateId: String? = null,
         billingCycles: List<InstallmentBillingCycle>? = null,
+        terms: PurchaseTerms? = null,
     ): InstallmentSimulation {
         require(billingCycles == null || billingCycles.size == installmentsCount) { "Cycle count must match installments" }
         require(installmentsCount in 1..36) {
@@ -65,87 +72,44 @@ object InstallmentCalculator {
             "Due day must be between 1 and 31: $dueDay"
         }
 
-        val hasApplicableRate = teaBps != null && teaBps > 0 && installmentsCount > 1
-
-        val teaDecimal = if (hasApplicableRate) teaBps / 10_000.0 else 0.0
+        val resolvedTerms = terms ?: if (teaBps != null && teaBps > 0 && installmentsCount > 1) {
+            PurchaseTerms(
+                PurchaseType.INSTALLMENTS, Financing.WITH_INTEREST, installmentsCount, teaBps,
+                when (rateSource) {
+                    RateSource.PERSONAL_TEA -> PurchaseRateSource.PERSONAL
+                    RateSource.REFERENTIAL_CATALOG -> PurchaseRateSource.REFERENCE
+                    RateSource.NONE, RateSource.USER_ENTERED -> PurchaseRateSource.USER_ENTERED
+                },
+            )
+        } else PurchaseTerms.interestFree(installmentsCount)
+        require(resolvedTerms.installmentsCount == installmentsCount) { "Terms do not match the installment count" }
+        val hasApplicableRate = resolvedTerms.financing == Financing.WITH_INTEREST
+        val teaDecimal = (resolvedTerms.teaBps ?: 0) / 10_000.0
         val temDecimal = if (hasApplicableRate) (1.0 + teaDecimal).pow(1.0 / 12.0) - 1.0 else 0.0
         val n = installmentsCount.toDouble()
-        val exactPaymentMinor = if (hasApplicableRate) {
-            principal.minorUnits.toDouble() * temDecimal / (1.0 - (1.0 + temDecimal).pow(-n))
-        } else {
-            principal.minorUnits.toDouble() / n
-        }
-
-        require(exactPaymentMinor.isFinite() && exactPaymentMinor > 0.0) {
-            "Installment estimate is outside the supported range"
-        }
-
-        // Round the total once, then assign any indivisible minor-unit remainder to installment 1.
-        val totalFinancedMinor = roundMinorUnits(exactPaymentMinor * n)
-        val totalInterestMinor = Math.subtractExact(totalFinancedMinor, principal.minorUnits)
-        require(totalInterestMinor >= 0L) { "Estimated interest cannot be negative" }
-        // Keep the recurring installments at or below the theoretical amount so the
-        // whole rounding remainder is assigned to installment 1. This also handles
-        // amounts smaller than the installment count (for example S/ 0.01 over 36).
-        val regularInstallmentMinor = floorMinorUnits(exactPaymentMinor)
-        val regularInstallmentTotal = Math.multiplyExact(regularInstallmentMinor, (installmentsCount - 1).toLong())
-        val firstInstallmentMinor = Math.subtractExact(totalFinancedMinor, regularInstallmentTotal)
-        require(firstInstallmentMinor > 0L) { "Rounded first installment must remain positive" }
-
-        // The French method has a fixed theoretical payment and a declining interest share.
-        // Round each principal share to minor units, then reconcile the rounding residual in
-        // the first installment so the principal schedule remains exact.
-        val rawPrincipalPortions = if (hasApplicableRate) {
-            val remaining = principal.minorUnits.toDouble()
-            var outstanding = remaining
-            val portions = mutableListOf<Double>()
-            repeat(installmentsCount) { index ->
-                val principalPortion = if (index == installmentsCount - 1) {
-                    outstanding
-                } else {
-                    val interest = outstanding * temDecimal
-                    (exactPaymentMinor - interest).coerceIn(0.0, outstanding)
-                }
-                portions += principalPortion
-                outstanding = (outstanding - principalPortion).coerceAtLeast(0.0)
-            }
-            portions
-        } else {
-            val basePrincipal = principal.minorUnits / installmentsCount
-            val principalRemainder = (principal.minorUnits % installmentsCount).toInt()
-            (0 until installmentsCount).map { index ->
-                (basePrincipal + if (index == 0) principalRemainder.toLong() else 0L).toDouble()
-            }
-        }
-
-        val roundedPrincipalPortions = rawPrincipalPortions.map(::roundMinorUnits).toMutableList()
-        val roundedPrincipalTotal = roundedPrincipalPortions.fold(0L, Math::addExact)
-        val principalResidual = Math.subtractExact(principal.minorUnits, roundedPrincipalTotal)
-        roundedPrincipalPortions[0] = Math.addExact(roundedPrincipalPortions[0], principalResidual)
-
+        val regularPayment = if (hasApplicableRate) {
+            roundMinorUnits(principal.minorUnits * temDecimal / (1.0 - (1.0 + temDecimal).pow(-n)))
+        } else principal.minorUnits / installmentsCount
+        var outstanding = principal.minorUnits
         val schedule = (0 until installmentsCount).map { index ->
-            val installmentNum = index + 1
-            val itemAmountMinor = if (index == 0) firstInstallmentMinor else regularInstallmentMinor
-            val itemPrincipalMinor = roundedPrincipalPortions[index]
-            val itemInterestMinor = Math.subtractExact(itemAmountMinor, itemPrincipalMinor)
-            require(itemPrincipalMinor >= 0L && itemInterestMinor >= 0L) {
-                "Rounded French schedule produced a negative installment component"
-            }
-
-            val effectiveDate = billingCycles?.get(index)?.dueDate
-                ?: BillingCycleCalculator.installmentDueDate(firstDueDate, dueDay, index)
-
+            val interest = if (hasApplicableRate) roundMinorUnits(outstanding * temDecimal) else 0L
+            val principalPortion = if (index == installmentsCount - 1) outstanding else
+                (regularPayment - interest).coerceIn(0L, outstanding)
+            outstanding = Math.subtractExact(outstanding, principalPortion)
             InstallmentScheduleItem(
-                installmentNumber = installmentNum,
-                dueDate = effectiveDate,
-                amount = Money(itemAmountMinor, principal.currency),
-                principalPortion = Money(itemPrincipalMinor, principal.currency),
-                interestPortion = Money(itemInterestMinor, principal.currency),
+                installmentNumber = index + 1,
+                dueDate = billingCycles?.get(index)?.dueDate
+                    ?: BillingCycleCalculator.installmentDueDate(firstDueDate, dueDay, index),
+                amount = Money(Math.addExact(principalPortion, interest), principal.currency),
+                principalPortion = Money(principalPortion, principal.currency),
+                interestPortion = Money(interest, principal.currency),
+                billingClosingDate = billingCycles?.get(index)?.cycle?.closingDate,
             )
         }
-
+        val totalInterestMinor = schedule.fold(0L) { sum, item -> Math.addExact(sum, item.interestPortion.minorUnits) }
+        val totalFinancedMinor = Math.addExact(principal.minorUnits, totalInterestMinor)
+        check(outstanding == 0L)
         check(schedule.sumOf { it.principalPortion.minorUnits } == principal.minorUnits)
-        check(schedule.sumOf { it.interestPortion.minorUnits } == totalInterestMinor)
         check(schedule.sumOf { it.amount.minorUnits } == totalFinancedMinor)
 
         val totalFinanced = Money(totalFinancedMinor, principal.currency)
@@ -162,13 +126,19 @@ object InstallmentCalculator {
             cardId = cardId,
             principal = principal,
             installmentsCount = installmentsCount,
-            rateSource = rateSource,
-            appliedTeaBps = if (hasApplicableRate) teaBps else null,
+            rateSource = when (resolvedTerms.rateSource) {
+                PurchaseRateSource.PERSONAL -> RateSource.PERSONAL_TEA
+                PurchaseRateSource.REFERENCE -> RateSource.REFERENTIAL_CATALOG
+                PurchaseRateSource.USER_ENTERED -> RateSource.USER_ENTERED
+                null -> RateSource.NONE
+            },
+            appliedTeaBps = resolvedTerms.teaBps,
             appliedTemPercentage = if (hasApplicableRate) temDecimal * 100.0 else null,
             totalInterest = totalInterest,
             totalFinanced = totalFinanced,
             schedule = schedule,
             disclaimer = disclaimer,
+            terms = resolvedTerms,
         )
     }
 
@@ -177,8 +147,4 @@ object InstallmentCalculator {
         return BigDecimal.valueOf(value).setScale(0, RoundingMode.HALF_UP).longValueExact()
     }
 
-    private fun floorMinorUnits(value: Double): Long {
-        require(value.isFinite() && value >= 0.0) { "Installment component is outside the supported range" }
-        return BigDecimal.valueOf(value).setScale(0, RoundingMode.DOWN).longValueExact()
-    }
 }

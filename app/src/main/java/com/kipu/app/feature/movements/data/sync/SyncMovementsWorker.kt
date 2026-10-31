@@ -675,18 +675,8 @@ class SyncMovementsWorker @AssistedInject constructor(
         if (current.isEmpty()) {
             val rows = remote.installments.map { installment ->
                 if (installment.id.isBlank() || installment.principalMinor < 0L || installment.interestMinor < 0L) return false
-                CreditInstallmentEntity(
-                    id = installment.id,
-                    userId = userId,
-                    transactionId = remote.id,
-                    installmentNumber = installment.installmentNumber,
-                    dueDate = LocalDate.parse(installment.dueDate).toEpochDay(),
-                    principalMinor = installment.principalMinor,
-                    interestMinor = installment.interestMinor,
-                    status = "PENDING",
-                    revision = 1L,
-                    createdAt = occurredAt,
-                    updatedAt = now,
+                com.kipu.app.feature.accounts.data.remote.toLocalInstallment(
+                    installment, userId, remote.id, count, occurredAt, now,
                 )
             }
             creditDao.insertPulledInstallments(rows)
@@ -699,7 +689,7 @@ class SyncMovementsWorker @AssistedInject constructor(
             val allocated = creditDao.getAllocatedMinorForInstallment(userId, local.id)
             val status = when {
                 allocated == 0L -> "PENDING"
-                allocated >= installment.principalMinor -> "PAID"
+                allocated >= Math.addExact(local.principalMinor, local.interestMinor) -> "PAID"
                 else -> "PARTIAL"
             }
             val updated = creditDao.adoptRemoteInstallmentId(
@@ -707,15 +697,16 @@ class SyncMovementsWorker @AssistedInject constructor(
                 transactionId = remote.id,
                 installmentNumber = installment.installmentNumber,
                 remoteId = installment.id,
-                dueDate = LocalDate.parse(installment.dueDate).toEpochDay(),
-                principalMinor = installment.principalMinor,
-                interestMinor = installment.interestMinor,
+                dueDate = local.dueDate,
+                principalMinor = local.principalMinor,
+                interestMinor = local.interestMinor,
                 status = status,
                 revision = local.revision,
                 updatedAt = now,
             )
             if (updated != 1) return false
         }
+        creditDao.refreshInstallmentStatuses(userId)
         return true
     }
 
@@ -747,11 +738,12 @@ class SyncMovementsWorker @AssistedInject constructor(
             creditDao.updateInstallmentStatus(
                 userId = userId,
                 installmentId = installment.id,
-                status = if (totalAllocated >= installment.principalMinor) "PAID" else "PARTIAL",
+                status = if (totalAllocated >= Math.addExact(installment.principalMinor, installment.interestMinor)) "PAID" else "PARTIAL",
                 revision = installment.revision + 1L,
                 updatedAt = occurredAt,
             )
         }
+        creditDao.refreshInstallmentStatuses(userId)
         return true
     }
 

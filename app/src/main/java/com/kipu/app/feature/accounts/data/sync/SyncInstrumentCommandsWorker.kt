@@ -492,24 +492,31 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         val localInstallments = database.creditDao().getInstallmentsForTransaction(userId, request.transaction.id)
         if (localInstallments.size != count) return@ownerTransaction false
         val localByNumber = localInstallments.associateBy { it.installmentNumber }
+        if (remoteInstallments.any { remote ->
+                val local = localByNumber[remote.installmentNumber]
+                local == null || remote.id.isBlank() || remote.principalMinor < 0L || remote.interestMinor < 0L ||
+                    java.time.LocalDate.parse(remote.dueDate).toEpochDay() != local.dueDate ||
+                    remote.principalMinor != local.principalMinor || remote.interestMinor != local.interestMinor
+            }) return@ownerTransaction false // Retry after migration, without partially adopting an incompatible plan.
         val now = System.currentTimeMillis() * 1_000L
         for (remote in remoteInstallments) {
-            if (remote.id.isBlank() || remote.principalMinor < 0L || remote.interestMinor < 0L) return@ownerTransaction false
-            if (localByNumber[remote.installmentNumber] == null) return@ownerTransaction false
+            val local = requireNotNull(localByNumber[remote.installmentNumber])
             val updated = database.creditDao().adoptRemoteInstallmentId(
                 userId = userId,
                 transactionId = request.transaction.id,
                 installmentNumber = remote.installmentNumber,
                 remoteId = remote.id,
-                dueDate = java.time.LocalDate.parse(remote.dueDate).toEpochDay(),
-                principalMinor = remote.principalMinor,
-                interestMinor = remote.interestMinor,
-                status = "PENDING",
+                // Confirmed local terms are immutable, including while the backend is still on the old contract.
+                dueDate = local.dueDate,
+                principalMinor = local.principalMinor,
+                interestMinor = local.interestMinor,
+                status = local.status,
                 revision = 1L,
                 updatedAt = now,
             )
             if (updated != 1) return@ownerTransaction false
         }
+        database.creditDao().refreshInstallmentStatuses(userId)
         true
     }
 
@@ -675,7 +682,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         val allocated = creditDao.getAllocatedMinorForInstallment(cmd.userId, installmentId)
                         val status = when {
                             allocated == 0L -> "PENDING"
-                            allocated >= installment.principalMinor -> "PAID"
+                            allocated >= Math.addExact(installment.principalMinor, installment.interestMinor) -> "PAID"
                             else -> "PARTIAL"
                         }
                         if (status != installment.status) {
@@ -689,6 +696,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         }
                     }
                 }
+
+                creditDao.refreshInstallmentStatuses(cmd.userId)
 
                 (priorEffects + reversals).groupBy { it.accountId }.forEach { (accountId, entries) ->
                     database.financialMovementDao().rebuildAccountProjection(cmd.userId, accountId, nowMillis)

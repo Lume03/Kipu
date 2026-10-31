@@ -10,6 +10,9 @@ import com.kipu.app.core.finance.domain.model.OperationId
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.Card
+import com.kipu.app.feature.accounts.domain.model.PurchaseTerms
+import com.kipu.app.feature.accounts.domain.model.Financing
+import com.kipu.app.feature.accounts.domain.model.CardInstallment
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
@@ -71,6 +74,24 @@ interface FinancialInstrumentsRepository {
         merchantId: String? = null,
         note: String? = null,
     ): Result<Unit>
+
+    suspend fun confirmCreditPurchaseWithTerms(
+        cardId: CardId,
+        amount: Money,
+        merchant: String,
+        effectiveAt: Instant,
+        terms: PurchaseTerms,
+        operationId: OperationId = OperationId.generate(),
+        categoryId: String,
+        merchantId: String? = null,
+        note: String? = null,
+        processedAt: Instant? = null,
+    ): Result<Unit> = if (terms.financing == Financing.INTEREST_FREE) {
+        confirmCreditPurchase(cardId, amount, merchant, effectiveAt, terms.installmentsCount, operationId, categoryId, merchantId, note)
+    } else Result.failure(UnsupportedOperationException("Financed purchases are unavailable"))
+
+    fun observeCardInstallments(cardId: CardId): Flow<List<CardInstallment>> = flowOf(emptyList())
+    fun observeUpcomingCardInstallments(userId: String): Flow<List<CardInstallment>> = flowOf(emptyList())
 
     // Shared lifecycle
     suspend fun archiveInstrument(instrumentId: String, isCard: Boolean, operationId: OperationId): Result<Unit>

@@ -773,18 +773,20 @@ fun AccountDetailScreen(
                         card = creditCard,
                         teaBps = null,
                         availableCredit = creditCardSummary?.availableCredit,
-                        onConfirmPurchase = { installments ->
+                        onConfirmPurchase = { terms ->
                             if (!isSubmitting) {
                                 isSubmitting = true
                                 purchasePending = true
-                                lastConfirmedPurchase = candidate.copy(suggestedInstallments = installments)
+                                lastConfirmedPurchase = candidate.copy(suggestedInstallments = terms.installmentsCount)
                                 purchaseAvailableBefore = creditCardSummary?.availableCredit?.minorUnits
                                 viewModel.confirmCreditPurchase(
                                     cardId = creditCard.id,
                                     amount = candidate.amount,
                                     merchant = candidate.merchant,
                                     effectiveAt = candidate.occurredAt,
-                                    installments = installments,
+                                    installments = terms.installmentsCount,
+                                    terms = terms,
+                                    processedAt = candidate.processedAt,
                                     categoryId = requireNotNull(candidate.categoryId),
                                 )
                                 purchaseCandidate = null

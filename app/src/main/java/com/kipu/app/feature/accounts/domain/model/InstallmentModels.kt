@@ -14,7 +14,46 @@ enum class CandidateStatus {
 enum class RateSource {
     PERSONAL_TEA,
     REFERENTIAL_CATALOG,
+    USER_ENTERED,
     NONE
+}
+
+enum class PurchaseType { DIRECT, INSTALLMENTS }
+enum class Financing { WITH_INTEREST, INTEREST_FREE }
+enum class PurchaseRateSource { PERSONAL, REFERENCE, USER_ENTERED }
+
+/** Interest uses HALF_UP cents, with any amortization remainder in the final payment. */
+enum class RoundingPolicy { LAST_INSTALLMENT_RESIDUAL }
+
+/** Immutable terms approved for one purchase; subsequent card edits never change them. */
+data class PurchaseTerms(
+    val purchaseType: PurchaseType,
+    val financing: Financing,
+    val installmentsCount: Int,
+    val teaBps: Int? = null,
+    val rateSource: PurchaseRateSource? = null,
+    val roundingPolicy: RoundingPolicy = RoundingPolicy.LAST_INSTALLMENT_RESIDUAL,
+) {
+    init {
+        require(installmentsCount in 1..36) { "Installments count must be between 1 and 36" }
+        require(purchaseType != PurchaseType.DIRECT ||
+            (installmentsCount == 1 && financing == Financing.INTEREST_FREE)) { "Direct purchases require one interest-free payment" }
+        require(financing != Financing.INTEREST_FREE || (teaBps == null && rateSource == null)) {
+            "Interest-free purchases cannot carry a rate"
+        }
+        require(financing != Financing.WITH_INTEREST ||
+            (purchaseType == PurchaseType.INSTALLMENTS && teaBps != null && teaBps in 1..100_000 && rateSource != null)) {
+            "Financed purchases require a positive TEA up to 1000% and its source"
+        }
+    }
+
+    companion object {
+        fun interestFree(installmentsCount: Int = 1) = PurchaseTerms(
+            if (installmentsCount == 1) PurchaseType.DIRECT else PurchaseType.INSTALLMENTS,
+            Financing.INTEREST_FREE,
+            installmentsCount,
+        )
+    }
 }
 
 data class PurchaseCandidate(
@@ -41,6 +80,7 @@ data class InstallmentScheduleItem(
     val amount: Money,
     val principalPortion: Money,
     val interestPortion: Money,
+    val billingClosingDate: LocalDate? = null,
 ) {
     init {
         require(installmentNumber >= 1) { "Installment number must be >= 1: $installmentNumber" }
@@ -63,6 +103,7 @@ data class InstallmentSimulation(
     val totalFinanced: Money,
     val schedule: List<InstallmentScheduleItem>,
     val disclaimer: String,
+    val terms: PurchaseTerms = PurchaseTerms.interestFree(installmentsCount),
 ) {
     init {
         require(installmentsCount in 1..36) { "Installments count must be between 1 and 36: $installmentsCount" }
@@ -78,7 +119,7 @@ data class InstallmentSimulation(
 
     companion object {
         const val DISCLAIMER_WITH_RATE =
-            "Simulación informativa con tasa referencial o personal. No incluye seguro de desgravamen ni comisiones del emisor. Los intereses estimados no constituyen deuda real hasta su facturación contractual."
+            "Simulación informativa con tasa referencial o personal. No incluye seguro de desgravamen ni comisiones del emisor. Al confirmar, los términos aceptados se guardan como obligación en el cronograma."
 
         const val DISCLAIMER_WITHOUT_RATE =
             "Distribución referencial sin intereses. Para estimar el costo financiero, configure la TEA de su tarjeta en el catálogo o ingrese su tasa contractual."

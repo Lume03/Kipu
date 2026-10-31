@@ -112,7 +112,7 @@ class CreditAccessibilitySemanticsTest {
                 InstallmentSimulatorScreen(
                     candidate = candidate,
                     card = card,
-                    onConfirmPurchase = { confirmedInstallments = it },
+                    onConfirmPurchase = { confirmedInstallments = it.installmentsCount },
                     onRejectPurchase = { rejected = true },
                 )
             }

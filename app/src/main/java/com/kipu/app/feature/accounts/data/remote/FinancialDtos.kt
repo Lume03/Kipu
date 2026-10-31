@@ -131,6 +131,7 @@ data class CommandResponseDto(
     @SerialName("error") val error: String? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CreditTransactionCommandDto(
     @SerialName("id") val id: String,
@@ -147,6 +148,18 @@ data class CreditTransactionCommandDto(
     @SerialName("card_id") val cardId: String? = null,
     @SerialName("operation_kind") val operationKind: String? = null,
     @SerialName("installment_count") val installmentCount: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("purchase_type") val purchaseType: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("financing") val financing: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("tea_bps") val teaBps: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("rate_source") val rateSource: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("rounding_policy") val roundingPolicy: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("processed_at") val processedAt: String? = null,
 )
 
 @Serializable
@@ -190,6 +203,13 @@ data class CreditInstallmentResponseDto(
     @SerialName("due_date") val dueDate: String,
     @SerialName("principal_minor") val principalMinor: Long,
     @SerialName("interest_minor") val interestMinor: Long = 0L,
+    @SerialName("billing_closing_date") val billingClosingDate: String? = null,
+    @SerialName("purchase_type") val purchaseType: String? = null,
+    @SerialName("financing") val financing: String? = null,
+    @SerialName("installments_count") val installmentsCount: Int? = null,
+    @SerialName("tea_bps") val teaBps: Int? = null,
+    @SerialName("rate_source") val rateSource: String? = null,
+    @SerialName("rounding_policy") val roundingPolicy: String? = null,
 )
 
 @Serializable

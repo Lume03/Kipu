@@ -1398,6 +1398,75 @@ val MIGRATION_30_31 = object : Migration(30, 31) {
     }
 }
 
+/** Snapshot purchase terms on existing installments; legacy purchases remain interest-free. */
+val MIGRATION_31_32 = object : Migration(31, 32) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN purchase_type TEXT NOT NULL DEFAULT 'DIRECT'")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN financing TEXT NOT NULL DEFAULT 'INTEREST_FREE'")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN installments_count INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN tea_bps INTEGER")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN rate_source TEXT")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN rounding_policy TEXT NOT NULL DEFAULT 'LAST_INSTALLMENT_RESIDUAL'")
+        db.execSQL("ALTER TABLE credit_installments ADD COLUMN billing_closing_date INTEGER")
+        db.execSQL("""UPDATE credit_installments SET installments_count = MAX(1,
+            COALESCE((SELECT t.installment_count FROM transactions t WHERE t.user_id = credit_installments.user_id
+                AND t.id = credit_installments.transaction_id), 1),
+            COALESCE((SELECT MAX(other.installment_number) FROM credit_installments other
+                WHERE other.user_id = credit_installments.user_id AND other.transaction_id = credit_installments.transaction_id), 1))""")
+        db.execSQL("UPDATE credit_installments SET purchase_type = CASE WHEN installments_count = 1 THEN 'DIRECT' ELSE 'INSTALLMENTS' END")
+        db.query("""SELECT i.user_id, i.id, i.installment_number, t.occurred_at,
+            c.billing_day, c.due_day, c.closing_day_inclusive, c.cycle_date_basis
+            FROM credit_installments i JOIN transactions t ON t.user_id = i.user_id AND t.id = i.transaction_id
+            JOIN cards c ON c.user_id = t.user_id AND c.id = t.card_id
+            WHERE c.billing_day BETWEEN 1 AND 31 AND c.due_day BETWEEN 1 AND 31""").use { rows ->
+            while (rows.moveToNext()) {
+                val config = com.kipu.app.core.finance.domain.BillingCycleConfiguration(
+                    rows.getInt(4), rows.getInt(5), rows.getInt(6) != 0,
+                    com.kipu.app.core.finance.domain.CycleDateBasis.fromValue(rows.getString(7)),
+                )
+                val date = java.time.Instant.ofEpochMilli(rows.getLong(3)).atZone(java.time.ZoneId.of("America/Lima")).toLocalDate()
+                val first = com.kipu.app.core.finance.domain.BillingCycleCalculator.cycleForPurchase(config, date)
+                val closing = com.kipu.app.core.finance.domain.BillingCycleCalculator.nextCycle(config, first, rows.getInt(2) - 1).closingDate
+                db.execSQL("UPDATE credit_installments SET billing_closing_date = ? WHERE user_id = ? AND id = ?",
+                    arrayOf(closing.toEpochDay(), rows.getString(0), rows.getString(1)))
+            }
+        }
+        // Cascade remote identity adoption even if a payment was made while the purchase was offline.
+        db.execSQL("""CREATE TABLE credit_payment_allocations_v32 (
+            id TEXT NOT NULL, user_id TEXT NOT NULL, payment_transaction_id TEXT NOT NULL,
+            installment_id TEXT NOT NULL, allocated_minor INTEGER NOT NULL, created_at INTEGER NOT NULL,
+            PRIMARY KEY(user_id, id),
+            FOREIGN KEY(user_id, payment_transaction_id) REFERENCES transactions(user_id, id) ON UPDATE NO ACTION ON DELETE CASCADE,
+            FOREIGN KEY(user_id, installment_id) REFERENCES credit_installments(user_id, id) ON UPDATE CASCADE ON DELETE CASCADE)""")
+        db.execSQL("INSERT INTO credit_payment_allocations_v32 SELECT * FROM credit_payment_allocations")
+        db.execSQL("DROP TABLE credit_payment_allocations")
+        db.execSQL("ALTER TABLE credit_payment_allocations_v32 RENAME TO credit_payment_allocations")
+        db.execSQL("CREATE INDEX index_credit_payment_allocations_user_id_payment_transaction_id ON credit_payment_allocations(user_id, payment_transaction_id)")
+        db.execSQL("CREATE INDEX index_credit_payment_allocations_user_id_installment_id ON credit_payment_allocations(user_id, installment_id)")
+        ensureCreditInstallmentStatusGuards(db)
+        db.execSQL(com.kipu.app.feature.accounts.data.local.REFRESH_CREDIT_INSTALLMENT_STATUSES_SQL.replace("WHERE user_id = :userId AND", "WHERE 1 = 1 AND"))
+    }
+}
+
+/** Status is an allocation projection, including payment/refund voids made outside card screens. */
+fun ensureCreditInstallmentStatusGuards(db: SupportSQLiteDatabase) {
+    val refresh = com.kipu.app.feature.accounts.data.local.REFRESH_CREDIT_INSTALLMENT_STATUSES_SQL
+    for ((table, columns) in listOf(
+        "credit_payment_allocations" to "UPDATE",
+        "transactions" to "UPDATE OF status, sync_status",
+        "transaction_links" to "UPDATE",
+        "credit_installments" to "UPDATE OF principal_minor, interest_minor, deleted_at",
+    )) {
+        val operations = if (table == "transactions") listOf(columns) else listOf("INSERT", columns, "DELETE")
+        for (operation in operations) {
+            val reference = if (operation == "DELETE") "OLD" else "NEW"
+            val trigger = "credit_installment_status_${table}_${operation.substringBefore(' ').lowercase()}"
+            db.execSQL("CREATE TRIGGER IF NOT EXISTS $trigger AFTER $operation ON $table BEGIN " +
+                refresh.replace(":userId", "$reference.user_id") + "; END")
+        }
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {
@@ -1417,5 +1486,8 @@ fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
 }
 
 class MovementSchemaCallback : androidx.room.RoomDatabase.Callback() {
-    override fun onCreate(db: SupportSQLiteDatabase) { ensureMovementEvidenceGuards(db) }
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        ensureMovementEvidenceGuards(db)
+        ensureCreditInstallmentStatusGuards(db)
+    }
 }

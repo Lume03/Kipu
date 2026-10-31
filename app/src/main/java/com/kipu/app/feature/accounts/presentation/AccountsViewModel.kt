@@ -226,6 +226,8 @@ class AccountsViewModel @Inject constructor(
         effectiveAt: Instant,
         installments: Int,
         categoryId: String,
+        terms: com.kipu.app.feature.accounts.domain.model.PurchaseTerms? = null,
+        processedAt: Instant? = null,
     ) {
         viewModelScope.launch {
             confirmCreditPurchaseUseCase(
@@ -235,6 +237,8 @@ class AccountsViewModel @Inject constructor(
                 effectiveAt = effectiveAt,
                 installments = installments,
                 categoryId = categoryId,
+                terms = terms ?: com.kipu.app.feature.accounts.domain.model.PurchaseTerms.interestFree(installments),
+                processedAt = processedAt,
             ).fold(
                 onSuccess = { _eventChannel.send(AccountUiEvent.ShowMessage("Compra registrada; pendiente de sincronización")) },
                 onFailure = { _eventChannel.send(AccountUiEvent.Error(it.message ?: "No se pudo confirmar la compra")) },

@@ -72,14 +72,7 @@ internal data class SyncTransactionPayload(
     val allocations: List<SyncAllocationPayload> = emptyList(),
 )
 
-@Serializable
-internal data class SyncInstallmentPayload(
-    val id: String,
-    @SerialName("installment_number") val installmentNumber: Int,
-    @SerialName("due_date") val dueDate: String,
-    @SerialName("principal_minor") val principalMinor: Long,
-    @SerialName("interest_minor") val interestMinor: Long = 0L,
-)
+internal typealias SyncInstallmentPayload = com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto
 
 @Serializable
 internal data class SyncAllocationPayload(

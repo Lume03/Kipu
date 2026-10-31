@@ -71,7 +71,7 @@ fun InstallmentSimulatorScreen(
     card: CreditCard,
     teaBps: Int? = null,
     availableCredit: Money? = null,
-    onConfirmPurchase: (installments: Int) -> Unit,
+    onConfirmPurchase: (terms: com.kipu.app.feature.accounts.domain.model.PurchaseTerms) -> Unit,
     onRejectPurchase: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -449,7 +449,7 @@ fun InstallmentSimulatorScreen(
                     Text("Rechazar", fontWeight = FontWeight.Medium)
                 }
                 Button(
-                    onClick = { onConfirmPurchase(selectedInstallments) },
+                    onClick = { onConfirmPurchase(simulation.terms) },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
                     modifier = Modifier

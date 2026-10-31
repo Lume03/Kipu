@@ -48,6 +48,8 @@ import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card
+import com.kipu.app.feature.accounts.domain.model.PurchaseTerms
+import com.kipu.app.feature.accounts.domain.model.CardInstallment
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
@@ -1025,10 +1027,6 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val currentDebt = outstandingInstallments.fold(0L) { sum, item ->
                     Math.addExact(sum, item.outstandingMinor)
                 }
-                val ledgerDebt = creditDao.getLedgerOutstandingPrincipalForCard(userId, cardId.value)
-                require(ledgerDebt >= 0L && ledgerDebt == currentDebt) {
-                    "Credit liability ledger does not match the installment schedule"
-                }
                 require(currentDebt >= paymentAmount.minorUnits) { "Payment amount exceeds current card debt" }
 
                 val command = CreditCommandRequestDto(
@@ -1126,6 +1124,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 }
                 creditDao.insertAllocations(allocations)
+                creditDao.refreshInstallmentStatuses(userId)
 
                 movementDao.insertOrUpdateReceipt(
                     com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity(
@@ -1172,7 +1171,24 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         categoryId: String,
         merchantId: String?,
         note: String?,
+    ): Result<Unit> = confirmCreditPurchaseWithTerms(
+        cardId, amount, merchant, effectiveAt, PurchaseTerms.interestFree(installments),
+        operationId, categoryId, merchantId, note,
+    )
+
+    override suspend fun confirmCreditPurchaseWithTerms(
+        cardId: CardId,
+        amount: Money,
+        merchant: String,
+        effectiveAt: Instant,
+        terms: PurchaseTerms,
+        operationId: OperationId,
+        categoryId: String,
+        merchantId: String?,
+        note: String?,
+        processedAt: Instant?,
     ): Result<Unit> {
+        val installments = terms.installmentsCount
         val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
         val nowMicros = System.currentTimeMillis() * 1000L
         val nowMillis = System.currentTimeMillis()
@@ -1190,6 +1206,12 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             cardId = cardId.value,
             operationKind = "CARD_PURCHASE",
             installmentCount = installments,
+            purchaseType = terms.purchaseType.name,
+            financing = terms.financing.name,
+            teaBps = terms.teaBps,
+            rateSource = terms.rateSource?.name,
+            roundingPolicy = terms.roundingPolicy.name,
+            processedAt = processedAt?.toString(),
         )
         // A local collision check over a typed JSON command. PostgreSQL independently
         // computes the authoritative receipt hash from its canonical JSONB value.
@@ -1247,13 +1269,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 require(category.categoryType != "INCOME") { "Purchase category must classify an expense" }
                 require(!isPlanLockedCategory(userId, category)) { "Purchase category is locked by the Free plan selection" }
                 val creditDao = database.creditDao()
-                val currentDebt = creditDao.getLedgerOutstandingPrincipalForCard(userId, cardId.value)
-                val scheduledDebt = creditDao.getOutstandingInstallmentsForCard(userId, cardId.value)
-                    .fold(0L) { sum, item -> Math.addExact(sum, item.outstandingMinor) }
-                require(currentDebt == scheduledDebt) {
-                    "Credit liability ledger does not match the installment schedule"
-                }
-                Math.addExact(currentDebt, amount.minorUnits) // Fail before writes if the outstanding balance would overflow.
+                val currentDebt = creditDao.getOutstandingBalanceForCard(userId, cardId.value)
                 val creditLimit = requireNotNull(card.creditLimitMinorUnits) {
                     "Credit card limit is not configured"
                 }
@@ -1273,8 +1289,11 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         cycleDateBasis = CycleDateBasis.fromValue(card.cycleDateBasis),
                     ),
                     operationDate = peruDate,
-                    teaBps = null,
+                    processingDate = processedAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate(),
+                    terms = terms,
                 )
+                // Validate the aggregate obligation before any financial write, including interest.
+                Money(Math.addExact(currentDebt, principalSchedule.totalFinanced.minorUnits), amount.currency)
 
                 val command = CreditCommandRequestDto(
                     idempotencyKey = operationId.value,
@@ -1351,7 +1370,14 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                             installmentNumber = installment.installmentNumber,
                             dueDate = installment.dueDate.toEpochDay(),
                             principalMinor = installment.principalPortion.minorUnits,
-                            interestMinor = 0L,
+                            interestMinor = installment.interestPortion.minorUnits,
+                            billingClosingDate = installment.billingClosingDate?.toEpochDay(),
+                            purchaseType = terms.purchaseType.name,
+                            financing = terms.financing.name,
+                            installmentsCount = terms.installmentsCount,
+                            teaBps = terms.teaBps,
+                            rateSource = terms.rateSource?.name,
+                            roundingPolicy = terms.roundingPolicy.name,
                             status = "PENDING",
                             revision = 1L,
                             createdAt = nowMillis,
@@ -1743,13 +1769,52 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         planQuotaSyncScheduler?.scheduleSync(userId)
     }
 
+    override fun observeCardInstallments(cardId: CardId): Flow<List<CardInstallment>> =
+        sessionCoordinator.localAccess.flatMapLatest { access ->
+            if (access is LocalAccess.Available) {
+                database.creditDao().observeInstallmentBalancesForCard(access.userId, cardId.value)
+                    .map { rows -> rows.map { it.toDomainInstallment() } }
+            } else flowOf(emptyList())
+        }
+
+    override fun observeUpcomingCardInstallments(userId: String): Flow<List<CardInstallment>> =
+        sessionCoordinator.localAccess.flatMapLatest { access ->
+            if (access is LocalAccess.Available && access.userId == userId) {
+                database.creditDao().observeInstallmentBalancesForOwner(userId)
+                    .map { rows -> rows.map { it.toDomainInstallment() } }
+            } else flowOf(emptyList())
+        }
+
+    private fun com.kipu.app.feature.accounts.data.local.CreditInstallmentBalance.toDomainInstallment(): CardInstallment {
+        val currency = Currency.fromCode(currencyCode)
+        val terms = PurchaseTerms(
+            purchaseType = com.kipu.app.feature.accounts.domain.model.PurchaseType.valueOf(installment.purchaseType),
+            financing = com.kipu.app.feature.accounts.domain.model.Financing.valueOf(installment.financing),
+            installmentsCount = installment.installmentsCount,
+            teaBps = installment.teaBps,
+            rateSource = installment.rateSource?.let { com.kipu.app.feature.accounts.domain.model.PurchaseRateSource.valueOf(it) },
+            roundingPolicy = com.kipu.app.feature.accounts.domain.model.RoundingPolicy.valueOf(installment.roundingPolicy),
+        )
+        return CardInstallment(
+            id = installment.id, cardId = CardId(cardId), cardName = cardName,
+            purchaseId = installment.transactionId, merchant = merchant, description = description,
+            installmentNumber = installment.installmentNumber, installmentsCount = installment.installmentsCount,
+            dueDate = java.time.LocalDate.ofEpochDay(installment.dueDate),
+            billingClosingDate = installment.billingClosingDate?.let(java.time.LocalDate::ofEpochDay),
+            principal = Money(installment.principalMinor, currency), interest = Money(installment.interestMinor, currency),
+            total = Money(Math.addExact(installment.principalMinor, installment.interestMinor), currency),
+            paid = Money(paidMinor, currency), refunded = Money(refundedMinor, currency), outstanding = Money(outstandingMinor, currency),
+            terms = terms, status = com.kipu.app.feature.accounts.domain.model.CardInstallmentStatus.PENDING,
+        ).atDate(java.time.LocalDate.now(ZoneId.of("America/Lima")))
+    }
+
     override fun observeCardDebt(cardId: CardId): Flow<Money> {
         return sessionCoordinator.localAccess.flatMapLatest { access ->
             when (access) {
                 is LocalAccess.Available -> {
                     combine(
                         cardDao.observeById(access.userId, cardId.value),
-                            database.creditDao().observeLedgerOutstandingPrincipalForCard(access.userId, cardId.value),
+                            database.creditDao().observeOutstandingBalanceForCard(access.userId, cardId.value),
                     ) { card, debtMinorUnits ->
                         if (card == null) {
                             Money(0L, Currency.PEN)
