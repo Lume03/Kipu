@@ -45,6 +45,8 @@ internal data class SyncCardPayload(
     @SerialName("is_archived") val isArchived: Boolean = false,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("personal_tea_bps") val personalTeaBps: Int? = null,
+    @SerialName("closing_day_inclusive") val closingDayInclusive: Boolean? = null,
+    @SerialName("cycle_date_basis") val cycleDateBasis: String? = null,
 )
 
 @Serializable

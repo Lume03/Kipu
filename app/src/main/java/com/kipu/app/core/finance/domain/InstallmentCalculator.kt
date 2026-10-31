@@ -12,6 +12,33 @@ import kotlin.math.pow
 
 object InstallmentCalculator {
 
+    fun simulateForPurchase(
+        cardId: CardId,
+        principal: Money,
+        installmentsCount: Int,
+        configuration: BillingCycleConfiguration,
+        operationDate: LocalDate,
+        processingDate: LocalDate? = null,
+        teaBps: Int? = null,
+        rateSource: RateSource = if (teaBps != null && teaBps > 0) RateSource.PERSONAL_TEA else RateSource.NONE,
+        candidateId: String? = null,
+    ): InstallmentSimulation {
+        val cycles = BillingCycleCalculator.installmentCycles(
+            configuration, operationDate, installmentsCount, processingDate,
+        )
+        return simulate(
+            cardId = cardId,
+            principal = principal,
+            installmentsCount = installmentsCount,
+            firstDueDate = cycles.first().dueDate,
+            dueDay = configuration.dueDay,
+            teaBps = teaBps,
+            rateSource = rateSource,
+            candidateId = candidateId,
+            billingCycles = cycles,
+        )
+    }
+
     /**
      * Simulates an installment plan with deterministic cent distribution.
      * Guaranteed: sum of schedule installment amounts == totalFinanced.
@@ -25,7 +52,9 @@ object InstallmentCalculator {
         teaBps: Int? = null,
         rateSource: RateSource = if (teaBps != null && teaBps > 0) RateSource.PERSONAL_TEA else RateSource.NONE,
         candidateId: String? = null,
+        billingCycles: List<InstallmentBillingCycle>? = null,
     ): InstallmentSimulation {
+        require(billingCycles == null || billingCycles.size == installmentsCount) { "Cycle count must match installments" }
         require(installmentsCount in 1..36) {
             "Installments count must be between 1 and 36: $installmentsCount"
         }
@@ -103,8 +132,8 @@ object InstallmentCalculator {
                 "Rounded French schedule produced a negative installment component"
             }
 
-            val targetDate = firstDueDate.plusMonths(index.toLong())
-            val effectiveDate = CreditCalculations.calculateEffectiveDate(dueDay, targetDate.year, targetDate.month)
+            val effectiveDate = billingCycles?.get(index)?.dueDate
+                ?: BillingCycleCalculator.installmentDueDate(firstDueDate, dueDay, index)
 
             InstallmentScheduleItem(
                 installmentNumber = installmentNum,

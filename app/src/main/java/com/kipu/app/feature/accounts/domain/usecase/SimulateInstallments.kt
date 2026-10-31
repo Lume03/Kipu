@@ -1,6 +1,5 @@
 package com.kipu.app.feature.accounts.domain.usecase
 
-import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.InstallmentCalculator
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.InstallmentSimulation
@@ -30,18 +29,13 @@ class SimulateInstallments @Inject constructor() {
             else -> RateSource.NONE
         }
         val purchaseDateInPeru = candidate.occurredAt.atZone(ZoneId.of("America/Lima")).toLocalDate()
-        val firstDueDate = CreditCalculations.calculateFirstInstallmentDueDate(
-            purchaseDate = purchaseDateInPeru,
-            preferredClosingDay = card.billingDay,
-            preferredDueDay = card.dueDay,
-        )
-
-        val simulation = InstallmentCalculator.simulate(
+        val simulation = InstallmentCalculator.simulateForPurchase(
             cardId = card.id,
             principal = candidate.amount,
             installmentsCount = installmentsCount,
-            firstDueDate = firstDueDate,
-            dueDay = card.dueDay,
+            configuration = card.billingCycleConfiguration,
+            operationDate = purchaseDateInPeru,
+            processingDate = candidate.processedAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate(),
             teaBps = teaBps,
             rateSource = rateSource,
             candidateId = candidate.id,

@@ -68,4 +68,8 @@ data class CardEntity(
     val updatedAt: Long,
     @ColumnInfo(name = "personal_tea_bps")
     val personalTeaBps: Int? = null,
+    @ColumnInfo(name = "closing_day_inclusive", defaultValue = "0")
+    val closingDayInclusive: Boolean = false,
+    @ColumnInfo(name = "cycle_date_basis", defaultValue = "'OPERATION'")
+    val cycleDateBasis: String = "OPERATION",
 )

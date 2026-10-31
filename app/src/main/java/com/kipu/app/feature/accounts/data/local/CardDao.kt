@@ -52,7 +52,7 @@ interface CardDao {
     @Query("UPDATE cards SET personal_tea_bps = :teaBps, updated_at = :nowMicros WHERE user_id = :userId AND id = :id AND type = 'CREDIT'")
     suspend fun updatePersonalTea(userId: String, id: String, teaBps: Int?, nowMicros: Long): Int
 
-    @Query("UPDATE cards SET credit_limit_minor_units = :creditLimitMinorUnits, billing_day = :billingDay, due_day = :dueDay, last_four_digits = :lastFourDigits, alias = :alias, updated_at = :nowMicros WHERE user_id = :userId AND id = :id AND type = 'CREDIT'")
+    @Query("UPDATE cards SET credit_limit_minor_units = :creditLimitMinorUnits, billing_day = :billingDay, due_day = :dueDay, closing_day_inclusive = COALESCE(:closingDayInclusive, closing_day_inclusive), cycle_date_basis = COALESCE(:cycleDateBasis, cycle_date_basis), last_four_digits = :lastFourDigits, alias = :alias, updated_at = :nowMicros WHERE user_id = :userId AND id = :id AND type = 'CREDIT'")
     suspend fun updateCreditTerms(
         userId: String,
         id: String,
@@ -62,6 +62,8 @@ interface CardDao {
         lastFourDigits: String,
         alias: String?,
         nowMicros: Long,
+        closingDayInclusive: Boolean? = null,
+        cycleDateBasis: String? = null,
     ): Int
 
     @Query("UPDATE cards SET remote_revision = :revision, updated_at = :nowMicros WHERE user_id = :userId AND id = :id")

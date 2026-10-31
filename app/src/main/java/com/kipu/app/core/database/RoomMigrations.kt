@@ -1390,6 +1390,14 @@ val MIGRATION_29_30 = object : Migration(29, 30) {
     }
 }
 
+/** Existing cards adopt Qore boundaries and the operation date as their cycle basis. */
+val MIGRATION_30_31 = object : Migration(30, 31) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `closing_day_inclusive` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `cards` ADD COLUMN `cycle_date_basis` TEXT NOT NULL DEFAULT 'OPERATION'")
+    }
+}
+
 /** Used by both upgrades and fresh production databases. */
 fun ensureMovementEvidenceGuards(db: SupportSQLiteDatabase) {
     for (table in listOf("transaction_revisions","movement_official_revisions","movement_ledger_effects","movement_ledger_aliases")) {

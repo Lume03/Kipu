@@ -14,7 +14,8 @@ import com.kipu.app.core.finance.domain.model.MovementKind
 import com.kipu.app.core.finance.domain.model.MovementStatus
 import com.kipu.app.core.finance.domain.model.OperationId
 import com.kipu.app.core.finance.domain.model.UserId
-import com.kipu.app.core.finance.domain.CreditCalculations
+import com.kipu.app.core.finance.domain.BillingCycleConfiguration
+import com.kipu.app.core.finance.domain.CycleDateBasis
 import com.kipu.app.core.finance.domain.InstallmentCalculator
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
@@ -592,6 +593,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         createdAt = nowMicros,
                         updatedAt = nowMicros,
                         personalTeaBps = card.personalTeaBps,
+                        closingDayInclusive = card.closingDayInclusive,
+                        cycleDateBasis = card.cycleDateBasis.name,
                     )
                 )
 
@@ -609,6 +612,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     creditLimitMinorUnits = card.creditLimitMinorUnits,
                     billingDay = card.billingDay,
                     dueDay = card.dueDay,
+                    closingDayInclusive = card.closingDayInclusive,
+                    cycleDateBasis = card.cycleDateBasis.name,
                     presetId = card.preset?.name,
                     stylePresetId = card.stylePresetId,
                     color = card.colorToken,
@@ -700,6 +705,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         lastFourDigits: String?,
         alias: String?,
         operationId: OperationId,
+        closingDayInclusive: Boolean?,
+        cycleDateBasis: CycleDateBasis?,
     ): Result<Unit> {
         val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
         if (creditLimitMinorUnits < 0L) return Result.failure(IllegalArgumentException("La línea de crédito no puede ser negativa"))
@@ -723,6 +730,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         lastFourDigits = digitsToSave,
                         alias = aliasToSave,
                         nowMicros = nowMicros,
+                        closingDayInclusive = closingDayInclusive,
+                        cycleDateBasis = cycleDateBasis?.name,
                     ) == 1,
                 ) { "Could not update credit card terms" }
 
@@ -734,6 +743,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         creditLimitMinorUnits = creditLimitMinorUnits,
                         billingDay = billingDay,
                         dueDay = dueDay,
+                        closingDayInclusive = closingDayInclusive ?: card.closingDayInclusive,
+                        cycleDateBasis = cycleDateBasis?.name ?: card.cycleDateBasis,
                         expectedRevision = card.remoteRevision.coerceAtLeast(1),
                         alias = aliasToSave,
                         lastFourDigits = digitsToSave,
@@ -1251,17 +1262,17 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 }
 
                 val peruDate = effectiveAt.atZone(ZoneId.of("America/Lima")).toLocalDate()
-                val firstDueDate = CreditCalculations.calculateFirstInstallmentDueDate(
-                    purchaseDate = peruDate,
-                    preferredClosingDay = card.billingDay ?: 1,
-                    preferredDueDay = card.dueDay ?: 1,
-                )
-                val principalSchedule = InstallmentCalculator.simulate(
+                val principalSchedule = InstallmentCalculator.simulateForPurchase(
                     cardId = cardId,
                     principal = amount,
                     installmentsCount = installments,
-                    firstDueDate = firstDueDate,
-                    dueDay = card.dueDay ?: 1,
+                    configuration = BillingCycleConfiguration(
+                        closingDay = card.billingDay ?: 1,
+                        dueDay = card.dueDay ?: 1,
+                        closingDayInclusive = card.closingDayInclusive,
+                        cycleDateBasis = CycleDateBasis.fromValue(card.cycleDateBasis),
+                    ),
+                    operationDate = peruDate,
                     teaBps = null,
                 )
 
@@ -1556,6 +1567,8 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 billingDay = billingDay ?: 1,
                 dueDay = dueDay ?: 1,
                 personalTeaBps = personalTeaBps,
+                closingDayInclusive = closingDayInclusive,
+                cycleDateBasis = CycleDateBasis.fromValue(cycleDateBasis),
                 liabilityAccountId = AccountId(requireNotNull(accountId) { "Credit card liability account is missing" }),
                 preset = CardPreset.fromId(presetId),
                 stylePresetId = stylePresetId,

@@ -60,6 +60,7 @@ data class CreateAccountRequestDto(
     @SerialName("linked_account_id") val linkedAccountId: String? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class RegisterCardRequestDto(
     @SerialName("operation_id") val operationId: String,
@@ -79,6 +80,10 @@ data class RegisterCardRequestDto(
     @SerialName("color") val color: String? = null,
     @SerialName("icon") val icon: String? = null,
     @SerialName("payload_hash") val payloadHash: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("closing_day_inclusive") val closingDayInclusive: Boolean? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("cycle_date_basis") val cycleDateBasis: String? = null,
 )
 
 @Serializable
@@ -220,6 +225,7 @@ data class UpdateCreditCardTermsRequestDto(
     @SerialName("card") val card: CreditCardTermsCommandDto,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class CreditCardTermsCommandDto(
     @SerialName("id") val id: String,
@@ -229,6 +235,10 @@ data class CreditCardTermsCommandDto(
     @SerialName("expected_revision") val expectedRevision: Long,
     @SerialName("alias") val alias: String? = null,
     @SerialName("last_four_digits") val lastFourDigits: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("closing_day_inclusive") val closingDayInclusive: Boolean? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("cycle_date_basis") val cycleDateBasis: String? = null,
 )
 
 /**

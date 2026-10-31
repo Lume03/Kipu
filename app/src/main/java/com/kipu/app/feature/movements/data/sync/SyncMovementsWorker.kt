@@ -434,6 +434,10 @@ class SyncMovementsWorker @AssistedInject constructor(
                 createdAt = createdAt,
                 updatedAt = nowMicros,
                 personalTeaBps = remote.personalTeaBps,
+                closingDayInclusive = remote.closingDayInclusive ?: existing?.closingDayInclusive ?: false,
+                cycleDateBasis = com.kipu.app.core.finance.domain.CycleDateBasis.fromValue(
+                    remote.cycleDateBasis ?: existing?.cycleDateBasis,
+                ).name,
             )
             if (existing == null) cardDao.insert(projection) else cardDao.update(projection)
             true

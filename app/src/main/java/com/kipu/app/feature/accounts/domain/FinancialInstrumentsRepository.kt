@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.domain
 
+import com.kipu.app.core.finance.domain.CycleDateBasis
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.finance.domain.model.CardId
@@ -43,6 +44,8 @@ interface FinancialInstrumentsRepository {
         lastFourDigits: String? = null,
         alias: String? = null,
         operationId: OperationId = OperationId.generate(),
+        closingDayInclusive: Boolean? = null,
+        cycleDateBasis: CycleDateBasis? = null,
     ): Result<Unit> = Result.failure(UnsupportedOperationException("Credit card term updates are unavailable"))
     suspend fun getCreditProductCatalog(): Result<List<CreditProductReference>> =
         Result.failure(UnsupportedOperationException("Credit-product catalog is unavailable"))

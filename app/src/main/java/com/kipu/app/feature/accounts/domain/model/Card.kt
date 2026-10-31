@@ -1,5 +1,7 @@
 package com.kipu.app.feature.accounts.domain.model
 
+import com.kipu.app.core.finance.domain.BillingCycleConfiguration
+import com.kipu.app.core.finance.domain.CycleDateBasis
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
@@ -138,7 +140,12 @@ data class CreditCard(
     val liabilityAccountId: AccountId = AccountId(
         CreditLiabilityAccountIds.accountId(userId.value, id.value),
     ),
+    val closingDayInclusive: Boolean = false,
+    val cycleDateBasis: CycleDateBasis = CycleDateBasis.OPERATION,
 ) : Card {
+    val billingCycleConfiguration: BillingCycleConfiguration
+        get() = BillingCycleConfiguration(billingDay, dueDay, closingDayInclusive, cycleDateBasis)
+
     init {
         validateCardCommon()
         require(creditLimitMinorUnits >= 0) {

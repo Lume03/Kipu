@@ -26,6 +26,7 @@ data class PurchaseCandidate(
     val suggestedInstallments: Int = 1,
     val status: CandidateStatus = CandidateStatus.PENDING,
     val categoryId: String? = null,
+    val processedAt: Instant? = null,
 ) {
     init {
         require(amount.minorUnits > 0) { "Purchase amount must be positive: ${amount.minorUnits}" }
