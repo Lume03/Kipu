@@ -289,27 +289,11 @@ private fun DashboardTopBar(
         },
         actions = {
             // White circular buttons; each keeps a 48dp touch target.
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onNavigateToNotifications),
-                contentAlignment = Alignment.Center,
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = emeraldColors.surfaceCard,
-                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        UnreadNotificationBadge(
-                            unreadCount = unreadNotificationCount,
-                            onClick = onNavigateToNotifications,
-                        )
-                    }
-                }
-            }
+            // The badge draws its own circle and keeps the counter outside it (KIP-16).
+            UnreadNotificationBadge(
+                unreadCount = unreadNotificationCount,
+                onClick = onNavigateToNotifications,
+            )
             Spacer(modifier = Modifier.width(6.dp))
             IconButton(
                 onClick = onNavigateToSettings,
