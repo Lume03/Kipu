@@ -202,6 +202,17 @@ fun PermissionsScreen(
                 onConsent = { viewModel.grantConsent(source) },
                 onDismiss = { viewModel.dismissRationale() },
             )
+        } else if (item != null && source == PermissionSource.OWN_NOTIFICATIONS) {
+            // KIP-18: visual explainer instead of a plain-text rationale.
+            com.kipu.app.feature.notifications.presentation.NotificationsExplainerSheet(
+                onEnable = {
+                    viewModel.grantConsent(source)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+                onDismiss = { viewModel.dismissRationale() },
+            )
         } else if (item != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissRationale() },
