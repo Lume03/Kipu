@@ -11,6 +11,9 @@ import androidx.compose.animation.core.tween
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -164,6 +167,7 @@ fun AccountDetailScreen(
     onNavigateToMovements: (Account) -> Unit = {},
     cardMovements: List<CardMovementDisplay>? = null,
     startPurchaseOnOpen: Boolean = false,
+    focusInstallments: Boolean = false,
     onNavigateToLinkedAccount: (String) -> Unit = {},
 ) {
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
@@ -272,6 +276,7 @@ fun AccountDetailScreen(
         creditNotifications = creditNotifications.filter { it.cardId == instrumentId },
         cardMovements = effectiveCardMovements,
         cardInstallmentsState = cardInstallmentsState,
+        focusInstallments = focusInstallments,
         onRetryCardInstallments = { cardInstallmentsRetry++ },
         isLoading = instruments.isLoading,
         modifier = modifier,
@@ -508,6 +513,7 @@ fun AccountDetailContent(
     onNavigateToLinkedAccount: (String) -> Unit = {},
     cardInstallmentsState: CardInstallmentsUiState = CardInstallmentsUiState(isLoading = false),
     onRetryCardInstallments: () -> Unit = {},
+    focusInstallments: Boolean = false,
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -707,7 +713,15 @@ fun AccountDetailContent(
                         onReactivateClick = { showReactivateConfirmation = true },
                     )
 
+                    val installmentsRequester = remember(card.id) { BringIntoViewRequester() }
+                    LaunchedEffect(focusInstallments, card.id, cardInstallmentsState.isLoading) {
+                        if (focusInstallments && !cardInstallmentsState.isLoading) {
+                            androidx.compose.runtime.withFrameNanos { }
+                            installmentsRequester.bringIntoView(Rect(0f, 0f, 1f, 1f))
+                        }
+                    }
                     CardInstallmentsSection(
+                        modifier = Modifier.bringIntoViewRequester(installmentsRequester),
                         cardId = card.id.value,
                         state = cardInstallmentsState,
                         onRetry = onRetryCardInstallments,

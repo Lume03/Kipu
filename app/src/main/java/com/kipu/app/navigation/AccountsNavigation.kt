@@ -42,7 +42,7 @@ const val ACCOUNTS_DASHBOARD_ROUTE = "accounts/dashboard"
 const val ACCOUNT_FORM_ROUTE = "accounts/create"
 const val CARD_FORM_ROUTE = "cards/register"
 const val RATE_CATALOG_ROUTE = "cards/{cardId}/rates"
-const val ACCOUNT_DETAIL_ROUTE = "accounts/instrument/{instrumentId}?isCard={isCard}&startPurchase={startPurchase}"
+const val ACCOUNT_DETAIL_ROUTE = "accounts/instrument/{instrumentId}?isCard={isCard}&startPurchase={startPurchase}&section={section}"
 const val ACCOUNT_DASHBOARD_FEEDBACK_KEY = "account_dashboard_feedback"
 
 internal data class AccountMovementHistoryTarget(
@@ -94,6 +94,10 @@ fun NavController.navigateToCardDetail(cardId: String, startPurchase: Boolean = 
     navigateToInstrumentDetail(cardId, isCard = true, startPurchase = startPurchase)
 }
 
+fun NavController.navigateToCardInstallments(cardId: String) {
+    navigate("accounts/instrument/${Uri.encode(cardId)}?isCard=true&startPurchase=false&section=installments")
+}
+
 private fun NavController.navigateToInstrumentDetail(instrumentId: String, isCard: Boolean, startPurchase: Boolean) {
     navigate("accounts/instrument/${Uri.encode(instrumentId)}?isCard=$isCard&startPurchase=$startPurchase")
 }
@@ -129,6 +133,7 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
             navArgument("instrumentId") { type = NavType.StringType },
             navArgument("isCard") { type = NavType.BoolType; defaultValue = false },
             navArgument("startPurchase") { type = NavType.BoolType; defaultValue = false },
+            navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null },
         ),
     ) { backStackEntry ->
         val dashboardBackStackEntry = navController.previousBackStackEntry
@@ -157,6 +162,7 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
                 }
             },
             startPurchaseOnOpen = startPurchaseOnOpen,
+            focusInstallments = backStackEntry.arguments?.getString("section") == "installments",
             onNavigateToLinkedAccount = navController::navigateToAccountDetail,
         )
     }

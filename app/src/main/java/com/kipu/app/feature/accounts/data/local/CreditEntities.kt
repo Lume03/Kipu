@@ -95,19 +95,20 @@ data class CreditInstallmentBalance(
     @ColumnInfo(name = "paid_minor") val paidMinor: Long,
     @ColumnInfo(name = "refunded_minor") val refundedMinor: Long,
     @ColumnInfo(name = "outstanding_minor") val outstandingMinor: Long,
+    @ColumnInfo(name = "settled_at_millis") val settledAtMillis: Long? = null,
 )
 
 /** Refund credit is consumed once, FIFO over the unpaid portions of one purchase. */
 internal const val CREDIT_INSTALLMENT_BALANCES_SQL = """
 WITH paid AS (
-    SELECT a.user_id, a.installment_id, SUM(a.allocated_minor) AS paid_minor
+    SELECT a.user_id, a.installment_id, SUM(a.allocated_minor) AS paid_minor, MAX(payment.occurred_at) AS paid_at
     FROM credit_payment_allocations a
     JOIN transactions payment ON payment.user_id = a.user_id AND payment.id = a.payment_transaction_id
     WHERE payment.status IN ('ACTIVE','CONFIRMED','REVISED')
       AND payment.sync_status NOT IN ('CONFLICT','FAILED_PERMANENT')
     GROUP BY a.user_id, a.installment_id
 ), refunds AS (
-    SELECT links.user_id, links.source_transaction_id, SUM(refund.amount_minor) AS refunded_minor
+    SELECT links.user_id, links.source_transaction_id, SUM(refund.amount_minor) AS refunded_minor, MAX(refund.occurred_at) AS refund_at
     FROM transaction_links links
     JOIN transactions refund ON refund.user_id = links.user_id AND refund.id = links.target_transaction_id
     WHERE links.link_type = 'REFUND' AND refund.type = 'INCOME' AND refund.operation_kind = 'REFUND'
@@ -118,7 +119,7 @@ WITH paid AS (
     SELECT i.*, t.card_id, t.currency_code, t.occurred_at AS purchase_occurred_at,
            COALESCE(t.merchant_provisional_text, merchant.name) AS merchant, t.note AS description,
            COALESCE(c.alias, c.issuer) AS card_name, c.is_archived AS card_archived,
-           COALESCE(paid.paid_minor, 0) AS paid_minor,
+           COALESCE(paid.paid_minor, 0) AS paid_minor, paid.paid_at, refunds.refund_at,
            COALESCE(refunds.refunded_minor, 0) AS purchase_refunded_minor,
            MAX(i.principal_minor + i.interest_minor - COALESCE(paid.paid_minor, 0), 0) AS before_refund_minor
     FROM credit_installments i
@@ -137,7 +138,12 @@ WITH paid AS (
     ), 0), 0)) AS refunded_minor
     FROM base b
 ), balances AS (
-    SELECT credited.*, before_refund_minor - refunded_minor AS outstanding_minor FROM credited
+    SELECT credited.*, before_refund_minor - refunded_minor AS outstanding_minor,
+           CASE WHEN before_refund_minor - refunded_minor = 0 THEN
+               CASE WHEN refunded_minor > 0 THEN NULLIF(MAX(COALESCE(paid_at, 0), COALESCE(refund_at, 0)), 0)
+                    ELSE paid_at END
+               ELSE NULL END AS settled_at_millis
+    FROM credited
 )
 """
 

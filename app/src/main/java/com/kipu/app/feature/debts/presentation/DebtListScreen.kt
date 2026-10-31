@@ -104,7 +104,7 @@ fun DebtListScreen(
     today: LocalDate = LocalDate.now(),
     onDebtAction: (String, String) -> Unit = { id, _ -> onDebtSelected(id) },
     isLoading: Boolean = false,
-    allInstallments: Map<String, List<DebtScheduleItem>> = emptyMap(),
+    onViewUpcomingDues: () -> Unit = {},
 ) {
     var optionsId by rememberSaveable { mutableStateOf<String?>(null) }
     var showClosed by rememberSaveable { mutableStateOf(false) }
@@ -114,7 +114,6 @@ fun DebtListScreen(
     }
     var showRegisterTypeSheet by rememberSaveable { mutableStateOf(false) }
     var showLimitSheet by rememberSaveable { mutableStateOf(false) }
-    var showDueAlerts by rememberSaveable { mutableStateOf(false) }
     // Every entry point (root + and empty state) passes through the Basic plan check first.
     val requestCreate: (DebtObligationType?) -> Unit = { type ->
         when {
@@ -169,9 +168,9 @@ fun DebtListScreen(
                     onTypeSelected = onTypeSelected,
                 )
             }
-            if (debts.any { it.status == DebtLifecycleStatus.ACTIVE && (it.dueDate != null || allInstallments[it.debtId].orEmpty().isNotEmpty()) }) {
-                item(key = "due_alerts") {
-                    androidx.compose.material3.TextButton(onClick = { showDueAlerts = true }, modifier = Modifier.testTag("debt_due_open")) { Text("Ver vencimientos") }
+            item(key = "due_alerts") {
+                androidx.compose.material3.TextButton(onClick = onViewUpcomingDues, modifier = Modifier.testTag("debt_due_open")) {
+                    Text("Ver vencimientos")
                 }
             }
             when {
@@ -244,8 +243,6 @@ fun DebtListScreen(
         }
     }
 
-    if (showDueAlerts) DebtDueAlertsSheet(debts, allInstallments, today, { showDueAlerts = false }, onDebtSelected,
-        { onDebtAction(it, "settle") })
     debts.firstOrNull { it.debtId == optionsId }?.let { debt ->
         DebtActionsSheet(debt, { optionsId = null }, { onDebtSelected(debt.debtId) },
             { onDebtAction(debt.debtId, "settle") }, { onDebtAction(debt.debtId, "history") },

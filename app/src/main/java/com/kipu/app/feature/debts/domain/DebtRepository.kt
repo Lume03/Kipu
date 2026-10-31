@@ -14,6 +14,9 @@ import com.kipu.app.feature.debts.domain.model.SettleDebtCommand
 import kotlinx.coroutines.flow.Flow
 
 interface DebtRepository {
+    fun observeDueBalances(userId: String): Flow<List<com.kipu.app.feature.debts.domain.model.DebtDueBalance>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
+
     fun observeDebts(userId: String): Flow<List<DebtSummary>>
 
     fun observeDebt(userId: String, debtId: String): Flow<DebtSummary?>

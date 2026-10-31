@@ -210,7 +210,7 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
                     onAddPayable = { navController.navigateToDebtOpening(DebtObligationType.PAYABLE) },
                     onAddReceivable = { navController.navigateToDebtOpening(DebtObligationType.RECEIVABLE) },
                     scheduledInstallments = debtState.scheduledInstallments,
-                    allInstallments = debtState.allInstallments,
+                    onViewUpcomingDues = navController::navigateToUpcomingDues,
                     errorMessage = debtState.errorMessage,
                     openRegisterDebt = createRequested && selectedTab == PlanningTab.DEBTS,
                     onConsumeRegisterDebt = consumeCreate,

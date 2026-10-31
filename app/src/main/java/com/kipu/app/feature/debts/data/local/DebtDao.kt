@@ -18,8 +18,49 @@ data class DebtSettlementActivityRow(
     val transactionId: String? = null,
 )
 
+data class DebtDueBalanceRow(
+    val debtId: String,
+    val installmentId: String?,
+    val installmentNumber: Int?,
+    val dueDate: String?,
+    val plannedMinor: Long?,
+    val remainingMinor: Long?,
+    val lastSettlementAt: Long?,
+    val lastGeneralSettlementAt: Long?,
+)
+
 @Dao
 interface DebtDao {
+    /** Same valid-payment principal rule as getInstallmentRemaining; no state is written here. */
+    @Query("""
+        SELECT d.id AS debtId, i.id AS installmentId, i.installment_number AS installmentNumber,
+               i.due_date AS dueDate, i.amount_minor AS plannedMinor,
+               CASE WHEN i.id IS NULL THEN NULL ELSE MAX(0, i.amount_minor - COALESCE(SUM(
+                   CASE WHEN e.event_type != 'PAYMENT' OR t.status = 'VOIDED' THEN 0
+                        WHEN e.principal_delta_minor IS NOT NULL THEN MAX(0, -e.principal_delta_minor)
+                        ELSE e.amount_minor END
+               ), 0)) END AS remainingMinor,
+               MAX(CASE WHEN t.status = 'VOIDED' THEN NULL
+                        WHEN e.event_type = 'PAYMENT' OR e.principal_delta_minor < 0 THEN e.occurred_at
+                        ELSE NULL END) AS lastSettlementAt,
+               (SELECT MAX(g.occurred_at) FROM debt_events g
+                LEFT JOIN transactions gt ON gt.user_id = g.user_id AND gt.id = g.transaction_id
+                WHERE g.user_id = d.user_id AND g.debt_id = d.id AND g.installment_id IS NULL
+                  AND (gt.status IS NULL OR gt.status != 'VOIDED')
+                  AND (g.event_type = 'PAYMENT' OR g.principal_delta_minor < 0)
+               ) AS lastGeneralSettlementAt
+        FROM debts d
+        LEFT JOIN debt_installments i ON i.user_id = d.user_id AND i.debt_id = d.id
+            AND i.deleted_at IS NULL AND i.status IN ('PENDING', 'PARTIAL', 'PAID', 'PLANNED')
+        LEFT JOIN debt_events e ON e.user_id = d.user_id AND e.debt_id = d.id
+            AND (i.id IS NULL OR e.installment_id = i.id)
+        LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
+        WHERE d.user_id = :userId AND d.deleted_at IS NULL AND d.status != 'CANCELLED'
+        GROUP BY d.user_id, d.id, i.id
+        ORDER BY i.due_date, i.installment_number, d.id
+    """)
+    fun observeDueBalances(userId: String): Flow<List<DebtDueBalanceRow>>
+
     @Query("SELECT * FROM debts WHERE user_id = :userId AND deleted_at IS NULL ORDER BY updated_at DESC, id ASC")
     fun observeDebts(userId: String): Flow<List<DebtEntity>>
 

@@ -218,3 +218,29 @@ class DebtPlanningTabTest {
         openingMode = DebtOpeningMode.HISTORICAL,
     )
 }
+
+// Signature-only bridge for fixtures written against the removed production sheet.
+// The later UI-test phase will migrate the old sheet assertions to the independent screen.
+@androidx.compose.runtime.Composable
+private fun DebtDueAlertsSheet(
+    debts: List<DebtSummary>,
+    schedules: Map<String, List<DebtScheduleItem>>,
+    today: LocalDate,
+    onDismiss: () -> Unit,
+    onView: (String) -> Unit,
+    onSettle: (String) -> Unit,
+) {
+    val balances = schedules.flatMap { (debtId, items) -> items.map { item ->
+        com.kipu.app.feature.debts.domain.model.DebtDueBalance(
+            debtId, item.id, item.installmentNumber, item.dueDate, item.principalMinor,
+            if (item.status == "PAID") 0L else item.principalMinor, null, null,
+        )
+    } }
+    val snapshot = com.kipu.app.feature.debts.domain.model.buildUpcomingDues(debts, balances, emptyList(), today)
+    UpcomingDuesScreen(
+        state = UpcomingDuesUiState(rows = snapshot.rows, periods = snapshot.rows.groupBy { it.period(today) },
+            isLoading = false, today = today),
+        onNavigateBack = onDismiss, onOriginSelected = {}, onStatusSelected = {}, onTypeSelected = {}, onCurrencySelected = {},
+        onOpenDebt = onView, onOpenCard = {}, onSettleDebt = onSettle, onRetry = {},
+    )
+}

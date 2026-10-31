@@ -1805,6 +1805,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             total = Money(Math.addExact(installment.principalMinor, installment.interestMinor), currency),
             paid = Money(paidMinor, currency), refunded = Money(refundedMinor, currency), outstanding = Money(outstandingMinor, currency),
             terms = terms, status = com.kipu.app.feature.accounts.domain.model.CardInstallmentStatus.PENDING,
+            settledAt = settledAtMillis?.let(Instant::ofEpochMilli),
         ).atDate(java.time.LocalDate.now(ZoneId.of("America/Lima")))
     }
 

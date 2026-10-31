@@ -34,6 +34,16 @@ class OfflineFirstDebtRepository @Inject constructor(
     private val syncScheduler: DebtSyncScheduler,
     private val reminderReconciler: DebtReminderReconciler = NoOpDebtReminderReconciler,
 ) : DebtRepository {
+    override fun observeDueBalances(userId: String): Flow<List<com.kipu.app.feature.debts.domain.model.DebtDueBalance>> =
+        debtDao.observeDueBalances(userId).map { rows -> rows.map { row ->
+            com.kipu.app.feature.debts.domain.model.DebtDueBalance(
+                debtId = row.debtId, installmentId = row.installmentId, installmentNumber = row.installmentNumber,
+                dueDate = row.dueDate?.let(LocalDate::parse), plannedMinor = row.plannedMinor, remainingMinor = row.remainingMinor,
+                lastSettlementAt = row.lastSettlementAt?.let(java.time.Instant::ofEpochMilli),
+                lastGeneralSettlementAt = row.lastGeneralSettlementAt?.let(java.time.Instant::ofEpochMilli),
+            )
+        } }
+
     override fun observeDebts(userId: String): Flow<List<DebtSummary>> =
         debtDao.observeSummaries(userId).map { rows -> rows.map { row -> row.toDomain() } }
 

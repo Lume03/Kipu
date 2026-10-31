@@ -355,7 +355,6 @@ class AccountDetailScreenTest {
             )
             every { dashboardUiState } returns MutableStateFlow(DashboardUiState(isLoading = false))
             every { creditNotifications } returns MutableStateFlow(emptyList())
-            every { purchaseCategories } returns MutableStateFlow(emptyList())
             every { this@mockk.events } returns events
             every { observeAccountBalance(target.id) } returns flowOf(Money(2_500L, Currency.PEN))
         }

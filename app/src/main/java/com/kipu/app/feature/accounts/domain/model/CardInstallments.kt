@@ -28,6 +28,7 @@ data class CardInstallment(
     val outstanding: Money,
     val terms: PurchaseTerms,
     val status: CardInstallmentStatus,
+    val settledAt: java.time.Instant? = null,
 ) {
     fun atDate(today: LocalDate): CardInstallment = copy(status = when {
         outstanding.minorUnits == 0L -> CardInstallmentStatus.PAID

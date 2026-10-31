@@ -22,6 +22,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.navArgument
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
+import com.kipu.app.feature.debts.presentation.UpcomingDuesScreen
+import com.kipu.app.feature.debts.presentation.UpcomingDuesViewModel
 import com.kipu.app.feature.debts.presentation.DebtDetailScreen
 import com.kipu.app.feature.debts.presentation.DebtDetailUiEvent
 import com.kipu.app.feature.debts.presentation.DebtDetailViewModel
@@ -40,6 +42,12 @@ import com.kipu.app.feature.debts.presentation.PayableDebtFormScreen
 import com.kipu.app.feature.debts.presentation.ReceivableDebtFormScreen
 import com.kipu.app.feature.movements.presentation.MovementHistoryRoute
 import com.kipu.app.feature.movements.presentation.MovementHistoryViewModel
+
+const val UPCOMING_DUES_ROUTE = "debts/upcoming-dues"
+
+fun NavController.navigateToUpcomingDues() {
+    navigate(UPCOMING_DUES_ROUTE) { launchSingleTop = true }
+}
 
 const val DEBT_OPENING_ROUTE = "debts/open/{obligationType}"
 const val DEBT_DETAIL_ROUTE = "debts/detail/{debtId}?action={action}"
@@ -76,6 +84,18 @@ fun NavController.navigateToDebtClosure(debtId: String) {
 }
 
 fun NavGraphBuilder.debtDestinations(navController: NavController) {
+    composable(UPCOMING_DUES_ROUTE) {
+        val viewModel: UpcomingDuesViewModel = hiltViewModel()
+        val state by viewModel.state.collectAsStateWithLifecycle()
+        UpcomingDuesScreen(
+            state = state, onNavigateBack = { navController.popBackStack() },
+            onOriginSelected = viewModel::selectOrigin, onStatusSelected = viewModel::selectStatus,
+            onTypeSelected = viewModel::selectType, onCurrencySelected = viewModel::selectCurrency,
+            onOpenDebt = navController::navigateToDebtDetail, onOpenCard = navController::navigateToCardInstallments,
+            onSettleDebt = navController::navigateToDebtSettlement, onRetry = viewModel::retry,
+        )
+    }
+
     composable("debts/movement/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.StringType })) { entry ->
         val viewModel: MovementHistoryViewModel = hiltViewModel()
         val history by viewModel.uiState.collectAsStateWithLifecycle()

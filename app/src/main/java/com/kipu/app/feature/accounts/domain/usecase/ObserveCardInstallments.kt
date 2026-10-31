@@ -20,27 +20,31 @@ class ObserveCardInstallments @Inject constructor(
     private val clock: Clock,
 ) {
     operator fun invoke(cardId: CardId): Flow<CardInstallmentsSummary> = combine(
-        repository.observeCardInstallments(cardId), repository.observeCardById(cardId), cardCivilDate(clock),
+        repository.observeCardInstallments(cardId), repository.observeCardById(cardId), observeLimaCivilDate(clock),
     ) { installments, card, today ->
         CardInstallmentsSummary.from(installments.map { it.atDate(today) }, installments.firstOrNull()?.principal?.currency ?: card?.currency ?: Currency.PEN)
     }
 }
 
-/** Owner-scoped read model for KIP-19; includes overdue obligations and dues within seven days. */
+/** Owner-scoped dues: seven-day alerts by default, or the complete calendar with recent settlements. */
 class ObserveUpcomingCardInstallments @Inject constructor(
     private val repository: FinancialInstrumentsRepository,
     private val clock: Clock,
 ) {
-    operator fun invoke(userId: String): Flow<List<CardInstallment>> = combine(
-        repository.observeUpcomingCardInstallments(userId), cardCivilDate(clock),
+    operator fun invoke(userId: String, includeAllDues: Boolean = false): Flow<List<CardInstallment>> = combine(
+        repository.observeUpcomingCardInstallments(userId), observeLimaCivilDate(clock),
     ) { installments, today ->
-        installments.filter { it.outstanding.minorUnits > 0 && it.dueDate <= today.plusDays(7) }.map { it.atDate(today) }
+        installments.filter {
+            if (it.outstanding.minorUnits > 0) includeAllDues || it.dueDate <= today.plusDays(7)
+            else includeAllDues && it.settledAt?.atZone(ZoneId.of("America/Lima"))?.toLocalDate()
+                ?.let { paidOn -> paidOn in today.minusDays(29)..today } == true
+        }.map { it.atDate(today) }
             .sortedWith(compareBy({ it.dueDate }, { it.cardId.value }, { it.purchaseId }, { it.installmentNumber }))
     }
 }
 
 /** Date-based labels also refresh while an unchanged Room result stays on screen overnight. */
-private fun cardCivilDate(clock: Clock): Flow<LocalDate> = flow {
+internal fun observeLimaCivilDate(clock: Clock): Flow<LocalDate> = flow {
     val zone = ZoneId.of("America/Lima")
     while (true) {
         val now = clock.instant()
