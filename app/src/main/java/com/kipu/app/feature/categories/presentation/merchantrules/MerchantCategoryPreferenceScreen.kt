@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +60,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kipu.app.feature.categories.domain.model.CategoryId
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
+import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MerchantLogoDrawables
+import com.kipu.app.feature.categories.presentation.components.MerchantResultItem
+import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
+import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomSheet
+import com.kipu.app.feature.movements.presentation.PastelDesignTokens
+import com.kipu.app.feature.movements.presentation.resolveCatalogIcon
+import com.kipu.app.ui.component.KipuFieldRow
 
 @Composable
 fun MerchantCategoryPreferenceScreen(
@@ -92,14 +98,9 @@ fun MerchantCategoryPreferenceContent(
     onNavigateBack: () -> Unit = {},
 ) {
     val animationDuration = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !ValueAnimator.areAnimatorsEnabled()) 0 else 160
-    val selectedCategoryIsEligible = state.selectedCategoryId != null &&
-        state.eligibleCategories.any { it.category.id == state.selectedCategoryId }
-    var categoryQuery by rememberSaveable { mutableStateOf("") }
-    val filteredCategories = state.eligibleCategories.filter {
-        it.displayName.contains(categoryQuery, ignoreCase = true)
-    }
-    val selectedCategoryIsVisible = state.selectedCategoryId == null ||
-        filteredCategories.any { it.category.id == state.selectedCategoryId }
+    val selectedCategory = state.eligibleCategories.firstOrNull { it.category.id == state.selectedCategoryId }?.option
+    val selectedCategoryIsEligible = selectedCategory != null
+    var showCategoryPicker by rememberSaveable(state.selectedMerchant?.id?.value) { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -124,7 +125,7 @@ fun MerchantCategoryPreferenceContent(
                 Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
                     Button(
                         onClick = onSave,
-                        enabled = !state.isSaving && selectedCategoryIsEligible && selectedCategoryIsVisible && !state.needsNewChoice,
+                        enabled = !state.isSaving && selectedCategoryIsEligible && !state.needsNewChoice,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 12.dp)
@@ -191,21 +192,13 @@ fun MerchantCategoryPreferenceContent(
                     )
                 }
                 if (state.selectedMerchant == null) state.merchants.take(5).forEach { merchant ->
-                    Surface(
+                    MerchantResultItem(
+                        entry = merchant,
+                        onClick = { onSelectMerchant(merchant) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .semantics { role = Role.Button }
-                            .clickable { onSelectMerchant(merchant) },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (state.selectedMerchant?.id == merchant.id) {
-                            MaterialTheme.colorScheme.secondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        },
-                    ) {
-                        Text(merchant.name, Modifier.padding(horizontal = 16.dp, vertical = 14.dp), style = MaterialTheme.typography.bodyLarge)
-                    }
+                            .semantics { role = Role.Button },
+                    )
                 }
                 if (state.selectedMerchant == null && state.merchantQuery.isNotBlank() && state.merchants.isEmpty()) {
                     Text(
@@ -230,6 +223,13 @@ fun MerchantCategoryPreferenceContent(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                MerchantAvatar(
+                                    drawableId = MerchantLogoDrawables.resolve(merchant.logoKey),
+                                    remoteLogoUrl = merchant.logoUrl,
+                                    remoteDarkLogoUrl = merchant.logoDarkUrl,
+                                    profile = getMerchantVisualProfile(merchant.name, merchant.brandColor),
+                                    size = 40.dp,
+                                )
                                 Text("${merchant.name} ✓", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                                 OutlinedButton(onClick = { onMerchantQueryChange("") }, modifier = Modifier.heightIn(min = 44.dp)) {
                                     Text("Cambiar")
@@ -259,22 +259,22 @@ fun MerchantCategoryPreferenceContent(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    OutlinedTextField(
-                        value = categoryQuery,
-                        onValueChange = { categoryQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Filtrar categorías") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                    val categoryLabel = selectedCategory?.displayName?.replace(" > ", " › ")
+                    val categoryColors = PastelDesignTokens.resolvePastelToken(
+                        selectedCategory?.name.orEmpty(),
+                        selectedCategory?.icon.orEmpty(),
                     )
-                    if (!selectedCategoryIsVisible) {
-                        Text(
-                            "La categoría seleccionada no coincide con el filtro.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    KipuFieldRow(
+                        icon = resolveCatalogIcon(selectedCategory?.icon ?: "category"),
+                        iconBg = categoryColors.containerColor,
+                        iconTint = categoryColors.contentColor,
+                        label = "Categoría",
+                        value = categoryLabel ?: "Elige una categoría",
+                        valueMuted = selectedCategory == null,
+                        onClick = { showCategoryPicker = true },
+                        tag = "merchant_category_picker_open",
+                        description = "Categoría: ${categoryLabel ?: "sin elegir"}. Cambiar categoría",
+                    )
                     if (state.eligibleCategories.isEmpty()) {
                         Text(
                             "No hay categorías elegibles. Activa una categoría disponible o elige otro comercio más tarde.",
@@ -282,36 +282,6 @@ fun MerchantCategoryPreferenceContent(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
-                    } else if (filteredCategories.isEmpty()) {
-                        Text(
-                            "No encontramos categorías con ese nombre.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        filteredCategories.forEach { choice ->
-                            val selected = state.selectedCategoryId == choice.category.id
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 56.dp)
-                                    .semantics { role = Role.RadioButton }
-                                    .clickable { onSelectCategory(choice.category.id) }
-                                    .padding(horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = selected, onClick = { onSelectCategory(choice.category.id) })
-                                Spacer(Modifier.size(8.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(choice.displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                                    Text(
-                                        if (choice.category.parentId == null) "Categoría principal" else "Subcategoría",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
                     }
                     if (state.existingPreference != null) {
                         OutlinedButton(
@@ -346,5 +316,21 @@ fun MerchantCategoryPreferenceContent(
             overflow = TextOverflow.Ellipsis,
         )
         }
+    }
+    if (showCategoryPicker && state.selectedMerchant != null) {
+        PastelCategoryPickerBottomSheet(
+            categories = state.eligibleCategories.map { it.option },
+            selectedCategoryId = state.selectedCategoryId?.value,
+            onSelect = { option ->
+                onSelectCategory(CategoryId(option.id))
+                showCategoryPicker = false
+            },
+            onCreateCategory = { _, _, _, _, _ -> Result.failure(UnsupportedOperationException()) },
+            onDismiss = { showCategoryPicker = false },
+            directSelectionMode = true,
+            allowCreate = false,
+            title = "Elige una categoría",
+            subtitle = "Kipu la usará para este comercio en tus próximos movimientos",
+        )
     }
 }

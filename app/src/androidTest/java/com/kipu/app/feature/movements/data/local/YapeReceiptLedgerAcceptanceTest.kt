@@ -15,6 +15,7 @@ import com.kipu.app.feature.movements.data.sync.MovementSyncScheduler
 import com.kipu.app.feature.movements.domain.*
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.feature.receipts.data.AndroidReceiptImageRecognizer
+import com.kipu.app.feature.receipts.data.RoomReceiptOcrConsent
 import com.kipu.app.feature.receipts.data.local.RoomReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.*
 import io.mockk.mockk
@@ -69,7 +70,9 @@ class YapeReceiptLedgerAcceptanceTest {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         val uri = requireNotNull(ReceiptShareIntent.imageUri(shared))
-        val importer = ImportYapeReceipt(ReceiptScanAccess { true }, AndroidReceiptImageRecognizer(context), YapeReceiptParser(), store)
+        val consent = RoomReceiptOcrConsent(db.permissionConsentDao())
+        consent.grant(owner)
+        val importer = ImportYapeReceipt(ReceiptScanAccess { true }, AndroidReceiptImageRecognizer(context), YapeReceiptParser(), store, consent)
         val imported = importer(owner, uri, userConsented = true)
         assertTrue("Share image must become an OCR candidate", imported is ReceiptImportResult.CandidateCreated)
         val candidate = (imported as ReceiptImportResult.CandidateCreated).candidate

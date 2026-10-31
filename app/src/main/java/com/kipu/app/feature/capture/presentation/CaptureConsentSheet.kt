@@ -2,7 +2,7 @@ package com.kipu.app.feature.capture.presentation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +65,7 @@ private val CONSENT_PROVIDERS = listOf(
     CaptureProvider.INTERBANK,
     CaptureProvider.BBVA,
     CaptureProvider.SCOTIABANK,
+    CaptureProvider.GOOGLE_WALLET,
 )
 
 /**
@@ -75,21 +78,55 @@ fun CaptureConsentSheet(
     requiresPremium: Boolean,
     onConsent: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val palette = rememberCalmEmeraldColors()
     var accepted by rememberSaveable { mutableStateOf(false) }
-    KipuBottomSheet(onDismissRequest = onDismiss, containerColor = palette.background, modifier = Modifier.testTag("capture_consent_sheet")) {
+    val configuration = LocalConfiguration.current
+    val compact = configuration.screenWidthDp < 360 || configuration.screenHeightDp < 640 || LocalDensity.current.fontScale >= 1.5f
+    KipuBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = palette.background,
+        modifier = modifier.testTag("capture_consent_sheet"),
+        footer = {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Button(
+                    onClick = onConsent,
+                    enabled = accepted,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("capture_consent_confirm"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = palette.primaryDeep,
+                        contentColor = palette.onPrimaryDeep,
+                        disabledContainerColor = palette.pillTrack,
+                        disabledContentColor = palette.secondaryMuted,
+                    ),
+                ) {
+                    Icon(Icons.Outlined.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Dar mi consentimiento", modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("capture_consent_decline")) {
+                    Text("Ahora no", fontWeight = FontWeight.Bold, color = palette.secondaryMuted)
+                }
+            }
+        },
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(Modifier.size(72.dp).background(palette.incomeBg, RoundedCornerShape(22.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(34.dp))
+            Box(Modifier.size(if (compact) 48.dp else 64.dp).background(palette.incomeBg, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(if (compact) 24.dp else 30.dp))
             }
             Text(
                 "Kipu propone tus movimientos desde los avisos de tu banco",
@@ -98,7 +135,7 @@ fun CaptureConsentSheet(
                 color = palette.primaryText,
                 textAlign = TextAlign.Center,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (requiresPremium) {
                     KipuStatusChip("Premium", KipuChipTone.POSITIVE, leading = { SmallIcon(Icons.Outlined.AutoAwesome, palette.primaryDeep) })
                 }
@@ -116,7 +153,7 @@ fun CaptureConsentSheet(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 CaptureProviderLogo(provider, 32.dp)
-                                Text(provider.displayName(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = palette.primaryText)
+                                Text(provider.displayName(), modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = palette.primaryText)
                             }
                         }
                     }
@@ -133,7 +170,8 @@ fun CaptureConsentSheet(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(role = Role.Checkbox) { accepted = !accepted }
+                    .heightIn(min = 48.dp)
+                    .toggleable(value = accepted, role = Role.Checkbox, onValueChange = { accepted = it })
                     .padding(vertical = 4.dp)
                     .testTag("capture_consent_check"),
                 verticalAlignment = Alignment.CenterVertically,
@@ -144,26 +182,7 @@ fun CaptureConsentSheet(
                     colors = CheckboxDefaults.colors(checkedColor = palette.primaryDeep, checkmarkColor = palette.onPrimaryDeep),
                 )
                 Spacer(Modifier.width(10.dp))
-                Text("Acepto que Kipu lea los avisos de estas apps para proponerme movimientos.", style = MaterialTheme.typography.bodyMedium, color = palette.primaryText)
-            }
-            Button(
-                onClick = onConsent,
-                enabled = accepted,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("capture_consent_confirm"),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = palette.primaryDeep,
-                    contentColor = palette.onPrimaryDeep,
-                    disabledContainerColor = palette.pillTrack,
-                    disabledContentColor = palette.secondaryMuted,
-                ),
-            ) {
-                Icon(Icons.Outlined.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Dar mi consentimiento", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            }
-            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text("Ahora no", fontWeight = FontWeight.Bold, color = palette.secondaryMuted)
+                Text("Acepto que Kipu lea los avisos de estas apps para proponerme movimientos.", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = palette.primaryText)
             }
         }
     }
@@ -195,7 +214,7 @@ private fun ConsentFact(icon: ImageVector, text: String) {
     val palette = rememberCalmEmeraldColors()
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(icon, contentDescription = null, tint = palette.primaryDeep, modifier = Modifier.size(22.dp).padding(top = 1.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = palette.primaryText)
+        Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = palette.primaryText)
     }
     Spacer(Modifier.height(0.dp))
 }

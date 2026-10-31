@@ -41,6 +41,7 @@ data class ReceiptFlowState(
     val pendingImportUri: String? = null,
     val fileName: String? = null,
     val fileSize: Long? = null,
+    val requiresOcrConsent: Boolean = false,
 )
 
 @HiltViewModel
@@ -50,10 +51,12 @@ class ReceiptFlowViewModel @Inject constructor(
     private val confirmer: ConfirmReceiptCandidate,
     private val session: SessionCoordinator,
     private val savedState: SavedStateHandle,
+    private val ocrConsent: ReceiptOcrConsent,
 ) : ViewModel() {
     private var owner = (session.localAccess.value as? LocalAccess.Available)?.userId
     private val _state = MutableStateFlow(ReceiptFlowState(importConsumed = savedState["importConsumed"] ?: false))
     val state = _state.asStateFlow()
+    private var sharedImportUri: String? = null
 
     init {
         viewModelScope.launch {
@@ -67,6 +70,10 @@ class ReceiptFlowViewModel @Inject constructor(
                         message = "Desbloquea la sesión propietaria para revisar comprobantes.",
                     )
                 } else {
+                    sharedImportUri?.let { uri ->
+                        sharedImportUri = null
+                        if (!_state.value.importConsumed) requestImport(uri, null, null)
+                    }
                     if (_state.value.selected == null) savedState.get<String>("selectedCandidate")?.let { loadCandidate(it) }
                     combine(store.observe(requireNotNull(owner)), store.observeRegistered(requireNotNull(owner))) { rows, registered ->
                         pendingReceipts(rows) to registered
@@ -80,10 +87,26 @@ class ReceiptFlowViewModel @Inject constructor(
 
     private fun hasAccess() = owner != null && (session.localAccess.value as? LocalAccess.Available)?.userId == owner
 
-    fun import(uri: String) = work {
+    fun import(uri: String) = work { importImage(uri) }
+
+    fun authorizeImport(uri: String) = work {
         if (_state.value.importConsumed) return@work
-        val result = importer(requireNotNull(owner), Uri.parse(uri), userConsented = true)
+        ocrConsent.grant(requireNotNull(owner))
         if (!hasAccess()) return@work
+        _state.update { it.copy(requiresOcrConsent = false) }
+        importImage(uri)
+    }
+
+    private suspend fun importImage(uri: String) {
+        if (_state.value.importConsumed) return
+        val consentGranted = ocrConsent.isGranted(requireNotNull(owner))
+        if (!hasAccess()) return
+        if (!consentGranted) {
+            _state.update { it.copy(requiresOcrConsent = true) }
+            return
+        }
+        val result = importer(requireNotNull(owner), Uri.parse(uri), userConsented = true)
+        if (!hasAccess()) return
         when (result) {
             is ReceiptImportResult.CandidateCreated -> {
                 consumeImport()
@@ -94,10 +117,10 @@ class ReceiptFlowViewModel @Inject constructor(
             is ReceiptImportResult.Duplicate -> {
                 consumeImport()
                 val duplicate = store.get(requireNotNull(owner), result.existingCandidateId)
-                if (!hasAccess()) return@work
+                if (!hasAccess()) return
                 val movement = duplicate?.takeIf { it.status == ReceiptCandidateStatus.CONFIRMED }
                     ?.let { store.registeredMovementId(requireNotNull(owner), it.id) }
-                if (!hasAccess()) return@work
+                if (!hasAccess()) return
                 _state.update { it.copy(notice = receiptImportNotice(result, duplicate?.status),
                     duplicateCandidate = duplicate, duplicateMovementId = movement) }
             }
@@ -109,16 +132,27 @@ class ReceiptFlowViewModel @Inject constructor(
                 consumeImport()
                 _state.update { it.copy(notice = receiptImportNotice(result), message = null) }
             }
-            ReceiptImportResult.ConsentRequired -> message("Autoriza la lectura local antes de continuar.")
+            ReceiptImportResult.ConsentRequired -> _state.update {
+                it.copy(requiresOcrConsent = true, message = "Autoriza la lectura local antes de continuar.")
+            }
         }
     }
 
-    fun requestImport(uri: String, name: String?, size: Long?) {
-        if (!hasAccess() || _state.value.busy) return
+    fun requestImport(uri: String, name: String?, size: Long?) = work {
         savedState["importConsumed"] = false
         closeEditor()
         _state.update { it.copy(pendingImportUri = uri, importConsumed = false, fileName = name,
-            fileSize = size, notice = null, message = null) }
+            fileSize = size, notice = null, message = null, requiresOcrConsent = false) }
+        importImage(uri)
+    }
+
+    fun requestSharedImport(uri: String) {
+        if (_state.value.importConsumed) return
+        sharedImportUri = uri
+        if (hasAccess() && !_state.value.busy) {
+            sharedImportUri = null
+            requestImport(uri, null, null)
+        }
     }
 
     fun cancelImport() { consumeImport(); _state.update { it.copy(pendingImportUri = null) } }
@@ -141,7 +175,7 @@ class ReceiptFlowViewModel @Inject constructor(
 
     private fun consumeImport() {
         savedState["importConsumed"] = true
-        _state.update { it.copy(importConsumed = true) }
+        _state.update { it.copy(importConsumed = true, requiresOcrConsent = false, pendingImportUri = null) }
     }
 
     fun manual() = work {

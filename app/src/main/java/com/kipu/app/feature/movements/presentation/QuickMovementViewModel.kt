@@ -31,6 +31,7 @@ import com.kipu.app.feature.categories.domain.model.CategoryId
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.model.CategoryType
+import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.domain.usecase.CreateCategory
 import com.kipu.app.feature.categories.domain.usecase.EnsureInitialCategoryCatalog
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
@@ -70,6 +71,16 @@ data class CategoryOption(
 ) {
     val displayName: String get() = parentName?.let { "$it > $name" } ?: name
 }
+
+internal fun CategoryItem.toCategoryOption(parent: CategoryItem? = null): CategoryOption = CategoryOption(
+    id = category.id.value,
+    name = displayName,
+    icon = icon,
+    categoryType = category.categoryType,
+    parentCategoryId = parent?.category?.id?.value,
+    parentName = parent?.displayName,
+    color = color,
+)
 
 data class QuickMovementUiState(
     val type: MovementType = MovementType.EXPENSE,
@@ -242,15 +253,7 @@ class QuickMovementViewModel @Inject constructor(
                         .flatMap { root -> listOf(root to null) + root.subcategories.map { it to root } }
                         .filter { (item, _) -> item.category.isActive && !item.category.isPlanLocked }
                         .map { (item, parent) ->
-                            CategoryOption(
-                                id = item.category.id.value,
-                                name = item.displayName,
-                                icon = item.icon,
-                                categoryType = item.category.categoryType,
-                                parentCategoryId = parent?.category?.id?.value,
-                                parentName = parent?.displayName,
-                                color = item.color,
-                            )
+                            item.toCategoryOption(parent)
                         }
                     _uiState.update { current ->
                         val options = categoriesFor(current.type)

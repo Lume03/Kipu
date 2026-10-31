@@ -15,7 +15,7 @@ class ImportYapeReceiptTest {
         for ((text, expected) in listOf("Transferencia de otro banco" to ReceiptImportResult.NotYape,
             "   " to ReceiptImportResult.Unreadable)) {
             val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
-                ReceiptImageRecognizer { RecognizedReceiptText(text, "hash") }, YapeReceiptParser(), store)
+                ReceiptImageRecognizer { RecognizedReceiptText(text, "hash") }, YapeReceiptParser(), store, consent())
             assertEquals(expected, useCase("owner", mockk<Uri>(), true))
         }
         coVerify(exactly = 0) { store.import(any(), any(), any(), any()) }
@@ -23,7 +23,7 @@ class ImportYapeReceiptTest {
 
     @Test fun unsupportedFormatIsDistinctFromUnreadable() = runTest {
         val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
-            ReceiptImageRecognizer { throw UnsupportedReceiptImageFormat() }, YapeReceiptParser(), mockk())
+            ReceiptImageRecognizer { throw UnsupportedReceiptImageFormat() }, YapeReceiptParser(), mockk(), consent())
         assertEquals(ReceiptImportResult.UnsupportedFormat, useCase("owner", mockk<Uri>(), true))
     }
 
@@ -33,7 +33,7 @@ class ImportYapeReceiptTest {
             YapeReceiptParser(), object : ReceiptCandidateStore by mockk() {
                 override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?) =
                     ReceiptCandidateSaveResult.Saved(newReceiptCandidate(ownerId, imageFingerprint, fields, isIncome))
-            })
+            }, consent())
         val result = assertIs<ReceiptImportResult.CandidateCreated>(useCase("owner", mockk<Uri>(), true))
         assertEquals(1250L, result.candidate.amountMinor)
         assertEquals(null, result.candidate.occurredAt)
@@ -52,7 +52,41 @@ class ImportYapeReceiptTest {
         assertEquals(false, opened)
     }
 
-    private fun importer(allowed: Boolean, opened: () -> Unit) = ImportYapeReceipt(
+    @Test fun callerBooleanCannotBypassMissingPersistedConsent() = runTest {
+        var opened = false
+        val useCase = importer(allowed = true, opened = { opened = true }, granted = false)
+        assertIs<ReceiptImportResult.ConsentRequired>(useCase("owner", mockk<Uri>(), true))
+        assertEquals(false, opened)
+    }
+
+    @Test fun revocationWhileCheckingAccessDoesNotOpenUri() = runTest {
+        var opened = false
+        val consent = consent()
+        val useCase = ImportYapeReceipt(ReceiptScanAccess { consent.revoke(it); true },
+            ReceiptImageRecognizer { opened = true; null }, YapeReceiptParser(), mockk(), consent)
+        assertIs<ReceiptImportResult.ConsentRequired>(useCase("owner", mockk<Uri>(), true))
+        assertEquals(false, opened)
+    }
+
+    @Test fun revocationDuringRecognitionDoesNotPersistCandidate() = runTest {
+        val consent = consent()
+        val store = mockk<ReceiptCandidateStore>()
+        val useCase = ImportYapeReceipt(ReceiptScanAccess { true }, ReceiptImageRecognizer {
+            consent.revoke("owner")
+            RecognizedReceiptText("¡Yapeaste! S/ 12.50", "hash")
+        }, YapeReceiptParser(), store, consent)
+        assertIs<ReceiptImportResult.ConsentRequired>(useCase("owner", mockk<Uri>(), true))
+        coVerify(exactly = 0) { store.import(any(), any(), any(), any()) }
+    }
+
+    private fun consent(granted: Boolean = true) = object : ReceiptOcrConsent {
+        private var allowed = granted
+        override suspend fun isGranted(ownerId: String) = allowed
+        override suspend fun grant(ownerId: String) { allowed = true }
+        override suspend fun revoke(ownerId: String) { allowed = false }
+    }
+
+    private fun importer(allowed: Boolean, opened: () -> Unit, granted: Boolean = true) = ImportYapeReceipt(
         access = ReceiptScanAccess { allowed },
         recognizer = ReceiptImageRecognizer {
             opened()
@@ -68,5 +102,6 @@ class ImportYapeReceiptTest {
             override suspend fun markConfirmed(ownerId: String, candidateId: String) = false
             override suspend fun discard(ownerId: String, candidateId: String) = false
         },
+        consent = consent(granted),
     )
 }

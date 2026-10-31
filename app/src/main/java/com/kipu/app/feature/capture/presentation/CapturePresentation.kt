@@ -26,6 +26,7 @@ internal fun CaptureProvider.displayName(): String = when (this) {
     CaptureProvider.INTERBANK -> "Interbank"
     CaptureProvider.BBVA -> "BBVA"
     CaptureProvider.SCOTIABANK -> "Scotiabank"
+    CaptureProvider.GOOGLE_WALLET -> "Google Wallet"
 }
 
 internal fun CaptureConfidenceLevel.displayName(): String = when (this) {

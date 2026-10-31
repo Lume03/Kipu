@@ -91,6 +91,7 @@ class PermissionsViewModelTest {
             return when (source) {
                 PermissionSource.OWN_NOTIFICATIONS -> ownNotificationsAuth
                 PermissionSource.OTHER_APP_NOTIFICATION_CONTENT -> listenerAuth
+                PermissionSource.YAPE_RECEIPT_OCR -> DeviceAuthorization.NOT_APPLICABLE
             }
         }
 
@@ -155,6 +156,7 @@ class PermissionsViewModelTest {
             assertTrue(viewModel.uiState.value.message!!.contains("Premium"))
             val consent = dao.findAccountConsent(userId, PermissionSource.OTHER_APP_NOTIFICATION_CONTENT.name)
             assertNull(consent)
+            assertNull(viewModel.uiState.value.openSettingsFor)
         } finally {
             Dispatchers.resetMain()
         }
@@ -176,6 +178,124 @@ class PermissionsViewModelTest {
             viewModel.revokeConsent(PermissionSource.OTHER_APP_NOTIFICATION_CONTENT)
             advanceUntilIdle()
             assertEquals("REVOKED", dao.findAccountConsent(userId, PermissionSource.OTHER_APP_NOTIFICATION_CONTENT.name)?.consentState)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `listener consent requests Android settings and refresh uses the real permission`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            verifiedPremium = true
+            val dao = FakePermissionDao()
+            val gateway = FakeGateway()
+            val viewModel = PermissionsViewModel(dao, gateway,
+                FakeSessionCoordinator(LocalOwner(userId.toString(), false)), captureGate, categories)
+            val source = PermissionSource.OTHER_APP_NOTIFICATION_CONTENT
+            advanceUntilIdle()
+            viewModel.grantConsent(source)
+            advanceUntilIdle()
+
+            assertEquals("GRANTED", dao.findAccountConsent(userId, source.name)?.consentState)
+            assertEquals(source, viewModel.uiState.value.openSettingsFor)
+            val pending = viewModel.uiState.value.items.first { it.source == source }
+            assertEquals(DeviceAuthorization.DENIED, pending.deviceAuth)
+            assertTrue(pending.needsAndroidActivation)
+            assertFalse(pending.isProcessingAuthorized)
+            assertFalse(viewModel.uiState.value.message.orEmpty().contains("activada"))
+
+            viewModel.onSettingsOpened(source)
+            assertNull(viewModel.uiState.value.openSettingsFor)
+            viewModel.refresh()
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.message.orEmpty().contains("Puedes activarlo cuando quieras"))
+            assertFalse(viewModel.uiState.value.items.first { it.source == source }.isProcessingAuthorized)
+            assertNull(viewModel.uiState.value.openSettingsFor)
+
+            viewModel.onSettingsOpened(source)
+            gateway.listenerAuth = DeviceAuthorization.GRANTED
+            viewModel.refresh()
+            advanceUntilIdle()
+            val active = viewModel.uiState.value.items.first { it.source == source }
+            assertEquals(DeviceAuthorization.GRANTED, active.deviceAuth)
+            assertTrue(active.isProcessingAuthorized)
+            assertFalse(active.needsAndroidActivation)
+            assertEquals("Captura automática activada.", viewModel.uiState.value.message)
+            assertNull(viewModel.uiState.value.openSettingsFor)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `listener consent with Android already enabled does not request settings`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            verifiedPremium = true
+            val gateway = FakeGateway().apply { listenerAuth = DeviceAuthorization.GRANTED }
+            val viewModel = PermissionsViewModel(FakePermissionDao(), gateway,
+                FakeSessionCoordinator(LocalOwner(userId.toString(), false)), captureGate, categories)
+            advanceUntilIdle()
+            viewModel.grantConsent(PermissionSource.OTHER_APP_NOTIFICATION_CONTENT)
+            advanceUntilIdle()
+            assertNull(viewModel.uiState.value.openSettingsFor)
+            assertTrue(viewModel.uiState.value.items.first { it.source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT }.isProcessingAuthorized)
+            assertEquals("Captura automática activada.", viewModel.uiState.value.message)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `unavailable Android settings keeps consent and gives a recoverable message`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            verifiedPremium = true
+            val dao = FakePermissionDao()
+            val viewModel = PermissionsViewModel(dao, FakeGateway(),
+                FakeSessionCoordinator(LocalOwner(userId.toString(), false)), captureGate, categories)
+            advanceUntilIdle()
+            viewModel.grantConsent(PermissionSource.OTHER_APP_NOTIFICATION_CONTENT)
+            advanceUntilIdle()
+            viewModel.onSettingsUnavailable()
+            assertNull(viewModel.uiState.value.openSettingsFor)
+            assertEquals("GRANTED", dao.findAccountConsent(userId, PermissionSource.OTHER_APP_NOTIFICATION_CONTENT.name)?.consentState)
+            assertFalse(viewModel.uiState.value.items.first { it.source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT }.isProcessingAuthorized)
+            assertTrue(viewModel.uiState.value.message.orEmpty().contains("Puedes abrirlos"))
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `Yape OCR is Free revocable versioned and needs no Android settings`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            val source = PermissionSource.YAPE_RECEIPT_OCR
+            val dao = FakePermissionDao()
+            val viewModel = PermissionsViewModel(dao, FakeGateway(),
+                FakeSessionCoordinator(LocalOwner(userId.toString(), false)), captureGate, categories)
+            advanceUntilIdle()
+            viewModel.grantConsent(source)
+            advanceUntilIdle()
+            val granted = viewModel.uiState.value.items.first { it.source == source }
+            assertTrue(granted.isProcessingAuthorized)
+            assertFalse(granted.requiresPremium)
+            assertFalse(granted.needsAndroidActivation)
+            assertEquals(DeviceAuthorization.NOT_APPLICABLE, granted.deviceAuth)
+            assertNull(viewModel.uiState.value.openSettingsFor)
+            val persisted = requireNotNull(dao.findAccountConsent(userId, source.name))
+            assertEquals(com.kipu.app.feature.receipts.domain.OCR_CONSENT_VERSION, persisted.explanationVersion)
+            dao.putAccountConsent(persisted.copy(explanationVersion = persisted.explanationVersion + 1))
+            advanceUntilIdle()
+            assertFalse(viewModel.uiState.value.items.first { it.source == source }.isProcessingAuthorized)
+            viewModel.grantConsent(source)
+            advanceUntilIdle()
+            viewModel.revokeConsent(source)
+            advanceUntilIdle()
+            assertEquals("REVOKED", dao.findAccountConsent(userId, source.name)?.consentState)
+            assertFalse(viewModel.uiState.value.items.first { it.source == source }.isProcessingAuthorized)
         } finally {
             Dispatchers.resetMain()
         }

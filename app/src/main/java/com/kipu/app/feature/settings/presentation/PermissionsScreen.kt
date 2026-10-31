@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -106,6 +108,13 @@ fun PermissionsScreen(
         state.message?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(state.openSettingsFor) {
+        state.openSettingsFor?.let { source ->
+            viewModel.onSettingsOpened(source)
+            onOpenSettingsIntent(source)
         }
     }
 
@@ -174,7 +183,10 @@ fun PermissionsScreen(
                         onShowRationale = { viewModel.showRationale(item.source) },
                         onGrantConsent = { viewModel.showRationale(item.source) },
                         onRevokeConsent = { viewModel.revokeConsent(item.source) },
-                        onOpenSettings = { onOpenSettingsIntent(item.source) },
+                        onOpenSettings = {
+                            viewModel.onSettingsOpened(item.source)
+                            onOpenSettingsIntent(item.source)
+                        },
                     )
                 }
             }
@@ -252,12 +264,17 @@ private fun PermissionCard(
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
     val isGranted = item.isProcessingAuthorized
+    val statusText = when {
+        item.needsAndroidActivation -> "Falta activar en Android"
+        isGranted -> "Activo"
+        else -> "Inactivo"
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .semantics {
-                contentDescription = "${item.title}. Estado: ${if (isGranted) "Activo" else "Inactivo"}"
+                contentDescription = "${item.title}. Estado: $statusText"
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, themeColors.border),
@@ -267,12 +284,11 @@ private fun PermissionCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column {
                     Text(
                         text = item.title,
                         fontWeight = FontWeight.Bold,
@@ -302,7 +318,7 @@ private fun PermissionCard(
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = if (isGranted) "Activo" else "Inactivo",
+                            text = statusText,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (isGranted) semanticColors.incomeText else themeColors.inkSecondary,
@@ -311,9 +327,25 @@ private fun PermissionCard(
                 }
             }
 
+            if (item.needsAndroidActivation) {
+                OutlinedButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .testTag("permission_open_settings_${item.source.name}"),
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Abrir ajustes")
+                }
+            }
+
             // Diagnostic details
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                val devText = if (item.deviceAuth == DeviceAuthorization.GRANTED) "Concedido en sistema" else "Desactivado en sistema"
+                val devText = when (item.deviceAuth) {
+                    DeviceAuthorization.NOT_APPLICABLE -> "No requiere permiso de Android"
+                    DeviceAuthorization.GRANTED -> "Concedido en sistema"
+                    else -> "Desactivado en sistema"
+                }
                 val consentText = if (item.consentState == ConsentState.GRANTED) "Consentimiento otorgado" else "Sin consentimiento de cuenta"
 
                 Text("• Dispositivo: $devText", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -359,15 +391,17 @@ private fun PermissionCard(
                     }
                 }
 
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Abrir ajustes del sistema",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (!item.needsAndroidActivation && item.source != PermissionSource.YAPE_RECEIPT_OCR) {
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Abrir ajustes del sistema",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

@@ -27,6 +27,12 @@ class ReceiptFlowViewModelTest {
     private val confirmer = mockk<ConfirmReceiptCandidate>()
     private val session = mockk<SessionCoordinator>()
     private val access = MutableStateFlow<LocalAccess>(LocalAccess.Available("owner", RemoteSession.Absent))
+    private val consent = object : ReceiptOcrConsent {
+        val versions = mutableMapOf("owner" to OCR_CONSENT_VERSION)
+        override suspend fun isGranted(ownerId: String) = versions[ownerId] == OCR_CONSENT_VERSION
+        override suspend fun grant(ownerId: String) { versions[ownerId] = OCR_CONSENT_VERSION }
+        override suspend fun revoke(ownerId: String) { versions.remove(ownerId) }
+    }
     private val candidate = ReceiptCandidate(
         id = "candidate", ownerId = "owner", amountMinor = 1250, occurredAt = 1792594800000,
         recipient = "Persona de prueba", reference = "01234567", referenceFingerprint = "ref-hash",
@@ -41,7 +47,8 @@ class ReceiptFlowViewModelTest {
         coEvery { store.get("owner", "candidate") } returns candidate
     }
     @After fun teardown() { Dispatchers.resetMain() }
-    private fun viewModel() = ReceiptFlowViewModel(store, importer, confirmer, session, SavedStateHandle())
+    private fun viewModel(savedState: SavedStateHandle = SavedStateHandle()) =
+        ReceiptFlowViewModel(store, importer, confirmer, session, savedState, consent)
 
     @Test fun `scan returns to inbox with new marker but never confirms money automatically`() = runTest {
         coEvery { importer("owner", any(), true) } returns ReceiptImportResult.CandidateCreated(candidate)
@@ -125,16 +132,82 @@ class ReceiptFlowViewModelTest {
         coVerify(exactly = 0) { confirmer(any(), any(), any()) }
     }
 
-    @Test fun `picker opens fresh consent session and cancel never opens image`() = runTest {
+    @Test fun `picker without persisted consent requests authorization and cancel never opens image`() = runTest {
+        consent.revoke("owner")
         val vm = viewModel()
         vm.requestImport("content://picker/image", "captura.png", 2048)
+        advanceUntilIdle()
         assertFalse(vm.state.value.importConsumed)
+        assertTrue(vm.state.value.requiresOcrConsent)
         assertEquals("content://picker/image", vm.state.value.pendingImportUri)
         vm.cancelImport()
         advanceUntilIdle()
         assertTrue(vm.state.value.importConsumed)
         assertNull(vm.state.value.pendingImportUri)
         coVerify(exactly = 0) { importer(any(), any(), any()) }
+    }
+
+    @Test fun `persisted consent skips authorization for consecutive imports`() = runTest {
+        coEvery { importer("owner", any(), true) } returns ReceiptImportResult.CandidateCreated(candidate)
+        val vm = viewModel()
+        vm.requestImport("content://picker/first", null, null)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.requiresOcrConsent)
+        assertTrue(vm.state.value.importConsumed)
+        vm.requestImport("content://picker/second", null, null)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.requiresOcrConsent)
+        assertTrue(vm.state.value.importConsumed)
+        coVerify(exactly = 2) { importer("owner", any(), true) }
+    }
+
+    @Test fun `explicit authorization persists consent before importing and survives view model recreation`() = runTest {
+        consent.revoke("owner")
+        coEvery { importer("owner", any(), true) } answers {
+            assertEquals(OCR_CONSENT_VERSION, consent.versions["owner"])
+            ReceiptImportResult.CandidateCreated(candidate)
+        }
+        val vm = viewModel()
+        vm.requestImport("content://picker/first", null, null)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.requiresOcrConsent)
+        coVerify(exactly = 0) { importer(any(), any(), any()) }
+        vm.authorizeImport("content://picker/first")
+        advanceUntilIdle()
+        assertFalse(vm.state.value.requiresOcrConsent)
+        val recreated = viewModel(SavedStateHandle())
+        recreated.requestSharedImport("content://shared/second")
+        advanceUntilIdle()
+        assertFalse(recreated.state.value.requiresOcrConsent)
+        assertTrue(recreated.state.value.importConsumed)
+        coVerify(exactly = 2) { importer("owner", any(), true) }
+    }
+
+    @Test fun `revocation and changed explanation version require fresh authorization`() = runTest {
+        val vm = viewModel()
+        consent.revoke("owner")
+        vm.requestImport("content://picker/revoked", null, null)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.requiresOcrConsent)
+        consent.versions["owner"] = OCR_CONSENT_VERSION + 1
+        vm.requestImport("content://picker/old-version", null, null)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.requiresOcrConsent)
+        coVerify(exactly = 0) { importer(any(), any(), any()) }
+    }
+
+    @Test fun `shared image waits for owner restoration and uses persisted consent`() = runTest {
+        access.value = LocalAccess.NoOwner
+        coEvery { importer("owner", any(), true) } returns ReceiptImportResult.CandidateCreated(candidate)
+        val vm = viewModel()
+        vm.requestSharedImport("content://shared/restored")
+        advanceUntilIdle()
+        coVerify(exactly = 0) { importer(any(), any(), any()) }
+        access.value = LocalAccess.Available("owner", RemoteSession.Absent)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.requiresOcrConsent)
+        assertTrue(vm.state.value.importConsumed)
+        coVerify(exactly = 1) { importer("owner", any(), true) }
     }
 
     @Test fun `scan access denial gives manual fallback without confirming`() = runTest {
@@ -165,7 +238,7 @@ class ReceiptFlowViewModelTest {
     @Test fun `restored candidate waits for session restoration without repeating OCR`() = runTest {
         access.value = LocalAccess.NoOwner
         val savedState = SavedStateHandle(mapOf("selectedCandidate" to "candidate", "importConsumed" to true))
-        val vm = ReceiptFlowViewModel(store, importer, confirmer, session, savedState)
+        val vm = viewModel(savedState)
         advanceUntilIdle()
         assertNull(vm.state.value.selected)
         coVerify(exactly = 0) { store.get(any(), any()) }

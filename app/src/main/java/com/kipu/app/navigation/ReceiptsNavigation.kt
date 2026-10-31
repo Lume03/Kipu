@@ -79,7 +79,7 @@ const val RECEIPTS_ROUTE = "receipts"
 private const val RECEIPT_IMPORT_ROUTE = "receipts?uri={uri}"
 
 fun NavController.navigateToReceiptImport(uri: String) {
-    // Each Android share is a new consent/import session, even if its provider reuses a URI.
+    // Each share is a new import; OCR consent is persisted separately for its owner.
     navigate("receipts?uri=${Uri.encode(uri)}")
 }
 
@@ -137,6 +137,9 @@ private fun ReceiptFlowScreen(
         }
     }
     val upload = { picker.launch("image/*") }
+    LaunchedEffect(sharedUri) {
+        sharedUri?.let(viewModel::requestSharedImport)
+    }
     LaunchedEffect(state.addedEventId) {
         state.addedEventId?.let { id ->
             viewModel.consumeAddedEvent()
@@ -195,12 +198,22 @@ private fun ReceiptFlowScreen(
                 }
                 importUri != null && !state.importConsumed -> {
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Recibimos una imagen compartida", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        ReceiptInfoNotice("Autoriza a Kipu a leer este comprobante Yape en tu dispositivo. El OCR local está disponible en Kipu Free. La imagen no se subirá ni se conservará.", prominent = true)
-                        Text("La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.", color = palette.secondaryMuted)
-                        Button(onClick = { viewModel.import(importUri) }, enabled = !state.busy,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_authorize_ocr")) { Text("Autorizar OCR local de Yape") }
-                        OutlinedButton(onClick = viewModel::cancelImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Cancelar") }
+                        if (state.requiresOcrConsent) {
+                            Text("Recibimos una imagen compartida", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                            ReceiptInfoNotice("Autoriza a Kipu a leer los comprobantes Yape que elijas en tu dispositivo. El OCR local está disponible en Kipu Free. Las imágenes no se subirán ni se conservarán. Puedes revocar este consentimiento en Permisos y Automatización.", prominent = true)
+                            Text("La imagen no acredita por sí sola un pago. Revisarás los datos antes de registrar; tu saldo no cambiará durante la lectura.", color = palette.secondaryMuted)
+                            Button(onClick = { viewModel.authorizeImport(importUri) }, enabled = !state.busy,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("receipt_authorize_ocr")) { Text("Autorizar OCR local de Yape") }
+                            OutlinedButton(onClick = viewModel::cancelImport, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Cancelar") }
+                        } else {
+                            Text("Preparando la lectura local del comprobante…", style = MaterialTheme.typography.bodyLarge)
+                            if (!state.busy) {
+                                OutlinedButton(onClick = { viewModel.import(importUri) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                    Text("Reintentar lectura")
+                                }
+                                TextButton(onClick = viewModel::cancelImport, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Cancelar") }
+                            }
+                        }
                     }
                 }
                 else -> ReceiptReviewScreen(candidates = state.candidates, onReview = viewModel::select,

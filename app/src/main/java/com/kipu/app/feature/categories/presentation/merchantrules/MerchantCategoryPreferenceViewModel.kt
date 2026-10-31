@@ -12,8 +12,11 @@ import com.kipu.app.feature.categories.domain.model.CategoryPresentation
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.MerchantCategoryPreference
 import com.kipu.app.feature.categories.domain.model.MerchantId
+import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.domain.usecase.DeleteMerchantCategoryPreference
 import com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference
+import com.kipu.app.feature.movements.presentation.CategoryOption
+import com.kipu.app.feature.movements.presentation.toCategoryOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -26,8 +29,10 @@ import kotlinx.coroutines.launch
 
 data class MerchantCategoryChoice(
     val category: Category,
-    val displayName: String,
-)
+    val option: CategoryOption,
+) {
+    val displayName: String get() = option.name
+}
 
 data class MerchantCategoryPreferenceUiState(
     val ownerId: UserId? = null,
@@ -160,9 +165,16 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
                 !category.isPlanLocked && parent?.isPlanLocked != true &&
                 (category.ownerId == null || category.ownerId == owner)
         }.map { category ->
+            val item = CategoryItem(category, presentations[category.id])
+            val parent = category.parentId?.let(byId::get)?.let {
+                CategoryItem(it, presentations[it.id])
+            }
             MerchantCategoryChoice(
                 category = category,
-                displayName = presentations[category.id]?.name ?: "Categoría personal",
+                option = item.toCategoryOption(parent).copy(
+                    name = presentations[category.id]?.name ?: "Categoría personal",
+                    parentName = parent?.let { presentations[it.category.id]?.name ?: "Categoría personal" },
+                ),
             )
         }.sortedBy(MerchantCategoryChoice::displayName)
         val state = _uiState.value

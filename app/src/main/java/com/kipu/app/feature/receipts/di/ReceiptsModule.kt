@@ -2,11 +2,13 @@ package com.kipu.app.feature.receipts.di
 
 import com.kipu.app.feature.receipts.data.AndroidReceiptImageRecognizer
 import com.kipu.app.feature.receipts.data.LocalReceiptScanAccess
+import com.kipu.app.feature.receipts.data.RoomReceiptOcrConsent
 import com.kipu.app.feature.receipts.data.local.ReceiptCandidateDao
 import com.kipu.app.feature.receipts.data.local.RoomReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.ReceiptImageRecognizer
 import com.kipu.app.feature.receipts.domain.ReceiptScanAccess
+import com.kipu.app.feature.receipts.domain.ReceiptOcrConsent
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -21,6 +23,7 @@ abstract class ReceiptsBindings {
     @Binds @Singleton abstract fun candidateStore(value: RoomReceiptCandidateStore): ReceiptCandidateStore
     @Binds @Singleton abstract fun imageRecognizer(value: AndroidReceiptImageRecognizer): ReceiptImageRecognizer
     @Binds @Singleton abstract fun scanAccess(value: LocalReceiptScanAccess): ReceiptScanAccess
+    @Binds @Singleton abstract fun ocrConsent(value: RoomReceiptOcrConsent): ReceiptOcrConsent
 }
 
 @Module

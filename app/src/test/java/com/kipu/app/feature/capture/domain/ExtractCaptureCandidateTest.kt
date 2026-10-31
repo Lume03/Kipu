@@ -102,6 +102,44 @@ class ExtractCaptureCandidateTest {
         assertEquals(1, saved.size)
     }
 
+    @Test fun `Wallet credit payment stays pending and never registers automatically`() = runTest {
+        instrument = CaptureInstrumentResolution(CaptureInstrumentKind.CREDIT_CARD, cardId = "credit-0771")
+        val source = CaptureSignal(CaptureProvider.GOOGLE_WALLET, "com.google.android.apps.walletnfcrel", "wallet", now - 1000,
+            "OPENPAY*XIN FU        LIM", "PEN35.00 con Visa Clasica BCP Qore ••0771")
+        val candidate = (pipeline()(owner, source) as CaptureExtractionResult.Created).candidate
+        assertEquals(CaptureCandidateStatus.PENDING, candidate.status)
+        assertEquals(CaptureProvider.GOOGLE_WALLET, candidate.provider)
+        assertEquals(CaptureDirection.EXPENSE, candidate.direction)
+        assertEquals(3500L, candidate.amountMinor)
+        assertEquals("PEN", candidate.currency)
+        assertEquals("OPENPAY*XIN FU", candidate.merchantSourceText)
+        assertEquals("0771", candidate.cardLast4)
+        assertEquals("credit-0771", candidate.cardId)
+        assertEquals(CaptureInstrumentKind.CREDIT_CARD, candidate.instrumentKind)
+        assertEquals(CreditMode.DIRECT, candidate.creditMode)
+        assertEquals(source.postTimeMillis, candidate.occurredAt)
+        assertTrue(candidate.occurredAtInferred)
+        assertTrue(CaptureReason.DATE_INFERRED in candidate.confidenceReasons)
+        assertTrue(CaptureReason.CREDIT_CARD_REQUIRES_REVIEW in candidate.confidenceReasons)
+        val confirm = mockk<ConfirmCaptureCandidate>(relaxed = true)
+        val autoRegister = AutoRegisterCaptureCandidate(candidates, confirm, Clock.fixed(Instant.ofEpochMilli(now), ZoneOffset.UTC))
+        assertEquals(AutoRegisterResult.NotEligible, autoRegister(candidate))
+        // Credit still requires consent even if every other automatic-registration condition is met.
+        assertEquals(AutoRegisterResult.NotEligible, autoRegister(candidate.copy(
+            confidence = CaptureConfidenceLevel.HIGH, occurredAtInferred = false, accountId = "account", categoryId = "category",
+        )))
+        coVerify(exactly = 0) { confirm(any(), any()) }
+        assertEquals(CaptureCandidateStatus.PENDING, saved.values.single().status)
+        assertNull(saved.values.single().resolvedTransactionId)
+    }
+
+    @Test fun `Wallet content without payment pattern creates no candidate`() = runTest {
+        val source = CaptureSignal(CaptureProvider.GOOGLE_WALLET, "com.google.android.apps.walletnfcrel", "wallet", now,
+            "TIENDA", "Compra con Visa Clasica BCP Qore ••0771")
+        assertEquals(CaptureExtractionResult.Ignored(CaptureSourceOutcome.IGNORED_UNPARSEABLE), pipeline()(owner, source))
+        assertTrue(saved.isEmpty())
+    }
+
     @Test fun `unsupported source denied gate and foreign owner never persist`() = runTest {
         val extract = pipeline()
         assertEquals(CaptureExtractionResult.Ignored(CaptureSourceOutcome.IGNORED_UNSUPPORTED), extract(owner, signal(source = "com.fake.yape")))

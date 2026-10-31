@@ -22,6 +22,79 @@ class NotificationCaptureParserTest {
     private fun parse(provider: CaptureProvider, text: String) = NotificationCaptureParsers.forProvider(provider)
         .parse(CaptureSignal(provider, "test", "key", 100, provider.name, text))
 
+    private fun parseWallet(title: String, text: String) = NotificationCaptureParsers.forProvider(CaptureProvider.GOOGLE_WALLET)
+        .parse(CaptureSignal(CaptureProvider.GOOGLE_WALLET, "com.google.android.apps.walletnfcrel", "wallet", 100, title, text))
+
+    @Test fun `real Google Wallet payments extract expense amount card and merchant from title`() {
+        listOf(
+            Triple("OPENPAY*XIN FU        LIM", "PEN35.00 con Visa Clasica BCP Qore ••0771", 3500L),
+            Triple("COLONIAL C31 CERCADO", "PEN1.50 con Visa Clasica BCP Qore ••0771", 150L),
+        ).forEach { (title, text, amount) ->
+            val parsed = parseWallet(title, text)
+            assertEquals(amount, parsed.amountMinor)
+            assertEquals("PEN", parsed.currency)
+            assertEquals("0771", parsed.cardLast4)
+            assertEquals(CaptureDirection.EXPENSE, parsed.direction)
+            assertEquals(if (amount == 3500L) "OPENPAY*XIN FU" else "COLONIAL C31 CERCADO", parsed.merchantSourceText)
+            assertNull(parsed.instrumentKind)
+            assertNull(parsed.occurredAt)
+            assertFalse(parsed.occurredAtReliable)
+            assertEquals(setOf(CaptureIssue.DATE_INFERRED), parsed.issues)
+        }
+    }
+
+    @Test fun `Wallet supports currency spacing thousands and masked card variants`() {
+        data class Fixture(val money: String, val mask: String, val amount: Long, val currency: String)
+        listOf(
+            Fixture("PEN 35.00", "•••• 0771", 3500L, "PEN"),
+            Fixture("S/ 35.00", "**0771", 3500L, "PEN"),
+            Fixture("USD12.50", "••0771", 1250L, "USD"),
+            Fixture("PEN1,250.50", "••0771", 125050L, "PEN"),
+            Fixture("PEN 1.250,50", "••0771", 125050L, "PEN"),
+            Fixture("USD1,000", "•••• 0771", 100000L, "USD"),
+        ).forEach { fixture ->
+            val parsed = parseWallet("  OPENPAY*XIN  FU        LIM  ", "${fixture.money} con Visa Clasica BCP Qore ${fixture.mask}")
+            assertEquals(fixture.money, fixture.amount, parsed.amountMinor)
+            assertEquals(fixture.currency, parsed.currency)
+            assertEquals("0771", parsed.cardLast4)
+            assertEquals("OPENPAY*XIN FU", parsed.merchantSourceText)
+            assertEquals(CaptureDirection.EXPENSE, parsed.direction)
+        }
+    }
+
+    @Test fun `Wallet infers card type only from explicit card description`() {
+        assertEquals(CaptureInstrumentKind.CREDIT_CARD, parseWallet("TIENDA", "PEN35.00 con Visa Crédito ••0771").instrumentKind)
+        assertEquals(CaptureInstrumentKind.DEBIT_ACCOUNT, parseWallet("TIENDA", "PEN35.00 con Visa Débito ••0771").instrumentKind)
+        assertNull(parseWallet("CREDITO TIENDA", "PEN35.00 con Visa Clasica BCP Qore ••0771").instrumentKind)
+    }
+
+    @Test fun `Wallet ignores content without a complete valid payment pattern even with bank expense verbs`() {
+        listOf(
+            "Promoción especial",
+            "Compra PEN35.00 en TIENDA con Visa ••0771",
+            "PEN35.00 con Visa",
+            "PEN35.00 con Visa •0771",
+            "PEN35.00 con Visa ••077",
+            "PEN35.00 con Visa ••07712",
+            "PEN35.00 con ••0771",
+            "PEN35.00 con   ••0771",
+            "PEN35.00 Visa ••0771",
+            "EUR35.00 con Visa ••0771",
+            "PEN-35.00 con Visa ••0771",
+            "PEN0.00 con Visa ••0771",
+            "PEN12,34,56 con Visa ••0771",
+            "PEN92233720368547758.08 con Visa ••0771",
+            "PEN35.00 con Visa ••0771 compra pendiente",
+            "PEN35.00 con Visa ••0771 y PEN100.00 con Visa ••1234",
+        ).forEach { text ->
+            val parsed = parseWallet("TIENDA", text)
+            assertNull(text, parsed.direction)
+            assertNull(text, parsed.amountMinor)
+        }
+        assertNull(parseWallet("Compra rechazada", "PEN35.00 con Visa ••0771").direction)
+        assertNull(parseWallet("PEN35.00 con Visa ••0771", "").direction)
+    }
+
     @Test fun `provider fixtures extract direction currency amount and merchant`() {
         data class Fixture(val provider: CaptureProvider, val text: String, val amount: Long, val currency: String, val direction: CaptureDirection, val merchant: String?)
         val fixtures = listOf(

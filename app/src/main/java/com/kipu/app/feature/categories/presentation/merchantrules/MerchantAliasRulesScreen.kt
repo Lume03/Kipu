@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,12 +24,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,17 +57,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kipu.app.feature.categories.domain.MerchantAliasRules
 import com.kipu.app.feature.categories.domain.model.MerchantAliasRule
 import com.kipu.app.feature.categories.domain.model.MerchantAliasRuleId
+import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
+import com.kipu.app.feature.categories.presentation.components.MerchantLogoDrawables
+import com.kipu.app.feature.categories.presentation.components.MerchantResultItem
+import com.kipu.app.feature.categories.presentation.components.getMerchantVisualProfile
+import com.kipu.app.ui.component.KipuIconTile
+import com.kipu.app.ui.component.PlanningNotice
 
 @Composable
 fun MerchantAliasRulesScreen(
@@ -192,16 +203,14 @@ fun MerchantAliasRulesContent(
                     shape = RoundedCornerShape(16.dp),
                 )
                 state.merchants.take(5).forEach { merchant ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .semantics { role = Role.Button }
-                            .clickable { onSelectMerchant(merchant) },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (state.candidateMerchant?.id == merchant.id) MaterialTheme.colorScheme.secondaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        Text(merchant.name, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp), style = MaterialTheme.typography.bodyLarge)
-                    }
+                    MerchantResultItem(
+                        entry = merchant,
+                        onClick = { onSelectMerchant(merchant) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { role = Role.Button },
+                        isSelected = state.candidateMerchant?.id == merchant.id,
+                    )
                 }
                 state.candidateMerchant?.let { candidate ->
                     OutlinedButton(onClick = onConfirmMerchant, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -224,8 +233,14 @@ fun MerchantAliasRulesContent(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                                Column {
+                                MerchantAvatar(
+                                    drawableId = MerchantLogoDrawables.resolve(merchant.logoKey),
+                                    remoteLogoUrl = merchant.logoUrl,
+                                    remoteDarkLogoUrl = merchant.logoDarkUrl,
+                                    profile = getMerchantVisualProfile(merchant.name, merchant.brandColor),
+                                    size = 40.dp,
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text("Comercio confirmado", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
                                     Text("Comercio canónico: ${merchant.name}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                                 }
@@ -238,34 +253,79 @@ fun MerchantAliasRulesContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedButton(
+                Surface(
                     onClick = { ruleDetailsExpanded = !ruleDetailsExpanded },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("alias_rule_details_toggle")
+                        .semantics {
+                            role = Role.Button
+                            stateDescription = if (ruleDetailsExpanded) "Expandido" else "Contraído"
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
-                    Text("Cómo funcionan las reglas")
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        KipuIconTile(
+                            icon = Icons.Outlined.Info,
+                            background = MaterialTheme.colorScheme.surface,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Cómo funcionan las reglas", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("Ejemplos y coincidencias exactas", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Icon(
+                            if (ruleDetailsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                        )
+                    }
                 }
-                AnimatedVisibility(visible = ruleDetailsExpanded) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "Coincidencia exacta normalizada; la puntuación se conserva.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Sin coincidencia, el comercio no se asigna y el texto queda disponible para revisión.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Si las reglas apuntan a comercios distintos, la decisión requiere revisión manual.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Si Premium o el consentimiento no están vigentes, puedes registrar el movimiento manualmente.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                AnimatedVisibility(
+                    visible = ruleDetailsExpanded,
+                    enter = fadeIn(tween(animationDuration)) + expandVertically(tween(animationDuration)),
+                    exit = fadeOut(tween(animationDuration)) + shrinkVertically(tween(animationDuration)),
+                ) {
+                    Column(
+                        modifier = Modifier.testTag("alias_rule_details"),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Ejemplos de reglas", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Si creas estas reglas, cada texto normalizado reconocerá el comercio que elegiste.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        AliasNormalizationExample(" Izipay* TÁMBO ", "Tambo", "ic_merchant_tambo")
+                        AliasNormalizationExample("  BEMBOS  ", "Bembos", "ic_merchant_bembos")
+                        PlanningNotice(
+                            title = "1. Se normaliza el texto",
+                            message = "Se unifican mayúsculas, tildes y espacios. La puntuación se conserva y el texto original permanece separado.",
+                        )
+                        PlanningNotice(
+                            title = "2. Coincidencia exacta",
+                            message = "Si el texto normalizado coincide exactamente con tu regla y el comercio está activo, se reconoce ese comercio.",
+                        )
+                        PlanningNotice(
+                            title = "Sin coincidencia",
+                            message = "El alias no asigna un comercio. El texto fuente se conserva para revisión.",
+                        )
+                        PlanningNotice(
+                            title = "Conflicto entre reglas",
+                            message = "Si el mismo texto normalizado apunta a comercios distintos, se requiere revisión manual.",
+                            isError = true,
+                        )
+                        Text(
+                            "Si Premium o el consentimiento no están vigentes, puedes registrar el movimiento manualmente.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
                 Button(
@@ -343,6 +403,45 @@ fun MerchantAliasRulesContent(
                 )
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun AliasNormalizationExample(original: String, merchantName: String, logoKey: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Nombre original", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("«$original»", style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Se normaliza como",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Nombre normalizado", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(MerchantAliasRules.normalize(original), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                MerchantAvatar(
+                    drawableId = MerchantLogoDrawables.resolve(logoKey),
+                    remoteLogoUrl = null,
+                    profile = getMerchantVisualProfile(merchantName),
+                    size = 40.dp,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Comercio canónico de ejemplo", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(merchantName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
 }

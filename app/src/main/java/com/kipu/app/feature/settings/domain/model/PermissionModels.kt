@@ -6,6 +6,7 @@ import java.util.UUID
 enum class PermissionSource {
     OWN_NOTIFICATIONS,
     OTHER_APP_NOTIFICATION_CONTENT,
+    YAPE_RECEIPT_OCR,
 }
 
 enum class DeviceAuthorization {
@@ -58,7 +59,7 @@ data class ProcessingAuthorization(
             accountConsent: AccountConsent?,
             isPremiumUser: Boolean = false,
         ): ProcessingAuthorization {
-            if (deviceAuth != DeviceAuthorization.GRANTED) {
+            if (source != PermissionSource.YAPE_RECEIPT_OCR && deviceAuth != DeviceAuthorization.GRANTED) {
                 return ProcessingAuthorization(
                     source = source,
                     isAuthorized = false,
@@ -82,6 +83,9 @@ data class ProcessingAuthorization(
                         reasonNotAuthorized = "Requiere suscripción Premium para captura de notificaciones",
                     )
                 }
+            }
+            if (source == PermissionSource.YAPE_RECEIPT_OCR && accountConsent.capabilityState != CapabilityState.ALLOWED) {
+                return ProcessingAuthorization(source, false, "El OCR local requiere consentimiento vigente")
             }
 
             return ProcessingAuthorization(source = source, isAuthorized = true)

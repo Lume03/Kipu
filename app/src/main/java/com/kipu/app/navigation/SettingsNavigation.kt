@@ -1,13 +1,11 @@
 package com.kipu.app.navigation
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.kipu.app.feature.settings.domain.model.PermissionSource
+import com.kipu.app.feature.settings.data.AndroidPermissionSettings
 import com.kipu.app.feature.settings.presentation.BiometricSettingsScreen
 import com.kipu.app.feature.settings.presentation.BiometricSettingsViewModel
 import com.kipu.app.feature.settings.presentation.PermissionsScreen
@@ -91,20 +89,7 @@ fun NavGraphBuilder.settingsDestinations(
             viewModel = viewModel,
             onNavigateBack = { navController.popBackStack() },
             onOpenSettingsIntent = { source ->
-                val intent = when (source) {
-                    PermissionSource.OWN_NOTIFICATIONS -> {
-                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                    }
-                    PermissionSource.OTHER_APP_NOTIFICATION_CONTENT -> {
-                        Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                    }
-                }
-                runCatching { context.startActivity(intent) }
+                if (!AndroidPermissionSettings.open(context, source)) viewModel.onSettingsUnavailable()
             },
         )
     }

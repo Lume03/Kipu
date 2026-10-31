@@ -15,7 +15,11 @@ data class PermissionItemUiState(
     val capabilityState: CapabilityState = CapabilityState.UNKNOWN,
     val isProcessingAuthorized: Boolean = false,
     val requiresPremium: Boolean = false,
-)
+) {
+    val needsAndroidActivation: Boolean
+        get() = source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT &&
+            consentState == ConsentState.GRANTED && deviceAuth != DeviceAuthorization.GRANTED
+}
 
 data class PermissionsUiState(
     val isLoading: Boolean = false,
@@ -23,4 +27,5 @@ data class PermissionsUiState(
     val items: List<PermissionItemUiState> = emptyList(),
     val showRationaleFor: PermissionSource? = null,
     val message: String? = null,
+    val openSettingsFor: PermissionSource? = null,
 )

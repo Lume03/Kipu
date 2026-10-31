@@ -76,6 +76,17 @@ class PermissionSourcePolicyTest {
     }
 
     @Test
+    fun `Yape OCR requires account consent but no Android permission or Premium`() {
+        val source = PermissionSource.YAPE_RECEIPT_OCR
+        val consent = AccountConsent(userId, source, ConsentState.GRANTED, CapabilityState.ALLOWED)
+        assertTrue(ProcessingAuthorization.evaluate(source, DeviceAuthorization.NOT_APPLICABLE, consent, false).isAuthorized)
+        assertFalse(ProcessingAuthorization.evaluate(source, DeviceAuthorization.NOT_APPLICABLE,
+            consent.copy(consentState = ConsentState.REVOKED), false).isAuthorized)
+        assertFalse(ProcessingAuthorization.evaluate(source, DeviceAuthorization.NOT_APPLICABLE,
+            consent.copy(capabilityState = CapabilityState.DENIED), false).isAuthorized)
+    }
+
+    @Test
     fun `notification listener requires premium tier even if device and consent granted`() {
         val consent = AccountConsent(
             userId = userId,

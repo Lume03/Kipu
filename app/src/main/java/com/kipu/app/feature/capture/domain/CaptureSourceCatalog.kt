@@ -11,13 +11,15 @@ class CaptureSourceCatalog(private val debug: Boolean) {
             return CaptureProvider.entries.singleOrNull { it.name.equals(title.trim(), ignoreCase = true) }
         }
         val base = packages[packageName] ?: return null
-        return if (base != CaptureProvider.YAPE && Regex("(?i)\\bplin\\b").containsMatchIn("$title $text")) {
+        return if (base != CaptureProvider.YAPE && base != CaptureProvider.GOOGLE_WALLET &&
+            Regex("(?i)\\bplin\\b").containsMatchIn("$title $text")
+        ) {
             CaptureProvider.PLIN
         } else base
     }
 
     companion object {
-        const val CATALOG_VERSION = 1
+        const val CATALOG_VERSION = 2
         const val DEBUG_SHELL = "com.android.shell"
         private val packages = mapOf(
             "com.bcp.innovacxion.yapeapp" to CaptureProvider.YAPE,
@@ -25,6 +27,7 @@ class CaptureSourceCatalog(private val debug: Boolean) {
             "pe.com.interbank.mobilebanking" to CaptureProvider.INTERBANK,
             "com.bbva.nxt_peru" to CaptureProvider.BBVA,
             "pe.com.scotiabank.blpm.android.client" to CaptureProvider.SCOTIABANK,
+            "com.google.android.apps.walletnfcrel" to CaptureProvider.GOOGLE_WALLET,
         )
     }
 }

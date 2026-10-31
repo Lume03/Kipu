@@ -32,6 +32,7 @@ class BcpNotificationParser : NotificationCaptureParser by PeruNotificationParse
 class InterbankNotificationParser : NotificationCaptureParser by PeruNotificationParser()
 class BbvaNotificationParser : NotificationCaptureParser by PeruNotificationParser()
 class ScotiabankNotificationParser : NotificationCaptureParser by PeruNotificationParser()
+class GoogleWalletNotificationParser : NotificationCaptureParser by PeruNotificationParser()
 
 object NotificationCaptureParsers {
     private val parsers = mapOf(
@@ -41,6 +42,7 @@ object NotificationCaptureParsers {
         CaptureProvider.INTERBANK to InterbankNotificationParser(),
         CaptureProvider.BBVA to BbvaNotificationParser(),
         CaptureProvider.SCOTIABANK to ScotiabankNotificationParser(),
+        CaptureProvider.GOOGLE_WALLET to GoogleWalletNotificationParser(),
     )
     fun forProvider(provider: CaptureProvider): NotificationCaptureParser = parsers.getValue(provider)
 }
@@ -54,6 +56,7 @@ private class PeruNotificationParser : NotificationCaptureParser {
         if (NOT_COMPLETED.containsMatchIn(folded)) return ParsedCapture(
             null, null, null, null, null, null, false, setOf(CaptureIssue.DIRECTION_MISSING),
         )
+        if (signal.provider == CaptureProvider.GOOGLE_WALLET) return parseWallet(signal)
         val income = Regex("\\b(recibiste|recibido|te yapeo|te envio|abono|deposito recibido)\\b").containsMatchIn(folded)
         val expense = Regex("\\b(yapeaste|enviaste|transferiste|consumo|compra|pagaste|pago realizado)\\b").containsMatchIn(folded)
         val direction = when {
@@ -98,6 +101,33 @@ private class PeruNotificationParser : NotificationCaptureParser {
         )
     }
 
+    private fun parseWallet(signal: CaptureSignal): ParsedCapture {
+        // Only this complete payment format establishes an expense; bank verbs are not a fallback.
+        val payment = WALLET_PAYMENT.matchEntire(signal.text.trim())
+        val amount = payment?.groupValues?.get(2)?.let(::parseMinor)
+        if (payment == null || amount == null) return ParsedCapture(
+            null, null, null, null, null, null, false,
+            setOf(CaptureIssue.AMOUNT_MISSING, CaptureIssue.DIRECTION_MISSING),
+        )
+        val currencyToken = payment.groupValues[1]
+        val currency = if (currencyToken.equals("PEN", true) || currencyToken.startsWith("S/", true)) "PEN" else "USD"
+        val cardDescription = fold(payment.groupValues[3])
+        val instrument = when {
+            "credito" in cardDescription -> CaptureInstrumentKind.CREDIT_CARD
+            "debito" in cardDescription -> CaptureInstrumentKind.DEBIT_ACCOUNT
+            else -> null
+        }
+        // Visa merchant titles separate the trailing city token by at least two spaces.
+        val merchant = signal.title.trim().replace(WALLET_CITY_SUFFIX, "")
+            .replace(Regex("\\s+"), " ").trim().takeIf { it.isNotBlank() }
+        return ParsedCapture(
+            amountMinor = amount, currency = currency, direction = CaptureDirection.EXPENSE,
+            merchantSourceText = merchant, cardLast4 = payment.groupValues[4],
+            occurredAt = null, occurredAtReliable = false, instrumentKind = instrument,
+            issues = setOf(CaptureIssue.DATE_INFERRED),
+        )
+    }
+
     private fun parseMinor(raw: String): Long? = runCatching {
         if (raw.startsWith('-')) return null
         val token = raw.trimEnd('.', ',')
@@ -136,6 +166,8 @@ private class PeruNotificationParser : NotificationCaptureParser {
             .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
         private val MONEY = Regex("(?i)(S/\\.?|PEN\\b|USD\\b|US\\$)\\s*(-?\\d[\\d.,]*)")
         private val LAST4 = Regex("(?:terminad[ao](?:s)?\\s+en\\s*|[*x]{2,}\\s*)(\\d{4})(?!\\d)")
+        private val WALLET_PAYMENT = Regex("(?i)(PEN|S/\\.?|USD|US\\$)\\s*(\\d+(?:[.,]\\d+)*)\\s+con\\s+([^\\s•*][^•*\\r\\n]*?)\\s+(?:•{2,}|\\*{2,})\\s*(\\d{4})")
+        private val WALLET_CITY_SUFFIX = Regex("[ \\t]{2,}\\S+$")
         private val DATE = Regex("\\b(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4})\\b")
         private val TIME = Regex("(?i)\\b(\\d{1,2}):(\\d{2})(?!\\d)(?:\\s*([ap]\\.?\\s*m\\.?))?")
     }

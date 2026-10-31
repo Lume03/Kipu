@@ -2,7 +2,7 @@ package com.kipu.app.feature.capture.domain
 
 import java.time.LocalDate
 
-enum class CaptureProvider { YAPE, PLIN, BCP, INTERBANK, BBVA, SCOTIABANK }
+enum class CaptureProvider { YAPE, PLIN, BCP, INTERBANK, BBVA, SCOTIABANK, GOOGLE_WALLET }
 
 enum class CaptureCandidateStatus { PENDING, CONFIRMED, AUTO_REGISTERED, DISCARDED }
 

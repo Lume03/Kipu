@@ -7,6 +7,7 @@ import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.capture.domain.CaptureAccessDecision
 import com.kipu.app.feature.capture.domain.CaptureAccessGate
 import com.kipu.app.feature.categories.domain.CategoriesRepository
+import com.kipu.app.feature.receipts.domain.OCR_CONSENT_VERSION
 import com.kipu.app.feature.settings.data.local.AccountSourceConsentEntity
 import com.kipu.app.feature.settings.data.local.PermissionConsentDao
 import com.kipu.app.feature.settings.domain.PermissionSourceGateway
@@ -41,6 +42,7 @@ class PermissionsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PermissionsUiState(isLoading = true))
     val uiState: StateFlow<PermissionsUiState> = _uiState.asStateFlow()
     private var refreshJob: Job? = null
+    private var awaitingListenerSettings = false
 
     private val currentUserId: UUID?
         get() = sessionCoordinator.currentOwner?.verifiedUserId?.let {
@@ -60,6 +62,8 @@ class PermissionsViewModel @Inject constructor(
         }
 
         refreshJob = viewModelScope.launch {
+            var reportSettingsResult = awaitingListenerSettings
+            awaitingListenerSettings = false
             gateway.refreshAndSaveDeviceAuthorizations()
             combine(dao.observeAccountConsents(userId), categories.observePremiumVerified(UserId(userId.toString()))) { consents, premium ->
                 consents to premium
@@ -71,9 +75,12 @@ class PermissionsViewModel @Inject constructor(
                     val deviceAuth = gateway.checkDeviceAuthorization(source)
                     val consentEntity = consentMap[source.name]
 
-                    val consentState = consentEntity?.let {
+                    val storedConsentState = consentEntity?.let {
                         runCatching { ConsentState.valueOf(it.consentState) }.getOrDefault(ConsentState.NOT_EXPLAINED)
                     } ?: ConsentState.NOT_EXPLAINED
+                    val consentState = if (source == PermissionSource.YAPE_RECEIPT_OCR &&
+                        consentEntity?.explanationVersion != OCR_CONSENT_VERSION
+                    ) ConsentState.NOT_EXPLAINED else storedConsentState
 
                     val capabilityState = consentEntity?.let {
                         runCatching { CapabilityState.valueOf(it.capabilityState) }.getOrDefault(CapabilityState.UNKNOWN)
@@ -84,6 +91,7 @@ class PermissionsViewModel @Inject constructor(
                         source = source,
                         consentState = consentState,
                         capabilityState = capabilityState,
+                        explanationVersion = consentEntity?.explanationVersion ?: 1,
                     )
 
                     val authEval = ProcessingAuthorization.evaluate(
@@ -94,6 +102,14 @@ class PermissionsViewModel @Inject constructor(
                     )
 
                     when (source) {
+                        PermissionSource.YAPE_RECEIPT_OCR -> PermissionItemUiState(
+                            source = source, title = "OCR local de comprobantes Yape",
+                            description = "Leer imágenes que eliges o compartes para preparar un comprobante.",
+                            rationale = "Kipu leerá los comprobantes Yape que elijas en este dispositivo. El OCR está disponible en Free; no subimos ni conservamos la imagen. Revisarás los datos antes de registrar y puedes revocar este consentimiento aquí.",
+                            deviceAuth = deviceAuth, consentState = consentState, capabilityState = capabilityState,
+                            isProcessingAuthorized = authEval.isAuthorized && capabilityState == CapabilityState.ALLOWED,
+                            requiresPremium = false,
+                        )
                         PermissionSource.OWN_NOTIFICATIONS -> PermissionItemUiState(
                             source = source,
                             title = "Notificaciones de Kipu",
@@ -113,13 +129,25 @@ class PermissionsViewModel @Inject constructor(
                             deviceAuth = deviceAuth,
                             consentState = consentState,
                             capabilityState = capabilityState,
-                            isProcessingAuthorized = captureAllowed,
+                            isProcessingAuthorized = captureAllowed && authEval.isAuthorized,
                             requiresPremium = true,
                         )
                     }
                 }
 
-                _uiState.update { it.copy(isLoading = false, items = items, isPremiumUser = isPremium) }
+                val listener = items.first { it.source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT }
+                _uiState.update {
+                    it.copy(isLoading = false, items = items, isPremiumUser = isPremium,
+                        message = if (reportSettingsResult) {
+                            when {
+                                listener.isProcessingAuthorized -> "Captura automática activada."
+                                listener.needsAndroidActivation -> "El acceso sigue desactivado en Android. Puedes activarlo cuando quieras."
+                                else -> null
+                            }
+                        } else it.message,
+                    )
+                }
+                reportSettingsResult = false
             }
         }
     }
@@ -150,11 +178,22 @@ class PermissionsViewModel @Inject constructor(
                     source = source.name,
                     consentState = ConsentState.GRANTED.name,
                     capabilityState = CapabilityState.ALLOWED.name,
-                    explanationVersion = 1,
+                    explanationVersion = if (source == PermissionSource.YAPE_RECEIPT_OCR) OCR_CONSENT_VERSION else 1,
                     updatedAt = Instant.now(),
                 )
             )
-            _uiState.update { it.copy(showRationaleFor = null) }
+            val isListener = source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT
+            val needsSettings = isListener && gateway.checkDeviceAuthorization(source) != DeviceAuthorization.GRANTED
+            val listenerActive = isListener && !needsSettings && captureGate.evaluate(userId.toString()) is CaptureAccessDecision.Allowed
+            _uiState.update {
+                it.copy(showRationaleFor = null, openSettingsFor = source.takeIf { needsSettings },
+                    message = when {
+                        needsSettings -> "Tu consentimiento está guardado. Falta activar el acceso en Android."
+                        listenerActive -> "Captura automática activada."
+                        else -> null
+                    },
+                )
+            }
         }
     }
 
@@ -167,7 +206,7 @@ class PermissionsViewModel @Inject constructor(
                     source = source.name,
                     consentState = ConsentState.REVOKED.name,
                     capabilityState = CapabilityState.DENIED.name,
-                    explanationVersion = 1,
+                    explanationVersion = if (source == PermissionSource.YAPE_RECEIPT_OCR) OCR_CONSENT_VERSION else 1,
                     updatedAt = Instant.now(),
                 )
             )
@@ -176,5 +215,15 @@ class PermissionsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.update { it.copy(message = null) }
+    }
+
+    fun onSettingsOpened(source: PermissionSource) {
+        awaitingListenerSettings = source == PermissionSource.OTHER_APP_NOTIFICATION_CONTENT
+        _uiState.update { it.copy(openSettingsFor = null) }
+    }
+
+    fun onSettingsUnavailable() {
+        awaitingListenerSettings = false
+        _uiState.update { it.copy(openSettingsFor = null, message = "No se pudieron abrir los ajustes de Android. Puedes abrirlos desde Ajustes > Acceso a notificaciones.") }
     }
 }
