@@ -63,7 +63,7 @@ class DebtReminderWorker @AssistedInject constructor(
             ?: return Result.failure()
         val leadDays = inputData.getInt(KEY_LEAD_DAYS, -1)
         if (debt.status != "ACTIVE" || debt.reminderLeadDays != leadDays || leadDays <= 0 ||
-            installment.status !in setOf("PENDING", "PARTIAL") || installment.dueDate != dueDate.toString()
+            installment.deletedAt != null || installment.status !in setOf("PENDING", "PARTIAL") || installment.dueDate != dueDate.toString()
         ) return Result.success()
         val remaining = debtDao.getInstallmentRemaining(userId, debtId, installmentId)
         if (remaining <= 0L) return Result.success()

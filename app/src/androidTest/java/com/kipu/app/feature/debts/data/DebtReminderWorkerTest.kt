@@ -76,6 +76,19 @@ class DebtReminderWorkerTest {
         coVerify(exactly = 0) { debtDao.getDebt(any(), any()) }
     }
 
+    @Test
+    fun deletedInstallmentDoesNotCreateReminder() = runTest {
+        every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER_ID)
+        coEvery { debtDao.getDebt(OWNER_ID, DEBT_ID) } returns debt()
+        coEvery { debtDao.getInstallment(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns installment().copy(deletedAt = 1L)
+        coEvery { debtDao.getInstallmentRemaining(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns 10_000L
+
+        assertTrue(worker(PermissionChecker(false)).doWork() is ListenableWorker.Result.Success)
+
+        coVerify(exactly = 0) { localReminderEventDao.upsert(any()) }
+        coVerify(exactly = 0) { reminderScheduleDao.upsert(any()) }
+    }
+
     private fun worker(permissionChecker: DebtNotificationPermissionChecker): DebtReminderWorker =
         TestListenableWorkerBuilder<DebtReminderWorker>(context)
             .setInputData(
