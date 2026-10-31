@@ -1,0 +1,16 @@
+# Decisiones del coordinador — tarjetas, cuotas y avisos
+
+Responden a la sección 6 de `analisis-ciclo-tarjetas-y-avisos.md`. Son vinculantes para T1–T6 y P1.
+
+1. **Límite del ciclo (D1).** Prevalece el ejemplo Qore del producto: consumos del día de cierre del mes anterior hasta el día previo al cierre → cierre → vencimiento. Un consumo hecho el mismo día de cierre (26/06) abre el ciclo siguiente (cierre 26/07, vence 19/08). Se implementa como regla por tarjeta `closingDayInclusive` (default `false`, el comportamiento Qore). La spec HU-13 se actualiza en P3. Marcar como "a validar con estado de cuenta real".
+2. **Fecha base (D2).** Parámetro por tarjeta `cycleDateBasis` = `OPERATION` | `PROCESSING`, default `OPERATION`. Si se elige `PROCESSING` y la compra no tiene fecha de procesamiento, se usa la de operación. Zona civil `America/Lima`.
+3. **Fin de semana / feriado (D3).** Sin ajuste: se usa el día calendario (con recorte a fin de mes). Sin calendario de feriados en este alcance.
+4. **Rango de cuotas (D4).** De 1 a 36, alineado con el dominio. La UI ofrece accesos rápidos (1/3/6/12/24) más un valor personalizado.
+5. **Tasa (D5).** El usuario declara en la compra si es *con interés* o *sin interés*. Con interés: TEA editable, precargada con la TEA personal de la tarjeta y, si no hay, con la referencial (indicando la fuente). Sin interés: tasa 0. Lo que el usuario confirma se trata como término de la compra.
+6. **Interés (D6).** Si la compra es con interés, se persiste `interest_minor` por cuota según el sistema francés. El saldo pendiente de la tarjeta = Σ(principal + interés de las cuotas) − asignaciones de pagos válidas − reembolsos. El asiento del gasto en el ledger sigue siendo el principal (el consumo); el interés se registra solo como obligación en el cronograma.
+7. **Snapshot de términos (D7).** Se guarda en la propia compra o cuotas (migración Room nueva): tipo de compra (`DIRECT` | `INSTALLMENTS`), `financing` (`WITH_INTEREST` | `INTEREST_FREE`), `tea_bps`, `rate_source` y `rounding_policy`. Editar luego la TEA de la tarjeta no recalcula cronogramas existentes. No crear una tabla paralela de planes si puede evitarse.
+8. **Estados (D8).** Estado presentado, derivado por cuota: `PAGADA` si el saldo es 0; `VENCIDA` si el saldo es > 0 y la fecha < hoy; `PRÓXIMA` si el saldo es > 0 y vence en ≤ 7 días; si no, `PENDIENTE`. Las asignaciones FIFO existentes (`CreditPaymentAllocator`) se extienden para cubrir principal + interés de cada cuota.
+9. **Simulador (D9).** Sí: permite elegir comercio y categoría reutilizando `MerchantPickerBottomSheet` y `PastelCategoryPickerBottomSheet`, igual que en `QuickMovementScreen`. Confirmar la compra pasa exactamente los términos simulados (cuotas, financiación, TEA, comercio, categoría).
+10. **KIP-18 (D10).** Se refiere a la explicación general de cómo funcionan las notificaciones de Kipu (onboarding/ayuda), no a la explicación de cada aviso. Es trabajo visual del coordinador.
+11. **Vencimientos (D11).** La pantalla de KIP-19 incluye deudas y cuotas de tarjeta. Solo informa: no programa recordatorios nuevos para tarjetas en este alcance.
+12. **Ventanas (D12).** Ambas se mantienen: "próxima" = 7 días en la pantalla, y la anticipación de 2 días del recordatorio de HU-44 no cambia.
