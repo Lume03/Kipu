@@ -17,7 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,20 +43,13 @@ import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.CalendarToday
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.DeleteForever
-import androidx.compose.material.icons.rounded.LocalGasStation
 import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Percent
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Restaurant
-import androidx.compose.material.icons.rounded.ShoppingCart
-import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Warning
@@ -68,12 +60,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -106,7 +92,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -121,7 +106,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.core.finance.domain.CreditCalculations
 import com.kipu.app.core.finance.domain.MoneyInputParser
-import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.MovementKind
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
@@ -139,14 +123,14 @@ import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
 import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
-import com.kipu.app.feature.accounts.domain.usecase.SimulateInstallments
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.components.CardArtCatalog
 import com.kipu.app.feature.accounts.presentation.components.CardArtFace
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
-import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorScreen
+import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorRoute
+import com.kipu.app.feature.accounts.presentation.instruments.PurchaseCandidateStateSaver
 import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDialog
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.component.KipuErrorState
@@ -166,7 +150,6 @@ import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,7 +169,6 @@ fun AccountDetailScreen(
     val instruments by viewModel.instrumentsUiState.collectAsStateWithLifecycle()
     val dashboard by viewModel.dashboardUiState.collectAsStateWithLifecycle()
     val creditNotifications by viewModel.creditNotifications.collectAsStateWithLifecycle()
-    val purchaseCategories by viewModel.purchaseCategories.collectAsStateWithLifecycle()
     val account = if (isCard) {
         null
     } else {
@@ -235,41 +217,15 @@ fun AccountDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     var isSubmitting by remember(instrumentId) { mutableStateOf(false) }
     var showCardPayment by remember(instrumentId) { mutableStateOf(false) }
-    var showPurchaseDraft by remember(instrumentId, startPurchaseOnOpen) { mutableStateOf(startPurchaseOnOpen) }
-    var purchaseMerchant by remember(instrumentId) { mutableStateOf("") }
-    var purchaseAmount by remember(instrumentId) { mutableStateOf("") }
-    var purchaseCategoryId by remember(instrumentId) { mutableStateOf<String?>(null) }
-    var purchaseCategoryMenuExpanded by remember(instrumentId) { mutableStateOf(false) }
-    var purchaseCandidate by remember(instrumentId) { mutableStateOf<PurchaseCandidate?>(null) }
+    var showPurchaseDraft by rememberSaveable(instrumentId, startPurchaseOnOpen) { mutableStateOf(startPurchaseOnOpen) }
+    var purchaseAmount by rememberSaveable(instrumentId) { mutableStateOf("") }
+    var purchaseCandidate by rememberSaveable(instrumentId, stateSaver = PurchaseCandidateStateSaver) { mutableStateOf<PurchaseCandidate?>(null) }
     var purchasePending by remember(instrumentId) { mutableStateOf(false) }
     var cardTermsPending by remember(instrumentId) { mutableStateOf(false) }
     var showCardTermsEditor by remember(instrumentId) { mutableStateOf(false) }
     var lastConfirmedPurchase by remember(instrumentId) { mutableStateOf<PurchaseCandidate?>(null) }
     var purchaseAvailableBefore by remember(instrumentId) { mutableStateOf<Long?>(null) }
     var showPurchaseSuccess by remember(instrumentId) { mutableStateOf(false) }
-    val selectedPurchaseCategory = purchaseCategories.firstOrNull { it.id == purchaseCategoryId }
-    val draftPurchasePreview = remember(instrumentId, purchaseMerchant, purchaseAmount, purchaseCategoryId, selectedPurchaseCategory, card) {
-        val creditCard = card as? CreditCard
-        val amountMinor = MoneyInputParser.parseMinorUnits(purchaseAmount)
-        if (creditCard != null && isValidCreditPurchaseDraft(amountMinor, purchaseMerchant, selectedPurchaseCategory?.id)) {
-            PurchaseCandidate(
-                id = "preview-${creditCard.id.value}",
-                cardId = creditCard.id,
-                amount = Money(requireNotNull(amountMinor), creditCard.currency),
-                merchant = purchaseMerchant.trim(),
-                occurredAt = Instant.now(),
-                suggestedInstallments = 3,
-                categoryId = requireNotNull(selectedPurchaseCategory).id,
-            )
-        } else null
-    }
-
-    LaunchedEffect(purchaseCategories, purchaseCategoryId) {
-        if (purchaseCategoryId != null && purchaseCategories.none { it.id == purchaseCategoryId }) {
-            purchaseCategoryId = null
-        }
-    }
-
     LaunchedEffect(viewModel, instrumentId, isCard) {
         viewModel.refreshCreditUtilizationNotifications(instrumentId.takeIf { isCard })
     }
@@ -390,387 +346,32 @@ fun AccountDetailScreen(
     }
 
     if (showPurchaseDraft && card is CreditCard) {
-        val availableMinor = creditCardSummary?.availableCredit?.minorUnits ?: card.creditLimitMinorUnits
-        val availableMoneyStr = if (LocalBalanceMasked.current) "••••"
-            else "${card.currency.symbol()} ${formatMinorUnits(availableMinor)}"
-        val emeraldColors = rememberCalmEmeraldColors()
         val parsedMinor = remember(purchaseAmount) { MoneyInputParser.parseMinorUnits(purchaseAmount) }
-        val canSimulate = isValidCreditPurchaseDraft(parsedMinor, purchaseMerchant, selectedPurchaseCategory?.id)
-
-        KipuBottomSheet(
-            onDismissRequest = { showPurchaseDraft = false },
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                // Header: (X) Nueva compra   [• Simulador]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        IconButton(
-                            onClick = { showPurchaseDraft = false },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Cerrar")
-                        }
-                        Text(
-                            text = "Nueva compra",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+        KipuBottomSheet(onDismissRequest = { showPurchaseDraft = false }) {
+            Column(Modifier.fillMaxWidth().padding(20.dp).navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Nueva compra", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Ingresa el importe. En el simulador podrás elegir el comercio, la categoría y las condiciones.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = purchaseAmount, onValueChange = { purchaseAmount = it },
+                    label = { Text("Importe (${card.currency.symbol()})") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = purchaseAmount.isNotBlank() && (parsedMinor == null || parsedMinor <= 0L),
+                    supportingText = { Text("Ingresa un monto mayor a cero.") },
+                )
+                Button(onClick = {
+                    if (parsedMinor != null && parsedMinor > 0L) {
+                        purchaseCandidate = PurchaseCandidate(
+                            id = UUID.randomUUID().toString(), cardId = card.id,
+                            amount = Money(parsedMinor, card.currency), merchant = "Compra con tarjeta",
+                            occurredAt = Instant.now(), suggestedInstallments = 3,
                         )
+                        showPurchaseDraft = false
                     }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = emeraldColors.incomeBg,
-                        border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                    ) {
-                        Text(
-                            text = "• Simulador",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = emeraldColors.incomeText,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        )
-                    }
-                }
-
-                // Banner: Simulación de consumo
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = emeraldColors.incomeBg,
-                    border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Info,
-                            contentDescription = null,
-                            tint = emeraldColors.incomeText,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Simulación de consumo",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = emeraldColors.incomeText,
-                            )
-                            Text(
-                                text = "Este cálculo es referencial y no registra ningún gasto real en tu tarjeta.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.incomeText,
-                            )
-                        }
-                    }
-                }
-
-                // Dark Card Preview
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F243A)),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CreditCard,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFBBF24),
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = card.alias ?: "${card.issuer} ${card.network}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                )
-                                Text(
-                                    text = "•••• ${card.lastFourDigits} · ${card.currency.name}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                )
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Crédito disponible",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.weight(1f),
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFF064E3B),
-                            ) {
-                                Text(
-                                    text = "• $availableMoneyStr",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF34D399),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Amount input field
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Importe a simular (${card.currency.name})",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    OutlinedTextField(
-                        value = purchaseAmount,
-                        onValueChange = { purchaseAmount = it },
-                        placeholder = { Text("0.00", style = MaterialTheme.typography.titleLarge) },
-                        prefix = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "${card.currency.symbol()} ",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "${card.currency.name} ",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = emeraldColors.secondaryMuted,
-                                )
-                            }
-                        },
-                        trailingIcon = {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = emeraldColors.pillTrack,
-                                modifier = Modifier.padding(end = 8.dp),
-                            ) {
-                                Text(
-                                    text = if (card.currency == Currency.PEN) "Soles" else "Dólares",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = emeraldColors.primaryDeep,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                )
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = "Ingresa el monto que planeas consumir para calcular cuotas o interés.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = emeraldColors.secondaryMuted,
-                    )
-                }
-
-                // Selector: COMERCIO
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(emeraldColors.pillTrack, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Storefront,
-                                contentDescription = null,
-                                tint = emeraldColors.primaryDeep,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "COMERCIO",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = emeraldColors.secondaryMuted,
-                            )
-                            OutlinedTextField(
-                                value = purchaseMerchant,
-                                onValueChange = { purchaseMerchant = it.take(100) },
-                                placeholder = { Text("Ej. Bembos, Saga, etc.") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-
-                // Selector: CATEGORÍA
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Card(
-                        onClick = { purchaseCategoryMenuExpanded = true },
-                        enabled = purchaseCategories.isNotEmpty(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .background(emeraldColors.pillTrack, RoundedCornerShape(10.dp)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Category,
-                                    contentDescription = null,
-                                    tint = emeraldColors.primaryDeep,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "CATEGORÍA",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = emeraldColors.secondaryMuted,
-                                )
-                                Text(
-                                    text = selectedPurchaseCategory?.name ?: "Seleccionar categoría de gasto",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (selectedPurchaseCategory != null) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (selectedPurchaseCategory != null) MaterialTheme.colorScheme.onSurface else emeraldColors.secondaryMuted,
-                                )
-                            }
-                            Text("›", fontSize = 20.sp, color = emeraldColors.secondaryMuted)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = purchaseCategoryMenuExpanded,
-                        onDismissRequest = { purchaseCategoryMenuExpanded = false },
-                    ) {
-                        purchaseCategories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category.name) },
-                                onClick = {
-                                    purchaseCategoryId = category.id
-                                    purchaseCategoryMenuExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-
-                if (draftPurchasePreview != null) {
-                    val preview = remember(draftPurchasePreview, card) {
-                        SimulateInstallments()(draftPurchasePreview, card, installmentsCount = 3)
-                    }
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Simulación en tiempo real · 3 cuotas", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Cuota estimada")
-                                MoneyText(money = preview.schedule.first().amount, fontWeight = FontWeight.SemiBold)
-                            }
-                            Text(preview.disclaimer, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-
-                // CTA Button: Ver simulación
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Button(
-                        onClick = {
-                            val amountMinor = MoneyInputParser.parseMinorUnits(purchaseAmount)
-                            if (isValidCreditPurchaseDraft(amountMinor, purchaseMerchant, selectedPurchaseCategory?.id)) {
-                                purchaseCandidate = PurchaseCandidate(
-                                    id = UUID.randomUUID().toString(),
-                                    cardId = card.id,
-                                    amount = Money(requireNotNull(amountMinor), card.currency),
-                                    merchant = purchaseMerchant.trim(),
-                                    occurredAt = Instant.now(),
-                                    suggestedInstallments = 3,
-                                    categoryId = requireNotNull(selectedPurchaseCategory).id,
-                                )
-                                showPurchaseDraft = false
-                            } else {
-                                coroutineScope.launch {
-                                    val message = if (selectedPurchaseCategory == null) {
-                                        "Selecciona una categoría para clasificar la compra."
-                                    } else {
-                                        "Indica un comercio y un importe válido."
-                                    }
-                                    snackbarHostState.showSnackbar(message)
-                                }
-                            }
-                        },
-                        enabled = canSimulate,
-                        colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                    ) {
-                        Text("Ver simulación", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                    Text(
-                        text = if (canSimulate) "Calcula cuotas e intereses de esta compra" else "Ingresa un importe para calcular las cuotas",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = emeraldColors.secondaryMuted,
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
+                }, enabled = parsedMinor != null && parsedMinor > 0L,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ver simulación") }
             }
         }
     }
@@ -783,26 +384,26 @@ fun AccountDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
                 ) {
-                    InstallmentSimulatorScreen(
+                    InstallmentSimulatorRoute(
                         candidate = candidate,
                         card = creditCard,
-                        teaBps = null,
                         availableCredit = creditCardSummary?.availableCredit,
-                        onConfirmPurchase = { terms ->
+                        onConfirmPurchase = { confirmedCandidate, terms, merchantId ->
                             if (!isSubmitting) {
                                 isSubmitting = true
                                 purchasePending = true
-                                lastConfirmedPurchase = candidate.copy(suggestedInstallments = terms.installmentsCount)
+                                lastConfirmedPurchase = confirmedCandidate.copy(suggestedInstallments = terms.installmentsCount)
                                 purchaseAvailableBefore = creditCardSummary?.availableCredit?.minorUnits
                                 viewModel.confirmCreditPurchase(
                                     cardId = creditCard.id,
-                                    amount = candidate.amount,
-                                    merchant = candidate.merchant,
-                                    effectiveAt = candidate.occurredAt,
+                                    amount = confirmedCandidate.amount,
+                                    merchant = confirmedCandidate.merchant,
+                                    effectiveAt = confirmedCandidate.occurredAt,
                                     installments = terms.installmentsCount,
                                     terms = terms,
-                                    processedAt = candidate.processedAt,
-                                    categoryId = requireNotNull(candidate.categoryId),
+                                    processedAt = confirmedCandidate.processedAt,
+                                    categoryId = requireNotNull(confirmedCandidate.categoryId),
+                                    merchantId = merchantId,
                                 )
                                 purchaseCandidate = null
                             }

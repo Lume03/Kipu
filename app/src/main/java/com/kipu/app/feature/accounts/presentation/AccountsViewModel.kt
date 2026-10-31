@@ -26,7 +26,6 @@ import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
 import com.kipu.app.feature.accounts.domain.usecase.ReactivateInstrument
 import com.kipu.app.feature.accounts.domain.usecase.RecordOpeningAdjustment
 import com.kipu.app.feature.accounts.domain.usecase.UpdateInstrumentAppearance
-import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
@@ -41,9 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -70,8 +67,6 @@ data class InstrumentsUiState(
     val selectedFreeInstrumentIds: Set<String> = emptySet(),
     val isMasked: Boolean = false,
 )
-
-data class PurchaseCategoryOption(val id: String, val name: String)
 
 sealed interface AccountUiEvent {
     data class ShowMessage(val message: String) : AccountUiEvent
@@ -125,26 +120,6 @@ class AccountsViewModel @Inject constructor(
     private val _creditNotificationsSettled = MutableStateFlow(false)
     val creditNotificationsSettled: StateFlow<Boolean> = _creditNotificationsSettled.asStateFlow()
     val creditNotificationsReady: StateFlow<Boolean> = creditNotificationsLoaded.asStateFlow()
-
-    private val _purchaseCategories = MutableStateFlow<List<PurchaseCategoryOption>>(emptyList())
-    val purchaseCategories: StateFlow<List<PurchaseCategoryOption>> = _purchaseCategories.asStateFlow()
-
-    init {
-        sessionCoordinator.currentOwner?.verifiedUserId?.let { ownerId ->
-            viewModelScope.launch {
-                observeCategories(UserId(ownerId)).collect { roots ->
-                    _purchaseCategories.value = roots
-                        .filter { it.category.isActive && !it.category.isPlanLocked }
-                        .flatMap { root -> listOf(root) + root.subcategories }
-                        .filter {
-                            it.category.isActive && !it.category.isPlanLocked &&
-                                it.category.categoryType != CategoryType.INCOME
-                        }
-                        .map { PurchaseCategoryOption(it.category.id.value, it.displayName) }
-                }
-            }
-        }
-    }
 
     fun refreshCreditUtilizationNotifications(cardId: String? = null) {
         viewModelScope.launch {
@@ -230,6 +205,7 @@ class AccountsViewModel @Inject constructor(
         categoryId: String,
         terms: com.kipu.app.feature.accounts.domain.model.PurchaseTerms? = null,
         processedAt: Instant? = null,
+        merchantId: String? = null,
     ) {
         viewModelScope.launch {
             confirmCreditPurchaseUseCase(
@@ -241,6 +217,7 @@ class AccountsViewModel @Inject constructor(
                 categoryId = categoryId,
                 terms = terms ?: com.kipu.app.feature.accounts.domain.model.PurchaseTerms.interestFree(installments),
                 processedAt = processedAt,
+                merchantId = merchantId,
             ).fold(
                 onSuccess = { _eventChannel.send(AccountUiEvent.ShowMessage("Compra registrada; pendiente de sincronización")) },
                 onFailure = { _eventChannel.send(AccountUiEvent.Error(it.message ?: "No se pudo confirmar la compra")) },

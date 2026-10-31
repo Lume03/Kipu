@@ -43,6 +43,8 @@ import com.kipu.app.ui.component.KipuSegmentedControl
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.format.DateTimeFormatter
+import java.math.BigDecimal
+import java.util.Locale
 
 /** Shared controls for a declared purchase; calculation and validation are supplied by the caller. */
 @Composable
@@ -152,6 +154,22 @@ fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier 
         if (last.amount != first.amount) CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_last_payment), last.amount)
         CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_interest_total), simulation.totalInterest)
         CreditInstallmentAmountRow(stringResource(R.string.credit_purchase_total), simulation.totalFinanced)
+        simulation.appliedTeaBps?.let { tea ->
+            val source = stringResource(when (simulation.terms.rateSource) {
+                PurchaseRateSource.PERSONAL -> R.string.credit_purchase_rate_personal
+                PurchaseRateSource.REFERENCE -> R.string.credit_purchase_rate_reference
+                else -> R.string.credit_purchase_rate_user
+            })
+            Text(stringResource(R.string.credit_purchase_applied_tea, BigDecimal.valueOf(tea.toLong(), 2).toPlainString()),
+                style = MaterialTheme.typography.bodySmall)
+            simulation.appliedTemPercentage?.let { tem ->
+                Text(stringResource(R.string.credit_purchase_applied_tem, String.format(Locale.forLanguageTag("es-PE"), "%.4f", tem)),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+            Text(source, style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+            if (simulation.terms.rateSource == PurchaseRateSource.REFERENCE) Text(
+                stringResource(R.string.credit_purchase_reference_estimate), style = MaterialTheme.typography.bodySmall, color = colors.warningText)
+        } ?: Text(stringResource(R.string.credit_purchase_zero_rates), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
         first.billingClosingDate?.let { Text(stringResource(R.string.credit_purchase_closing, it.format(formatter)), style = MaterialTheme.typography.bodySmall) }
         Text(stringResource(R.string.credit_purchase_first_due, first.dueDate.format(formatter)), style = MaterialTheme.typography.bodySmall)
         Text(stringResource(R.string.credit_purchase_cycle_validation), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)

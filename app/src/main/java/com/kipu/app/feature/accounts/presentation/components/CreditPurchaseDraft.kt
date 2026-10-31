@@ -68,3 +68,17 @@ fun validateCreditPurchaseDraft(draft: CreditPurchaseDraft): CreditPurchaseValid
         rateSource = draft.rateSource ?: PurchaseRateSource.USER_ENTERED,
     ))
 }
+
+/** Shared saveable representation for locally hoisted purchase terms. */
+val CreditPurchaseDraftSaver = androidx.compose.runtime.saveable.listSaver<CreditPurchaseDraft, String>(
+    save = { it.toSavedValues() },
+    restore = { CreditPurchaseDraft(
+        purchaseType = PurchaseType.valueOf(it[0]), financing = Financing.valueOf(it[1]),
+        installmentsText = it[2], teaPercentText = it[3],
+        rateSource = PurchaseRateSource.entries.firstOrNull { source -> source.name == it[4] },
+        initializedCardId = it[5].ifBlank { null },
+    ) },
+)
+
+internal fun CreditPurchaseDraft.toSavedValues() = arrayListOf(purchaseType.name, financing.name,
+    installmentsText, teaPercentText, rateSource?.name.orEmpty(), initializedCardId.orEmpty())

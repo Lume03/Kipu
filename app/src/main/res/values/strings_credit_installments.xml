@@ -51,4 +51,18 @@
     <string name="credit_installments_filter_description">Filtrar cuotas: %1$s</string>
     <string name="credit_purchase_schedule_expanded">Cronograma desplegado</string>
     <string name="credit_purchase_schedule_collapsed">Cronograma contraído</string>
+    <string name="credit_purchase_applied_tea">TEA aplicada: %1$s%%</string>
+    <string name="credit_purchase_applied_tem">TEM aplicada: %1$s%%</string>
+    <string name="credit_purchase_reference_estimate">Estimado, no contractual: la tasa referencial puede diferir de la de tu compra. Verifica las condiciones antes de confirmar.</string>
+    <string name="credit_simulator_title">Simular compra a crédito</string>
+    <string name="credit_simulator_principal">Monto principal a financiar</string>
+    <string name="credit_simulator_date">Fecha de compra: %1$s · Lima</string>
+    <string name="credit_simulator_merchant_required">Selecciona o ingresa un comercio.</string>
+    <string name="credit_simulator_category_required">Selecciona una categoría para clasificar la compra.</string>
+    <string name="credit_simulator_calculation_error">No se pudo calcular el cronograma. Revisa el monto y las condiciones.</string>
+    <string name="credit_simulator_over_limit">Compra supera el crédito disponible</string>
+    <string name="credit_simulator_available_notice">El crédito disponible no es dinero propio. Puedes confirmar la compra completa; se registrará la sobreutilización.</string>
+    <string name="credit_simulator_reject">Rechazar</string>
+    <string name="credit_simulator_confirm">Confirmar compra</string>
+    <string name="credit_purchase_zero_rates" formatted="false">TEA: 0% · TEM: 0% · Sin intereses</string>
 </resources>
