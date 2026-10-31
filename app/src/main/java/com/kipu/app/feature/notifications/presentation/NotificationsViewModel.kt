@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.notifications.domain.NotificationDismissalQueue
+import com.kipu.app.feature.notifications.domain.NotificationDismissalPhase
+import com.kipu.app.feature.notifications.domain.PendingNotificationDismissal
 import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationCategory
 import com.kipu.app.feature.notifications.domain.NotificationDestination
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -41,6 +45,7 @@ data class NotificationsUiState(
     val visibleNotifications: List<AppNotification> = emptyList(),
     val selectedFilter: NotificationFilter = NotificationFilter.ALL,
     val isLoading: Boolean = false,
+    val pendingDismissal: PendingNotificationDismissal? = null,
     val emptyMessage: String = "Todo al día. No tienes avisos pendientes",
 )
 
@@ -57,9 +62,20 @@ class NotificationsViewModel @Inject constructor(
     private val repository: NotificationsRepository,
     private val sessionCoordinator: SessionCoordinator,
     private val destinationResolver: NotificationDestinationResolver,
+    private val dismissalQueue: NotificationDismissalQueue,
 ) : ViewModel() {
+    // Preserve source compatibility for existing direct ViewModel callers and tests.
+    constructor(repository: NotificationsRepository, sessionCoordinator: SessionCoordinator,
+        destinationResolver: NotificationDestinationResolver) : this(
+        repository, sessionCoordinator, destinationResolver, NotificationDismissalQueue(repository),
+    )
+
+    val pendingDismissals = dismissalQueue.pendingDismissals
+    private var observedUserId: String? = null
+
     private val activeUserId: Flow<String?> = sessionCoordinator.localAccess
         .map { access -> (access as? LocalAccess.Available)?.userId }
+        .distinctUntilChanged()
 
     private val sourceNotifications = activeUserId.flatMapLatest { userId ->
         if (userId == null) {
@@ -77,9 +93,11 @@ class NotificationsViewModel @Inject constructor(
         activeUserId,
         sourceNotifications,
         selectedFilter,
-    ) { userId, rows, filter ->
+        pendingDismissals,
+    ) { userId, rows, filter, pending ->
+        val hiddenIds = pending.values.filter { it.userId == userId }.mapTo(hashSetOf()) { it.notificationId }
         val ordered = rows.asSequence()
-            .filter { it.userId == userId && it.deletedAt == null }
+            .filter { it.userId == userId && it.deletedAt == null && it.id !in hiddenIds }
             .sortedByDescending { it.createdAt }
             .toList()
         val visible = when (filter) {
@@ -94,12 +112,29 @@ class NotificationsViewModel @Inject constructor(
             notifications = ordered,
             visibleNotifications = visible,
             selectedFilter = filter,
+            pendingDismissal = pending.values.firstOrNull { it.userId == userId && it.phase == NotificationDismissalPhase.PENDING },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotificationsUiState())
 
     val unreadCount: StateFlow<Int> = activeUserId.flatMapLatest { userId ->
-        if (userId == null) flowOf(0) else repository.observeUnreadCount(userId)
+        if (userId == null) flowOf(0) else dismissalQueue.observeUnreadCount(userId)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    init {
+        viewModelScope.launch {
+            activeUserId.collect { userId ->
+                observedUserId?.takeIf { it != userId }?.let(dismissalQueue::commitPending)
+                observedUserId = userId
+            }
+        }
+        viewModelScope.launch {
+            dismissalQueue.failures.collect { failure ->
+                if (failure.userId == currentUserId()) eventChannel.send(
+                    NotificationsUiEvent.ShowMessage("No se pudo eliminar el aviso. Inténtalo nuevamente."),
+                )
+            }
+        }
+    }
 
     fun setFilter(filter: NotificationFilter) {
         selectedFilter.value = filter
@@ -119,7 +154,27 @@ class NotificationsViewModel @Inject constructor(
     }
 
     fun dismiss(notificationId: String) {
-        mutate { repository.dismiss(it, notificationId) }
+        val userId = currentUserId() ?: return
+        val notification = state.value.notifications.firstOrNull { it.id == notificationId && it.userId == userId } ?: return
+        dismissalQueue.dismiss(notification)
+    }
+
+    fun undoDismissal(token: String) {
+        currentUserId()?.let { dismissalQueue.undo(token, it) }
+    }
+
+    fun commitDismissal(token: String) {
+        val userId = currentUserId() ?: return
+        if (pendingDismissals.value[token]?.userId == userId) dismissalQueue.commit(token)
+    }
+
+    fun commitPendingDismissals() {
+        (observedUserId ?: currentUserId())?.let(dismissalQueue::commitPending)
+    }
+
+    override fun onCleared() {
+        commitPendingDismissals()
+        super.onCleared()
     }
 
     /**
@@ -127,6 +182,7 @@ class NotificationsViewModel @Inject constructor(
      * per-row X. Unread notices are never removed here; they must be marked read first.
      */
     fun dismissRead() {
+        commitPendingDismissals()
         val readIds = state.value.visibleNotifications.filter { it.isRead }.map { it.id }
         if (readIds.isEmpty()) return
         mutate { userId ->

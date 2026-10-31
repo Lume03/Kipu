@@ -2,6 +2,9 @@ package com.kipu.app.feature.notifications.presentation
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PieChart
 import com.kipu.app.ui.component.FilterOption
@@ -48,6 +52,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -56,6 +65,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,8 +76,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +94,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,8 +112,23 @@ fun NotificationCenterScreen(
     now: Instant? = null,
     reducedMotion: Boolean? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onUndoDismissal: (String) -> Unit = {},
+    onCommitDismissal: (String) -> Unit = {},
+    onCommitPendingDismissals: () -> Unit = {},
 ) {
     val disableMotion = reducedMotion ?: rememberReducedMotionEnabled()
+    CommitNotificationDismissalsOnExit(onCommitPendingDismissals)
+    val pendingDismissal = state.pendingDismissal
+    LaunchedEffect(state.activeUserId, pendingDismissal?.token) {
+        if (pendingDismissal == null) return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Notificación eliminada", actionLabel = "Deshacer", withDismissAction = true,
+            // The shared queue owns the five-second lifetime, including across screen recreation.
+            duration = SnackbarDuration.Indefinite,
+        )
+        if (result == SnackbarResult.ActionPerformed) onUndoDismissal(pendingDismissal.token)
+        else onCommitDismissal(pendingDismissal.token)
+    }
     val colors = rememberCalmEmeraldColors()
     val largeText = LocalDensity.current.fontScale >= 1.3f
     val readVisibleCount = state.visibleNotifications.count { it.isRead }
@@ -181,40 +211,43 @@ fun NotificationCenterScreen(
 
                 when {
                     state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                    state.visibleNotifications.isEmpty() -> {
-                        val message = if (state.notifications.isEmpty()) state.emptyMessage else "No hay avisos en esta categoría."
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(32.dp).testTag("notification-empty"),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsNone,
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(message, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
                     else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize().testTag("notification-list"),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(state.visibleNotifications, key = { it.id }) { notification ->
-                                // animateItem also fades the row out when it is dismissed.
-                                val rowModifier = if (disableMotion) Modifier else Modifier.animateItem()
-                                NotificationRow(
-                                    notification = notification,
-                                    now = referenceNow,
-                                    largeText = largeText,
-                                    modifier = rowModifier,
-                                    onOpen = { onOpenNotification(notification) },
-                                    onMarkRead = { onMarkRead(notification.id) },
-                                    onDismiss = { onDismiss(notification.id) },
-                                )
+                        Box(Modifier.fillMaxSize()) {
+                            if (state.visibleNotifications.isEmpty()) {
+                                val message = if (state.notifications.isEmpty()) state.emptyMessage else "No hay avisos en esta categoría."
+                                Column(
+                                    modifier = Modifier.fillMaxSize().padding(32.dp).testTag("notification-empty"),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsNone,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(40.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(message, style = MaterialTheme.typography.bodyLarge)
+                                }
+                            }
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().testTag("notification-list"),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 20.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(state.visibleNotifications, key = { it.id }) { notification ->
+                                    // animateItem also fades the row out when it is dismissed.
+                                    val rowModifier = if (disableMotion) Modifier else Modifier.animateItem()
+                                    SwipeableNotificationRow(
+                                        notification = notification,
+                                        now = referenceNow,
+                                        largeText = largeText,
+                                        reducedMotion = disableMotion,
+                                        modifier = rowModifier,
+                                        onOpen = { onOpenNotification(notification) },
+                                        onMarkRead = { onMarkRead(notification.id) },
+                                        onDismiss = { onDismiss(notification.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -308,6 +341,48 @@ private fun DismissReadDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableNotificationRow(
+    notification: AppNotification,
+    now: Instant,
+    largeText: Boolean,
+    reducedMotion: Boolean,
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+    onMarkRead: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = rememberCalmEmeraldColors()
+    // Gesture state is deliberately not saveable: undo must reinsert a settled card, not a swiped one.
+    val dismissState = remember(notification.id) {
+        SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled) { distance -> distance * NOTIFICATION_SWIPE_THRESHOLD }
+    }
+    var rowWidth by remember(notification.id) { mutableIntStateOf(0) }
+    val reachedThreshold = rowWidth > 0 && dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart &&
+        abs(dismissState.requireOffset()) >= rowWidth * NOTIFICATION_SWIPE_THRESHOLD
+    val background by animateColorAsState(
+        targetValue = if (reachedThreshold) colors.expenseText else colors.expenseBg,
+        animationSpec = if (reducedMotion) snap() else tween(NOTIFICATION_DISMISS_MILLIS), label = "notification-delete-background",
+    )
+    SwipeToDismissBox(
+        state = dismissState, modifier = modifier.onSizeChanged { rowWidth = it.width }.clip(RoundedCornerShape(16.dp))
+            .testTag("notification-swipe-${notification.id}"),
+        enableDismissFromStartToEnd = false, enableDismissFromEndToStart = true,
+        onDismiss = { direction -> if (direction == SwipeToDismissBoxValue.EndToStart) onDismiss() },
+        backgroundContent = {
+            Row(Modifier.fillMaxSize().background(background).padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                val foreground = if (reachedThreshold) colors.surfaceCard else colors.expenseText
+                Icon(Icons.Default.Delete, contentDescription = null, tint = foreground)
+                Text("Eliminar", Modifier.padding(start = 8.dp), color = foreground, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    ) {
+        NotificationRow(notification, now, largeText, onOpen = onOpen, onMarkRead = onMarkRead, onDismiss = onDismiss)
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NotificationRow(
@@ -359,6 +434,7 @@ private fun NotificationRow(
             .testTag("notification-row-${notification.id}")
             .clickable(onClick = onOpen)
             .semantics {
+                customActions = listOf(CustomAccessibilityAction("Eliminar notificación") { onDismiss(); true })
                 contentDescription = listOfNotNull(
                     notification.title,
                     kindLabel,

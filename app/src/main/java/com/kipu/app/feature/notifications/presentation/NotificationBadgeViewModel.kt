@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.notifications.domain.NotificationsRepository
+import com.kipu.app.feature.notifications.domain.NotificationDismissalQueue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,13 +25,14 @@ import kotlinx.coroutines.launch
 class NotificationBadgeViewModel @Inject constructor(
     private val sessionCoordinator: SessionCoordinator,
     private val repository: NotificationsRepository,
+    private val dismissalQueue: NotificationDismissalQueue = NotificationDismissalQueue(repository),
 ) : ViewModel() {
     private val activeUserId = sessionCoordinator.localAccess
         .map { access -> (access as? LocalAccess.Available)?.userId }
         .distinctUntilChanged()
     val unreadCount: StateFlow<Int> = activeUserId.flatMapLatest { userId ->
             if (userId == null) flowOf(0)
-            else repository.observeUnreadCount(userId).catch { emit(0) }
+            else dismissalQueue.observeUnreadCount(userId).catch { emit(0) }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
