@@ -72,6 +72,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -374,7 +375,13 @@ private fun SwipeableNotificationRow(
             Row(Modifier.fillMaxSize().background(background).padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 val foreground = if (reachedThreshold) colors.surfaceCard else colors.expenseText
-                Icon(Icons.Default.Delete, contentDescription = null, tint = foreground)
+                val iconScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (reachedThreshold && !reducedMotion) 1.2f else 1f,
+                    animationSpec = if (reducedMotion) snap() else androidx.compose.animation.core.spring(dampingRatio = 0.5f),
+                    label = "notification-delete-icon",
+                )
+                Icon(Icons.Default.Delete, contentDescription = null, tint = foreground,
+                    modifier = Modifier.graphicsLayer { scaleX = iconScale; scaleY = iconScale })
                 Text("Eliminar", Modifier.padding(start = 8.dp), color = foreground, fontWeight = FontWeight.SemiBold)
             }
         },
