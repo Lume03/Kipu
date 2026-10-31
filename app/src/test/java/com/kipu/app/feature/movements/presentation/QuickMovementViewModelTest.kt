@@ -14,7 +14,8 @@ import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
-import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.domain.model.*
+import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseDraft
 import com.kipu.app.feature.accounts.domain.usecase.ConfirmCreditPurchase
 import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
 import com.kipu.app.feature.accounts.domain.usecase.ObserveFinancialDashboard
@@ -200,6 +201,88 @@ class QuickMovementViewModelTest {
         viewModel.onSave()
         advanceUntilIdle()
         assertEquals(1, fakeMovementRepo.registeredCommands.size)
+    }
+
+    @Test
+    fun `card selection exposes purchase terms and a simulation but account selection removes it`() = runTest {
+        advanceUntilIdle()
+        viewModel.onSourceCardSelected(fakeInstrumentsRepo.creditCard.id.value)
+        viewModel.onAmountChanged("1200")
+        advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.creditPurchaseSimulation)
+        assertEquals(PurchaseType.DIRECT, viewModel.uiState.value.creditPurchaseValidation.terms?.purchaseType)
+        viewModel.onSourceAccountSelected(testAccountId.value)
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.creditPurchaseSimulation)
+    }
+
+    @Test
+    fun `credit save passes accepted financing category and exact principal to confirmation`() = runTest {
+        advanceUntilIdle()
+        viewModel.onSourceCardSelected(fakeInstrumentsRepo.creditCard.id.value)
+        viewModel.onAmountChanged("1200")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        val draft = viewModel.uiState.value.creditPurchaseDraft.copy(purchaseType = PurchaseType.INSTALLMENTS, financing = Financing.WITH_INTEREST, installmentsText = "6", teaPercentText = "45,00", rateSource = PurchaseRateSource.USER_ENTERED)
+        viewModel.onCreditPurchaseDraftChanged(draft)
+        advanceUntilIdle()
+        val previewTerms = requireNotNull(viewModel.uiState.value.creditPurchaseSimulation).terms
+        viewModel.onSave(); advanceUntilIdle()
+        val purchase = fakeInstrumentsRepo.confirmedPurchases.single()
+        assertEquals(previewTerms, purchase.terms)
+        assertEquals(4500, purchase.terms?.teaBps)
+        assertEquals(Money(120000, Currency.PEN), purchase.amount)
+        assertEquals(testCategoryId.value, purchase.categoryId)
+        assertTrue(fakeMovementRepo.registeredCommands.isEmpty())
+    }
+
+    @Test
+    fun `invalid installment counts and TEA stop credit confirmation with Spanish validation`() = runTest {
+        advanceUntilIdle()
+        viewModel.onSourceCardSelected(fakeInstrumentsRepo.creditCard.id.value)
+        viewModel.onAmountChanged("1200")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        for (count in listOf("0", "1", "37", "")) {
+            viewModel.onCreditPurchaseDraftChanged(CreditPurchaseDraft(PurchaseType.INSTALLMENTS, installmentsText = count))
+            viewModel.onSave(); advanceUntilIdle()
+            assertNotNull(viewModel.uiState.value.creditPurchaseValidation.installmentsError)
+            assertEquals(false, viewModel.uiState.value.isSaving)
+        }
+        for (tea in listOf("", "0", "500.01", "1.001")) {
+            viewModel.onCreditPurchaseDraftChanged(CreditPurchaseDraft(PurchaseType.INSTALLMENTS, Financing.WITH_INTEREST, "6", tea))
+            viewModel.onSave(); advanceUntilIdle()
+            assertNotNull(viewModel.uiState.value.creditPurchaseValidation.teaError)
+        }
+        assertTrue(fakeInstrumentsRepo.confirmedPurchases.isEmpty())
+    }
+
+    @Test
+    fun `stale form currency is rejected instead of silently using PEN for USD card`() = runTest {
+        advanceUntilIdle()
+        viewModel.onSourceCardSelected(fakeInstrumentsRepo.creditCard.id.value)
+        viewModel.onAmountChanged("10")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        // Model a restored form whose currency no longer matches the selected card.
+        val field = QuickMovementViewModel::class.java.getDeclaredField("_uiState").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val state = field.get(viewModel) as MutableStateFlow<QuickMovementUiState>
+        state.value = state.value.copy(currency = "PEN", availableCreditCards = listOf(fakeInstrumentsRepo.creditCard.copy(currency = Currency.USD)))
+        viewModel.onSave(); advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.generalError.orEmpty().contains("moneda de la tarjeta (USD)"))
+        assertEquals(false, viewModel.uiState.value.isSaving)
+        assertTrue(fakeInstrumentsRepo.confirmedPurchases.isEmpty())
+        assertTrue(fakeMovementRepo.registeredCommands.isEmpty())
+    }
+
+    @Test
+    fun `returning from card to account keeps ordinary expense registration intact`() = runTest {
+        advanceUntilIdle()
+        viewModel.onSourceCardSelected(fakeInstrumentsRepo.creditCard.id.value)
+        viewModel.onSourceAccountSelected(testAccountId.value)
+        viewModel.onAmountChanged("10")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onSave(); advanceUntilIdle()
+        assertEquals(1000L, fakeMovementRepo.registeredCommands.single().amountMinor)
+        assertTrue(fakeInstrumentsRepo.confirmedPurchases.isEmpty())
     }
 
     @After
@@ -751,6 +834,7 @@ class QuickMovementViewModelTest {
             val amount: Money,
             val merchant: String,
             val categoryId: String?,
+            val terms: PurchaseTerms? = null,
         )
         val confirmedPurchases = mutableListOf<Purchase>()
 
@@ -808,6 +892,12 @@ class QuickMovementViewModelTest {
         override suspend fun payCreditCard(cardId: CardId, sourceAccountId: AccountId, paymentAmount: Money, effectiveAt: java.time.Instant, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> { paymentCalls++; return Result.success(Unit) }
         override suspend fun confirmCreditPurchase(cardId: CardId, amount: Money, merchant: String, effectiveAt: java.time.Instant, installments: Int, operationId: com.kipu.app.core.finance.domain.model.OperationId, categoryId: String, merchantId: String?, note: String?): Result<Unit> {
             confirmedPurchases += Purchase(cardId, amount, merchant, categoryId)
+            return Result.success(Unit)
+        }
+        override suspend fun confirmCreditPurchaseWithTerms(cardId: CardId, amount: Money, merchant: String,
+            effectiveAt: java.time.Instant, terms: PurchaseTerms, operationId: com.kipu.app.core.finance.domain.model.OperationId,
+            categoryId: String, merchantId: String?, note: String?, processedAt: java.time.Instant?): Result<Unit> {
+            confirmedPurchases += Purchase(cardId, amount, merchant, categoryId, terms)
             return Result.success(Unit)
         }
         override suspend fun archiveInstrument(instrumentId: String, isCard: Boolean, operationId: com.kipu.app.core.finance.domain.model.OperationId): Result<Unit> = Result.success(Unit)

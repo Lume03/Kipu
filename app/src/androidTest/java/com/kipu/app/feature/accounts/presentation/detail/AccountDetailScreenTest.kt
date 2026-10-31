@@ -93,6 +93,14 @@ class AccountDetailScreenTest {
     }
 
     @Test
+    fun cardDetailShowsTheInstallmentsSectionWithAnExplicitEmptySchedule() {
+        setCardScreen(creditCard())
+        compose.onNodeWithTag("card_installments_section").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Todavía no hay compras con cuotas registradas en esta tarjeta.")
+            .performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun maskedOpeningCorrectionKeepsTheStoredAmountPrivateAndAcceptsExplicitInput() {
         var correctedAmount: Long? = null
         setScreen(account(), masked = true, onCorrectOpeningBalance = { correctedAmount = it })
@@ -458,6 +466,8 @@ class AccountDetailScreenTest {
                     card = card,
                     currentBalance = null,
                     creditCardSummary = cardSummary(card),
+                    cardInstallmentsState = com.kipu.app.feature.accounts.presentation.components.CardInstallmentsUiState(
+                        summary = com.kipu.app.feature.accounts.domain.model.CardInstallmentsSummary.from(emptyList(), card.currency), isLoading = false),
                     isLoading = false,
                     onNavigateBack = {},
                     onSaveAppearance = { _, _ -> },

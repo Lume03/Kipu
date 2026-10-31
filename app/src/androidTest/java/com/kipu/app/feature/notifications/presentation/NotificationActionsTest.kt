@@ -1,6 +1,10 @@
 package com.kipu.app.feature.notifications.presentation
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
@@ -141,6 +145,42 @@ class NotificationActionsTest {
         compose.onNodeWithText("Umbral de crédito").assertIsDisplayed()
         compose.onNodeWithText("Alerta · Condición ocurrida").assertIsDisplayed()
         compose.onNodeWithContentDescription("Eliminar notificación").assertIsDisplayed()
+    }
+
+    @Test
+    fun swipeDismissalOffersUndoAndRestoresOnlyTheDismissedRow() {
+        val first = notice().copy(isRead = true)
+        val second = notice().copy(id = "notice-2", title = "Otro aviso")
+        var pending by androidx.compose.runtime.mutableStateOf(false)
+        var dismissCalls = 0
+        var undoCalls = 0
+        compose.setContent {
+            val rows = if (pending) listOf(second) else listOf(first, second)
+            KipuTheme {
+                NotificationCenterScreen(
+                    state = NotificationsUiState(activeUserId = first.userId, notifications = rows, visibleNotifications = rows,
+                        pendingDismissal = if (pending) com.kipu.app.feature.notifications.domain.PendingNotificationDismissal("undo-token", first.userId, first.id) else null),
+                    unreadCount = 1, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
+                    onDismiss = { if (it == first.id) { dismissCalls++; pending = true } },
+                    onOpenNotification = {}, onNavigateBack = {}, reducedMotion = true,
+                    onUndoDismissal = { if (it == "undo-token") { undoCalls++; pending = false } },
+                )
+            }
+        }
+        compose.onNodeWithTag("notification-swipe-notice-1").performTouchInput { swipeLeft(durationMillis = 500) }
+        compose.onNodeWithTag("notification-row-notice-1").assertDoesNotExist()
+        compose.onNodeWithText("Otro aviso").assertIsDisplayed()
+        compose.onNodeWithText("Deshacer").performClick()
+        compose.onNodeWithTag("notification-row-notice-1").assertIsDisplayed()
+        compose.onNodeWithText("Otro aviso").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(1, dismissCalls); assertEquals(1, undoCalls) }
+    }
+
+    @Test
+    fun zeroUnreadBadgeKeepsBellAccessibleWithoutNumericBadge() {
+        compose.setContent { KipuTheme { UnreadNotificationBadge(unreadCount = 0, onClick = {}) } }
+        compose.onNodeWithContentDescription("Notificaciones").assertIsDisplayed()
+        compose.onNodeWithText("0").assertDoesNotExist()
     }
 
     private fun notice() = AppNotification(

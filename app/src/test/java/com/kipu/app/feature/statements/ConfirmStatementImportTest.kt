@@ -67,7 +67,7 @@ class ConfirmStatementImportTest {
     private val receipts = CaptureRegistrationReceipts { _, key -> applied[key] }
     private val purchases = mutableListOf<Transaction>()
     private val credit = mockk<ConfirmCreditPurchase> {
-        coEvery { this@mockk.invoke(any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
+        coEvery { this@mockk.invoke(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             val money = secondArg<Money>()
             val key = arg<String>(5)
             val transaction = purchase("tx-$key", money.minorUnits).copy(
@@ -301,7 +301,7 @@ class ConfirmStatementImportTest {
     }
 
     @Test fun `cancellation propagates without completing batch`() = runTest {
-        coEvery { credit(any(), any(), any(), any(), any(), any(), any(), any(), any()) } throws CancellationException()
+        coEvery { credit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } throws CancellationException()
         use(line())
         try { confirm(owner, "import"); fail("Cancellation expected") } catch (_: CancellationException) { }
         coVerify(exactly = 0) { store.complete(any(), any()) }
@@ -366,7 +366,7 @@ class ConfirmStatementImportTest {
     }
 
     @Test fun `gate is revalidated after an earlier successful line`() = runTest {
-        coEvery { credit(any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
+        coEvery { credit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } answers {
             allowed = false
             Result.success(Unit)
         }
@@ -375,7 +375,7 @@ class ConfirmStatementImportTest {
         assertEquals(1, result.registered)
         assertEquals(StatementLineFailure("two", StatementLineFailureReason.PremiumRequired), result.failed.single())
         assertFalse(result.completed)
-        coVerify(exactly = 1) { credit(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 1) { credit(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test fun `payment result cancellation propagates rather than becoming a partial failure`() = runTest {

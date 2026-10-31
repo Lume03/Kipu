@@ -78,24 +78,24 @@ class CurrentOwnerVerifiedPlanAccessTest {
             if (entry?.effectiveTier == "PREMIUM") OfflineEntitlementLeaseDecision.Allowed(1)
             else OfflineEntitlementLeaseDecision.PremiumRequired
         }, session)
-        val values = mutableListOf<Boolean>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { access.observePremiumVerified().collect { values += it } }
+        val values = kotlinx.coroutines.channels.Channel<Boolean>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { access.observePremiumVerified().collect { values.send(it) } }
         testScheduler.runCurrent()
-        assertEquals(false, values.last())
+        assertEquals(false, values.receive())
         cache.value = FeatureAccessCacheEntity(owner, 1, "PREMIUM", source = "SIGNED_DEVELOPER_GRANT")
         testScheduler.runCurrent()
-        assertEquals(true, values.last())
+        assertEquals(true, values.receive())
         cache.value = FeatureAccessCacheEntity.verifiedFree(owner)
         testScheduler.runCurrent()
-        assertEquals(false, values.last())
+        assertEquals(false, values.receive())
         cache.value = FeatureAccessCacheEntity(owner, 1, "PREMIUM", source = "SIGNED_SERVER_GRANT")
         testScheduler.runCurrent()
-        assertEquals(true, values.last())
+        assertEquals(true, values.receive())
         sessionState.value = LocalAccess.Available(other.toString(), RemoteSession.Absent)
         testScheduler.runCurrent()
-        assertEquals(false, values.last())
+        assertEquals(false, values.receive())
         sessionState.value = LocalAccess.NoOwner
         testScheduler.runCurrent()
-        assertEquals(false, values.last())
+        assertTrue(values.tryReceive().isFailure) // distinctUntilChanged retains the already-denied state.
     }
 }

@@ -70,7 +70,7 @@ class AutoRegisterCaptureCandidateTest {
     @Test fun `credit card is never registered automatically even when HIGH`() = runTest {
         val credit = stored(captureCandidate(owner).asCredit())
         assertEquals(AutoRegisterResult.NotEligible, autoRegister(credit))
-        coVerify(exactly = 0) { creditPurchase(com.kipu.app.core.finance.domain.model.CardId(credit.cardId!!), any(), any(), any(), any(), com.kipu.app.core.finance.domain.model.OperationId(CaptureResolutionKey.of(owner, credit.id)), any(), any(), any()) }
+        coVerify(exactly = 0) { creditPurchase(com.kipu.app.core.finance.domain.model.CardId(credit.cardId!!), any(), any(), any(), any(), com.kipu.app.core.finance.domain.model.OperationId(CaptureResolutionKey.of(owner, credit.id)), any(), any(), any(), any(), any()) }
         assertEquals(CaptureCandidateStatus.PENDING, store.row(owner, credit.id)!!.status)
     }
 

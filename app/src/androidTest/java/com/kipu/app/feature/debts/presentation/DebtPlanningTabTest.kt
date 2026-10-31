@@ -28,74 +28,17 @@ import org.junit.Test
 class DebtPlanningTabTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun dueAlertsSeparateOverdueFromUpcomingAndOpenTheCorrectCollection() {
-        var action = ""
+    @Test fun calendarShortcutOpensIndependentUpcomingDuesScreen() {
+        var opened = 0
         compose.setContent {
             KipuTheme {
-                DebtListScreen(listOf(
-                    debt("past", DebtObligationType.RECEIVABLE, dueDate = LocalDate.parse("2026-10-21")),
-                    debt("future", DebtObligationType.PAYABLE, dueDate = LocalDate.parse("2026-10-28"))),
-                    null, {}, {}, {}, {}, today = LocalDate.parse("2026-10-24"), onDebtAction = { id, selected -> action = "$id:$selected" })
+                DebtListScreen(listOf(debt("past", DebtObligationType.RECEIVABLE)), null, {}, {}, {}, {},
+                    onViewUpcomingDues = { opened++ })
             }
         }
         compose.onNodeWithTag("debt_due_open").performClick()
-        compose.onNodeWithTag("debt_due_filter_1").performClick()
-        compose.onNode(hasText("Contraparte past") and hasAnyAncestor(hasTestTag("debt_due_alerts"))).assertIsDisplayed()
-        compose.onNode(hasText("Contraparte future") and hasAnyAncestor(hasTestTag("debt_due_alerts"))).assertDoesNotExist()
-        compose.onNodeWithText("Registrar cobro").performClick()
-        compose.runOnIdle { assertEquals("past:settle", action) }
-    }
-
-    @Test fun alertsShowOneCardPerDebtWithGroupedOverdueAndNoDistantInstallments() {
-        val today = LocalDate.parse("2026-10-24")
-        compose.setContent {
-            KipuTheme {
-                DebtDueAlertsSheet(
-                    debts = listOf(debt("past", DebtObligationType.PAYABLE), debt("far", DebtObligationType.RECEIVABLE)),
-                    schedules = mapOf(
-                        "past" to listOf(
-                            DebtScheduleItem("i1", 1, today.minusDays(3), 1_000),
-                            DebtScheduleItem("i2", 2, today.minusDays(1), 1_000, "PARTIAL"),
-                            DebtScheduleItem("i3", 3, today.plusDays(26), 1_000)),
-                        "far" to listOf(DebtScheduleItem("i4", 1, today.plusDays(26), 1_000))),
-                    today = today, onDismiss = {}, onView = {}, onSettle = {},
-                )
-            }
-        }
-        compose.onAllNodesWithTag("debt_due_card_past").assertCountEquals(1)
-        compose.onNodeWithTag("debt_due_card_far").assertDoesNotExist()
-        compose.onNodeWithText("2 cuotas vencidas").assertIsDisplayed()
-        compose.onNodeWithText("Todas 1").assertIsDisplayed()
-        compose.onNodeWithTag("debt_due_filter_2").performClick()
-        compose.onNodeWithText("Todo al día en este filtro").assertIsDisplayed()
-    }
-
-    @Test fun distantDueAppearsOnlyInAllWithoutAlertTotalsAndOpensDetails() {
-        val today = LocalDate.parse("2026-10-30")
-        var viewed = ""
-        compose.setContent {
-            KipuTheme {
-                DebtDueAlertsSheet(
-                    debts = listOf(debt("far", DebtObligationType.PAYABLE)),
-                    schedules = mapOf("far" to (1..5).map { number ->
-                        DebtScheduleItem("i$number", number, today.plusDays(26L + (number - 1) * 30L), 1_000)
-                    }),
-                    today = today, onDismiss = {}, onView = { viewed = it }, onSettle = {},
-                )
-            }
-        }
-        compose.onNodeWithText("Sin alertas en tu plazo de aviso").assertIsDisplayed()
-        compose.onNodeWithText("Nada vencido ni por vencer en tu plazo de aviso").assertIsDisplayed()
-        compose.onNodeWithText("Próximos vencimientos").assertIsDisplayed()
-        compose.onNodeWithText("Todas 0").assertIsDisplayed()
-        compose.onNodeWithText("Programado por pagar").assertDoesNotExist()
-        compose.onNodeWithText("En 26 días").assertIsDisplayed()
-        compose.onAllNodesWithTag("debt_upcoming_row_far").assertCountEquals(1)
-        compose.onNodeWithTag("debt_due_filter_2").performClick()
-        compose.onNodeWithTag("debt_upcoming_row_far").assertDoesNotExist()
-        compose.onNodeWithTag("debt_due_filter_0").performClick()
-        compose.onNodeWithTag("debt_upcoming_row_far").performClick()
-        compose.runOnIdle { assertEquals("far", viewed) }
+        compose.runOnIdle { assertEquals(1, opened) }
+        compose.onNodeWithTag("upcoming_dues_screen").assertDoesNotExist()
     }
 
     @Test fun overflowOpensSheetWithoutOpeningCardAndDispatchesTheChosenAction() {
@@ -216,31 +159,5 @@ class DebtPlanningTabTest {
         syncState = "SYNCED",
         revision = 1L,
         openingMode = DebtOpeningMode.HISTORICAL,
-    )
-}
-
-// Signature-only bridge for fixtures written against the removed production sheet.
-// The later UI-test phase will migrate the old sheet assertions to the independent screen.
-@androidx.compose.runtime.Composable
-private fun DebtDueAlertsSheet(
-    debts: List<DebtSummary>,
-    schedules: Map<String, List<DebtScheduleItem>>,
-    today: LocalDate,
-    onDismiss: () -> Unit,
-    onView: (String) -> Unit,
-    onSettle: (String) -> Unit,
-) {
-    val balances = schedules.flatMap { (debtId, items) -> items.map { item ->
-        com.kipu.app.feature.debts.domain.model.DebtDueBalance(
-            debtId, item.id, item.installmentNumber, item.dueDate, item.principalMinor,
-            if (item.status == "PAID") 0L else item.principalMinor, null, null,
-        )
-    } }
-    val snapshot = com.kipu.app.feature.debts.domain.model.buildUpcomingDues(debts, balances, emptyList(), today)
-    UpcomingDuesScreen(
-        state = UpcomingDuesUiState(rows = snapshot.rows, periods = snapshot.rows.groupBy { it.period(today) },
-            isLoading = false, today = today),
-        onNavigateBack = onDismiss, onOriginSelected = {}, onStatusSelected = {}, onTypeSelected = {}, onCurrencySelected = {},
-        onOpenDebt = onView, onOpenCard = {}, onSettleDebt = onSettle, onRetry = {},
     )
 }

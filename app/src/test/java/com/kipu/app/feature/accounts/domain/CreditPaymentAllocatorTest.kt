@@ -35,4 +35,29 @@ class CreditPaymentAllocatorTest {
 
         assertTrue(error is IllegalArgumentException)
     }
+    @Test
+    fun `same due date uses purchase date then installment number then identity`() {
+        val rows = listOf(DuePrincipalInstallment("z", 1, 1, 2, 110), DuePrincipalInstallment("b", 1, 1, 1, 110),
+            DuePrincipalInstallment("a", 1, 1, 1, 110), DuePrincipalInstallment("new", 1, 2, 1, 110))
+        val result = CreditPaymentAllocator.allocate(440, rows)
+        assertEquals(listOf("a", "b", "z", "new"), result.map { it.installmentId })
+        assertTrue(result.all { it.fullyPaid })
+    }
+
+    @Test
+    fun `payment can partially cover a principal plus interest obligation`() {
+        val result = CreditPaymentAllocator.allocate(1050, listOf(DuePrincipalInstallment("financed", 1, 1, 1, 1100)))
+        assertEquals(1050L, result.single().allocatedMinor)
+        assertFalse(result.single().fullyPaid)
+    }
+
+    @Test
+    fun `nonpositive payments and balances are rejected`() {
+        for (payment in listOf(0L, -1L)) assertTrue(runCatching {
+            CreditPaymentAllocator.allocate(payment, listOf(DuePrincipalInstallment("one", 1, 1, 1, 100)))
+        }.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(runCatching { CreditPaymentAllocator.allocate(1, listOf(DuePrincipalInstallment("one", 1, 1, 1, 0))) }
+            .exceptionOrNull() is IllegalArgumentException)
+    }
+
 }

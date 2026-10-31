@@ -128,7 +128,7 @@ class SyncInstrumentCommandsWorkerTest {
         coEvery { api.registerCreditPurchase(any(), userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(status = "DUPLICATE", transactionId = request(command).transaction.id,
                 installments = installments.map { com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto(
-                    it.id, it.installmentNumber, "2026-11-05", it.principalMinor, it.interestMinor) }),
+                    it.id, it.installmentNumber, java.time.LocalDate.ofEpochDay(it.dueDate).toString(), it.principalMinor, it.interestMinor) }),
         )
 
         val result = worker().doWork()

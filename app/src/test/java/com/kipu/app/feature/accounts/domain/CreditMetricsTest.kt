@@ -34,9 +34,9 @@ class CreditMetricsTest {
     }
 
     @Test
-    fun `first installment follows inclusive closing day and the next due day`() {
+    fun `first installment excludes closing day by default and the next due day`() {
         assertEquals(
-            LocalDate.of(2026, Month.SEPTEMBER, 20),
+            LocalDate.of(2026, Month.OCTOBER, 20),
             CreditCalculations.calculateFirstInstallmentDueDate(
                 purchaseDate = LocalDate.of(2026, Month.SEPTEMBER, 15),
                 preferredClosingDay = 15,
@@ -56,7 +56,7 @@ class CreditMetricsTest {
     @Test
     fun `first installment clamps short closing and due months without changing preferences`() {
         assertEquals(
-            LocalDate.of(2024, Month.MARCH, 31),
+            LocalDate.of(2024, Month.APRIL, 30),
             CreditCalculations.calculateFirstInstallmentDueDate(
                 purchaseDate = LocalDate.of(2024, Month.FEBRUARY, 29),
                 preferredClosingDay = 31,

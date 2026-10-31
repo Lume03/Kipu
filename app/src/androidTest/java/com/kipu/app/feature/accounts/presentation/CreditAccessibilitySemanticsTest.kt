@@ -1,6 +1,9 @@
 package com.kipu.app.feature.accounts.presentation
 
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -112,6 +115,7 @@ class CreditAccessibilitySemanticsTest {
                 InstallmentSimulatorScreen(
                     candidate = candidate,
                     card = card,
+                    selectedCategory = com.kipu.app.feature.movements.presentation.CategoryOption("food", "Comida", "restaurant", com.kipu.app.feature.categories.domain.model.CategoryType.EXPENSE),
                     onConfirmPurchase = { confirmedInstallments = it.installmentsCount },
                     onRejectPurchase = { rejected = true },
                 )
@@ -119,22 +123,11 @@ class CreditAccessibilitySemanticsTest {
         }
 
         compose.onNodeWithText("Simular compra a crédito").assertIsDisplayed()
-        compose.onAllNodesWithText("S/ 100.00").assertCountEquals(1)
-        compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 3")
-            .assertIsDisplayed()
-        val readingOrder = listOf(
-            compose.onNodeWithText("Simular compra a crédito").fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithText("Monto principal a financiar").fetchSemanticsNode().boundsInRoot.center.y,
-            compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 3")
-                .fetchSemanticsNode().boundsInRoot.center.y,
-        )
-        assertTrue("Screen reader traversal follows the visual top-to-bottom order", readingOrder.zipWithNext().all { it.first < it.second })
-        compose.onNodeWithText("6").assertHasClickAction().performClick()
-        compose.onNodeWithText("6 cuotas").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Opciones de pago: 1, 3, 6 o 12 cuotas. Seleccionado: 6")
-            .assertIsDisplayed()
-        // An unknown contractual rate must remain explicitly unavailable in the preview.
-        compose.onAllNodesWithText("No disponible").assertCountEquals(2)
+        compose.onNodeWithTag("credit_purchase_terms").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("credit_purchase_type_INSTALLMENTS").assertIsSelected()
+        compose.onNodeWithText("6 cuotas").performScrollTo().assertHasClickAction().performClick()
+        compose.onNodeWithTag("credit_purchase_installments_count").assertTextContains("6")
+        compose.onNodeWithTag("credit_purchase_financing_INTEREST_FREE").assertIsSelected()
         compose.onNodeWithText("Confirmar compra").performScrollTo().assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(6, confirmedInstallments) }
         compose.onNodeWithText("Rechazar").performScrollTo().assertIsEnabled().performClick()

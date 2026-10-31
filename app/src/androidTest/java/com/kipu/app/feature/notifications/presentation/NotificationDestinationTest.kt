@@ -82,7 +82,7 @@ class NotificationDestinationTest {
 
         compose.onNodeWithTag("notification-row-missing-target").performClick()
         compose.onNodeWithText(UNAVAILABLE_DESTINATION_MESSAGE).assertIsDisplayed()
-        compose.onNodeWithText("Avisos").assertIsDisplayed()
+        compose.onNodeWithText("Notificaciones").assertIsDisplayed()
         compose.onAllNodesWithText("Detalle de tarjeta").assertCountEquals(0)
         assertEquals(NOTIFICATION_CENTER_ROUTE, navController.currentDestination?.route)
         assertEquals(0, markReadCalls)

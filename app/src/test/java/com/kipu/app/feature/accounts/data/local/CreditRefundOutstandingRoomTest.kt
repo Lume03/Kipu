@@ -35,6 +35,9 @@ class CreditRefundOutstandingRoomTest {
 
     @Test
     fun cardOutstandingInstallmentSubtractsValidLinkedRefundAndPayment() = runBlocking {
+        database.cardDao().insert(CardEntity(id = cardId, userId = userId, creationOperationId = "card-op",
+            type = "CREDIT", currency = "PEN", network = "VISA", issuer = "BCP", lastFourDigits = "1234",
+            createdAt = 1, updatedAt = 1))
         val purchase = transaction("purchase", "EXPENSE", "CARD_PURCHASE", amount = 10_000L)
         val payment = transaction("payment", "TRANSFER", "CARD_PAYMENT", amount = 2_000L)
         val refund = transaction("refund", "INCOME", "REFUND", amount = 3_000L)

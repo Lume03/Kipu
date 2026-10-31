@@ -38,7 +38,7 @@ class ConfirmCaptureCandidateTest {
         }
     }
     private val creditPurchase = mockk<ConfirmCreditPurchase> {
-        coEvery { this@mockk.invoke(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { this@mockk.invoke(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any(), any(), any()) } returns Result.success(Unit)
     }
     private val resolvedCalls = mutableListOf<Pair<CaptureCandidateRecord, String>>()
     private val listener = object : CaptureCandidateResolvedListener {
@@ -122,13 +122,13 @@ class ConfirmCaptureCandidateTest {
         val credit = candidate.asCredit()
         useOnly(credit)
         val installments = slot<Int>()
-        coEvery { creditPurchase(testCard, any(), any(), any(), capture(installments), OperationId(key), any(), any(), any()) } returns
+        coEvery { creditPurchase(testCard, any(), any(), any(), capture(installments), OperationId(key), any(), any(), any(), any(), any()) } returns
             Result.success(Unit)
 
         val result = confirm(command(credit).copy(creditMode = CreditMode.INSTALLMENTS, installmentCount = 6))
             as CaptureConfirmationResult.Registered
         assertEquals(6, installments.captured)
-        coVerify { creditPurchase(testCard, any(), any(), any(), 6, OperationId(key), any(), any(), any()) }
+        coVerify { creditPurchase(testCard, any(), any(), any(), 6, OperationId(key), any(), any(), any(), any(), any()) }
         assertEquals(CaptureResolutionKey.creditTransactionId(owner, key), result.transactionId)
         assertTrue(registered.isEmpty())
         val stored = store.row(owner, credit.id)!!
@@ -141,7 +141,7 @@ class ConfirmCaptureCandidateTest {
         val credit = candidate.asCredit()
         useOnly(credit)
         confirm(command(credit))
-        coVerify { creditPurchase(testCard, any(), any(), any(), 1, OperationId(key), "category-1", "merchant-1", any()) }
+        coVerify { creditPurchase(testCard, any(), any(), any(), 1, OperationId(key), "category-1", "merchant-1", any(), any(), any()) }
     }
 
     @Test fun `installments outside 2 to 36 are rejected before the ledger`() = runTest {
@@ -149,7 +149,7 @@ class ConfirmCaptureCandidateTest {
         useOnly(credit)
         val result = confirm(command(credit).copy(creditMode = CreditMode.INSTALLMENTS, installmentCount = 48))
         assertEquals("installments", (result as CaptureConfirmationResult.Rejected).field)
-        coVerify(exactly = 0) { creditPurchase(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any()) }
+        coVerify(exactly = 0) { creditPurchase(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any(), any(), any()) }
     }
 
     @Test fun `switching from credit to debit drops installments`() = runTest {
@@ -169,7 +169,7 @@ class ConfirmCaptureCandidateTest {
         useOnly(credit)
         val result = confirm(command(credit), CaptureConfirmationMode.AUTOMATIC)
         assertTrue(result is CaptureConfirmationResult.Rejected)
-        coVerify(exactly = 0) { creditPurchase(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any()) }
+        coVerify(exactly = 0) { creditPurchase(testCard, any(), any(), any(), any(), OperationId(key), any(), any(), any(), any(), any()) }
         assertEquals(CaptureCandidateStatus.PENDING, store.row(owner, credit.id)!!.status)
     }
 

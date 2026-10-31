@@ -37,6 +37,8 @@ class CreditCardLedgerQueriesTest {
 
     @Test
     fun outstandingInstallmentsApplyPaymentsAndSortByDueDate() = runTest {
+        database.cardDao().insert(CardEntity(cardId, userId, "card-op", type = "CREDIT", currency = "PEN",
+            network = "VISA", issuer = "BCP", lastFourDigits = "1234", createdAt = 1, updatedAt = 1))
         val nextDue = LocalDate.parse("2026-11-10").toEpochDay()
         val laterDue = LocalDate.parse("2026-12-10").toEpochDay()
         val firstPurchase = transaction(
