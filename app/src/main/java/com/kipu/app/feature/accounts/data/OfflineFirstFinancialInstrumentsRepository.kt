@@ -1474,6 +1474,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val remoteRevision = if (isCard) {
                     val card = cardDao.getById(userId, instrumentId)
                         ?: throw IllegalArgumentException("Card not found: $instrumentId")
+                    if (card.type == "CREDIT" && database.creditDao().getOutstandingBalanceForCard(userId, instrumentId) > 0L) {
+                        throw IllegalStateException("CARD_HAS_OUTSTANDING_DEBT: Debes liquidar la deuda de la tarjeta antes de archivarla.")
+                    }
                     cardDao.setArchived(userId, instrumentId, true, nowMicros)
                     card.remoteRevision
                 } else {

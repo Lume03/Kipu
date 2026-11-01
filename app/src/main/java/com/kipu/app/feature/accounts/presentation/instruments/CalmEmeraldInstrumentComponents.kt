@@ -1114,46 +1114,6 @@ fun CalmEmeraldStep3SummaryCard(
  * Informational card on credit utilization alert thresholds (50%, 80%, 100%).
  * Strictly informational, without non-persisting toggle chips.
  */
-@Composable
-fun CalmEmeraldUtilizationNoticeCard(
-    modifier: Modifier = Modifier,
-) {
-    val calmColors = rememberCalmEmeraldColors()
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = calmColors.incomeBg,
-        border = BorderStroke(1.dp, calmColors.incomeBorder),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = null,
-                tint = calmColors.primaryDeep,
-                modifier = Modifier.size(18.dp),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Alertas de uso responsable",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = calmColors.primaryText,
-                )
-                Text(
-                    text = "Umbrales de alerta: 50%, 80% y 100% de tu línea total de crédito. Cada aviso se activa al alcanzar su umbral.",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                    color = calmColors.primaryText,
-                )
-            }
-        }
-    }
-}
-
 /**
  * Collapsible SBS catalog referential TEA card (readonly, no fake Apply, no fake custom input).
  */
@@ -1806,69 +1766,6 @@ fun CalmEmeraldTeaConfigCard(
 /**
  * Usage alerts section with 50%, 80%, 100% toggle pills.
  */
-@Composable
-fun CalmEmeraldUsageAlertsCard(
-    alert50: Boolean,
-    onToggle50: () -> Unit,
-    alert80: Boolean,
-    onToggle80: () -> Unit,
-    alert100: Boolean,
-    onToggle100: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val calmColors = rememberCalmEmeraldColors()
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = calmColors.surfaceCard,
-        border = BorderStroke(1.dp, calmColors.borderSubtle),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Alertas de uso",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
-                    color = calmColors.primaryText,
-                )
-                Text(
-                    text = "Avísame cuando use gran parte de mi línea total de crédito.",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = calmColors.secondaryMuted,
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                AlertTogglePill(
-                    label = "50%",
-                    selected = alert50,
-                    onClick = onToggle50,
-                    modifier = Modifier.weight(1f),
-                )
-                AlertTogglePill(
-                    label = "80%",
-                    selected = alert80,
-                    onClick = onToggle80,
-                    modifier = Modifier.weight(1f),
-                )
-                AlertTogglePill(
-                    label = "100%",
-                    selected = alert100,
-                    onClick = onToggle100,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun AlertTogglePill(
     label: String,

@@ -50,7 +50,6 @@ import kotlinx.coroutines.launch
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val dashboardData: FinancialDashboardData? = null,
-    val activeAlerts: List<com.kipu.app.feature.accounts.domain.usecase.UtilizationAlert> = emptyList(),
     val isMasked: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -114,24 +113,20 @@ class AccountsViewModel @Inject constructor(
 
     private val _creditNotifications = MutableStateFlow<List<CreditUtilizationNotification>>(emptyList())
     val creditNotifications: StateFlow<List<CreditUtilizationNotification>> = _creditNotifications.asStateFlow()
-    private val creditNotificationsLoaded = MutableStateFlow(false)
     private val _creditNotificationsError = MutableStateFlow<String?>(null)
     val creditNotificationsError: StateFlow<String?> = _creditNotificationsError.asStateFlow()
     private val _creditNotificationsSettled = MutableStateFlow(false)
     val creditNotificationsSettled: StateFlow<Boolean> = _creditNotificationsSettled.asStateFlow()
-    val creditNotificationsReady: StateFlow<Boolean> = creditNotificationsLoaded.asStateFlow()
 
     fun refreshCreditUtilizationNotifications(cardId: String? = null) {
         viewModelScope.launch {
             _creditNotificationsSettled.value = false
-            creditNotificationsLoaded.value = false
             try {
                 val result = withTimeoutOrNull(10_000L) {
                     financialInstrumentsRepository.getCreditUtilizationNotifications(cardId)
                 }
                 if (result?.isSuccess == true) {
                     _creditNotifications.value = result.getOrThrow()
-                    creditNotificationsLoaded.value = true
                     _creditNotificationsError.value = null
                 } else {
                     _creditNotificationsError.value = "No se pudieron cargar los avisos de cr?dito."

@@ -31,6 +31,27 @@ class CreditPurchaseContractRoomTest {
             accepted.installmentsCount, operation, f.categoryId, terms = accepted).getOrThrow()
         return requireNotNull(requireNotNull(f.db.movementDao().getReceipt(f.owner, operation.value)).transactionId)
     }
+    @Test fun `credit card with debt cannot be archived and remains unchanged`() = runBlocking {
+        purchase()
+        val before = f.db.cardDao().getById(f.owner, f.cardId.value)
+        val pending = f.db.instrumentSyncDao().getPendingCount(f.owner)
+        val result = f.repository.archiveInstrument(f.cardId.value, true, f.operation())
+        assertTrue(result.exceptionOrNull()?.message?.contains("CARD_HAS_OUTSTANDING_DEBT") == true)
+        assertEquals(before, f.db.cardDao().getById(f.owner, f.cardId.value))
+        assertEquals(pending, f.db.instrumentSyncDao().getPendingCount(f.owner))
+    }
+    @Test fun `archived card rejects purchases and payments`() = runBlocking {
+        f.repository.archiveInstrument(f.cardId.value, true, f.operation()).getOrThrow()
+        assertTrue(requireNotNull(f.db.cardDao().getById(f.owner, f.cardId.value)).isArchived)
+        val result = ConfirmCreditPurchase(f.repository)(f.cardId, Money(120000, Currency.PEN), "Tienda", instant,
+            6, f.operation(), f.categoryId, terms = terms)
+        assertTrue(result.isFailure)
+        val source = AccountId.generate()
+        val account = Account(source, UserId(f.owner), "Ahorro", AccountType.SAVINGS, Currency.PEN,
+            initialBalance = Money(200000, Currency.PEN), openedAt = instant)
+        f.repository.createLiquidAccount(account, f.operation()).getOrThrow()
+        assertTrue(f.repository.payCreditCard(f.cardId, source, Money(100, Currency.PEN), instant, f.operation()).isFailure)
+    }
     @Test fun `confirmed purchase persists exact terms principal-only ledger and simulator schedule`() = runBlocking {
         val id = purchase()
         val card = f.repository.observeCardById(f.cardId).first() as CreditCard
