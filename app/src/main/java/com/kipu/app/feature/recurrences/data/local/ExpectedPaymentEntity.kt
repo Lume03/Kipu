@@ -98,7 +98,7 @@ interface ExpectedPaymentDao {
         val payment = get(ownerId, id) ?: return 0
         if (payment.status != "EXPECTED" || payment.expectedAmountMinor != candidate.amountMinor || payment.currency != candidate.currency) return 0
         val occurred = candidate.occurredAt ?: return 0
-        val date = java.time.Instant.ofEpochMilli(occurred).atZone(java.time.ZoneId.of("America/Lima")).toLocalDate()
+        val date = java.time.Instant.ofEpochMilli(occurred).atZone(com.kipu.app.core.di.LIMA_BUSINESS_ZONE).toLocalDate()
         if (java.time.LocalDate.parse(payment.dueDate) !in date.minusDays(3)..date.plusDays(3)) return 0
         if (updateAttended(ownerId, id, transactionId, candidateId, now) != 1) return 0
         check(markCandidateLinked(ownerId, candidateId, now) == 1)

@@ -10,9 +10,17 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
+import java.time.ZoneId
+import javax.inject.Qualifier
 import javax.inject.Singleton
 
 import androidx.room.withTransaction
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class BusinessZone
+
+val LIMA_BUSINESS_ZONE: ZoneId = ZoneId.of("America/Lima")
 
 @Module @InstallIn(SingletonComponent::class)
 object CoreModule {
@@ -87,5 +95,6 @@ object CoreModule {
     @Provides fun notificationSyncOutboxDao(database: KipuDatabase): com.kipu.app.feature.notifications.data.local.NotificationSyncOutboxDao = database.notificationSyncOutboxDao()
     @Provides fun recurrenceDao(database: KipuDatabase): com.kipu.app.feature.recurrences.data.local.RecurrenceDao = database.recurrenceDao()
     @Provides fun recurrenceOutboxDao(database: KipuDatabase): com.kipu.app.feature.recurrences.data.local.RecurrenceOutboxDao = database.recurrenceOutboxDao()
+    @Provides @BusinessZone fun businessZone(): ZoneId = LIMA_BUSINESS_ZONE
     @Provides fun clock(): Clock = Clock.systemUTC()
 }

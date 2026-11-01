@@ -42,6 +42,14 @@ class RecurrenceLifecycleTest {
     }
 
     @Test
+    fun resumePreviewUsesLimaBeforeUtcMidnightBoundary() {
+        val boundaryClock = Clock.fixed(Instant.parse("2026-11-01T02:00:00Z"), ZoneOffset.UTC)
+        val rule = recurrence.copy(startDate = LocalDate.of(2026, 10, 1))
+        val preview = RecurrenceLifecycleUseCase(RecordingRecurrenceRepository(), boundaryClock).previewResume(rule)
+        assertEquals(LocalDate.of(2026, 11, 1), preview.firstFutureDueDate)
+    }
+
+    @Test
     fun abandoningResumePreviewEmitsNoCommandAndDoesNotChangePausedRevision() = runBlocking {
         val repository = RecordingRecurrenceRepository()
         val useCase = RecurrenceLifecycleUseCase(repository, clock)

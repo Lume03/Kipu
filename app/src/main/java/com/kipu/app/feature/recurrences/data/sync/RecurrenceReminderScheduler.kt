@@ -7,10 +7,13 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import com.kipu.app.core.di.BusinessZone
+import com.kipu.app.core.di.LIMA_BUSINESS_ZONE
 import javax.inject.Singleton
 
 data class RecurrenceReminderRequest(
@@ -39,17 +42,20 @@ interface RecurrenceReminderScheduler {
 class WorkManagerRecurrenceReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val workManager: WorkManager,
+    private val clock: Clock = Clock.systemUTC(),
+    @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) : RecurrenceReminderScheduler {
     override fun schedule(request: RecurrenceReminderRequest) {
+        // Zero-day delivery semantics remain with the notifications contract.
         if (request.userId.isBlank() || request.recurrenceId.isBlank() || request.leadDays !in 0..30 || request.leadDays == 0) {
             cancel(request.userId, request.recurrenceId)
             return
         }
         cancelPostedNotificationIfObsolete(request.userId, request.recurrenceId, request.dueDate.toString())
         val fireAt = request.dueDate.minusDays(request.leadDays.toLong())
-            .atStartOfDay(LIMA_ZONE).toInstant().toEpochMilli()
+            .atStartOfDay(businessZone).toInstant().toEpochMilli()
         val work = OneTimeWorkRequestBuilder<RecurrenceReminderWorker>()
-            .setInitialDelay((fireAt - System.currentTimeMillis()).coerceAtLeast(0L), TimeUnit.MILLISECONDS)
+            .setInitialDelay((fireAt - clock.millis()).coerceAtLeast(0L), TimeUnit.MILLISECONDS)
             .setInputData(
                 workDataOf(
                     RecurrenceReminderWorker.KEY_USER_ID to request.userId,
@@ -86,7 +92,4 @@ class WorkManagerRecurrenceReminderScheduler @Inject constructor(
         }
     }
 
-    private companion object {
-        val LIMA_ZONE: ZoneId = ZoneId.of("America/Lima")
-    }
 }

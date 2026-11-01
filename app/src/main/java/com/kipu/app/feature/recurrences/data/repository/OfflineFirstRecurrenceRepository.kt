@@ -20,6 +20,12 @@ import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceSyncState
 import com.kipu.app.feature.recurrences.domain.schedule.RecurrenceScheduleCalculator
+import com.kipu.app.core.di.BusinessZone
+import com.kipu.app.core.di.LIMA_BUSINESS_ZONE
+import com.kipu.app.core.logging.SecureLog
+import com.kipu.app.feature.recurrences.data.sync.RecurrencesSyncScheduler
+import java.time.ZoneId
+import kotlinx.coroutines.CancellationException
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -44,9 +50,14 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     private val reminderCoordinator: ReminderReconciliationCoordinator,
     private val clock: Clock,
     private val generateExpected: GenerateExpectedPayments? = null,
+    private val syncScheduler: RecurrencesSyncScheduler,
+    @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) : RecurrenceRepository {
     private val reconciliationMutex = Mutex()
-    override fun observeAll(userId: String): Flow<List<RecurrenceRule>> = recurrenceDao.observeAll(userId).map { rows -> rows.map { it.toDomain() } }
+    override fun observeAll(userId: String): Flow<List<RecurrenceRule>> {
+        scheduleSync(userId)
+        return recurrenceDao.observeAll(userId).map { rows -> rows.map { it.toDomain() } }
+    }
     override fun observe(userId: String, recurrenceId: String): Flow<RecurrenceRule?> = recurrenceDao.observe(userId, recurrenceId).map { it?.toDomain() }
 
     override suspend fun create(userId: String, draft: RecurrenceDraft): RecurrenceCommandResult = try {
@@ -66,6 +77,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         )
         val command = outbox(userId, operationId, recurrenceId, "CREATE_RECURRENCE", null, envelope, now)
         transactionRunner { recurrenceDao.insert(entity); outboxDao.insert(command) }
+        scheduleSync(userId)
         reconcileReminder(userId, recurrenceId)
         generateExpected?.invoke(entity.toDomain())
         RecurrenceCommandResult.Pending(entity.toDomain(), operationId)
@@ -107,6 +119,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         }
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
         else {
+            scheduleSync(userId)
             reconcileReminder(userId, recurrenceId)
             generateExpected?.invoke(updated.toDomain())
             RecurrenceCommandResult.Pending(updated.toDomain(), operationId)
@@ -129,7 +142,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
                 require(current.status == "PAUSED") { "Only paused recurrence may resume" }
                 val firstFuture = RecurrenceScheduleCalculator.firstOccurrenceAfter(
                     LocalDate.parse(current.startDate), current.frequency, current.intervalCount,
-                    current.customIntervalUnit, LocalDate.now(clock),
+                    current.customIntervalUnit, LocalDate.now(clock.withZone(businessZone)),
                 )
                 require(confirmedNextDueDate != null && confirmedNextDueDate == firstFuture) { "Resume requires confirmation of the first future due date" }
                 require(current.endDate == null || confirmedNextDateWithinEnd(confirmedNextDueDate, current.endDate)) { "No future due date remains before end date" }
@@ -155,6 +168,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         }
         if (changed != 1) RecurrenceCommandResult.Conflict(recurrenceId, expectedRevision, recurrenceDao.get(userId, recurrenceId)?.revision)
         else {
+            scheduleSync(userId)
             reconcileReminder(userId, recurrenceId)
             generateExpected?.invoke(current.toDomain().copy(status = RecurrenceStatus.valueOf(target), nextDueDate = nextDate))
             RecurrenceCommandResult.Pending(current.toDomain().copy(
@@ -171,6 +185,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     override suspend fun reconcileReceipt(receipt: RecurrenceCommandReceipt) = reconciliationMutex.withLock {
         require(receipt.userId.isNotBlank() && receipt.operationId.isNotBlank())
         val command = outboxDao.get(receipt.userId, receipt.operationId) ?: return@withLock
+        if (command.state in setOf("APPLIED", "DUPLICATE", "CONFLICT", "FAILED")) return@withLock
         val now = clock.millis()
         when (receipt.outcome) {
             "APPLIED", "DUPLICATE" -> {
@@ -182,7 +197,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
                         val pending = outboxDao.countPending(receipt.userId, command.recurrenceId)
                         if (current.revision == revision && pending == 0) {
                             recurrenceDao.setSyncState(receipt.userId, command.recurrenceId, current.revision, "SYNCED", null, now)
-                        } else if (current.revision != revision) {
+                        } else if (current.revision < revision || current.revision != revision && pending == 0) {
                             recurrenceDao.setSyncState(receipt.userId, command.recurrenceId, current.revision, "CONFLICT", "REVISION_MISMATCH", now)
                         }
                     }
@@ -205,6 +220,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             }
             else -> throw IllegalArgumentException("Unsupported receipt outcome")
         }
+        reconcileReminder(receipt.userId, command.recurrenceId)
     }
 
     override suspend fun applyChangeFeed(userId: String, sequence: Long, changes: List<RecurrenceRule>) = reconciliationMutex.withLock {
@@ -217,8 +233,8 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             changes.forEach { remote ->
                 val current = recurrenceDao.get(userId, remote.id)
                 if (current == null) {
-                    recurrenceDao.upsert(remote.toEntity())
-                } else if (remote.revision > current.revision) {
+                    recurrenceDao.upsert(remote.toEntity().copy(syncState = "SYNCED", syncError = null))
+                } else if (remote.revision > current.revision && current.syncState !in setOf("CONFLICT", "FAILED")) {
                     if (outboxDao.countPending(userId, remote.id) > 0) {
                         recurrenceDao.setSyncState(userId, remote.id, current.revision, "CONFLICT", "REMOTE_REVISION_AHEAD", now)
                     } else {
@@ -229,6 +245,16 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             recurrenceDao.saveCheckpoint(com.kipu.app.feature.recurrences.data.local.RecurrenceSyncCheckpointEntity(userId, sequence, now))
         }
         changes.forEach { recurrence -> reconcileReminder(userId, recurrence.id) }
+    }
+
+    private fun scheduleSync(userId: String) {
+        try {
+            syncScheduler.scheduleSync(userId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SecureLog.w("OfflineFirstRecurrenceRepository", "Recurrence sync scheduling will be retried")
+        }
     }
 
     private fun validateDraft(draft: RecurrenceDraft) {
@@ -290,7 +316,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     private suspend fun reconcileReminder(userId: String, recurrenceId: String) {
         reminderCoordinator.exclusive {
             val current = recurrenceDao.get(userId, recurrenceId)
-            if (current == null || current.status != "ACTIVE" || !current.isActive || current.deletedAt != null || current.reminderLeadDays !in 1..30) {
+            if (current == null || current.status != "ACTIVE" || current.syncState != "SYNCED" || !current.isActive || current.deletedAt != null || current.reminderLeadDays !in 1..30) {
                 reminderScheduler.cancel(userId, recurrenceId)
                 reminderEventReconciler.invalidateSource(userId, recurrenceId, clock.instant())
                 return@exclusive
