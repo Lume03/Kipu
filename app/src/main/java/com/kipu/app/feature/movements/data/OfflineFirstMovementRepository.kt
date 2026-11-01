@@ -104,6 +104,9 @@ class OfflineFirstMovementRepository @Inject constructor(
         }
     }
 
+    override suspend fun findRegistrationReplay(command: RegisterTransactionCommand): RegisterTransactionResult? =
+        localDataSource.findRegistrationReplay(command, hasher.computeHash(command))
+
     override suspend fun registerTransaction(command: RegisterTransactionCommand): RegisterTransactionResult {
         val requestHash = hasher.computeHash(command)
         val result = localDataSource.commitTransactionAtomic(command, requestHash)

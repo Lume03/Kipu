@@ -9,6 +9,7 @@ class RegisterTransaction @Inject constructor(
     private val validator: RegisterTransactionValidator,
 ) {
     suspend operator fun invoke(command: RegisterTransactionCommand): RegisterTransactionResult {
+        repository.findRegistrationReplay(command)?.let { return it }
         when (val validation = validator.validate(command)) {
             is ValidationResult.Invalid -> {
                 return RegisterTransactionResult.ValidationError(

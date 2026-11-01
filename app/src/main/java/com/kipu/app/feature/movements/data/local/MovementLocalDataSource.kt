@@ -310,6 +310,19 @@ class MovementLocalDataSource @Inject constructor(
         ).map { Unit }
     }
 
+    suspend fun findRegistrationReplay(
+        command: RegisterTransactionCommand,
+        requestHash: String,
+    ): RegisterTransactionResult? = database.withTransaction {
+        val receipt = movementDao.getReceipt(command.userId, command.idempotencyKey) ?: return@withTransaction null
+        if (receipt.commandType != "REGISTER" || receipt.requestHash != requestHash || receipt.transactionId == null) {
+            return@withTransaction RegisterTransactionResult.Conflict("Idempotency conflict")
+        }
+        val transaction = movementDao.getTransactionById(command.userId, receipt.transactionId)
+            ?: return@withTransaction RegisterTransactionResult.Failure("Local receipt requires reconciliation")
+        RegisterTransactionResult.Success(transaction.toDomain(), isDuplicate = true)
+    }
+
     suspend fun commitTransactionAtomic(
         command: RegisterTransactionCommand,
         requestHash: String,
@@ -317,25 +330,7 @@ class MovementLocalDataSource @Inject constructor(
         return database.withTransaction {
             // Resolve a committed command before checking mutable resource state:
             // an archived wallet must not turn a legitimate replay into a failure.
-            val existingReceipt = movementDao.getReceipt(command.userId, command.idempotencyKey)
-            if (existingReceipt != null) {
-                if (existingReceipt.requestHash == requestHash && existingReceipt.transactionId != null) {
-                    val existingEntity = movementDao.getTransactionById(command.userId, existingReceipt.transactionId)
-                    if (existingEntity != null) {
-                        return@withTransaction RegisterTransactionResult.Success(
-                            transaction = existingEntity.toDomain(),
-                            isDuplicate = true,
-                        )
-                    }
-                    return@withTransaction RegisterTransactionResult.Failure(
-                        "El recibo local existe, pero falta su transacción; se requiere reconciliación"
-                    )
-                } else {
-                    return@withTransaction RegisterTransactionResult.Conflict(
-                        "Idempotency conflict: key ${command.idempotencyKey} already used with different payload"
-                    )
-                }
-            }
+            findRegistrationReplay(command, requestHash)?.let { return@withTransaction it }
             if (command.paymentChannel != null) {
                 if (command.paymentChannel !in setOf("YAPE", "PLIN") ||
                     database.accountDao().getActiveAffiliatedWallet(

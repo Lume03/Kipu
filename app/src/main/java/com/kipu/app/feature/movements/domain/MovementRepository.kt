@@ -18,6 +18,9 @@ interface MovementRepository {
 
     suspend fun registerTransaction(command: RegisterTransactionCommand): RegisterTransactionResult
 
+    /** Read-only exact replay/conflict lookup; null means the command has not committed yet. */
+    suspend fun findRegistrationReplay(command: RegisterTransactionCommand): RegisterTransactionResult? = null
+
     suspend fun findSimilarTransactions(
         userId: String,
         sourceAccountId: String,

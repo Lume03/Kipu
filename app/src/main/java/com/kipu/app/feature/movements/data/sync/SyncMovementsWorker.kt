@@ -28,6 +28,7 @@ import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
 import com.kipu.app.feature.accounts.data.remote.SyncFeedCursor
 import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import com.kipu.app.feature.movements.data.local.MovementDao
+import com.kipu.app.feature.movements.data.local.MovementRejectionResolver
 import com.kipu.app.feature.movements.data.local.MovementOutboxEntity
 import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
 import com.kipu.app.feature.movements.data.local.TransactionEntity
@@ -168,8 +169,12 @@ class SyncMovementsWorker @AssistedInject constructor(
         // Earlier pulls appended the server's copy of offline-registered entries, posting them twice.
         // Runs after pushing, so pending user changes never wait behind this one-time pass.
         val ledgerRepairKey = "ledger-net-20261026-v1:$targetUserId"
-        if (!recovery.getBoolean(ledgerRepairKey, false) && repairDuplicatedLedger(targetUserId)) {
-            recovery.edit().putBoolean(ledgerRepairKey, true).apply()
+        if (!recovery.getBoolean(ledgerRepairKey, false)) {
+            if (repairDuplicatedLedger(targetUserId)) {
+                recovery.edit().putBoolean(ledgerRepairKey, true).apply()
+            } else {
+                anyFailed = true
+            }
         }
 
         // Delayed retries, an unexpired lease or the batch limit must keep the worker scheduled.
@@ -258,6 +263,7 @@ class SyncMovementsWorker @AssistedInject constructor(
     private suspend fun repairDuplicatedLedger(userId: String): Boolean {
         val checkpoint = movementDao.getSyncCheckpoint(userId)?.sequence ?: return true
         var cursor = 0L
+        var allEligibleRepaired = true
         while (cursor < checkpoint) {
             val response = try {
                 ownerRequest(userId) { financialApi.pullChanges(PullChangesRequestDto(afterSequence = cursor), userId) }
@@ -271,7 +277,7 @@ class SyncMovementsWorker @AssistedInject constructor(
                 is FinancialApiResponse.Error, is FinancialApiResponse.NetworkFailure -> return false
             }
             for (change in page.changes.sortedBy { it.sequence }) {
-                if (change.sequence > checkpoint) return true
+                if (change.sequence > checkpoint) return allEligibleRepaired
                 val entityType = change.entityType.uppercase()
                 if ((entityType != "TRANSACTION" && entityType != "MOVEMENT") || !change.operation.equals("UPSERT", true)) continue
                 val payload = change.payload ?: continue
@@ -283,9 +289,10 @@ class SyncMovementsWorker @AssistedInject constructor(
                         if (local.revision != change.revision || local.status == "VOIDED" ||
                             movementDao.getPendingOutboxForTransaction(userId, local.id).isNotEmpty()
                         ) return@ownerTransaction
-                        if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) return@ownerTransaction
+                        // Throw so partial writes, projection failure and reconciliation fail together.
+                        if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) throw InvalidSyncPage()
                         movementDao.getLedgerEntriesForTransaction(userId, local.id).map { it.accountId }.distinct().forEach { accountId ->
-                            val account = accountDao.getById(userId, accountId) ?: return@forEach
+                            val account = accountDao.getById(userId, accountId) ?: throw InvalidSyncPage()
                             movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
                                 userId = userId, accountId = accountId,
                                 balanceMinor = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L,
@@ -296,13 +303,15 @@ class SyncMovementsWorker @AssistedInject constructor(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    allEligibleRepaired = false
                     SecureLog.w("SyncMovementsWorker", "Ledger repair skipped change ${change.sequence}: ${e.javaClass.simpleName}")
                 }
             }
-            if (!page.hasMore || page.nextSequence <= cursor) return true
+            if (page.nextSequence <= cursor) return false
+            if (!page.hasMore) return allEligibleRepaired && page.nextSequence >= checkpoint
             cursor = page.nextSequence
         }
-        return true
+        return allEligibleRepaired
     }
 
     private suspend fun applyPulledAccount(userId: String, remote: SyncAccountPayload, revision: Long): Boolean =
@@ -877,10 +886,12 @@ class SyncMovementsWorker @AssistedInject constructor(
                         false
                     }
                     "REJECTED" -> {
-                        movementDao.completeClaimedOutbox(
-                            cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
-                            MovementSyncStatus.FAILED_PERMANENT.name,
-                        )
+                        val error = response.data.error
+                        if (error?.retryable == true) {
+                            retryCommand(cmd, now, error.code)
+                        } else {
+                            MovementRejectionResolver(database, movementDao).rejectClaimed(cmd, error?.code ?: "REJECTED")
+                        }
                         false
                     }
                     else -> {
@@ -891,9 +902,8 @@ class SyncMovementsWorker @AssistedInject constructor(
                 is MovementApiResponse.Error -> {
                     val isPermanent = isPermanentHttpFailure(response.statusCode)
                     if (isPermanent) {
-                        movementDao.completeClaimedOutbox(
-                            cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
-                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        MovementRejectionResolver(database, movementDao).rejectClaimed(
+                            cmd, "HTTP_${response.statusCode}",
                         )
                     } else {
                         retryCommand(cmd, now, "HTTP_${response.statusCode}")
@@ -987,10 +997,12 @@ class SyncMovementsWorker @AssistedInject constructor(
                         false
                     }
                     "REJECTED" -> {
-                        movementDao.completeClaimedOutbox(
-                            cmd, "FAILED_PERMANENT", null, response.data.error?.code ?: "REJECTED",
-                            MovementSyncStatus.FAILED_PERMANENT.name,
-                        )
+                        val error = response.data.error
+                        if (error?.retryable == true) {
+                            retryCommand(cmd, now, error.code)
+                        } else {
+                            MovementRejectionResolver(database, movementDao).rejectClaimed(cmd, error?.code ?: "REJECTED")
+                        }
                         false
                     }
                     else -> {
@@ -1001,9 +1013,8 @@ class SyncMovementsWorker @AssistedInject constructor(
                 is MovementApiResponse.Error -> {
                     val isPermanent = isPermanentHttpFailure(response.statusCode)
                     if (isPermanent) {
-                        movementDao.completeClaimedOutbox(
-                            cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
-                            MovementSyncStatus.FAILED_PERMANENT.name,
+                        MovementRejectionResolver(database, movementDao).rejectClaimed(
+                            cmd, "HTTP_${response.statusCode}",
                         )
                     } else {
                         retryCommand(cmd, now, "HTTP_${response.statusCode}")
