@@ -61,8 +61,6 @@ fun NavGraphBuilder.authDestinations(
     composable(AUTH_LOGIN_ROUTE) {
         val viewModel: AuthViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        val entry = LocalSessionEntryCurtain.current?.state?.collectAsStateWithLifecycle()?.value
-        val formState = if (entry?.confirmationRequired == true) uiState.copy(confirmationRequiredEmail = null) else uiState
 
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
@@ -70,6 +68,7 @@ fun NavGraphBuilder.authDestinations(
                     is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event)
                     is AuthNavigationEvent.NavigateToRegister -> navController.navigate(AUTH_REGISTER_ROUTE)
                     is AuthNavigationEvent.NavigateToRecovery -> navController.navigate(AUTH_RECOVERY_ROUTE)
+                    is AuthNavigationEvent.NavigateToConfirmation -> navController.navigate(SETUP_OTP_ROUTE)
                     else -> Unit
                 }
             }
@@ -77,14 +76,13 @@ fun NavGraphBuilder.authDestinations(
 
         Box(Modifier.fillMaxSize()) {
             LoginScreen(
-                uiState = formState,
+                uiState = uiState,
                 onEmailChanged = viewModel::onEmailChanged,
                 onPasswordChanged = viewModel::onPasswordChanged,
                 onLoginClick = viewModel::login,
                 onRegisterClick = viewModel::register,
                 onNavigateToRecovery = { navController.navigate(AUTH_RECOVERY_ROUTE) },
                 onDismissExistingAccountDialog = viewModel::dismissExistingAccountDialog,
-                onDismissConfirmationDialog = viewModel::dismissConfirmationDialog,
             )
         }
     }
@@ -92,14 +90,13 @@ fun NavGraphBuilder.authDestinations(
     composable(AUTH_REGISTER_ROUTE) {
         val viewModel: AuthViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        val entry = LocalSessionEntryCurtain.current?.state?.collectAsStateWithLifecycle()?.value
-        val formState = if (entry?.confirmationRequired == true) uiState.copy(confirmationRequiredEmail = null) else uiState
 
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
                 when (event) {
                     is AuthNavigationEvent.NavigateToHome -> onAuthenticated(event)
                     is AuthNavigationEvent.NavigateToLogin -> navController.navigate(AUTH_LOGIN_ROUTE)
+                    is AuthNavigationEvent.NavigateToConfirmation -> navController.navigate(SETUP_OTP_ROUTE)
                     else -> Unit
                 }
             }
@@ -107,7 +104,7 @@ fun NavGraphBuilder.authDestinations(
 
         Box(Modifier.fillMaxSize()) {
             RegisterScreen(
-                uiState = formState,
+                uiState = uiState,
                 onEmailChanged = viewModel::onEmailChanged,
                 onPasswordChanged = viewModel::onPasswordChanged,
                 onRegisterClick = viewModel::register,
@@ -118,12 +115,13 @@ fun NavGraphBuilder.authDestinations(
                     }
                 },
                 onDismissExistingAccountDialog = viewModel::dismissExistingAccountDialog,
-                onDismissConfirmationDialog = viewModel::dismissConfirmationDialog,
                 onLoginClick = viewModel::login,
                 onNavigateToRecovery = { navController.navigate(AUTH_RECOVERY_ROUTE) },
             )
         }
     }
+
+    setupDestinations(navController, onAuthenticated)
 
     composable(AUTH_RECOVERY_ROUTE) {
         val viewModel: com.kipu.app.feature.auth.presentation.RecoveryViewModel = hiltViewModel()

@@ -31,7 +31,6 @@ class SessionEntryCurtain @Inject constructor() {
         val homeReady: Boolean = false,
         val authenticated: Boolean = false,
         val registering: Boolean = false,
-        val confirmationRequired: Boolean = false,
         val destinationRoute: String? = null,
         val errorExiting: Boolean = false,
     )
@@ -52,10 +51,6 @@ class SessionEntryCurtain @Inject constructor() {
 
     fun expectDestination(route: String) {
         _state.update { it?.copy(destinationRoute = route) }
-    }
-
-    fun requireConfirmation() {
-        _state.update { it?.copy(confirmationRequired = true) }
     }
 
     /** Ignored when no curtain is showing, so screens can report readiness unconditionally. */
@@ -100,7 +95,11 @@ internal object SessionEntryTiming {
 
 /** Draws the curtain above the navigation host while a sign-in is waiting for the dashboard. */
 @Composable
-fun SessionEntryCurtainHost(curtain: SessionEntryCurtain, currentRoute: String?, dashboardRoute: String) {
+fun SessionEntryCurtainHost(
+    curtain: SessionEntryCurtain,
+    currentRoute: String?,
+    dashboardRoute: String,
+) {
     val entry by curtain.state.collectAsStateWithLifecycle()
     val current = entry ?: return
     val reducedMotion = rememberReducedMotionEnabled()
@@ -134,10 +133,10 @@ fun SessionEntryCurtainHost(curtain: SessionEntryCurtain, currentRoute: String?,
         androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.graphicsLayer {
             alpha = errorAlpha.value
         }) {
-            if (current.registering && (current.authenticated || current.confirmationRequired)) {
-                AccountCreatedScreen(current.email, onContinue = curtain::dismiss,
-                    homeReady = current.confirmationRequired || ready,
-                    confirmationRequired = current.confirmationRequired,
+            if (current.registering && current.authenticated) {
+                AccountCreatedScreen(current.email,
+                    onContinue = curtain::dismiss,
+                    homeReady = ready,
                     autoContinue = current.authenticated)
             } else {
                 WelcomeBackCurtain(current.email, ready, onFinished = curtain::dismiss,

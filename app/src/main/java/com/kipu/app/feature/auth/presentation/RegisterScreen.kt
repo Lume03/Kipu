@@ -11,13 +11,12 @@ fun RegisterScreen(
     onRegisterClick: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onDismissExistingAccountDialog: () -> Unit,
-    onDismissConfirmationDialog: () -> Unit,
     modifier: Modifier = Modifier,
     onLoginClick: (() -> Unit)? = null,
     onNavigateToRecovery: () -> Unit = {},
 ) {
     AuthFormScreen(uiState, onEmailChanged, onPasswordChanged, onLoginClick ?: {},
-        onRegisterClick, onNavigateToRecovery, onDismissExistingAccountDialog, onDismissConfirmationDialog,
+        onRegisterClick, onNavigateToRecovery, onDismissExistingAccountDialog,
         initialRegisterMode = true, modifier = modifier,
         onNavigateToLogin = if (onLoginClick == null) onNavigateToLogin else null)
 }

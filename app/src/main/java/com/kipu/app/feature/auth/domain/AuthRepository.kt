@@ -25,6 +25,16 @@ interface AuthRepository {
     suspend fun signIn(credentials: AuthCredentials): Result<AuthResult>
 
     /**
+     * Confirms the 6-digit code sent at registration and opens the session. Failures are [OtpException].
+     */
+    suspend fun verifyOtp(email: String, code: String): Result<AuthResult> =
+        Result.failure(UnsupportedOperationException("OTP verification is unavailable"))
+
+    /** Asks the server to mail a new confirmation code. */
+    suspend fun resendOtp(email: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("OTP resend is unavailable"))
+
+    /**
      * Signs out the currently authenticated user.
      * Complies with FR-016 and FR-017.
      */

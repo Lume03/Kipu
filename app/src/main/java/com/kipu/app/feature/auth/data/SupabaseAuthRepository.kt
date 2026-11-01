@@ -13,6 +13,10 @@ import com.kipu.app.feature.auth.data.remote.ApiResponse
 import com.kipu.app.feature.auth.data.remote.AuthApi
 import com.kipu.app.feature.auth.data.remote.LoginRequestDto
 import com.kipu.app.feature.auth.data.remote.RegisterRequestDto
+import com.kipu.app.feature.auth.data.remote.ResendOtpRequestDto
+import com.kipu.app.feature.auth.data.remote.VerifyOtpRequestDto
+import com.kipu.app.feature.auth.domain.model.OtpException
+import com.kipu.app.feature.auth.domain.model.OtpFailure
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.PasswordValidator
 import com.kipu.app.feature.auth.domain.model.AuthCredentials
@@ -29,6 +33,9 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+/** Digits in the confirmation code mailed at registration (Supabase email OTP default). */
+const val OTP_LENGTH = 6
 
 @Singleton
 class SupabaseAuthRepository @Inject constructor(
@@ -122,45 +129,13 @@ class SupabaseAuthRepository @Inject constructor(
         )
 
         return when (response) {
-            is ApiResponse.Success -> {
-                val envelope = response.data
-                try {
-                    check(accessTokenSubject(envelope.accessToken) == envelope.userId) { "Auth subject mismatch" }
-                    val verifiedUser = verifier.retrieveUser(envelope.accessToken)
-                    check(verifiedUser.id == envelope.userId) { "Auth user mismatch" }
-                    val now = Instant.now()
-                    val stored = StoredAuthSession(
-                        accessToken = envelope.accessToken,
-                        refreshToken = envelope.refreshToken,
-                        expiresIn = envelope.expiresIn,
-                        tokenType = envelope.tokenType,
-                        userId = envelope.userId,
-                        expiresAtEpochSeconds = now.plusSeconds(envelope.expiresIn).epochSecond,
-                        verifiedUser = verifiedUser,
-                    )
-                    // Runs while the entry curtain animates, before any owner is exposed.
-                    supabaseClient.auth.importSession(stored.toUserSession(), autoRefresh = false)
-                    sessionStorage.save(StoredAuthSession.encode(stored))
-                    planOnboarding.bindRegisteredOwner(normalizedEmail, envelope.userId)
-                    sessionCoordinator.setActiveOwner(envelope.userId)
-                    sessionCoordinator.updateRemoteSession(
-                        RemoteSession.Valid(envelope.userId, now.plusSeconds(envelope.expiresIn))
-                    )
-                    _cooldownState.value = CooldownState(0, null)
-                    Result.success(AuthResult.Success(envelope.userId))
-                } catch (e: CancellationException) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { clearFailedSession() }
-                    throw e
-                } catch (e: Exception) {
-                    clearFailedSession()
-                    SecureLog.e("SupabaseAuthRepository", "Failed to activate owner session", e)
-                    Result.failure(Exception(
-                        if (isTransportFailure(e)) "Error de red. Revisa tu conexi\u00f3n e intenta nuevamente."
-                        else "Error al inicializar la sesi\u00f3n.", e))
-                }
-            }
+            is ApiResponse.Success -> activateSession(response.data, normalizedEmail)
             is ApiResponse.Error -> {
                 when (response.statusCode) {
+                    403 -> if (response.problem?.type?.substringAfterLast('/') == "email_not_confirmed") {
+                        planOnboarding.registered(normalizedEmail)
+                        Result.success(AuthResult.ConfirmationRequired(normalizedEmail))
+                    } else Result.failure(Exception("Correo o contraseña incorrectos."))
                     429 -> {
                         val retry = response.retryAfter ?: 60
                         _cooldownState.value = CooldownState(retry, Instant.now().plusSeconds(retry.toLong()))
@@ -178,6 +153,49 @@ class SupabaseAuthRepository @Inject constructor(
         }
     }
 
+    /** Imports the verified session, binds the owner and exposes it; shared by sign-in and code confirmation. */
+    private suspend fun activateSession(
+        envelope: com.kipu.app.feature.auth.data.remote.SessionEnvelopeDto,
+        normalizedEmail: String,
+        completingSignup: Boolean = false,
+    ): Result<AuthResult> {
+        return try {
+            check(accessTokenSubject(envelope.accessToken) == envelope.userId) { "Auth subject mismatch" }
+            val verifiedUser = verifier.retrieveUser(envelope.accessToken)
+            check(verifiedUser.id == envelope.userId) { "Auth user mismatch" }
+            val now = Instant.now()
+            val stored = StoredAuthSession(
+                accessToken = envelope.accessToken,
+                refreshToken = envelope.refreshToken,
+                expiresIn = envelope.expiresIn,
+                tokenType = envelope.tokenType,
+                userId = envelope.userId,
+                expiresAtEpochSeconds = now.plusSeconds(envelope.expiresIn).epochSecond,
+                verifiedUser = verifiedUser,
+            )
+            // Runs while the entry curtain animates, before any owner is exposed.
+            supabaseClient.auth.importSession(stored.toUserSession(), autoRefresh = false)
+            if (completingSignup) planOnboarding.markSetupPending(envelope.userId)
+            sessionStorage.save(StoredAuthSession.encode(stored))
+            planOnboarding.bindRegisteredOwner(normalizedEmail, envelope.userId)
+            sessionCoordinator.setActiveOwner(envelope.userId)
+            sessionCoordinator.updateRemoteSession(
+                RemoteSession.Valid(envelope.userId, now.plusSeconds(envelope.expiresIn))
+            )
+            _cooldownState.value = CooldownState(0, null)
+            Result.success(AuthResult.Success(envelope.userId))
+        } catch (e: CancellationException) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { clearFailedSession() }
+            throw e
+        } catch (e: Exception) {
+            clearFailedSession()
+            SecureLog.e("SupabaseAuthRepository", "Failed to activate owner session", e)
+            Result.failure(Exception(
+                if (isTransportFailure(e)) "Error de red. Revisa tu conexi\u00f3n e intenta nuevamente."
+                else "Error al inicializar la sesi\u00f3n.", e))
+        }
+    }
+
     private suspend fun clearFailedSession() {
         revalidationJob?.cancel()
         revalidationJob = null
@@ -185,6 +203,49 @@ class SupabaseAuthRepository @Inject constructor(
         sessionStorage.delete()
         sessionCoordinator.clearActiveOwner(explicit = false)
         sessionCoordinator.updateRemoteSession(RemoteSession.Absent)
+    }
+
+    override suspend fun verifyOtp(email: String, code: String): Result<AuthResult> =
+        sessionGate.exclusive {
+            try {
+                withAuthTimeout { verifyOtpExclusive(email, code) }
+            } catch (error: java.net.SocketTimeoutException) {
+                Result.failure(OtpException(OtpFailure.OFFLINE))
+            }
+        }
+
+    private suspend fun verifyOtpExclusive(email: String, code: String): Result<AuthResult> {
+        val normalizedEmail = PasswordValidator.normalizeEmail(email)
+        val digits = code.filter(Char::isDigit)
+        if (digits.length != OTP_LENGTH) return Result.failure(OtpException(OtpFailure.INVALID))
+        return when (val response = authApi.verifyOtp(VerifyOtpRequestDto(normalizedEmail, digits, "dummy-dev-captcha"))) {
+            is ApiResponse.Success -> activateSession(response.data, normalizedEmail, completingSignup = true)
+            is ApiResponse.Error -> Result.failure(
+                when (response.statusCode) {
+                    429 -> OtpException(OtpFailure.LOCKED, retryAfterSeconds = response.retryAfter ?: 300)
+                    410 -> OtpException(OtpFailure.EXPIRED)
+                    400, 401, 403, 422 -> when (response.problem?.type?.substringAfterLast('/')) {
+                        "otp_expired" -> OtpException(OtpFailure.EXPIRED)
+                        "otp_locked" -> OtpException(OtpFailure.LOCKED, retryAfterSeconds = response.retryAfter ?: 300)
+                        else -> OtpException(OtpFailure.INVALID, attemptsLeft = response.problem?.attemptsLeft)
+                    }
+                    else -> OtpException(OtpFailure.UNKNOWN)
+                }
+            )
+            is ApiResponse.NetworkFailure -> Result.failure(OtpException(OtpFailure.OFFLINE))
+        }
+    }
+
+    override suspend fun resendOtp(email: String): Result<Unit> {
+        val normalizedEmail = PasswordValidator.normalizeEmail(email)
+        return when (val response = authApi.resendOtp(ResendOtpRequestDto(normalizedEmail, "dummy-dev-captcha"))) {
+            is ApiResponse.Success -> Result.success(Unit)
+            is ApiResponse.Error -> Result.failure(
+                if (response.statusCode == 429) OtpException(OtpFailure.LOCKED, retryAfterSeconds = response.retryAfter ?: 60)
+                else OtpException(OtpFailure.UNKNOWN)
+            )
+            is ApiResponse.NetworkFailure -> Result.failure(OtpException(OtpFailure.OFFLINE))
+        }
     }
 
     override suspend fun signOut(explicit: Boolean): Result<Unit> =

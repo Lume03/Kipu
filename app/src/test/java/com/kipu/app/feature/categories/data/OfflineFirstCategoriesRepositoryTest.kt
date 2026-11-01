@@ -373,7 +373,7 @@ class OfflineFirstCategoriesRepositoryTest {
 
         repository.ensureInitialCatalog(testUserId).getOrThrow()
         assertEquals(
-            setOf("Alimentación", "Transporte", "Servicios"),
+            com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.entries.map { it.name }.toSet(),
             categoryDao.presentations.values
                 .filter { it.userId == testUserId.value }
                 .map { it.name }
@@ -393,7 +393,7 @@ class OfflineFirstCategoriesRepositoryTest {
         repository.ensureInitialCatalog(testUserId).getOrThrow()
 
         val categories = categoryDao.getCategoriesForUser(testUserId.value)
-        assertEquals(3, categories.count { it.origin == "SYSTEM" })
+        assertEquals(12, categories.count { it.origin == "SYSTEM" })
         assertEquals("Comida", categoryDao.getPresentation(testUserId.value, "00000000-0000-0000-0000-000000000001")?.name)
     }
 

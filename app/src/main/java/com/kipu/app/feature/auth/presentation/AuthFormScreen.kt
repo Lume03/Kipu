@@ -77,7 +77,6 @@ internal fun AuthFormScreen(
     onRegisterClick: () -> Unit,
     onNavigateToRecovery: () -> Unit,
     onDismissExistingAccountDialog: () -> Unit,
-    onDismissConfirmationDialog: () -> Unit,
     initialRegisterMode: Boolean,
     modifier: Modifier = Modifier,
     onNavigateToRegister: (() -> Unit)? = null,
@@ -252,11 +251,6 @@ internal fun AuthFormScreen(
         text = { Text(stringResource(R.string.auth_existing_account_dialog_message)) },
         confirmButton = { TextButton({ onDismissExistingAccountDialog(); changeMode(false) }) { Text("Iniciar Sesión") } },
         dismissButton = { TextButton(onDismissExistingAccountDialog) { Text("Cancelar") } })
-    if (uiState.confirmationRequiredEmail != null) AlertDialog(
-        onDismissRequest = onDismissConfirmationDialog,
-        title = { Text("Verifica tu cuenta") },
-        text = { Text(stringResource(R.string.auth_confirmation_required_message)) },
-        confirmButton = { TextButton({ onDismissConfirmationDialog(); changeMode(false) }) { Text("Entendido") } })
     // No approved legal URLs/documents exist in the repository: do not invent their contents.
     if (legalDocument != null) AlertDialog(onDismissRequest = { legalDocument = null },
         title = { Text(legalDocument.orEmpty()) },

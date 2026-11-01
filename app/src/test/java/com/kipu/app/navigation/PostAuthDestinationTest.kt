@@ -7,6 +7,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PostAuthDestinationTest {
+    @Test fun `pending setup wins over notifications and saved plan on login and restoration`() = runTest {
+        repeat(2) {
+            assertEquals(SETUP_GRAPH_ROUTE, resolvePostAuthDestination("notifications/center", true, setupPending = true) {
+                error("A saved plan cannot bypass initial setup")
+            })
+        }
+    }
     @Test fun `configured recurring account opens money`() = runTest {
         assertEquals(ACCOUNTS_DASHBOARD_ROUTE, resolvePostAuthDestination(null) { true })
     }

@@ -132,7 +132,7 @@ class AuthVisualFlowTest {
         var registration = 0
         var navigated = 0
         rule.setContent { KipuTheme(darkTheme = false) {
-            RegisterScreen(AuthUiState(), {}, {}, { registration++ }, { navigated++ }, {}, {},
+            RegisterScreen(AuthUiState(), {}, {}, { registration++ }, { navigated++ }, {},
                 onLoginClick = { login++ })
         } }
         rule.onNodeWithText("Iniciar Sesión").performClick()

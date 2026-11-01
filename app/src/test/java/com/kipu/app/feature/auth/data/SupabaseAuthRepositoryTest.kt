@@ -51,6 +51,40 @@ class SupabaseAuthRepositoryTest {
     }
     private val credentials = AuthCredentials("test@example.com", "Password123")
 
+    @Test fun `registration preserves existing account validation rate limit and offline results`() = runTest {
+        val repo = repository()
+        coEvery { api.register(any()) } returns ApiResponse.Error(409, null)
+        assertEquals(com.kipu.app.feature.auth.domain.model.AuthResult.AccountAlreadyExists, repo.register(credentials).getOrThrow())
+        coEvery { api.register(any()) } returns ApiResponse.Error(422, null)
+        assertEquals("Error al procesar el registro.", repo.register(credentials).exceptionOrNull()?.message)
+        coEvery { api.register(any()) } returns ApiResponse.Error(429, null, retryAfter = 10)
+        assertEquals("Demasiados intentos. Intenta en 10 segundos.", repo.register(credentials).exceptionOrNull()?.message)
+        assertTrue(repo.cooldownState.value.isBlocked)
+        coEvery { api.register(any()) } returns ApiResponse.NetworkFailure(java.io.IOException("offline"))
+        assertEquals("Se requiere conexión a internet para registrarse.", repo.register(credentials).exceptionOrNull()?.message)
+    }
+
+    @Test fun `unconfirmed login returns confirmation requirement without activating a session`() = runTest {
+        val repo = repository()
+        coEvery { api.login(any()) } returns ApiResponse.Error(403, ProblemDto(type = "email_not_confirmed"))
+        assertEquals(com.kipu.app.feature.auth.domain.model.AuthResult.ConfirmationRequired(credentials.email), repo.signIn(credentials).getOrThrow())
+        coVerify(exactly = 0) { coordinator.setActiveOwner(any()); storage.save(any()); auth.importSession(any(), any(), any()) }
+    }
+
+    @Test fun `verified code persists setup pending before session is exposed`() = runTest {
+        val repo = repository()
+        coEvery { api.verifyOtp(any()) } returns ApiResponse.Success(SessionEnvelopeDto(token(owner), "refresh", 3600, "bearer", owner))
+        assertTrue(repo.verifyOtp(credentials.email, "123456").isSuccess)
+        coVerifyOrder { onboarding.markSetupPending(owner); storage.save(any()); coordinator.setActiveOwner(owner) }
+    }
+
+    @Test fun `unrelated forbidden login keeps neutral credentials error`() = runTest {
+        val repo = repository()
+        coEvery { api.login(any()) } returns ApiResponse.Error(403, ProblemDto(type = "forbidden"))
+        assertEquals("Correo o contraseña incorrectos.", repo.signIn(credentials).exceptionOrNull()?.message)
+        verify(exactly = 0) { onboarding.registered(any()) }
+    }
+
     @Test fun `sign in binds JWT subject and reuses memory without storage reads`() = runTest {
         assertTrue(repository().signIn(credentials).isSuccess)
         val provider = SupabaseAuthenticatedSessionProvider(client, storage, coordinator, gate)

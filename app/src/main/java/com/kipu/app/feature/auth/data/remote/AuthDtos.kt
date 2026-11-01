@@ -24,6 +24,19 @@ data class LoginRequestDto(
 )
 
 @Serializable
+data class VerifyOtpRequestDto(
+    val email: String,
+    val token: String,
+    val captchaToken: String,
+)
+
+@Serializable
+data class ResendOtpRequestDto(
+    val email: String,
+    val captchaToken: String,
+)
+
+@Serializable
 data class SessionEnvelopeDto(
     val accessToken: String,
     val refreshToken: String,
@@ -40,6 +53,8 @@ data class ProblemDto(
     val detail: String? = null,
     @SerialName("retry_after_seconds")
     val retryAfterSeconds: Int? = null,
+    @SerialName("attempts_left")
+    val attemptsLeft: Int? = null,
 )
 
 @Serializable

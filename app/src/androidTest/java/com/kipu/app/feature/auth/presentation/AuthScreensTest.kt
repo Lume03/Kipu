@@ -45,7 +45,6 @@ class AuthScreensTest {
                 onRegisterClick = {},
                 onNavigateToLogin = {},
                 onDismissExistingAccountDialog = {},
-                onDismissConfirmationDialog = {},
             )
         }
 

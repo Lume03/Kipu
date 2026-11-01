@@ -92,7 +92,7 @@ internal fun Modifier.circleReveal(progress: () -> Float, center: (Size) -> Offs
  */
 @Composable
 internal fun AccountCreatedScreen(email: String, onContinue: () -> Unit, modifier: Modifier = Modifier,
-    homeReady: Boolean = true, confirmationRequired: Boolean = false, autoContinue: Boolean = false) {
+    homeReady: Boolean = true, autoContinue: Boolean = false) {
     val colors = rememberCalmEmeraldColors()
     val entranceClock = rememberSceneClock(active = true)
     val clock = remember(entranceClock) { { entranceClock() + 0.7f } }
@@ -153,7 +153,7 @@ internal fun AccountCreatedScreen(email: String, onContinue: () -> Unit, modifie
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    if (confirmationRequired) "Confirma tu correo para iniciar sesión" else "Tu dinero está listo",
+                    "Tu dinero está listo",
                     Modifier.sceneReveal(clock, tl.NEXT, 0.6f),
                     color = Color.White.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,

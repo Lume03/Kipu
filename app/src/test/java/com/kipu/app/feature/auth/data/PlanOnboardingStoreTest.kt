@@ -11,6 +11,17 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [28])
 class PlanOnboardingStoreTest {
+    @Test fun `setup pending survives recreation and plan completion and is isolated by owner`() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("plan_onboarding", 0).edit().clear().commit()
+        val store = PlanOnboardingStore(context)
+        store.markSetupPending("A")
+        store.completed("A")
+        assertTrue(PlanOnboardingStore(context).isSetupPending("A"))
+        assertFalse(PlanOnboardingStore(context).isSetupPending("B"))
+        store.setupCompleted("A")
+        assertFalse(PlanOnboardingStore(context).isSetupPending("A"))
+    }
     @Test fun `registration binds durable onboarding only to the verified owner and completing clears it`() {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("plan_onboarding", 0).edit().clear().commit()

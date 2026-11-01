@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val entryCurtain: SessionEntryCurtain = SessionEntryCurtain(),
+    private val setupDraft: com.kipu.app.feature.setup.SetupDraftStore = com.kipu.app.feature.setup.SetupDraftStore(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -98,6 +99,11 @@ class AuthViewModel @Inject constructor(
                             entryCurtain.authenticated()
                             _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId))
                         }
+                        is AuthResult.ConfirmationRequired -> {
+                            setupDraft.begin(authResult.email, codeSent = false)
+                            entryCurtain.dismiss()
+                            _navigationEvents.emit(AuthNavigationEvent.NavigateToConfirmation)
+                        }
                         else -> {
                             entryCurtain.exitWithError {
                                 _uiState.update { it.copy(isLoading = false, generalError = "Respuesta inesperada. Intenta nuevamente.") }
@@ -139,7 +145,6 @@ class AuthViewModel @Inject constructor(
         val credentials = AuthCredentials(currentState.email, currentState.password)
         // Clear password from state immediately (FR-006)
         _uiState.update { it.copy(password = "", isLoading = true, generalError = null) }
-        entryCurtain.start(currentState.email, registering = true)
 
         viewModelScope.launch {
             val result = authRepository.register(credentials)
@@ -153,11 +158,12 @@ class AuthViewModel @Inject constructor(
                             _uiState.update { it.copy(showExistingAccountDialog = true) }
                         }
                         is AuthResult.ConfirmationRequired -> {
-                            entryCurtain.requireConfirmation()
-                            _uiState.update { it.copy(confirmationRequiredEmail = authResult.email) }
+                            setupDraft.begin(authResult.email)
+                            entryCurtain.dismiss()
+                            _navigationEvents.emit(AuthNavigationEvent.NavigateToConfirmation)
                         }
                         is AuthResult.Success -> {
-                            entryCurtain.authenticated()
+                            setupDraft.begin(currentState.email)
                             _navigationEvents.emit(AuthNavigationEvent.NavigateToHome(authResult.userId, accountCreated = true))
                         }
                     }
@@ -182,7 +188,4 @@ class AuthViewModel @Inject constructor(
         _uiState.update { it.copy(showExistingAccountDialog = false) }
     }
 
-    fun dismissConfirmationDialog() {
-        _uiState.update { it.copy(confirmationRequiredEmail = null) }
-    }
 }

@@ -254,8 +254,7 @@ class MainActivity : FragmentActivity() {
                 val restored = authRepository.restoreSession().getOrNull() as? AuthResult.Success
                 if (!hasActionableDeepLink) {
                     val destination = if (restored != null) {
-                        pendingReminderRoute
-                            ?: postAuthDestination(restored.userId) ?: AUTH_LOGIN_ROUTE
+                        postAuthDestination(restored.userId) ?: AUTH_LOGIN_ROUTE
                     } else if (onboardingPreferences.checkpoint.first().completed) {
                         AUTH_LOGIN_ROUTE
                     } else AUTH_INTRO_ROUTE
@@ -270,7 +269,7 @@ class MainActivity : FragmentActivity() {
 
             LaunchedEffect(currentUserId, pendingReminderRoute) {
                 val route = pendingReminderRoute
-                if (currentUserId != null && route != null && sessionEntryCurtain.state.value == null) {
+                if (currentUserId != null && route != null && !planOnboardingStore.isSetupPending(currentUserId.toString()) && sessionEntryCurtain.state.value == null) {
                     navController.openReminderRoute(route)
                     pendingReminderRoute = null
                 }
@@ -482,10 +481,11 @@ class MainActivity : FragmentActivity() {
                                         navController = navController,
                                         onAuthenticated = { event ->
                                             scope.launch {
-                                                if (event.accountCreated) planOnboardingStore.markPending(event.userId)
+                                                if (event.accountCreated) planOnboardingStore.markSetupPending(event.userId)
                                                 val destination = postAuthDestination(event.userId) ?: AUTH_LOGIN_ROUTE
+                                                if (destination == com.kipu.app.navigation.SETUP_GRAPH_ROUTE) sessionEntryCurtain.dismiss()
                                                 navController.openReminderRoute(destination)
-                                                pendingReminderRoute = null
+                                                if (destination != com.kipu.app.navigation.SETUP_GRAPH_ROUTE) pendingReminderRoute = null
                                                 sessionEntryCurtain.expectDestination(
                                                     navController.currentDestination?.route ?: destination,
                                                 )
@@ -555,7 +555,8 @@ class MainActivity : FragmentActivity() {
 
     private suspend fun postAuthDestination(rawUserId: String): String? {
         val userId = runCatching { UUID.fromString(rawUserId) }.getOrNull() ?: return null
-        return com.kipu.app.navigation.resolvePostAuthDestination(pendingReminderRoute, planOnboardingStore.isPending(rawUserId)) {
+        return com.kipu.app.navigation.resolvePostAuthDestination(pendingReminderRoute, planOnboardingStore.isPending(rawUserId),
+            setupPending = planOnboardingStore.isSetupPending(rawUserId)) {
             (planPreferencesDao.findPreference(userId) != null).also { hasPreference ->
                 if (hasPreference) planOnboardingStore.completed(rawUserId)
             }

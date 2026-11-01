@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
@@ -119,19 +120,39 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `registration animates immediately but confirmation never grants a session`() = runTest {
+    fun `registration submits from form and opens code without celebration`() = runTest {
         val curtain = SessionEntryCurtain()
-        val viewModel = AuthViewModel(fakeRepository, curtain)
+        val draft = com.kipu.app.feature.setup.SetupDraftStore()
+        val viewModel = AuthViewModel(fakeRepository, curtain, draft)
+        var event: AuthNavigationEvent? = null
+        backgroundScope.launch(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.navigationEvents.collect { event = it }
+        }
         viewModel.onEmailChanged("test@example.com")
         viewModel.onPasswordChanged("Password123")
-        viewModel.register()
-        assertTrue(curtain.state.value!!.registering)
-        assertFalse(curtain.state.value!!.authenticated)
-        assertEquals(0, registerCalls)
+        viewModel.register(); viewModel.register()
+        assertTrue(viewModel.uiState.value.isLoading)
+        assertNull(curtain.state.value)
         runCurrent()
-        assertTrue(curtain.state.value!!.confirmationRequired)
-        assertFalse(curtain.state.value!!.authenticated)
-        assertEquals("test@example.com", viewModel.uiState.value.confirmationRequiredEmail)
+        assertEquals(1, registerCalls)
+        assertEquals(AuthNavigationEvent.NavigateToConfirmation, event)
+        assertEquals("test@example.com", draft.draft.value.email)
+        assertNull(curtain.state.value)
+    }
+
+    @Test
+    fun `unconfirmed login opens code and allows resend without activating curtain`() = runTest {
+        fakeSignInResult = Result.success(AuthResult.ConfirmationRequired("test@example.com"))
+        val curtain = SessionEntryCurtain()
+        val draft = com.kipu.app.feature.setup.SetupDraftStore()
+        val viewModel = AuthViewModel(fakeRepository, curtain, draft)
+        val event = backgroundScope.async(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)) { viewModel.navigationEvents.first() }
+        viewModel.onEmailChanged("test@example.com")
+        viewModel.onPasswordChanged("Password123")
+        viewModel.login(); runCurrent()
+        assertEquals(AuthNavigationEvent.NavigateToConfirmation, event.await())
+        assertFalse(draft.codeSent)
+        assertNull(curtain.state.value)
     }
 
     @Test
@@ -164,7 +185,6 @@ class AuthViewModelTest {
         assertTrue(viewModel.uiState.value.isLoading)
         advanceUntilIdle()
         assertEquals(1, registerCalls)
-        assertEquals("test@example.com", viewModel.uiState.value.confirmationRequiredEmail)
         assertFalse(viewModel.uiState.value.isLoading)
     }
 

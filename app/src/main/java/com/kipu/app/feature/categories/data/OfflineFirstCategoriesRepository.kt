@@ -95,11 +95,8 @@ class OfflineFirstCategoriesRepository @Inject constructor(
     )
 
     private companion object {
-        val initialSystemCategories = listOf(
-            InitialSystemCategory("00000000-0000-0000-0000-000000000001", "Alimentación"),
-            InitialSystemCategory("00000000-0000-0000-0000-000000000002", "Transporte"),
-            InitialSystemCategory("00000000-0000-0000-0000-000000000003", "Servicios"),
-        )
+        val initialSystemCategories = com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.entries
+            .map { InitialSystemCategory(it.id, it.name) }
     }
 
     private val json = Json { ignoreUnknownKeys = true }

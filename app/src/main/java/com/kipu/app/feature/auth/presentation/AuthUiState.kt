@@ -9,7 +9,6 @@ data class AuthUiState(
     val generalError: String? = null,
     val cooldownSeconds: Int = 0,
     val showExistingAccountDialog: Boolean = false,
-    val confirmationRequiredEmail: String? = null,
 ) {
     val isFormValid: Boolean
         get() = email.isNotBlank() && password.isNotBlank() && emailError == null && passwordError == null
@@ -21,4 +20,6 @@ sealed interface AuthNavigationEvent {
     data object NavigateToLogin : AuthNavigationEvent
     data object NavigateToRegister : AuthNavigationEvent
     data object NavigateToRecovery : AuthNavigationEvent
+    /** Registration or unconfirmed login requires the emailed code before setup. */
+    data object NavigateToConfirmation : AuthNavigationEvent
 }

@@ -16,7 +16,6 @@ private fun AuthFormThemePreview() {
             onRegisterClick = {},
             onNavigateToRecovery = {},
             onDismissExistingAccountDialog = {},
-            onDismissConfirmationDialog = {},
             initialRegisterMode = false,
         )
     }

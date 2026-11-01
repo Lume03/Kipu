@@ -43,3 +43,12 @@ data class CooldownState(
     val isBlocked: Boolean
         get() = blockedUntil?.isAfter(Instant.now()) ?: (retryAfterSeconds > 0)
 }
+
+/** Why a confirmation code was not accepted; the screen maps each kind to its own message. */
+enum class OtpFailure { INVALID, EXPIRED, LOCKED, OFFLINE, UNKNOWN }
+
+class OtpException(
+    val failure: OtpFailure,
+    val attemptsLeft: Int? = null,
+    val retryAfterSeconds: Int? = null,
+) : Exception("OTP failure: $failure")

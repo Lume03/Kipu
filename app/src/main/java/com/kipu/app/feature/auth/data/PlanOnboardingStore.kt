@@ -22,4 +22,9 @@ class PlanOnboardingStore @Inject constructor(@ApplicationContext context: Conte
     fun isPending(owner: String): Boolean = preferences.getBoolean("pending:$owner", false)
     fun markPending(owner: String) { check(preferences.edit().putBoolean("pending:$owner", true).commit()) }
     fun completed(owner: String) { check(preferences.edit().remove("pending:$owner").commit()) }
+
+    // Separate from plan selection: saving a plan must not finish the whole initial setup.
+    fun isSetupPending(owner: String): Boolean = preferences.getBoolean("setup:$owner", false)
+    fun markSetupPending(owner: String) { check(preferences.edit().putBoolean("setup:$owner", true).commit()) }
+    fun setupCompleted(owner: String) { check(preferences.edit().remove("setup:$owner").commit()) }
 }
