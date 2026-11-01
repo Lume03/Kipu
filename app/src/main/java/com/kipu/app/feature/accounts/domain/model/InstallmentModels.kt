@@ -22,8 +22,8 @@ enum class PurchaseType { DIRECT, INSTALLMENTS }
 enum class Financing { WITH_INTEREST, INTEREST_FREE }
 enum class PurchaseRateSource { PERSONAL, REFERENCE, USER_ENTERED }
 
-/** Interest uses HALF_UP cents, with any amortization remainder in the final payment. */
-enum class RoundingPolicy { LAST_INSTALLMENT_RESIDUAL }
+/** Legacy schedules retain LAST; new purchases put the principal remainder in installment one. */
+enum class RoundingPolicy { LAST_INSTALLMENT_RESIDUAL, FIRST_INSTALLMENT_RESIDUAL }
 
 /** Immutable terms approved for one purchase; subsequent card edits never change them. */
 data class PurchaseTerms(
@@ -32,7 +32,7 @@ data class PurchaseTerms(
     val installmentsCount: Int,
     val teaBps: Int? = null,
     val rateSource: PurchaseRateSource? = null,
-    val roundingPolicy: RoundingPolicy = RoundingPolicy.LAST_INSTALLMENT_RESIDUAL,
+    val roundingPolicy: RoundingPolicy = RoundingPolicy.FIRST_INSTALLMENT_RESIDUAL,
 ) {
     init {
         require(installmentsCount in 1..36) { "Installments count must be between 1 and 36" }

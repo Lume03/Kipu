@@ -38,7 +38,7 @@ data class FinancialMovement(
 ) {
     init {
         require(sequence >= 0) { "Sequence must be non-negative: $sequence" }
-        require(kotlin.math.abs(amountMinorUnits) <= Money.MAX_MONEY_MINOR) {
+        require(amountMinorUnits in -Money.MAX_MONEY_MINOR..Money.MAX_MONEY_MINOR) {
             "amountMinorUnits exceeds maximum: $amountMinorUnits"
         }
         require(accountId != null || cardId != null) {

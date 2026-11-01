@@ -42,7 +42,7 @@ class InstallmentSimulationTest {
 
     @Test
     fun `simulation without TEA distributes principal cents exactly`() {
-        val principal = Money(10000, Currency.PEN) // S/ 100.00 in 3 installments -> 33.33, 33.33, 33.34
+        val principal = Money(10000, Currency.PEN) // S/ 100.00 in 3 installments -> 33.34, 33.33, 33.33
         val simulation = InstallmentCalculator.simulate(
             cardId = cardId,
             principal = principal,
@@ -53,9 +53,9 @@ class InstallmentSimulationTest {
         )
 
         assertEquals(3, simulation.schedule.size)
-        assertEquals(3333L, simulation.schedule[0].amount.minorUnits)
+        assertEquals(3334L, simulation.schedule[0].amount.minorUnits)
         assertEquals(3333L, simulation.schedule[1].amount.minorUnits)
-        assertEquals(3334L, simulation.schedule[2].amount.minorUnits)
+        assertEquals(3333L, simulation.schedule[2].amount.minorUnits)
 
         val totalSum = simulation.schedule.sumOf { it.amount.minorUnits }
         assertEquals(principal.minorUnits, totalSum)
@@ -87,7 +87,7 @@ class InstallmentSimulationTest {
         val scheduleSum = simulation.schedule.sumOf { it.amount.minorUnits }
         assertEquals(simulation.totalFinanced.minorUnits, scheduleSum)
 
-        assertRemainderIsAssignedToLastInstallment(simulation)
+        assertRemainderIsAssignedToFirstInstallment(simulation)
 
         assertEquals(InstallmentSimulation.DISCLAIMER_WITH_RATE, simulation.disclaimer)
     }
@@ -108,7 +108,7 @@ class InstallmentSimulationTest {
         val interest = simulation.schedule.map { it.interestPortion.minorUnits }
         val principalParts = simulation.schedule.map { it.principalPortion.minorUnits }
 
-        assertRemainderIsAssignedToLastInstallment(simulation)
+        assertRemainderIsAssignedToFirstInstallment(simulation)
         assertTrue(interest.first() > interest.last())
         assertTrue(principalParts.first() < principalParts.last())
         assertEquals(150000L, principalParts.sum())
@@ -135,7 +135,7 @@ class InstallmentSimulationTest {
                 if (count >= 2) {
                     assertEquals("amount=$amount count=$count", LocalDate.of(2026, 2, 28), simulation.schedule[1].dueDate)
                 }
-                assertRemainderIsAssignedToLastInstallment(simulation)
+                assertRemainderIsAssignedToFirstInstallment(simulation)
             }
         }
 
@@ -150,7 +150,7 @@ class InstallmentSimulationTest {
         assertEquals(10_000_000L, maximum.schedule.sumOf { it.principalPortion.minorUnits })
         assertEquals(maximum.totalFinanced.minorUnits, maximum.schedule.sumOf { it.amount.minorUnits })
         assertEquals(maximum.totalInterest.minorUnits, maximum.schedule.sumOf { it.interestPortion.minorUnits })
-        assertRemainderIsAssignedToLastInstallment(maximum)
+        assertRemainderIsAssignedToFirstInstallment(maximum)
     }
 
     @Test
@@ -224,10 +224,10 @@ class InstallmentSimulationTest {
         )
     }
 
-    private fun assertRemainderIsAssignedToLastInstallment(simulation: InstallmentSimulation) {
-        val last = simulation.schedule.last().amount.minorUnits
-        val regular = simulation.schedule.first().amount.minorUnits
-        assertTrue(simulation.schedule.dropLast(1).all { it.amount.minorUnits == regular })
-        assertEquals(simulation.totalFinanced.minorUnits - regular * (simulation.installmentsCount - 1), last)
+    private fun assertRemainderIsAssignedToFirstInstallment(simulation: InstallmentSimulation) {
+        val first = simulation.schedule.first().amount.minorUnits
+        val regular = simulation.schedule.last().amount.minorUnits
+        assertTrue(simulation.schedule.drop(1).all { it.amount.minorUnits == regular })
+        assertEquals(simulation.totalFinanced.minorUnits - regular * (simulation.installmentsCount - 1), first)
     }
 }

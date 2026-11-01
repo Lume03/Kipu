@@ -11,10 +11,12 @@ import com.kipu.app.feature.accounts.domain.model.Financing
 import com.kipu.app.feature.accounts.domain.model.PurchaseRateSource
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.math.MathContext
+import com.kipu.app.feature.accounts.domain.model.RoundingPolicy
 import java.time.LocalDate
-import kotlin.math.pow
 
 object InstallmentCalculator {
+    private val calculationContext = MathContext(34, RoundingMode.HALF_UP)
 
     fun simulateForPurchase(
         cardId: CardId,
@@ -84,15 +86,18 @@ object InstallmentCalculator {
         } else PurchaseTerms.interestFree(installmentsCount)
         require(resolvedTerms.installmentsCount == installmentsCount) { "Terms do not match the installment count" }
         val hasApplicableRate = resolvedTerms.financing == Financing.WITH_INTEREST
-        val teaDecimal = (resolvedTerms.teaBps ?: 0) / 10_000.0
-        val temDecimal = if (hasApplicableRate) (1.0 + teaDecimal).pow(1.0 / 12.0) - 1.0 else 0.0
-        val n = installmentsCount.toDouble()
+        val teaDecimal = BigDecimal(resolvedTerms.teaBps ?: 0).movePointLeft(4)
+        val growth = if (hasApplicableRate) twelfthRoot(BigDecimal.ONE.add(teaDecimal)) else BigDecimal.ONE
+        val temDecimal = growth.subtract(BigDecimal.ONE)
         val regularPayment = if (hasApplicableRate) {
-            roundMinorUnits(principal.minorUnits * temDecimal / (1.0 - (1.0 + temDecimal).pow(-n)))
+            roundMinorUnits(BigDecimal.valueOf(principal.minorUnits).multiply(temDecimal, calculationContext).divide(
+                BigDecimal.ONE.subtract(BigDecimal.ONE.divide(growth.pow(installmentsCount, calculationContext), calculationContext)),
+                calculationContext,
+            ))
         } else principal.minorUnits / installmentsCount
         var outstanding = principal.minorUnits
-        val schedule = (0 until installmentsCount).map { index ->
-            val interest = if (hasApplicableRate) roundMinorUnits(outstanding * temDecimal) else 0L
+        var schedule = (0 until installmentsCount).map { index ->
+            val interest = if (hasApplicableRate) roundMinorUnits(BigDecimal.valueOf(outstanding).multiply(temDecimal, calculationContext)) else 0L
             val principalPortion = if (index == installmentsCount - 1) outstanding else
                 (regularPayment - interest).coerceIn(0L, outstanding)
             outstanding = Math.subtractExact(outstanding, principalPortion)
@@ -105,6 +110,31 @@ object InstallmentCalculator {
                 interestPortion = Money(interest, principal.currency),
                 billingClosingDate = billingCycles?.get(index)?.cycle?.closingDate,
             )
+        }
+        if (resolvedTerms.roundingPolicy == RoundingPolicy.FIRST_INSTALLMENT_RESIDUAL && installmentsCount > 1) {
+            // Move the final principal residual to installment one; estimated interest stays informational.
+            val residual = schedule.last().amount.minorUnits - regularPayment
+            val deltas = LongArray(installmentsCount)
+            if (residual >= 0L) {
+                deltas[0] = residual
+                deltas[installmentsCount - 1] = -residual
+            } else {
+                // Tiny principals can settle early; absorb a negative residual from the earliest principal available.
+                var remaining = -residual
+                for (index in 0 until installmentsCount - 1) {
+                    val removed = minOf(remaining, schedule[index].principalPortion.minorUnits)
+                    deltas[index] = -removed
+                    remaining -= removed
+                }
+                check(remaining == 0L)
+                deltas[installmentsCount - 1] = -residual
+            }
+            schedule = schedule.mapIndexed { index, item ->
+                item.copy(
+                    amount = Money(Math.addExact(item.amount.minorUnits, deltas[index]), principal.currency),
+                    principalPortion = Money(Math.addExact(item.principalPortion.minorUnits, deltas[index]), principal.currency),
+                )
+            }
         }
         val totalInterestMinor = schedule.fold(0L) { sum, item -> Math.addExact(sum, item.interestPortion.minorUnits) }
         val totalFinancedMinor = Math.addExact(principal.minorUnits, totalInterestMinor)
@@ -133,7 +163,7 @@ object InstallmentCalculator {
                 null -> RateSource.NONE
             },
             appliedTeaBps = resolvedTerms.teaBps,
-            appliedTemPercentage = if (hasApplicableRate) temDecimal * 100.0 else null,
+            appliedTemPercentage = if (hasApplicableRate) temDecimal.movePointRight(2).toDouble() else null,
             totalInterest = totalInterest,
             totalFinanced = totalFinanced,
             schedule = schedule,
@@ -142,9 +172,21 @@ object InstallmentCalculator {
         )
     }
 
-    private fun roundMinorUnits(value: Double): Long {
-        require(value.isFinite() && value >= 0.0) { "Installment component is outside the supported range" }
-        return BigDecimal.valueOf(value).setScale(0, RoundingMode.HALF_UP).longValueExact()
+    private fun roundMinorUnits(value: BigDecimal): Long {
+        require(value.signum() >= 0) { "Installment component is outside the supported range" }
+        return value.setScale(0, RoundingMode.HALF_UP).longValueExact()
     }
 
+    private fun twelfthRoot(value: BigDecimal): BigDecimal {
+        var root = BigDecimal.ONE
+        val twelve = BigDecimal(12)
+        repeat(100) {
+            val next = root.multiply(BigDecimal(11), calculationContext)
+                .add(value.divide(root.pow(11, calculationContext), calculationContext), calculationContext)
+                .divide(twelve, calculationContext)
+            if (next == root) return next
+            root = next
+        }
+        return root
+    }
 }

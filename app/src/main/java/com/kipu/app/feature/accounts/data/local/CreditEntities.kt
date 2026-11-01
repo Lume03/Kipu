@@ -121,7 +121,7 @@ WITH paid AS (
            COALESCE(c.alias, c.issuer) AS card_name, c.is_archived AS card_archived,
            COALESCE(paid.paid_minor, 0) AS paid_minor, paid.paid_at, refunds.refund_at,
            COALESCE(refunds.refunded_minor, 0) AS purchase_refunded_minor,
-           MAX(i.principal_minor + i.interest_minor - COALESCE(paid.paid_minor, 0), 0) AS before_refund_minor
+           MAX(i.principal_minor - COALESCE(paid.paid_minor, 0), 0) AS before_refund_minor
     FROM credit_installments i
     JOIN transactions t ON t.user_id = i.user_id AND t.id = i.transaction_id
     JOIN cards c ON c.user_id = t.user_id AND c.id = t.card_id

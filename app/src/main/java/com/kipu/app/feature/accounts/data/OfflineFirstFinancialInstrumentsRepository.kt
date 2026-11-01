@@ -1,6 +1,8 @@
 package com.kipu.app.feature.accounts.data
 
 import androidx.room.withTransaction
+import com.kipu.app.core.logging.SecureLog
+import kotlinx.coroutines.CancellationException
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.feature.accounts.domain.CreditPaymentAllocator
@@ -135,6 +137,16 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         }
     }
 
+    private fun scheduleSyncBestEffort(userId: String) {
+        try {
+            syncScheduler.scheduleSync(userId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            SecureLog.w("FinancialInstruments", "Sync scheduling deferred; committed command remains pending")
+        }
+    }
+
     override suspend fun createLiquidAccount(account: Account, operationId: OperationId): Result<Account> {
         if (account.type == AccountType.CREDIT_LIABILITY) {
             return Result.failure(IllegalArgumentException("Credit liability accounts are managed by their card"))
@@ -178,7 +190,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         )
         val payloadJson = json.encodeToString(payload)
 
-        return runCatching {
+        val commitResult = runCatching {
             database.withTransaction {
                 if (account.type == AccountType.DIGITAL_WALLET) {
                     requireWalletChannelAvailable(userId, account.preset?.name)
@@ -244,9 +256,10 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
             }
 
-            syncScheduler.scheduleSync(userId)
             account
-        }
+        }.onFailure { if (it is CancellationException) throw it }
+        if (commitResult.isSuccess) scheduleSyncBestEffort(userId)
+        return commitResult
     }
 
     override suspend fun recordOpeningAdjustment(
@@ -257,11 +270,26 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
     ): Result<Unit> {
         val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
         val nowMicros = System.currentTimeMillis() * 1000L
+        val requestHash = sha256("RECORD_OPENING_ADJUSTMENT:${accountId.value}:${correctedAmount.minorUnits}:${correctedAmount.currency.name}:$correctedDate")
 
-        return runCatching {
+        val commitResult = runCatching {
             database.withTransaction {
+                val receipt = database.movementDao().getReceipt(userId, operationId.value)
+                if (receipt != null) {
+                    require(receipt.commandType == "RECORD_OPENING_ADJUSTMENT" && receipt.requestHash == requestHash) {
+                        "Idempotency conflict: operation identity was reused with a different opening adjustment"
+                    }
+                    require(receipt.status == "APPLIED") { "This opening adjustment was rejected; submit a new operation" }
+                    return@withTransaction
+                }
+                require(syncDao.getByOperationId(userId, operationId.value) == null) {
+                    "Idempotency conflict: operation identity already belongs to another command"
+                }
                 val account = accountDao.getById(userId, accountId.value)
                     ?: throw IllegalArgumentException("Account not found: ${accountId.value}")
+
+                require(correctedAmount.currency.name == account.currency) { "Opening adjustment currency mismatch" }
+                require(correctedAmount.minorUnits >= 0L) { "Corrected opening balance must be nonnegative" }
 
                 // The original opening anchors the adjustment chain; the effective base may
                 // already be a later ADJUSTMENT that has not yet been reversed.
@@ -362,6 +390,18 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
 
+                database.movementDao().insertOrUpdateReceipt(
+                    com.kipu.app.feature.movements.data.local.LocalCommandReceiptEntity(
+                        userId = userId,
+                        idempotencyKey = operationId.value,
+                        requestHash = requestHash,
+                        status = "APPLIED",
+                        commandType = "RECORD_OPENING_ADJUSTMENT",
+                        createdAt = nowMicros / 1000L,
+                        updatedAt = nowMicros / 1000L,
+                    )
+                )
+
                 val predecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", accountId.value)?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
@@ -382,8 +422,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
             }
 
-            syncScheduler.scheduleSync(userId)
-        }
+        }.onFailure { if (it is CancellationException) throw it }
+        if (commitResult.isSuccess) scheduleSyncBestEffort(userId)
+        return commitResult
     }
 
     override suspend fun updateAccountAppearance(

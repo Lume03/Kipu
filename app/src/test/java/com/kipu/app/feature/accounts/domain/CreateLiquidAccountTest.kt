@@ -320,6 +320,8 @@ class CreateLiquidAccountTest {
         val correctedAmount = Money(200_00L, Currency.PEN)
         val correctedDate = Instant.now()
 
+        fakeRepository.createdAccounts += Account(accountId, testUserId, "Ahorro", AccountType.SAVINGS,
+            Currency.PEN, initialBalance = Money(0, Currency.PEN), openedAt = correctedDate)
         val result = recordOpeningAdjustment(accountId, correctedAmount, correctedDate)
         assertTrue(result.isSuccess)
         assertEquals(1, fakeRepository.recordedAdjustments.size)

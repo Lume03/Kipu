@@ -51,6 +51,11 @@ class RecordOpeningAdjustment @Inject constructor(
         if (correctedAmount.minorUnits < 0) {
             return Result.failure(IllegalArgumentException("El saldo inicial corregido no puede ser negativo"))
         }
+        val account = repository.observeAccountById(accountId).first()
+            ?: return Result.failure(IllegalArgumentException("Cuenta no encontrada"))
+        if (correctedAmount.currency != account.currency) {
+            return Result.failure(IllegalArgumentException("La moneda del saldo corregido debe coincidir con la cuenta"))
+        }
         return repository.recordOpeningAdjustment(accountId, correctedAmount, correctedDate, operationId)
     }
 }

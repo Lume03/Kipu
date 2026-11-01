@@ -699,7 +699,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         val allocated = creditDao.getAllocatedMinorForInstallment(cmd.userId, installmentId)
                         val status = when {
                             allocated == 0L -> "PENDING"
-                            allocated >= Math.addExact(installment.principalMinor, installment.interestMinor) -> "PAID"
+                            // Estimated interest is informational (RF-C12): principal alone settles the installment.
+                            allocated >= installment.principalMinor -> "PAID"
                             else -> "PARTIAL"
                         }
                         if (status != installment.status) {

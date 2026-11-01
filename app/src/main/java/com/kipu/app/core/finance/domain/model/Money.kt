@@ -75,7 +75,7 @@ data class Money(
     val currency: Currency
 ) : Comparable<Money> {
     init {
-        require(kotlin.math.abs(minorUnits) <= MAX_MONEY_MINOR) {
+        require(minorUnits in -MAX_MONEY_MINOR..MAX_MONEY_MINOR) {
             "Money minorUnits exceeds maximum allowed range [-$MAX_MONEY_MINOR, $MAX_MONEY_MINOR]: $minorUnits"
         }
     }
