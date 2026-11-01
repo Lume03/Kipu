@@ -48,7 +48,10 @@ interface BudgetCategoryLookup {
     /** true si la categoria existe, es del propietario (o de sistema) y esta activa. */
     suspend fun isAvailable(ownerId: String, categoryId: String): Boolean
 
-    /** La categoria y todas sus descendientes, como conjunto de ids. */
+    /**
+     * La categoria y todas sus descendientes (incluso inactivas: conservan historia), como conjunto de ids.
+     * Vacio si la categoria no existe para el propietario.
+     */
     suspend fun idsIncludingDescendants(ownerId: String, categoryId: String): Set<String>
 }
 

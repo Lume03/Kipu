@@ -9,7 +9,7 @@ import java.time.ZoneId
  * Lector delgado sobre [ExpenseConsumptionRepository] (gasto neto de EP-MOV). Un presupuesto de
  * categoria consulta el conjunto {categoria + descendientes}; el query intersecta por id de
  * transaccion, de modo que un gasto nunca se cuenta dos veces dentro de un alcance. El total
- * consulta sin filtro de categoria. Solo cuentan gastos en la moneda del presupuesto (G6).
+ * consulta sin filtro de categoria (null); una categoria inexistente consume 0, nunca el total. Solo cuentan gastos en la moneda del presupuesto (G6).
  */
 class ExpenseBudgetConsumptionReader(
     private val expenses: ExpenseConsumptionRepository,
@@ -23,7 +23,7 @@ class ExpenseBudgetConsumptionReader(
         zone: ZoneId,
     ): Long {
         val categoryIds = when (scope) {
-            BudgetScope.Total -> emptySet()
+            BudgetScope.Total -> null
             is BudgetScope.Category -> categories.idsIncludingDescendants(ownerId, scope.categoryId)
         }
         val result = expenses.queryConsumption(

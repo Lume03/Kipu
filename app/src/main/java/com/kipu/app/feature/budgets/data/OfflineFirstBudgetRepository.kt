@@ -1,6 +1,7 @@
 package com.kipu.app.feature.budgets.data
 
 import com.kipu.app.core.database.DatabaseTransactionRunner
+import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.budgets.data.local.BudgetAlertLedgerDao
@@ -23,6 +24,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
@@ -238,7 +240,14 @@ class OfflineFirstBudgetRepository @Inject constructor(
         (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == ownerId
 
     private fun scheduleSync(ownerId: String) {
-        runCatching { syncScheduler.scheduleSync(ownerId) }
+        // El outbox ya quedo guardado: si encolar falla, BudgetMaintenanceWorker lo reencola.
+        try {
+            syncScheduler.scheduleSync(ownerId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            SecureLog.w("OfflineFirstBudgetRepo", "No se pudo encolar la sincronizacion de presupuestos", error)
+        }
     }
 
     companion object {

@@ -1155,7 +1155,8 @@ class MovementLocalDataSource @Inject constructor(
             fromInclusive = query.fromInclusive,
             toExclusive = query.toExclusive,
         )
-        val filtered = if (query.categoryIds.isEmpty()) expenses else expenses.filter { it.categoryId in query.categoryIds }
+        val categoryIds = query.categoryIds
+        val filtered = if (categoryIds == null) expenses else expenses.filter { it.categoryId in categoryIds }
         val refundsByPurchase = if (filtered.isEmpty()) {
             emptyMap()
         } else {

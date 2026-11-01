@@ -57,10 +57,11 @@ class BudgetListViewModel @Inject constructor(
                     if (owner == null) {
                         flowOf<BudgetListUiState>(BudgetListUiState.Error(SESSION_REQUIRED_MESSAGE))
                     } else {
-                        combine(repository.observeBudgets(owner), categories.observe(owner), repository.observeSyncIssues(owner),
-                            appearance?.changes ?: flowOf(0)) { budgets, options, issues, _ ->
+                        // Renovacion y consumo solo se recalculan con datos financieros; la apariencia se aplica despues.
+                        val financial = combine(repository.observeBudgets(owner), categories.observe(owner), repository.observeSyncIssues(owner)) { budgets, options, issues ->
                             Triple(budgets, options, issues)
-                        }.map<_, BudgetListUiState> { (budgets, options, issues) -> build(owner, budgets, options, issues) }
+                        }.map { (budgets, options, issues) -> build(owner, budgets, options, issues) }
+                        combine(financial, appearance?.changes ?: flowOf(0)) { content, _ -> withAppearance(owner, content) }
                             .catch { error ->
                                 if (error is CancellationException) throw error
                                 emit(BudgetListUiState.Error("No se pudieron cargar los presupuestos."))
@@ -81,19 +82,30 @@ class BudgetListViewModel @Inject constructor(
         if (hasResumed) reload() else hasResumed = true
     }
 
+    /** Resultado financiero ya calculado, sin apariencia (iconos). */
+    private class Financial(val quota: BudgetQuotaState, val items: List<BudgetListItem>, val iconSources: Map<String, String?>, val options: List<BudgetCategoryOption>)
+
+    private fun withAppearance(owner: String, financial: Financial): BudgetListUiState {
+        if (financial.items.isEmpty()) return BudgetListUiState.Empty(financial.quota)
+        val items = financial.items.map { item ->
+            item.copy(iconId = budgetIconId(financial.iconSources[item.id], appearance?.icon(owner, item.id), financial.options))
+        }
+        return BudgetListUiState.Content(items, financial.quota)
+    }
+
     private suspend fun build(
         owner: String,
         budgets: List<Budget>,
         options: List<BudgetCategoryOption>,
         issues: Map<String, String>,
-    ): BudgetListUiState {
+    ): Financial {
         val premium = planAccess.isPremiumVerified(owner)
         val quota = BudgetQuotaState(
             activeCount = budgets.count { it.isActive },
             limit = FreePlanLimits().budgets,
             isPremium = premium,
         )
-        if (budgets.isEmpty()) return BudgetListUiState.Empty(quota)
+        if (budgets.isEmpty()) return Financial(quota, emptyList(), emptyMap(), options)
 
         val today = todayProvider()
         val names = options.associate { it.id to it.label }
@@ -111,7 +123,6 @@ class BudgetListViewModel @Inject constructor(
                 consumption = current?.consumption,
                 hasPendingChange = budget.pendingChange != null,
                 thresholdsBps = budget.thresholdsBps,
-                iconId = budgetIconId(budget.scope.categoryIdOrNull(), appearance?.icon(owner, budget.id), options),
                 syncIssue = issues[budget.id]?.let { code ->
                     when (code) {
                         "BUDGET_QUOTA_EXCEEDED" -> "Guardado en este teléfono. No se sincronizó porque alcanzaste el límite del plan."
@@ -122,6 +133,6 @@ class BudgetListViewModel @Inject constructor(
                 },
             )
         }
-        return BudgetListUiState.Content(items, quota)
+        return Financial(quota, items, budgets.associate { it.id to it.scope.categoryIdOrNull() }, options)
     }
 }

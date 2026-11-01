@@ -97,7 +97,8 @@ data class ExpenseConsumptionQuery(
     val fromInclusive: Long,
     val toExclusive: Long,
     val zoneId: java.time.ZoneId,
-    val categoryIds: Set<String> = emptySet(),
+    /** null = todas las categorias (presupuesto Total); un conjunto vacio no coincide con ningun gasto. */
+    val categoryIds: Set<String>? = null,
 ) {
     init { require(currency in setOf("PEN", "USD")); require(fromInclusive <= toExclusive) }
 }

@@ -58,6 +58,7 @@ data class BudgetDetailContent(
     val actionError: String? = null,
     val iconId: String? = null,
     val isParentCategory: Boolean = false,
+    val pace: BudgetPace? = null,
 ) {
     val isActive: Boolean get() = budget.isActive
 }

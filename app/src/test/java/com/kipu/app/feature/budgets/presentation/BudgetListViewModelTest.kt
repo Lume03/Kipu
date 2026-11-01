@@ -4,11 +4,14 @@ import com.kipu.app.feature.budgets.domain.BudgetScope
 import com.kipu.app.feature.budgets.domain.BudgetStatus
 import com.kipu.app.feature.budgets.domain.PendingBudgetChange
 import java.time.LocalDate
+import io.mockk.every
+import io.mockk.mockk
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -147,5 +150,30 @@ class BudgetListViewModelTest {
         val vm = viewModel(kit)
         advanceUntilIdle()
         assertTrue((vm.state.value as BudgetListUiState.Content).items.single().hasPendingChange)
+    }
+
+    @Test
+    fun `appearance change updates the icon without recomputing consumption`() = runTest(dispatcher) {
+        val reader = FakeReader(consumed = 12_000L)
+        val kit = BudgetTestKit(reader = reader)
+        kit.seed(sampleBudget())
+        val changes = MutableStateFlow(0)
+        var icon: String? = null
+        val appearance = mockk<BudgetAppearanceStore>()
+        every { appearance.changes } returns changes
+        every { appearance.icon(any(), any()) } answers { icon }
+        val vm = BudgetListViewModel(
+            fakeSession(), kit.repository, kit.renew, kit.getConsumption, FakeCategoryOptions(), kit.plan, TEST_ZONE, appearance,
+        ).also { it.todayProvider = { TEST_TODAY } }
+        advanceUntilIdle()
+        val callsBefore = reader.calls
+        assertTrue(callsBefore > 0)
+
+        icon = "rocket"
+        changes.value += 1
+        advanceUntilIdle()
+
+        assertEquals("rocket", assertIs<BudgetListUiState.Content>(vm.state.value).items.single().iconId)
+        assertEquals(callsBefore, reader.calls)
     }
 }

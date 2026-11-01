@@ -12,7 +12,7 @@ class RoomBudgetCategoryLookup @Inject constructor(
         activeCategories(ownerId).any { it.id == categoryId }
 
     override suspend fun idsIncludingDescendants(ownerId: String, categoryId: String): Set<String> {
-        val categories = activeCategories(ownerId)
+        val categories = ownedCategories(ownerId)
         if (categories.none { it.id == categoryId }) return emptySet()
         val childrenByParent = categories.groupBy(CategoryEntity::parentId)
         val result = linkedSetOf(categoryId)
@@ -26,8 +26,11 @@ class RoomBudgetCategoryLookup @Inject constructor(
         return result
     }
 
-    private suspend fun activeCategories(ownerId: String): List<CategoryEntity> =
+    private suspend fun ownedCategories(ownerId: String): List<CategoryEntity> =
         categoryDao.getCategoriesForUser(ownerId).filter { category ->
-            category.isActive && (category.userId == null || category.userId == ownerId)
+            category.userId == null || category.userId == ownerId
         }
+
+    private suspend fun activeCategories(ownerId: String): List<CategoryEntity> =
+        ownedCategories(ownerId).filter(CategoryEntity::isActive)
 }

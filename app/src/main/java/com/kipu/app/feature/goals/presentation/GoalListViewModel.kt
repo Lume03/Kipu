@@ -55,7 +55,7 @@ class GoalListViewModel @Inject constructor(
             sessionCoordinator.localAccess.collectLatest { access ->
                 val owner = (access as? LocalAccess.Available)?.userId ?: return@collectLatest
                 displayPreferences.observe(owner).collect { display ->
-                    _state.value = _state.value.copy(pausedGoalIds = display.paused, removedGoalIds = display.removed)
+                    _state.value = _state.value.copy(pausedGoalIds = display.paused, removedGoalIds = display.removed).withTotals()
                 }
             }
         }
@@ -99,7 +99,7 @@ class GoalListViewModel @Inject constructor(
                         accountOptions = visuals,
                         pausedGoalIds = _state.value.pausedGoalIds,
                         removedGoalIds = _state.value.removedGoalIds,
-                    )
+                    ).withTotals()
                 }
             }
         }
