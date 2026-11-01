@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -55,16 +56,19 @@ class CaptureInboxViewModel @Inject constructor(
     val state: StateFlow<CaptureInboxUiState> = _state.asStateFlow()
 
     init {
-        val owner = gate.currentOwnerId()
-        if (owner == null) {
-            _state.update { it.copy(isLoading = false, automation = CaptureAutomationStatus.NO_SESSION) }
-        } else {
-            viewModelScope.launch {
-                kotlinx.coroutines.flow.combine(candidates.observePending(owner), candidates.observePendingExpectedMatches(owner)) { pending, associations -> pending to associations }
-                    .catch { _state.update { current -> current.copy(isLoading = false, loadFailed = true) } }
-                    .collect { list -> _state.update { it.copy(isLoading = false, loadFailed = false, candidates = list.first, pendingAssociations = list.second) } }
+        // The owner can change while the inbox is open: stop observing the previous one and drop its data.
+        viewModelScope.launch {
+            gate.observeOwnerId().collectLatest { owner ->
+                if (owner == null) {
+                    _state.value = CaptureInboxUiState(isLoading = false, automation = CaptureAutomationStatus.NO_SESSION)
+                } else {
+                    _state.value = CaptureInboxUiState()
+                    refreshAutomation()
+                    kotlinx.coroutines.flow.combine(candidates.observePending(owner), candidates.observePendingExpectedMatches(owner)) { pending, associations -> pending to associations }
+                        .catch { _state.update { current -> current.copy(isLoading = false, loadFailed = true) } }
+                        .collect { list -> _state.update { it.copy(isLoading = false, loadFailed = false, candidates = list.first, pendingAssociations = list.second) } }
+                }
             }
-            refreshAutomation()
         }
     }
 

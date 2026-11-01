@@ -39,6 +39,7 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 
@@ -174,6 +175,8 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                     updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
                 )
             })
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             SecureLog.e("SyncCategoryCommandsWorker", "Error loading categories", e)
         }
@@ -213,6 +216,8 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                     SecureLog.w("SyncCategoryCommandsWorker", "Failed to refresh merchant catalog")
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             SecureLog.e("SyncCategoryCommandsWorker", "Error hydrating merchant catalog", e)
         }
@@ -297,6 +302,8 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                 }
                 else -> CommandOutcome.Applied
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             if (cmd.commandType in setOf("PRESERVE_MERCHANT_SOURCE_TEXT", "UPSERT_MERCHANT_ALIAS_RULE", "DELETE_MERCHANT_ALIAS_RULE", "UPSERT_MERCHANT_CATEGORY_PREFERENCE", "DELETE_MERCHANT_CATEGORY_PREFERENCE")) {
                 SecureLog.e("SyncCategoryCommandsWorker", "Failed to sync a private merchant command")

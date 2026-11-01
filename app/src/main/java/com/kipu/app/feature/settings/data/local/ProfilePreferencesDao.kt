@@ -6,8 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 
 @Dao
 abstract class ProfilePreferencesDao {
@@ -39,6 +42,9 @@ abstract class ProfilePreferencesDao {
     @Query("SELECT * FROM profile_preference_outbox WHERE status = 'PENDING' ORDER BY created_at ASC")
     abstract suspend fun findAllPendingOutbox(): List<ProfilePreferenceOutboxEntity>
 
+    @Query("SELECT * FROM profile_preference_outbox WHERE user_id = :userId AND status = 'PENDING' ORDER BY created_at ASC LIMIT 1")
+    abstract suspend fun findOldestPendingOutbox(userId: UUID): ProfilePreferenceOutboxEntity?
+
     @Query("DELETE FROM profile_preference_outbox WHERE operation_id = :operationId")
     abstract suspend fun deleteOutbox(operationId: UUID)
 
@@ -51,6 +57,17 @@ abstract class ProfilePreferencesDao {
         outbox: ProfilePreferenceOutboxEntity,
     ) {
         putProfile(profile)
-        insertOutbox(outbox)
+        // Offline edits share one expectedRevision, so a second row would end up as a permanent CONFLICT:
+        // merge into the still-pending row instead (last value wins per field).
+        val pending = findOldestPendingOutbox(outbox.userId)
+        if (pending == null) {
+            insertOutbox(outbox)
+            return
+        }
+        val merged = JsonObject(
+            (Json.parseToJsonElement(pending.payload) as JsonObject) +
+                (Json.parseToJsonElement(outbox.payload) as JsonObject),
+        )
+        updateOutbox(pending.copy(payload = merged.toString(), updatedAt = Instant.now()))
     }
 }

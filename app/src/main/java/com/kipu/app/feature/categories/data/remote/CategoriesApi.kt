@@ -1,12 +1,15 @@
 package com.kipu.app.feature.categories.data.remote
 
 import com.kipu.app.core.network.AuthenticatedSessionProvider
+import com.kipu.app.core.network.remoteCall
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
@@ -66,7 +69,7 @@ class CategoriesApi @Inject constructor(
     }
 
     suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> {
-        return try {
+        return remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
             val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
             val response = httpClient.get("rest/v1/merchant_services") {
                 header(HttpHeaders.Authorization, auth)
@@ -81,48 +84,47 @@ class CategoriesApi @Inject constructor(
                     }
                 }
             }
-            CategoryApiResponse.Success(response.body())
-        } catch (e: Exception) {
-            CategoryApiResponse.NetworkFailure(e)
+            response.toCategoryApiResponse()
         }
     }
 
-    suspend fun fetchCategories(): CategoryApiResponse<List<CategoryCatalogItemDto>> = try {
+    suspend fun fetchCategories(): CategoryApiResponse<List<CategoryCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
         val response = httpClient.get("rest/v1/categories") {
             header(HttpHeaders.Authorization, auth)
             url { parameters.append("select", "id,name,icon_key,user_id,parent_id,origin,category_type,is_active,remote_revision,created_at,updated_at") }
         }
-        CategoryApiResponse.Success(response.body())
-    } catch (e: Exception) {
-        CategoryApiResponse.NetworkFailure(e)
+        response.toCategoryApiResponse()
     }
 
-    suspend fun fetchCategoryPresentations(): CategoryApiResponse<List<CategoryPresentationCatalogItemDto>> = try {
+    suspend fun fetchCategoryPresentations(): CategoryApiResponse<List<CategoryPresentationCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
         val response = httpClient.get("rest/v1/category_presentations") {
             header(HttpHeaders.Authorization, auth)
             url { parameters.append("select", "category_id,user_id,name,icon,color,remote_revision,updated_at") }
         }
-        CategoryApiResponse.Success(response.body())
-    } catch (e: Exception) {
-        CategoryApiResponse.NetworkFailure(e)
+        response.toCategoryApiResponse()
     }
 
     private suspend inline fun <reified REQ : Any> callRpc(
         rpcName: String,
         body: REQ
     ): CategoryApiResponse<CategoryCommandResponseDto> {
-        return try {
+        return remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
             val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
             val response = httpClient.post("rest/v1/rpc/$rpcName") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, auth)
                 setBody(CategoryRpcPayload(body))
             }
-            CategoryApiResponse.Success(response.body())
-        } catch (e: Exception) {
-            CategoryApiResponse.NetworkFailure(e)
+            response.toCategoryApiResponse()
         }
     }
+
+    private suspend inline fun <reified T> HttpResponse.toCategoryApiResponse(): CategoryApiResponse<T> =
+        if (status.value in 200..299) {
+            CategoryApiResponse.Success(body<T>())
+        } else {
+            CategoryApiResponse.Error(status.value, bodyAsText())
+        }
 }

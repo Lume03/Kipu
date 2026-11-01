@@ -9,7 +9,9 @@ import com.kipu.app.feature.settings.domain.model.ProfilePreferenceDelta
 import com.kipu.app.feature.settings.domain.model.SyncState
 import com.kipu.app.feature.settings.domain.model.ThemeMode
 import com.kipu.app.feature.settings.domain.model.UserProfile
+import com.kipu.app.core.network.AuthenticatedSession
 import com.kipu.app.core.network.AuthenticatedSessionProvider
+import com.kipu.app.core.network.remoteCall
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -71,7 +73,7 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
     }
 
     override suspend fun updatePreferences(userId: UUID, delta: ProfilePreferenceDelta): Result<UserProfile> {
-        return try {
+        return remoteCall(onFailure = { Result.failure(it) }) {
             delta.monthStart?.let {
                 require(it in 1..28) { "monthStart must be between 1 and 28, got $it" }
             }
@@ -125,8 +127,6 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
 
             profileDao.savePreferencesWithOutbox(updated, outbox)
             Result.success(updated.toDomain())
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
@@ -135,14 +135,22 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
     }
 
     override suspend fun syncPendingPreferences(userId: UUID): Result<Unit> {
-        val session = sessionProvider.currentSession()
-        if (session != null) {
-            runCatching { supabaseClient.auth.importAuthToken(session.accessToken) }
-        }
-
         val pending = profileDao.findPendingOutbox(userId)
         for (item in pending) {
-            try {
+            // The session can change between RPCs: never send an owner's outbox with another owner's token.
+            if (!importSessionFor(userId)) {
+                return Result.failure(IllegalStateException("Active session does not match the outbox owner"))
+            }
+            remoteCall(onFailure = { e ->
+                SecureLog.e("ProfilePreferencesRepo", "Error syncing preferences outbox", e)
+                val msg = e.message.orEmpty()
+                if (msg.contains("401") || msg.contains("Not authenticated", ignoreCase = true)) {
+                    profileDao.markOutboxWaitingForAuth(userId)
+                } else {
+                    profileDao.updateOutbox(item.copy(attemptCount = item.attemptCount + 1, updatedAt = Instant.now()))
+                }
+                return Result.failure(e)
+            }) {
                 val payloadObj = Json.parseToJsonElement(item.payload) as JsonObject
                 val rpcParams = UpdateProfileRpcParams(
                     operationId = item.operationId.toString(),
@@ -182,22 +190,23 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
                         profileDao.updateOutbox(item.copy(attemptCount = item.attemptCount + 1, updatedAt = Instant.now()))
                     }
                 }
-            } catch (e: Exception) {
-                SecureLog.e("ProfilePreferencesRepo", "Error syncing preferences outbox", e)
-                val msg = e.message.orEmpty()
-                if (msg.contains("401") || msg.contains("Not authenticated", ignoreCase = true)) {
-                    profileDao.markOutboxWaitingForAuth(userId)
-                } else {
-                    profileDao.updateOutbox(item.copy(attemptCount = item.attemptCount + 1, updatedAt = Instant.now()))
-                }
-                return Result.failure(e)
             }
         }
         return Result.success(Unit)
     }
 
+    /** Imports the token of the active session only when it belongs to [userId]. */
+    private suspend fun importSessionFor(userId: UUID): Boolean {
+        val session: AuthenticatedSession = sessionProvider.currentSession() ?: return false
+        if (session.userId != userId) return false
+        return remoteCall(onFailure = { false }) {
+            supabaseClient.auth.importAuthToken(session.accessToken)
+            true
+        }
+    }
+
     override suspend fun refreshProfile(userId: UUID): Result<UserProfile> {
-        return try {
+        return remoteCall(onFailure = { Result.failure(it) }) {
             val session = sessionProvider.currentSession()
             if (session != null) {
                 runCatching { supabaseClient.auth.importAuthToken(session.accessToken) }
@@ -218,8 +227,6 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
             )
             profileDao.putProfile(entity)
             Result.success(entity.toDomain())
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 }

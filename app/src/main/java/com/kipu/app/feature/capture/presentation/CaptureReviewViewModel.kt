@@ -38,7 +38,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -139,7 +141,7 @@ class CaptureReviewViewModel @Inject constructor(
     private val recurrences: RecurrenceRepository? = null,
 ) : ViewModel() {
     private val candidateId: String = savedStateHandle.get<String>(CAPTURE_CANDIDATE_ID_ARG).orEmpty()
-    private val ownerId: String? = gate.currentOwnerId()
+    private var ownerId: String? = gate.currentOwnerId()
 
     private val _state = MutableStateFlow(CaptureReviewUiState())
     val state: StateFlow<CaptureReviewUiState> = _state.asStateFlow()
@@ -150,11 +152,21 @@ class CaptureReviewViewModel @Inject constructor(
     private var allCategories: List<CaptureCategoryChoice> = emptyList()
 
     init {
-        if (ownerId == null || candidateId.isBlank()) {
-            _state.update { it.copy(isLoading = false, notFound = true) }
-        } else {
-            viewModelScope.launch { loadCandidate(ownerId) }
-            observeOptions(ownerId)
+        // The owner can change while the screen is open: drop everything loaded for the previous one.
+        viewModelScope.launch {
+            gate.observeOwnerId().collectLatest { owner ->
+                ownerId = owner
+                allCategories = emptyList()
+                _state.value = CaptureReviewUiState()
+                if (owner == null || candidateId.isBlank()) {
+                    _state.update { it.copy(isLoading = false, notFound = true) }
+                } else {
+                    coroutineScope {
+                        launch { loadCandidate(owner) }
+                        observeOptions(owner)
+                    }
+                }
+            }
         }
     }
 
@@ -203,8 +215,8 @@ class CaptureReviewViewModel @Inject constructor(
         }
     }
 
-    private fun observeOptions(owner: String) {
-        viewModelScope.launch {
+    private suspend fun observeOptions(owner: String): Unit = coroutineScope {
+        launch {
             combine(
                 observeInstruments.observeAccounts(activeOnly = true),
                 observeInstruments.observeCards(activeOnly = true),
@@ -249,7 +261,7 @@ class CaptureReviewViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch {
+        launch {
             observeCategories(UserId(owner)).catch { emit(emptyList()) }.collect { items ->
                 allCategories = items.filter { it.category.isActive }
                     .flatMap { root -> listOf(root to null) + root.subcategories.map { it to root } }

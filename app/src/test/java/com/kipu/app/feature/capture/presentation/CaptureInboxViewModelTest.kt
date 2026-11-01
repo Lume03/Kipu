@@ -74,6 +74,27 @@ class CaptureInboxViewModelTest {
         assertNull(vm.state.value.message)
     }
 
+    @Test fun `owner change stops observing the previous owner and clears its state`() = runTest(dispatcher) {
+        val gate = FakeCaptureAccessGate("owner-1")
+        val store = FakeCaptureCandidateStore(
+            captureCandidate(ownerId = "owner-1", id = "mine"),
+            captureCandidate(ownerId = "owner-2", id = "theirs"),
+        )
+        val vm = viewModel(store, gate)
+        advanceUntilIdle()
+        assertEquals(listOf("mine"), vm.state.value.candidates.map { it.id })
+
+        gate.switchOwner("owner-2")
+        advanceUntilIdle()
+        assertEquals(listOf("theirs"), vm.state.value.candidates.map { it.id })
+
+        gate.switchOwner(null)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), vm.state.value.candidates.map { it.id })
+        assertEquals(CaptureAutomationStatus.NO_SESSION, vm.state.value.automation)
+        assertFalse(vm.state.value.isLoading)
+    }
+
     @Test fun `association inbox restores resolved captures and clears after None`() = runTest(dispatcher) {
         val pending = captureCandidate(id = "association").copy(status = CaptureCandidateStatus.AUTO_REGISTERED,
             expectedMatchState = com.kipu.app.feature.capture.domain.ExpectedMatchState.PENDING_CHOICE)

@@ -61,6 +61,7 @@ class CaptureReviewViewModelTest {
     private val debitAccountId = UUID.randomUUID().toString()
     private val otherAccountId = UUID.randomUUID().toString()
     private val creditCardId = UUID.randomUUID().toString()
+    private val newOwner = UUID.randomUUID().toString()
 
     private val gate = FakeCaptureAccessGate(owner)
     private val clock = Clock.fixed(Instant.parse("2026-10-28T17:00:00Z"), ZoneOffset.UTC)
@@ -83,6 +84,7 @@ class CaptureReviewViewModelTest {
         every { instruments.observeAccounts(any()) } returns flowOf(listOf(account(debitAccountId, "Cuenta BCP"), account(otherAccountId, "Ahorros")))
         every { instruments.observeCards(any()) } returns flowOf(listOf(creditCard))
         every { categories.invoke(UserId(owner)) } returns flowOf(emptyList())
+        every { categories.invoke(UserId(newOwner)) } returns flowOf(emptyList())
     }
 
     @After fun tearDown() = Dispatchers.resetMain()
@@ -109,6 +111,24 @@ class CaptureReviewViewModelTest {
         assertEquals(debitAccountId, state.selectedInstrument?.id)
         assertTrue(state.canConfirm)
         assertFalse(state.showCreditMode)
+    }
+
+    @Test fun `owner change clears the loaded candidate and never keeps it for the new owner`() = runTest(dispatcher) {
+        val candidate = candidateRecord()
+        val vm = viewModel(FakeCaptureCandidateStore(candidate), candidate.id)
+        advanceUntilIdle()
+        assertNotNull(vm.state.value.candidate)
+
+        gate.switchOwner(newOwner)
+        advanceUntilIdle()
+        assertNull(vm.state.value.candidate)
+        assertTrue(vm.state.value.notFound)
+
+        gate.switchOwner(null)
+        advanceUntilIdle()
+        assertNull(vm.state.value.candidate)
+        assertTrue(vm.state.value.notFound)
+        assertTrue(vm.state.value.instruments.isEmpty())
     }
 
     @Test fun `explicit linked wallet selection keeps selection identity and sends its parent account`() = runTest(dispatcher) {

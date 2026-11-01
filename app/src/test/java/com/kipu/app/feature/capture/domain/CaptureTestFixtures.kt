@@ -138,16 +138,19 @@ internal fun testDiscardCaptureCandidate(store: CaptureCandidateStore, clock: ja
         CaptureResolutionFollowups(store, emptySet(), emptySet()))
 
 internal class FakeCaptureAccessGate(
-    private val ownerId: String = "owner-1",
+    ownerId: String? = "owner-1",
     var decision: CaptureAccessDecision = CaptureAccessDecision.Allowed(
         com.kipu.app.feature.plans.domain.model.EffectiveEntitlement(true, null),
     ),
 ) : CaptureAccessGate {
     var evaluations = 0
-    override fun currentOwnerId() = ownerId
+    private val owner = kotlinx.coroutines.flow.MutableStateFlow(ownerId)
+    fun switchOwner(newOwner: String?) { owner.value = newOwner }
+    override fun currentOwnerId() = owner.value
+    override fun observeOwnerId(): kotlinx.coroutines.flow.Flow<String?> = owner
     override suspend fun evaluateCurrent() = decision
     override suspend fun evaluate(ownerId: String): CaptureAccessDecision {
         evaluations++
-        return if (ownerId == this.ownerId) decision else CaptureAccessDecision.NoSession
+        return if (ownerId == owner.value) decision else CaptureAccessDecision.NoSession
     }
 }

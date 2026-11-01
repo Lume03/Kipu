@@ -1,6 +1,7 @@
 ﻿package com.kipu.app.feature.plans.data.remote
 
 import com.kipu.app.core.network.AuthenticatedSession
+import com.kipu.app.core.network.remoteCall
 import com.kipu.app.feature.plans.domain.model.BillingProduct
 import com.kipu.app.feature.plans.domain.model.BillingPurchaseRequest
 import com.kipu.app.feature.plans.domain.model.BillingVerificationResult
@@ -95,7 +96,7 @@ class VerifyPurchaseApi(
         request: BillingPurchaseRequest,
         installationPublicKey: String? = null,
     ): BillingVerificationResult {
-        return try {
+        return remoteCall(onFailure = { BillingVerificationResult.Retryable("UNAVAILABLE") }) {
             val response = client.post(
                 supabaseUrl.trimEnd('/') + "/functions/v1/verify-purchase/billing/verify",
             ) {
@@ -148,8 +149,6 @@ class VerifyPurchaseApi(
                 }
                 else -> BillingVerificationResult.Retryable("INVALID_VERIFICATION_RESPONSE")
             }
-        } catch (_: Exception) {
-            BillingVerificationResult.Retryable("UNAVAILABLE")
         }
     }
 }

@@ -19,6 +19,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -36,6 +39,9 @@ class VerifiedCaptureAccessGate @Inject constructor(
 ) : CaptureAccessGate {
     override fun currentOwnerId(): String? =
         (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+
+    override fun observeOwnerId(): Flow<String?> =
+        sessionCoordinator.localAccess.map { (it as? LocalAccess.Available)?.userId }.distinctUntilChanged()
 
     override fun liveDenial(ownerId: String): CaptureAccessDecision? = when {
         currentOwnerId() != ownerId -> CaptureAccessDecision.NoSession

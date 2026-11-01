@@ -146,7 +146,7 @@ data class MerchantCatalogItemDto(
 
 @Serializable
 data class CategoryCommandResponseDto(
-    @SerialName("success") val success: Boolean = true,
+    @SerialName("success") val success: Boolean = false,
     @SerialName("status") val status: String? = null,
     @SerialName("error") val error: String? = null,
     @SerialName("code") val code: String? = null,

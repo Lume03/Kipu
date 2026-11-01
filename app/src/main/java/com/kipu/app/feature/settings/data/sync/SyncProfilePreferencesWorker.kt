@@ -10,6 +10,7 @@ import com.kipu.app.feature.settings.domain.ProfilePreferencesRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 @HiltWorker
 class SyncProfilePreferencesWorker @AssistedInject constructor(
@@ -59,6 +60,8 @@ class SyncProfilePreferencesWorker @AssistedInject constructor(
                     Result.retry()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             SecureLog.e("SyncProfileWorker", "Work failed", e)
             Result.retry()
