@@ -23,8 +23,6 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.math.BigDecimal
-import java.math.RoundingMode
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -224,7 +222,7 @@ private fun DetailContent(
         }
 
         content.current?.let { current ->
-            val pace = budgetPace(current, content.isActive, LocalDate.now())
+            val pace = content.pace
             if (pace != null) {
                 val masked = LocalBalanceMasked.current
                 fun amount(value: Long): String = if (masked) "••••" else "${Currency.fromCode(budget.currency).symbol()} ${formatMinorUnits(value)}"
@@ -348,19 +346,3 @@ private fun DetailContent(
 
 private fun currentReached(current: BudgetPeriodRow?, threshold: Int): Boolean? =
     current?.consumption?.percentBps?.let { it >= threshold }
-
-internal data class BudgetPace(val excess: Long, val daily: Long, val remainingDaily: Long)
-
-internal fun budgetPace(current: BudgetPeriodRow, active: Boolean, today: LocalDate): BudgetPace? {
-    if (!active || today !in current.interval) return null
-    val elapsed = ChronoUnit.DAYS.between(current.interval.start, today) + 1
-    val remaining = ChronoUnit.DAYS.between(today, current.interval.endExclusive) - 1
-    if (remaining <= 0) return null
-    val consumption = current.consumption
-    val daily = BigDecimal.valueOf(consumption.consumedMinor).divide(BigDecimal.valueOf(elapsed), 4, RoundingMode.HALF_UP)
-    val projected = daily.multiply(BigDecimal.valueOf(elapsed + remaining))
-    val excess = projected.subtract(BigDecimal.valueOf(consumption.limitMinor))
-    if (excess.signum() <= 0) return null
-    fun rounded(value: BigDecimal) = value.setScale(0, RoundingMode.HALF_UP).coerceAtMost(BigDecimal.valueOf(Long.MAX_VALUE)).toLong()
-    return BudgetPace(rounded(excess), rounded(daily), rounded(BigDecimal.valueOf(consumption.remainingMinor.coerceAtLeast(0)).divide(BigDecimal.valueOf(remaining), 4, RoundingMode.HALF_UP)))
-}

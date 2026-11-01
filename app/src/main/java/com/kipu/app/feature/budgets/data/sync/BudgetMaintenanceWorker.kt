@@ -10,8 +10,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
+import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.feature.budgets.data.local.BudgetDao
 import com.kipu.app.feature.budgets.domain.BudgetOutcome
 import com.kipu.app.feature.budgets.domain.RunBudgetMaintenance
 import dagger.assisted.Assisted
@@ -76,12 +78,15 @@ class BudgetMaintenanceWorker @AssistedInject constructor(
     private val sessionCoordinator: SessionCoordinator,
     private val maintenance: RunBudgetMaintenance,
     private val zoneId: ZoneId,
+    private val budgetDao: BudgetDao,
+    private val syncScheduler: BudgetSyncScheduler,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         val available = sessionCoordinator.localAccess.value as? LocalAccess.Available ?: return Result.success()
         val requestedOwner = inputData.getString(KEY_USER_ID)
         if (requestedOwner != null && requestedOwner != available.userId) return Result.success()
         return try {
+            rescuePendingBudgetSync(available.userId, budgetDao::pendingOutboxCount, syncScheduler)
             val outcome = maintenance(available.userId, LocalDate.now(zoneId), zoneId)
             if (outcome.renewals.values.any { it is BudgetOutcome.Rejected }) Result.retry() else Result.success()
         } catch (cancelled: CancellationException) {
@@ -93,5 +98,21 @@ class BudgetMaintenanceWorker @AssistedInject constructor(
 
     companion object {
         const val KEY_USER_ID = "budget_maintenance_user_id"
+    }
+}
+
+/** Reencola el sync si quedo outbox pendiente (p. ej. el encolado inmediato fallo); no propaga fallos del scheduler. */
+internal suspend fun rescuePendingBudgetSync(
+    ownerId: String,
+    pendingCount: suspend (String) -> Int,
+    scheduler: BudgetSyncScheduler,
+) {
+    if (pendingCount(ownerId) <= 0) return
+    try {
+        scheduler.scheduleSync(ownerId)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        SecureLog.w("BudgetMaintenanceWorker", "No se pudo reencolar la sincronizacion de presupuestos", error)
     }
 }

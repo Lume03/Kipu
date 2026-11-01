@@ -50,7 +50,7 @@ class BudgetHierarchyConsumptionTest {
         reader.consumedMinor(OWNER, BudgetScope.Total, "PEN", interval, TEST_ZONE)
 
         assertEquals(setOf("alimentacion", "restaurantes", "supermercado"), seen[0].categoryIds)
-        assertEquals(emptySet<String>(), seen[1].categoryIds)
+        assertEquals(null, seen[1].categoryIds)
         assertEquals("PEN", seen[0].currency)
         assertEquals(interval.fromInclusiveMillis(TEST_ZONE), seen[0].fromInclusive)
         assertEquals(interval.toExclusiveMillis(TEST_ZONE), seen[0].toExclusive)

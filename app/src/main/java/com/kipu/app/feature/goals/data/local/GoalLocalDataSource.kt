@@ -265,6 +265,25 @@ class GoalLocalDataSource @Inject constructor(
         val now = clock.millis()
         val operationId = envelope.identity.operationId
         val transferAccounts = explicitTransferAccounts(envelope)
+        if (envelope.type == GoalCommandType.RESERVE_GOAL) {
+            // Free backing was read outside this transaction; another reservation may have used it since.
+            val requestedByAccount = events
+                .filter { it.type.name == "ALLOCATION" && it.backingAccountId != null }
+                .groupBy { it.backingAccountId!! }
+            for ((accountId, accountEvents) in requestedByAccount) {
+                val position = goalDao.getBackingAccountPosition(userId, accountId)
+                    ?: return@withTransaction GoalCommandResult.Rejected("OWNER_OR_ACCOUNT_INVALID")
+                val incomingMinor = transferAccounts?.takeIf { it.destinationAccountId == accountId }?.amountMinor ?: 0L
+                val freeMinor = try {
+                    Math.addExact(position.availableMinor, incomingMinor)
+                } catch (_: ArithmeticException) {
+                    return@withTransaction GoalCommandResult.Rejected("AMOUNT_OUT_OF_RANGE")
+                }
+                if (freeMinor < accountEvents.sumOf { it.delta.minorUnits }) {
+                    return@withTransaction GoalCommandResult.Rejected("INSUFFICIENT_BACKING")
+                }
+            }
+        }
         if (transferAccounts != null) {
             if (movementDao.getTransactionById(userId, operationId) != null) {
                 return@withTransaction GoalCommandResult.Conflict("OPERATION_ID_REUSED")

@@ -102,6 +102,11 @@ class GoalListViewModelTest {
         advanceUntilIdle()
         assertTrue("Premium entitlement must be verified into UI state", viewModel.state.value.hasPremiumAccess)
         assertEquals("Two ACTIVE goals put the account at the Free quota", 2, viewModel.state.value.activeGoalCount)
+        assertEquals(
+            "Totals are computed by the ViewModel for visible active goals only",
+            mapOf(Currency.PEN to GoalCurrencyTotals(target = 20_000, reserved = 0)),
+            viewModel.state.value.activeTotals,
+        )
 
         viewModel.saveGoal(
             goalId = goal.id,

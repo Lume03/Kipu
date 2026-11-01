@@ -125,13 +125,18 @@ class FakePlanAccess(var premium: Boolean = false) : BudgetPlanAccess {
 }
 
 class FakeReader(var consumed: Long = 12_000L) : BudgetConsumptionReader {
+    var calls = 0
+
     override suspend fun consumedMinor(
         ownerId: String,
         scope: BudgetScope,
         currency: String,
         interval: BudgetInterval,
         zone: ZoneId,
-    ): Long = consumed
+    ): Long {
+        calls++
+        return consumed
+    }
 }
 
 fun sampleBudget(

@@ -72,7 +72,7 @@ class MovementRefundRoomTest {
     fun fullRefundReducesPurchasePeriodToZero() = runBlocking {
         insertPurchaseAndRefund(purchaseAmount = 10_000L, refundAmount = 10_000L)
 
-        assertEquals(0L, consumption(from = 1_000L, to = 2_000L, categories = emptySet()))
+        assertEquals(0L, consumption(from = 1_000L, to = 2_000L, categories = null))
     }
 
     @Test
@@ -127,7 +127,7 @@ class MovementRefundRoomTest {
         assertEquals("VOIDED", dao.getTransactionById(userId, result.transaction.id)?.status)
         assertEquals("CONFIRMED", dao.getTransactionById(userId, purchaseId)?.status)
         assertEquals(0L, dao.getBalanceProjection(userId, ACCOUNT_ID)?.balanceMinor)
-        assertEquals(10_000L, consumption(from = 1_000L, to = 2_000L, categories = emptySet()))
+        assertEquals(10_000L, consumption(from = 1_000L, to = 2_000L, categories = null))
         assertEquals("VOIDED", voided.transaction.status.name)
     }
 
@@ -184,7 +184,7 @@ class MovementRefundRoomTest {
         return purchaseId
     }
 
-    private suspend fun consumption(from: Long, to: Long, categories: Set<String>): Long =
+    private suspend fun consumption(from: Long, to: Long, categories: Set<String>?): Long =
         source.queryExpenseConsumption(
             userId,
             ExpenseConsumptionQuery(

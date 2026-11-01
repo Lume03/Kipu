@@ -25,7 +25,7 @@ object ExpenseConsumptionCalculator {
                     head.payload.currency == query.currency &&
                     head.payload.occurredAt >= query.fromInclusive &&
                     head.payload.occurredAt < query.toExclusive &&
-                    (query.categoryIds.isEmpty() || head.payload.categoryId in query.categoryIds)
+                    (query.categoryIds == null || head.payload.categoryId in query.categoryIds)
             }
             .sumOf { it.payload.amountMinor }
         return ExpenseConsumptionResult(total, datasetVersion)

@@ -135,4 +135,23 @@ class BudgetDetailViewModelTest {
         val label = vm.content().pendingChangeLabel!!
         assertTrue(label.contains("Comida") && label.contains("01/11/2026"))
     }
+
+    @Test
+    fun `exposes projected pace computed in the view model`() = runTest(dispatcher) {
+        val kit = BudgetTestKit(reader = FakeReader(40_000L))
+        kit.seed(sampleBudget(limit = 50_000L))
+        val vm = viewModel(kit)
+        advanceUntilIdle()
+        // 14 dias transcurridos de 31: 40_000 / 14 = 2_857,1429 al dia -> 88_571 proyectado.
+        assertEquals(BudgetPace(excess = 38_571, daily = 2_857, remainingDaily = 588), vm.content().pace)
+    }
+
+    @Test
+    fun `no pace when the projection stays within the limit`() = runTest(dispatcher) {
+        val kit = BudgetTestKit(reader = FakeReader(1_000L))
+        kit.seed(sampleBudget(limit = 50_000L))
+        val vm = viewModel(kit)
+        advanceUntilIdle()
+        assertNull(vm.content().pace)
+    }
 }

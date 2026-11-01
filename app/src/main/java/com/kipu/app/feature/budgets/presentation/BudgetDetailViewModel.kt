@@ -13,8 +13,11 @@ import com.kipu.app.feature.budgets.domain.FinishBudget
 import com.kipu.app.feature.budgets.domain.GetBudgetConsumption
 import com.kipu.app.feature.budgets.domain.RenewBudgetPeriods
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -181,6 +184,7 @@ class BudgetDetailViewModel @Inject constructor(
                 history = rows.filter { it.periodId != current?.periodId },
                 pendingChangeLabel = pending,
                 iconId = budgetIconId(budget.scope.categoryIdOrNull(), appearance?.icon(owner, budget.id), options),
+                pace = current?.let { budgetPace(it, budget.isActive, today) },
                 isParentCategory = budget.scope.categoryIdOrNull()?.let { id -> options.firstOrNull { it.id == id }?.parentId == null && options.any { it.id == id } } == true,
             ),
         )
@@ -189,4 +193,20 @@ class BudgetDetailViewModel @Inject constructor(
     companion object {
         const val ARG_BUDGET_ID = "budgetId"
     }
+}
+
+data class BudgetPace(val excess: Long, val daily: Long, val remainingDaily: Long)
+
+internal fun budgetPace(current: BudgetPeriodRow, active: Boolean, today: LocalDate): BudgetPace? {
+    if (!active || today !in current.interval) return null
+    val elapsed = ChronoUnit.DAYS.between(current.interval.start, today) + 1
+    val remaining = ChronoUnit.DAYS.between(today, current.interval.endExclusive) - 1
+    if (remaining <= 0) return null
+    val consumption = current.consumption
+    val daily = BigDecimal.valueOf(consumption.consumedMinor).divide(BigDecimal.valueOf(elapsed), 4, RoundingMode.HALF_UP)
+    val projected = daily.multiply(BigDecimal.valueOf(elapsed + remaining))
+    val excess = projected.subtract(BigDecimal.valueOf(consumption.limitMinor))
+    if (excess.signum() <= 0) return null
+    fun rounded(value: BigDecimal) = value.setScale(0, RoundingMode.HALF_UP).coerceAtMost(BigDecimal.valueOf(Long.MAX_VALUE)).toLong()
+    return BudgetPace(rounded(excess), rounded(daily), rounded(BigDecimal.valueOf(consumption.remainingMinor.coerceAtLeast(0)).divide(BigDecimal.valueOf(remaining), 4, RoundingMode.HALF_UP)))
 }

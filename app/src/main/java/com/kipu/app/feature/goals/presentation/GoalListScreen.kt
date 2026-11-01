@@ -163,7 +163,7 @@ fun GoalListScreen(
             ) {
                 if (!embedded) item { PlanningSelector(onOpenBudgets) }
                 if (allVisibleGoals.isNotEmpty()) item {
-                    GoalTotalsCard(visibleGoals)
+                    GoalTotalsCard(state.activeTotals)
                 }
                 if (allVisibleGoals.isEmpty()) item {
                     if (state.freeGoalLimitReached) {
@@ -287,20 +287,9 @@ fun GoalListScreen(
     }
 }
 
-internal data class GoalCurrencyTotals(val target: Long, val reserved: Long)
-
-internal fun goalTotals(goals: List<GoalListItemState>): Map<Currency, GoalCurrencyTotals> =
-    goals.filter { it.goal.status == GoalStatus.ACTIVE }.groupBy { it.goal.currency }.mapValues { (_, entries) ->
-        GoalCurrencyTotals(
-            target = entries.fold(0L) { total, item -> Math.addExact(total, item.goal.target.minorUnits) },
-            reserved = entries.fold(0L) { total, item -> Math.addExact(total, item.progress.reserved.minorUnits) },
-        )
-    }
-
 @Composable
-private fun GoalTotalsCard(goals: List<GoalListItemState>) {
+private fun GoalTotalsCard(totals: Map<Currency, GoalCurrencyTotals>) {
     val colors = rememberPlanningColors()
-    val totals = goalTotals(goals)
     Card(
         modifier = Modifier.fillMaxWidth().testTag("goal_totals"),
         shape = RoundedCornerShape(18.dp),
