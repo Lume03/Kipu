@@ -1,5 +1,5 @@
 import { createPlayRtdnHandler, type PlayRtdnDependencies } from "./index.ts";
-import { createRtdnStore } from "./rtdn-store.ts";
+
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -48,17 +48,17 @@ function harness(options: {
     finishOutcomes: [] as string[],
   };
   const dependencies: PlayRtdnDependencies = {
-    verifyPubSubIdentity: async (token, audience, serviceAccount) => {
+    verifyPubSubIdentity: (token, audience, serviceAccount) => {
       calls.authenticate++;
-      return options.authenticated !== false &&
+      return Promise.resolve(options.authenticated !== false &&
         token === "valid-pubsub-token" &&
         audience === "https://kipu.example/rtdn" &&
-        serviceAccount === "billing-push@kipu.iam.gserviceaccount.com";
+        serviceAccount === "billing-push@kipu.iam.gserviceaccount.com");
     },
-    beginEvent: async (input) => {
+    beginEvent: (input) => {
       calls.begin++;
       calls.persistedInputs.push(input as unknown as Record<string, unknown>);
-      return options.begin ?? {
+      return Promise.resolve(options.begin ?? {
         receiptId: "receipt-1",
         duplicate: false,
         receiptStatus: "PROCESSING",
@@ -67,18 +67,19 @@ function harness(options: {
         billingProductId: "product-monthly",
         jobId: "job-1",
         leaseOwner: "lease-1",
-      };
+      });
     },
-    verifyCurrentPurchase: async (input) => {
+    verifyCurrentPurchase: (input) => {
       calls.verify++;
       calls.verifyTokens.push(input.purchaseToken);
-      if (options.processError) throw options.processError;
+      if (options.processError) return Promise.reject(options.processError);
       const outcome = options.processResult ?? "VERIFIED";
-      return options.finalized ? { outcome, finalized: true } : outcome;
+      return Promise.resolve(options.finalized ? { outcome, finalized: true } : outcome);
     },
-    finishEvent: async (input) => {
+    finishEvent: (input) => {
       calls.complete++;
       calls.finishOutcomes.push(input.outcome);
+      return Promise.resolve();
     },
   };
   return {

@@ -22,16 +22,17 @@ Deno.test("service role cannot substitute for the auth/catalog API key", () => {
 
 Deno.test("caller credentials stay on auth/catalog reads and server key stays on RPC writes", async () => {
   const requests: Array<{ url: string; headers: Headers; body: string }> = [];
-  const fakeFetch: typeof fetch = async (input, init = {}) => {
+  const json = (data: unknown) => Promise.resolve(Response.json(data));
+  const fakeFetch: typeof fetch = (input, init = {}) => {
     const headers = new Headers(init.headers);
     const body = typeof init.body === "string" ? init.body : "";
     const url = String(input);
     requests.push({ url, headers, body });
     if (url.endsWith("/auth/v1/user")) {
-      return Response.json({ id: "73000000-0000-4000-8000-000000000001" });
+      return json({ id: "73000000-0000-4000-8000-000000000001" });
     }
     if (url.includes("/rest/v1/billing_products?")) {
-      return Response.json([{
+      return json([{
         id: "kipu_monthly",
         store_product_id: "kipu_pro_monthly",
         base_plan_id: "monthly",
@@ -39,7 +40,7 @@ Deno.test("caller credentials stay on auth/catalog reads and server key stays on
       }]);
     }
     if (url.endsWith("/persist_verified_billing_purchase")) {
-      return Response.json([{
+      return json([{
         result: "VERIFIED",
         purchase_id: "purchase-id",
         effective_premium: true,
@@ -47,7 +48,7 @@ Deno.test("caller credentials stay on auth/catalog reads and server key stays on
       }]);
     }
     if (url.endsWith("/persist_verified_restored_billing_purchase")) {
-      return Response.json([{
+      return json([{
         result: "VERIFIED",
         purchase_id: "purchase-id",
         effective_premium: true,
@@ -55,9 +56,9 @@ Deno.test("caller credentials stay on auth/catalog reads and server key stays on
       }]);
     }
     if (url.endsWith("/claim_billing_purchase_acknowledgement")) {
-      return Response.json(true);
+      return json(true);
     }
-    return Response.json(true);
+    return json(true);
   };
   const store = createPurchaseStore({
     get: (name) =>

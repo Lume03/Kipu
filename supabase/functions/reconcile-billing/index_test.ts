@@ -30,10 +30,10 @@ function harness(options: {
 } = {}) {
   const calls = { sweep: 0 };
   const dependencies: ReconcileBillingDependencies = {
-    sweepHashOnlyJobs: async () => {
+    sweepHashOnlyJobs: () => {
       calls.sweep++;
-      if (options.sweepError) throw options.sweepError;
-      return options.result ?? { reclaimedCount: 1, waitingCount: 4 };
+      if (options.sweepError) return Promise.reject(options.sweepError);
+      return Promise.resolve(options.result ?? { reclaimedCount: 1, waitingCount: 4 });
     },
   };
   return {

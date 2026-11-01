@@ -38,6 +38,8 @@ function unwrap(payload: unknown): Record<string, unknown> | null {
   return payload;
 }
 
+export const ALLOWED_LOGO_CDN_HOSTS = new Set(["img.logo.dev"]);
+
 export function parseLogoPayload(
   payload: unknown,
 ): { url: string; etag: string } | null {
@@ -45,7 +47,15 @@ export function parseLogoPayload(
   if (!candidate) return null;
   const url = candidate.url;
   const etag = candidate.etag;
-  if (typeof url !== "string" || !url.startsWith("https://")) return null;
+  if (typeof url !== "string") return null;
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsedUrl.protocol !== "https:") return null;
+  if (!ALLOWED_LOGO_CDN_HOSTS.has(parsedUrl.hostname.toLowerCase())) return null;
   if (typeof etag !== "string" || etag.length === 0) return null;
   return { url, etag };
 }
@@ -137,14 +147,81 @@ export async function downloadVariant(
   theme: "light" | "dark",
   fetchImpl: typeof fetch,
 ): Promise<ImageDownload> {
-  let response: Response;
+  let currentUrl: URL;
   try {
-    response = await fetchImpl(variantUrl(signedUrl, theme), {
-      signal: AbortSignal.timeout(20_000),
-    });
+    currentUrl = new URL(variantUrl(signedUrl, theme));
   } catch {
+    return { ok: false, code: "LOGO_DOWNLOAD_INVALID_URL" };
+  }
+  if (
+    currentUrl.protocol !== "https:" ||
+    !ALLOWED_LOGO_CDN_HOSTS.has(currentUrl.hostname.toLowerCase())
+  ) {
+    return { ok: false, code: "LOGO_DOWNLOAD_FORBIDDEN_HOST" };
+  }
+
+  const MAX_REDIRECTS = 3;
+  let response: Response | undefined;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    try {
+      response = await fetchImpl(currentUrl.toString(), {
+        signal: AbortSignal.timeout(20_000),
+        redirect: "manual",
+      });
+    } catch {
+      return { ok: false, code: "LOGO_DOWNLOAD_UNREACHABLE" };
+    }
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (hop === MAX_REDIRECTS) {
+        await response.body?.cancel();
+        return { ok: false, code: "LOGO_DOWNLOAD_TOO_MANY_REDIRECTS" };
+      }
+      const location = response.headers.get("location");
+      await response.body?.cancel();
+      if (!location) {
+        return { ok: false, code: "LOGO_DOWNLOAD_INVALID_REDIRECT" };
+      }
+      let nextUrl: URL;
+      try {
+        nextUrl = new URL(location, currentUrl);
+      } catch {
+        return { ok: false, code: "LOGO_DOWNLOAD_INVALID_REDIRECT" };
+      }
+      if (
+        nextUrl.protocol !== "https:" ||
+        !ALLOWED_LOGO_CDN_HOSTS.has(nextUrl.hostname.toLowerCase())
+      ) {
+        return { ok: false, code: "LOGO_DOWNLOAD_FORBIDDEN_HOST" };
+      }
+      currentUrl = nextUrl;
+      continue;
+    }
+
+    if (response.url) {
+      try {
+        const finalUrl = new URL(response.url);
+        if (
+          finalUrl.protocol !== "https:" ||
+          !ALLOWED_LOGO_CDN_HOSTS.has(finalUrl.hostname.toLowerCase())
+        ) {
+          await response.body?.cancel();
+          return { ok: false, code: "LOGO_DOWNLOAD_FORBIDDEN_HOST" };
+        }
+      } catch {
+        await response.body?.cancel();
+        return { ok: false, code: "LOGO_DOWNLOAD_INVALID_URL" };
+      }
+    }
+
+    break;
+  }
+
+  if (!response) {
     return { ok: false, code: "LOGO_DOWNLOAD_UNREACHABLE" };
   }
+
   if (!response.ok) {
     await response.body?.cancel();
     return { ok: false, code: `LOGO_DOWNLOAD_HTTP_${response.status}` };
@@ -161,10 +238,39 @@ export async function downloadVariant(
     await response.body?.cancel();
     return { ok: false, code: "LOGO_DOWNLOAD_TOO_LARGE" };
   }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength === 0) return { ok: false, code: "LOGO_DOWNLOAD_EMPTY" };
-  if (bytes.byteLength > MAX_LOGO_BYTES) {
-    return { ok: false, code: "LOGO_DOWNLOAD_TOO_LARGE" };
+
+  if (!response.body) {
+    return { ok: false, code: "LOGO_DOWNLOAD_EMPTY" };
   }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_LOGO_BYTES) {
+          await reader.cancel().catch(() => {});
+          return { ok: false, code: "LOGO_DOWNLOAD_TOO_LARGE" };
+        }
+        chunks.push(value);
+      }
+    }
+  } catch {
+    return { ok: false, code: "LOGO_DOWNLOAD_UNREACHABLE" };
+  }
+
+  if (totalBytes === 0) return { ok: false, code: "LOGO_DOWNLOAD_EMPTY" };
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
   return { ok: true, bytes, contentType };
 }

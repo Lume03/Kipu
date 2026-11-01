@@ -20,10 +20,13 @@ async function fixture() {
   }, true, ["sign", "verify"]);
   const exported = await crypto.subtle.exportKey("jwk", pair.publicKey);
   const jwk = { ...exported, kid: "rtdn-test-key", alg: "RS256", use: "sig" };
-  const fetchImpl: typeof fetch = async () => new Response(JSON.stringify({ keys: [jwk] }), {
-    status: 200,
-    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
-  });
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+      }),
+    );
   const nowSeconds = 1_791_450_000;
   async function token(claims: Record<string, unknown> = {}, tamper = false) {
     const header = base64Url(JSON.stringify({ alg: "RS256", kid: "rtdn-test-key", typ: "JWT" }));
@@ -96,7 +99,7 @@ Deno.test("fails closed when the Google signing key endpoint is unavailable", as
   const result = await verifyPubSubOidcToken(token, {
     audience: "https://kipu.example/rtdn",
     serviceAccount: "billing-push@kipu.iam.gserviceaccount.com",
-    fetchImpl: async () => new Response("unavailable", { status: 503 }),
+    fetchImpl: () => Promise.resolve(new Response("unavailable", { status: 503 })),
     nowSeconds: f.nowSeconds,
   });
   assert(!result, "key fetch failure must reject identity");

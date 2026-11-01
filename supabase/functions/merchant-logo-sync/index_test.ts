@@ -1,4 +1,5 @@
 import { createMerchantLogoSyncHandler, etagSlug } from "./index.ts";
+import { downloadVariant, parseLogoPayload } from "./logo-dev.ts";
 import type { LogoStore, LogoUpdate, MerchantRow } from "./store.ts";
 
 const SERVICE_KEY = "service-role-key-0123456789abcdef0123456789";
@@ -118,6 +119,28 @@ function setup(scenario: Scenario) {
   return { handler, recorded };
 }
 
+type SyncItem = {
+  domain: string;
+  result: string;
+  error?: string;
+  merchants: string[];
+  [key: string]: unknown;
+};
+
+type SyncResponseBody = {
+  outcome: string;
+  code?: string;
+  dryRun: boolean;
+  checked: number;
+  updated: number;
+  unchanged: number;
+  notFound: number;
+  notIndexed: number;
+  failed: number;
+  items: SyncItem[];
+  [key: string]: unknown;
+};
+
 async function call(
   handler: (request: Request) => Promise<Response>,
   body: Record<string, unknown> = {},
@@ -136,7 +159,7 @@ async function call(
   );
   return {
     status: response.status,
-    body: await response.json() as Record<string, any>,
+    body: await response.json() as SyncResponseBody,
   };
 }
 
@@ -459,4 +482,103 @@ Deno.test("previewDomains requires dryRun", async () => {
     status === 400 && recorded.logoDevCalls.length === 0,
     "rejected without dryRun",
   );
+});
+
+Deno.test("M-24: parseLogoPayload restricts hostname to Logo.dev CDN allowlist", () => {
+  assert(
+    parseLogoPayload({ url: "https://img.logo.dev/test.webp", etag: "e1" }) !==
+      null,
+    "img.logo.dev accepted",
+  );
+  assert(
+    parseLogoPayload({ url: "http://img.logo.dev/test.webp", etag: "e1" }) ===
+      null,
+    "http rejected",
+  );
+  assert(
+    parseLogoPayload({ url: "https://evil.com/test.webp", etag: "e1" }) ===
+      null,
+    "evil.com rejected",
+  );
+  assert(
+    parseLogoPayload({ url: "https://img.logo.dev.evil.com/test.webp", etag: "e1" }) ===
+      null,
+    "subdomain spoofing rejected",
+  );
+  assert(
+    parseLogoPayload({ url: "not-a-url", etag: "e1" }) === null,
+    "invalid url rejected",
+  );
+});
+
+Deno.test("M-24: downloadVariant rejects non-allowlisted CDN host", async () => {
+  const result = await downloadVariant(
+    "https://evil.com/test.webp",
+    "light",
+    (() => Promise.reject(new Error("should not be called"))) as typeof fetch,
+  );
+  assert(!result.ok && result.code === "LOGO_DOWNLOAD_FORBIDDEN_HOST", "forbidden host rejected");
+});
+
+Deno.test("M-24: downloadVariant rejects redirects to untrusted host", async () => {
+  const fakeFetch: typeof fetch = () => {
+    return Promise.resolve(
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://attacker.com/internal-probe" },
+      }),
+    );
+  };
+  const result = await downloadVariant("https://img.logo.dev/test.webp", "light", fakeFetch);
+  assert(!result.ok && result.code === "LOGO_DOWNLOAD_FORBIDDEN_HOST", "redirect to untrusted host rejected");
+});
+
+Deno.test("M-24: downloadVariant follows redirect within allowlist", async () => {
+  let callCount = 0;
+  const fakeFetch: typeof fetch = (input) => {
+    callCount++;
+    const url = new URL(String(input));
+    if (url.pathname.includes("original")) {
+      return Promise.resolve(
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://img.logo.dev/redirected.webp" },
+        }),
+      );
+    }
+    return Promise.resolve(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/webp" },
+      }),
+    );
+  };
+  const result = await downloadVariant("https://img.logo.dev/original.webp", "light", fakeFetch);
+  assert(result.ok === true && result.bytes.byteLength === 3, "redirect followed");
+  assert(callCount === 2, "two hops made");
+});
+
+Deno.test("M-24: downloadVariant cancels stream early when exceeding limit without Content-Length", async () => {
+  let cancelled: boolean = false;
+  const chunkSize = 64 * 1024;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.enqueue(new Uint8Array(chunkSize));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+
+  const fakeFetch: typeof fetch = () => {
+    const res = new Response(stream, {
+      status: 200,
+      headers: { "content-type": "image/webp" }, // No content-length header
+    });
+    return Promise.resolve(res);
+  };
+
+  const result = await downloadVariant("https://img.logo.dev/huge.webp", "light", fakeFetch);
+  assert(!result.ok && result.code === "LOGO_DOWNLOAD_TOO_LARGE", "cancelled early due to size");
+  assert(Boolean(cancelled), "underlying stream cancelled");
 });

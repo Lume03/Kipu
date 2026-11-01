@@ -78,20 +78,20 @@ function harness(options: {
     sanitizedPayload: { purchaseState: "PURCHASED" },
   } satisfies ProviderPurchase;
   const dependencies: Dependencies = {
-    authenticate: async () =>
-      options.owner === undefined ? ownerA : options.owner,
-    lookupProduct: async (productId) =>
-      productId === lifetime.storeProductId
+    authenticate: () =>
+      Promise.resolve(options.owner === undefined ? ownerA : options.owner),
+    lookupProduct: (productId) =>
+      Promise.resolve(productId === lifetime.storeProductId
         ? lifetime
         : productId === monthly.storeProductId
         ? monthly
-        : options.product ?? null,
-    verifyPurchase: async () => {
+        : options.product ?? null),
+    verifyPurchase: () => {
       calls.verify++;
-      if (options.providerError) throw options.providerError;
-      return provider;
+      if (options.providerError) return Promise.reject(options.providerError);
+      return Promise.resolve(provider);
     },
-    persistPurchase: async (input) => {
+    persistPurchase: (input) => Promise.resolve((() => {
       calls.persist++;
       persistedInputs.push(input);
       eventPayloads.push(input.sanitizedPayload);
@@ -128,24 +128,27 @@ function harness(options: {
           input.entitlementState === "ACTIVE",
         effectiveExpiresAt: input.expiresAt,
       };
-    },
-    claimAcknowledgement: async () => {
+    })()),
+    claimAcknowledgement: () => {
       calls.acknowledgementClaims++;
-      if (acknowledgementState !== "PENDING") return false;
+      if (acknowledgementState !== "PENDING") return Promise.resolve(false);
       acknowledgementState = "ACKNOWLEDGING";
-      return true;
+      return Promise.resolve(true);
     },
-    acknowledgePurchase: async () => {
+    acknowledgePurchase: () => {
       calls.acknowledge++;
       provider = { ...provider, acknowledgementState: "ACKNOWLEDGED" };
+      return Promise.resolve();
     },
-    completeAcknowledgement: async () => {
+    completeAcknowledgement: () => {
       acknowledgementState = "ACKNOWLEDGED";
+      return Promise.resolve();
     },
-    releaseAcknowledgement: async () => {
+    releaseAcknowledgement: () => {
       if (acknowledgementState === "ACKNOWLEDGING") {
         acknowledgementState = "PENDING";
       }
+      return Promise.resolve();
     },
     issueOfflineGrant: options.issueOfflineGrant,
   };
@@ -287,9 +290,9 @@ Deno.test("PENDING is persisted without entitlement and is never acknowledged", 
 Deno.test("issues a device-bound offline grant only after effective verified Premium", async () => {
   const issued: Record<string, unknown>[] = [];
   const h = harness({
-    issueOfflineGrant: async (input) => {
+    issueOfflineGrant: (input) => {
       issued.push(input);
-      return { payload: "signed-payload", signature: "signature", keyId: "test-key" };
+      return Promise.resolve({ payload: "signed-payload", signature: "signature", keyId: "test-key" });
     },
   });
   const response = await h.handler(request({
@@ -310,9 +313,9 @@ Deno.test("issues a device-bound offline grant only after effective verified Pre
 Deno.test("legacy clients without an installation key remain verifiable without a grant", async () => {
   let issuerCalls = 0;
   const h = harness({
-    issueOfflineGrant: async () => {
+    issueOfflineGrant: () => {
       issuerCalls++;
-      return { payload: "payload", signature: "signature", keyId: "test-key" };
+      return Promise.resolve({ payload: "payload", signature: "signature", keyId: "test-key" });
     },
   });
   const response = await h.handler(request({

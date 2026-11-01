@@ -25,18 +25,18 @@ function harness(options: {
 } = {}) {
   const calls: { readPlan: string[]; grants: unknown[] } = { readPlan: [], grants: [] };
   const handler = createRefreshEntitlementHandler({
-    authenticate: async () => {
-      if (options.authError) throw new Error("network");
-      return options.userId === undefined ? owner : options.userId;
+    authenticate: () => {
+      if (options.authError) return Promise.reject(new Error("network"));
+      return Promise.resolve(options.userId === undefined ? owner : options.userId);
     },
-    readPlan: async (userId) => {
+    readPlan: (userId) => {
       calls.readPlan.push(userId);
-      if (options.planError) throw new Error("db");
-      return options.plan ?? premium;
+      if (options.planError) return Promise.reject(new Error("db"));
+      return Promise.resolve(options.plan ?? premium);
     },
-    issueOfflineGrant: async (input) => {
+    issueOfflineGrant: (input) => {
       calls.grants.push(input);
-      return options.issuedGrant === undefined ? grant : options.issuedGrant;
+      return Promise.resolve(options.issuedGrant === undefined ? grant : options.issuedGrant);
     },
   });
   return { handler, calls };
