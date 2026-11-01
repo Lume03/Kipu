@@ -8,12 +8,14 @@ Define the provider-independent boundary used by Android. Supabase-specific mode
 
 | Command | Input | Success | Safe failures |
 |---------|-------|---------|---------------|
-| `register` | normalized email, transient password, CAPTCHA proof | `ConfirmationRequired` | `AccountExists`, `RateLimited(retryAfter)`, `NetworkRequired`, `Rejected` |
-| `signIn` | normalized email, transient password, CAPTCHA proof | `Authenticated(owner)` | `InvalidCredentials` (neutral), `RateLimited`, `NetworkRequired` |
-| `requestRecovery` | normalized email, CAPTCHA proof | `RequestAccepted` for both existing/non-existing emails | `RateLimited`, `NetworkRequired`; public copy remains neutral |
+| `register` | normalized email, transient password | `ConfirmationRequired` | `AccountExists`, `RateLimited(retryAfter)`, `NetworkRequired`, `Rejected` |
+| `signIn` | normalized email, transient password | `Authenticated(owner)` | `InvalidCredentials` (neutral), `RateLimited`, `NetworkRequired` |
+| `requestRecovery` | normalized email | `RequestAccepted` for both existing/non-existing emails | `RateLimited`, `NetworkRequired`; public copy remains neutral |
 | `completeRecovery` | validated recovery event, transient new password | `PasswordUpdated` | `LinkInvalidOrExpired`, `RateLimited`, `NetworkRequired` |
 | `refresh` | no UI token input | `Authenticated(same owner)` | `NetworkRequired`, `ReauthenticationRequired`, `OwnerMismatch` |
 | `signOut` | confirmed pending-change decision | `SignedOut` | `Cancelled`; local cleanup still protects UI if remote revoke cannot complete |
+
+Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits. Las entradas `CAPTCHA proof` de `register`, `signIn` y `requestRecovery` dejan de ser requeridas.
 
 Passwords are accepted only as short-lived command input and are cleared from presentation state after dispatch. `auth-access` returns `{accessToken, refreshToken, expiresIn, tokenType}` only for successful sign-in with `Cache-Control: private, no-store` and `Pragma: no-cache`; the data adapter imports it directly, asks Auth to validate/retrieve the session user, compares that subject with the returned owner, and only then persists the encrypted session and exposes `Authenticated(owner)`. Any mismatch/failure clears the imported session. Commands and errors must not stringify password, token, recovery URI, session envelope or provider response headers.
 

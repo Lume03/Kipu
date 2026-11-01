@@ -13,7 +13,7 @@ Content order:
 3. Active liquid account cards.
 4. Debit-card references nested/associated with their linked account without another balance contribution.
 5. `Tarjetas de credito`, visually and semantically separate.
-6. Archived instrument rows only through an explicit filter/action; hiding rows does not subtract their balances from financial totals. Archived credit cards with debt remain represented in the current-liability summary until paid.
+6. Archived instrument rows only through an explicit filter/action; hiding rows does not subtract their balances from financial totals. Archived credit cards never carry debt (D4, 2026-11-01): archiving requires settled debt, so the current-liability summary has no archived cards.
 
 Credit wording:
 

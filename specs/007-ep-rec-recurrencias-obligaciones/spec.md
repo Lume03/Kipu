@@ -28,6 +28,8 @@
 
 **Input**: HU-33 Registro de recurrencias y HU-35 Estados de recurrencias, Sprint S6. Alcance confirmado para esta entrega: solo HU-33 y HU-35; HU-34 queda fuera por corresponder a S8 y depender de HU-46/HU-51.
 
+**Clarified**: 2026-11-01 — Decisión PO (auditoría técnica). D2: la sincronización app↔servidor del outbox de recurrencias se implementa ahora (cliente API + worker con reintentos, idempotencia y conflictos), conforme a FR-010; no cambia requisitos. D5: zona horaria de negocio única America/Lima para todos los cálculos de fechas de negocio.
+
 ## Scope & Traceability
 
 - **Incluido**: crear/configurar una regla recurrente y controlar sus estados Activa, Pausada y Cancelada, conforme a HU-33 y HU-35 del Product Backlog Kipu V4.2.

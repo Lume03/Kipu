@@ -112,6 +112,10 @@ Permitir que cada usuario modele su estructura financiera personal distinguiendo
 - Q: ¿Son obligatorios los últimos cuatro dígitos al crear una cuenta de ahorro/bancaria sin registrar tarjeta de débito? → A: No; el campo es opcional cuando no se registra una tarjeta asociada y se exige si sí se registra.
 - Q: ¿Cuántas billeteras Yape o Plin activas puede registrar un propietario por canal? → A: Una por canal; puede existir una Yape activa y una Plin activa.
 
+### Session 2026-11-01
+
+- **Propagated 2026-11-01 (decision PO, auditoria tecnica)**: D1 — alertas 50/80/100 % evaluadas y emitidas solo en el servidor; la app no evalua umbrales localmente. D4 — una tarjeta archivada no recibe pagos y no puede archivarse con deuda pendiente; por tanto nunca existe una tarjeta archivada con deuda (resuelve SPEC-CTA-01). D6 — RF-C12 (residuo a la cuota 1) aplica solo a compras nuevas; no se migran cronogramas existentes porque los datos actuales son de prueba y se eliminaran antes de produccion.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - HU-07 Administrar activos liquidos (Priority: P1)
@@ -190,6 +194,8 @@ Como usuario, quiero recibir avisos al cruzar niveles relevantes de utilizacion,
 3. **Deduplicacion**: **Dado que** ya se aviso un umbral y la utilizacion permanece sobre el, **Cuando** ocurren nuevos cambios que no bajan de ese umbral, **Entonces** no se emite otra alerta para ese cruce.
 4. **Rearme**: **Dado que** la utilizacion bajo de un umbral previamente alertado, **Cuando** vuelve a alcanzarlo o superarlo, **Entonces** se permite un nuevo aviso para ese umbral.
 5. **Permiso denegado**: **Dado que** las notificaciones del dispositivo estan denegadas, **Cuando** se cruza un umbral, **Entonces** el aviso permanece visible dentro de Kipu y ninguna operacion financiera es bloqueada.
+
+> **Nota D1 (2026-11-01, decision PO)**: la evaluacion de los umbrales 50, 80 y 100 % ocurre solo en el servidor. La app recibe los avisos por el centro de notificaciones y la sincronizacion y no evalua umbrales localmente; sin conexion no hay aviso hasta sincronizar (aceptado).
 
 ---
 

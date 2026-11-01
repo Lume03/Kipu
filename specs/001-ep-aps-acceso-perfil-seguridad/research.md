@@ -42,7 +42,7 @@
 
 ## 6. Registro de correo existente
 
-**Decision**: Crear `auth-access`, una Edge Function pública con autenticación propia y `verify_jwt = false`. En release exige CAPTCHA, límites por HMAC de IP/identidad/operación y límite global antes de comprobar existencia mediante una función SQL restringida a `service_role`; si no existe, llama a Supabase Auth con la clave publicable. El registro siempre exige confirmar email y nunca devuelve sesión.
+**Decision**: Crear `auth-access`, una Edge Function pública con autenticación propia y `verify_jwt = false`. En release exige CAPTCHA, límites por HMAC de IP/identidad/operación y límite global antes de comprobar existencia mediante una función SQL restringida a `service_role`; si no existe, llama a Supabase Auth con la clave publicable. El registro siempre exige confirmar email y nunca devuelve sesión. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 **Rationale**: Con confirmación de correo, Supabase puede devolver un usuario ofuscado para registros duplicados. FR-051 exige una respuesta distinta y por tanto necesita un límite servidor explícito; una clave privilegiada nunca puede residir en Android.
 

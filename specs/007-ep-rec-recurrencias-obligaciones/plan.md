@@ -4,6 +4,8 @@
 
 **Propagated**: 2026-10-18 — TECH-REC-STRING-01, TECH-REC-PAYLOAD-01 y TECH-REC-CALENDAR-01 propagados a la planificación, gates y aceptación junto a TECH-REC-HASH-01. T002-follow-up aclaró el default solo en CREATE/valor actual en UPDATE y añadió el vector CREATE completo; este seguimiento añade TECH-REC-JSON-01 (validación de objeto semántico JSONB; sin rechazo lexical de claves duplicadas) y criterios de prueba de frontera. Al propagarse, los contratos aún esperaban revisión T003; T003 aprobó posteriormente el modelo/contrato. No se modificó código de producto.
 
+**Propagated**: 2026-11-01 — Decisión PO (auditoría técnica), D2 y D5: el outbox de recurrencias se sincroniza ahora (cliente API + worker con reintentos, idempotencia y conflictos) conforme a FR-010, sin cambio de requisitos; zona horaria de negocio única America/Lima para recurrencias, pagos esperados, recordatorios, reanudación y periodos.
+
 **Review/Verification Gate Update**: 2026-10-18 — T003 (`t_a0fdee9b`) aprobó el contrato/modelo documental; la paridad runtime sigue pendiente. Se separa la revisión Security del apply/GREEN SQL local; no se modificó código de producto.
 
 **Propagated**: 2026-10-19 — Se incorporó SEC-CAND-004: runner SQL solo opt-in/no predeterminado; el flujo `supabase test db --local` queda sin autorización para EP-REC. Se separan la reparación/revisión estática del paquete Compose y los gates posteriores de aprobación humana del target y QA runtime; no se habilita ninguna operación.

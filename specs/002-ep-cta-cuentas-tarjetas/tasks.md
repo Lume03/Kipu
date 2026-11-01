@@ -150,6 +150,7 @@ Complete T075 and approve its evidence before any Sprint 3 production implementa
 - [X] T045 [P] [US4] Implement `ThresholdState` domain entity in `app/src/main/java/com/kipu/app/feature/accounts/domain/model/ThresholdState.kt`
 - [X] T046 [US4] Implement `CheckUtilizationThresholds` from committed before/after utilization transitions with per-threshold crossing and re-arming.
 - [X] T047 [US4] Implement the HU-10 producer for one event per newly crossed 50%, 80% or 100% utilization threshold, with a stable operation-derived identity and per-threshold re-arming. Emit the agreed event payload for EP-NOT/HU-42; do not own notification-center persistence or deduplication.
+  - **Superseded 2026-11-01 (D1)**: T045–T047 quedan reemplazadas por evaluacion solo en servidor; el codigo local se retira en el lote de alertas.
 - [X] T048 [US4] Display active utilization alerts on Dashboard and Credit Card details by consuming them through EP-NOT/HU-42's shared `app_notifications` contract. EP-CTA does not persist notification state or create its own notifications table. Implement the presentation in `app/src/main/java/com/kipu/app/feature/accounts/presentation/dashboard/DashboardScreen.kt`.
 
 **Checkpoint**: Credit utilization threshold alerts trigger, deduplicate, and re-arm reliably.

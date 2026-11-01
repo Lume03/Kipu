@@ -74,7 +74,7 @@ En compactos o con fuente ampliada se desplaza el contenido verticalmente; indic
 - Se utiliza una descripción de cifrado Kipu sin afirmar una certificación bancaria.
 - Radios, iconos y proporciones se adaptan a tokens y targets accesibles. Las ilustraciones conservan el contenido y jerarquía con iconos oficiales; no son reproducciones raster exactas.
 - Términos y privacidad: faltan documentos/URLs aprobados en el proyecto. Los enlaces muestran un aviso de indisponibilidad; no abren destinos inventados.
-- **Proveedor real:** no se enviaron correos ni se crearon usuarios remotos. La arquitectura existente aún incluye tokens CAPTCHA de desarrollo (`dummy-dev-captcha`, `valid_captcha`); el despliegue con CAPTCHA obligatorio requiere conectar el challenge real y validar configuración de Supabase/redirects. Las pruebas locales y MockEngine no acreditan ese recorrido remoto.
+- **Proveedor real:** no se enviaron correos ni se crearon usuarios remotos. La arquitectura existente aún incluye tokens CAPTCHA de desarrollo (`dummy-dev-captcha`, `valid_captcha`); el despliegue con CAPTCHA obligatorio requiere conectar el challenge real y validar configuración de Supabase/redirects. Las pruebas locales y MockEngine no acreditan ese recorrido remoto. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 El contenido de las tres páginas ya está implementado. La validación/configuración remota y los documentos legales siguen pendientes; las pruebas locales no acreditan preparación del despliegue de producción.
 

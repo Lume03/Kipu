@@ -201,7 +201,7 @@ Arquitectura remota:
 
 - Seccion `Dinero real disponible`, agrupada por PEN/USD y alimentada por todas las cuentas liquidas no eliminadas. Archivar oculta/bloquea operaciones, pero no hace desaparecer dinero; la lista activa y el total financiero usan filtros distintos.
 - Tarjetas de debito como referencias bajo su cuenta; no repiten monto.
-- Seccion `Tarjetas de credito` separada; Sprint 2 muestra identidad/linea configurada sin calcular deuda futura. Sprint 3 agrega usado/disponible/total con copy `Credito disponible, no es dinero propio`. Una tarjeta archivada con deuda sigue visible en el resumen de pasivos y puede recibir pagos, aunque no admita compras nuevas.
+- Seccion `Tarjetas de credito` separada; Sprint 2 muestra identidad/linea configurada sin calcular deuda futura. Sprint 3 agrega usado/disponible/total con copy `Credito disponible, no es dinero propio`. Una tarjeta archivada no admite compras ni pagos, y no puede archivarse con deuda pendiente (D4, 2026-11-01): nunca aparece una tarjeta archivada con deuda en el resumen de pasivos.
 - Compact: feed vertical. Medium: dos paneles. Expanded: contenedor maximo 1200dp.
 
 **Pantalla 5 - Instrumentos**:
@@ -358,6 +358,7 @@ No existen violaciones constitucionales que requieran excepcion. La outbox espec
 - Split a zero-interest principal in integer minor units: base = total / count, remainder = total % count, and add one minor unit to each of the first remainder installments. S/100 over 3 installments is S/33.34, S/33.33, S/33.33.
 - For an interest estimate, convert TEA to TEM as (1 + TEA)^(1/12) - 1, then use the French fixed-payment formula. At zero TEM, payment is principal divided by count. Monetary output is rounded to minor units deterministically; all simulated rows are labeled estimates and never post financial entries. Persisted confirmed purchase rows represent only the actual confirmed amount/schedule.
 - Compute threshold crossings from committed utilization transitions at 50%, 80% and 100%. A new crossing is emitted only when utilization moves from below to at-or-above a threshold; a later drop below re-arms it. The event uses the financial operation identity for idempotent retries.
+  - **Superseded 2026-11-01 (D1, decision PO)**: los cruces de umbral se evaluan y emiten solo en el servidor; la app no evalua umbrales localmente. Ver `docs/control-documental.md`.
 
 ### Architecture and repository reconciliation gates
 

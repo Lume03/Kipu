@@ -215,7 +215,7 @@ components:
     RegisterRequest:
       type: object
       additionalProperties: false
-      required: [email, password, captchaToken]
+      required: [email, password]
       properties:
         email:
           type: string
@@ -231,6 +231,7 @@ components:
           type: string
           minLength: 1
           writeOnly: true
+          description: "Deprecated 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits."
     RegisterAccepted:
       type: object
       additionalProperties: false
@@ -245,7 +246,7 @@ components:
     LoginRequest:
       type: object
       additionalProperties: false
-      required: [email, password, captchaToken]
+      required: [email, password]
       properties:
         email:
           type: string
@@ -261,10 +262,11 @@ components:
           type: string
           minLength: 1
           writeOnly: true
+          description: "Deprecated 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits."
     RecoveryRequest:
       type: object
       additionalProperties: false
-      required: [email, captchaToken]
+      required: [email]
       properties:
         email:
           type: string
@@ -274,6 +276,7 @@ components:
           type: string
           minLength: 1
           writeOnly: true
+          description: "Deprecated 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits."
     RecoveryAccepted:
       type: object
       additionalProperties: false

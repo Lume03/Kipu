@@ -66,7 +66,7 @@ Expected matrix:
 | Repeated register/login/recovery origin | finite progressive `429 RATE_LIMITED` with `Retry-After`. |
 | Provider interruption | `503`; UI does not claim account creation. |
 
-Inspect captured logs: no password, email, token, CAPTCHA proof, recovery URL or raw IP may appear.
+Inspect captured logs: no password, email, token, CAPTCHA proof, recovery URL or raw IP may appear. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 ## 4. Instrumented Android Validation
 

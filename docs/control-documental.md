@@ -117,3 +117,16 @@ La primera integración dejó arquitectura y comercios como índices y mantuvo l
 - Las 63 filas de comercio/subcategoría coinciden con el seed leído localmente; no se ejecuta SQL.
 - Se conservan los cinco bloques Mermaid del MER original y los documentos detallados de modelado/entidades.
 - El diff de Kotlin se verifica como sustitución exclusiva de dos rutas de procedencia documental. No se ejecutan Gradle ni pruebas de aplicación para este cambio de referencias.
+
+## Decisiones de producto 2026-11-01 (auditoría técnica)
+
+Fuente: "Decisión PO 2026-11-01, auditoría técnica". Se registran en los artefactos indicados sin cambiar código, migraciones ni otros requisitos. Con D4, **SPEC-CTA-01 queda resuelta**.
+
+| ID | Decisión | Artefactos afectados |
+| --- | --- | --- |
+| D1 | Alertas de utilización 50/80/100 % (HU-10): se evalúan y emiten solo en el servidor y llegan a la app por centro de notificaciones/sync. La app no evalúa umbrales localmente. Sin conexión no hay aviso hasta sincronizar (aceptado). | [EP-CTA spec](../specs/002-ep-cta-cuentas-tarjetas/spec.md) (nota HU-10 y clarificación 2026-11-01) |
+| D2 | Recurrencias: la sincronización app↔servidor del outbox se implementa ahora (cliente API + worker con reintentos, idempotencia y conflictos), conforme a FR-010. No cambia requisitos. | [EP-REC spec](../specs/007-ep-rec-recurrencias-obligaciones/spec.md) y [plan](../specs/007-ep-rec-recurrencias-obligaciones/plan.md) (clarificación 2026-11-01) |
+| D3 | CAPTCHA eliminado: login, registro, OTP y reenvío quedan protegidos por los rate limits existentes, sin token CAPTCHA en cliente ni servidor. | [EP-APS contratos](../specs/001-ep-aps-acceso-perfil-seguridad/contracts/), [plan](../specs/001-ep-aps-acceso-perfil-seguridad/plan.md), [research](../specs/001-ep-aps-acceso-perfil-seguridad/research.md), [quickstart](../specs/001-ep-aps-acceso-perfil-seguridad/quickstart.md), [tasks](../specs/001-ep-aps-acceso-perfil-seguridad/tasks.md); [auditoría de onboarding](ux-ui/audits/AUTH_ONBOARDING_IMPLEMENTATION.md) (notas Superseded) |
+| D4 | Tarjeta archivada: no recibe pagos ni compras; no puede archivarse con deuda pendiente (debe liquidarse antes). Nunca existe tarjeta archivada con deuda. Resuelve SPEC-CTA-01 ([hallazgo en auditoría funcional](audits/funcional/2026-09-28/informe.md)). | EP-CTA: [spec](../specs/002-ep-cta-cuentas-tarjetas/spec.md) (clarificación), [plan](../specs/002-ep-cta-cuentas-tarjetas/plan.md), [data-model](../specs/002-ep-cta-cuentas-tarjetas/data-model.md), [ui-contract](../specs/002-ep-cta-cuentas-tarjetas/contracts/ui-contract.md) |
+| D5 | Zona horaria de negocio única America/Lima para todos los cálculos de fechas de negocio (recurrencias, pagos esperados, recordatorios, reanudación, periodos). | EP-REC: [spec](../specs/007-ep-rec-recurrencias-obligaciones/spec.md) y [plan](../specs/007-ep-rec-recurrencias-obligaciones/plan.md) |
+| D6 | RF-C12 (residuo de céntimos a la cuota 1) aplica solo a compras nuevas. No se migran cronogramas existentes: los datos actuales son de prueba y se eliminarán antes de producción. | EP-CTA: [spec](../specs/002-ep-cta-cuentas-tarjetas/spec.md) (clarificación 2026-11-01) |

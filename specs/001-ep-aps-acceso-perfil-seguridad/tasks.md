@@ -77,7 +77,7 @@ Setup (Phase 1) and Foundational (Phase 2) establish shared Android security/ses
 ### Backend and Remote API for User Story 1
 
 - [X] T017 [P] [US1] Create SQL migration for `private.registration_rate_buckets`, bucket consumption function with HMAC, and cleanup policy in `supabase/migrations/20260920170000_create_auth_rate_buckets.sql`
-- [X] T018 [P] [US1] Implement `auth-access` Edge Function with register and login endpoints, CAPTCHA verification, HMAC rate limiting, and Supabase Auth delegation in `supabase/functions/auth-access/index.ts`
+- [X] T018 [P] [US1] Implement `auth-access` Edge Function with register and login endpoints, CAPTCHA verification, HMAC rate limiting, and Supabase Auth delegation in `supabase/functions/auth-access/index.ts`. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 ### Domain and Data for User Story 1
 
@@ -336,7 +336,7 @@ With US1 complete:
 
 - [X] T073 CRITICAL Correct profile bootstrap so `handle_new_user()` and `ensure_profile()` work with forced RLS without weakening owner isolation per Constitution III and FR-001/FR-007/FR-041 (contradicts)
 - [X] T074 Add the secured `check_email_exists` RPC and its grants/tests so registration reliably returns `ACCOUNT_EXISTS` per FR-051 and US1/AC5 (missing)
-- [X] T075 Harden the `auth-access` rate-limit boundary by deriving trustworthy request identity, validating CAPTCHA, partitioning by identity and operation, and failing closed per FR-049/FR-050 and plan: backend abuse (contradicts)
+- [X] T075 Harden the `auth-access` rate-limit boundary by deriving trustworthy request identity, validating CAPTCHA, partitioning by identity and operation, and failing closed per FR-049/FR-050 and plan: backend abuse (contradicts). Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 - [X] T076 Reject or defer profile-preference outbox work when its owner differs from the active verified session owner per FR-017 and plan: outbox ownership (contradicts)
 - [X] T077 Route password recovery through `auth-access`, preserve its neutral/rate-limited response, and wire recovery deep links and reset navigation per FR-008--FR-011/FR-050 and US2/AC1-4 (missing)
 - [X] T078 Restore the encrypted session and verified local owner before private navigation, retaining the permitted offline local core safely per FR-012/FR-013/FR-044 and US2/AC5 (missing)
@@ -358,6 +358,6 @@ With US1 complete:
 - [X] T090 [US1] Actualizar tests de validación, estados, navegación, pager y persistencia; ejecutar build/lint/tests (VIS-APS-006; depende de T086–T089).
 - [X] T091 [US1] Auditar render contra cada PNG, teclado, escalado y motion, corregir y registrar evidencia (VIS-APS-006; incluye tercera referencia corregida).
 
-Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la tercera usa `Omboarding 3 - Corregido.png`, proporcionada y aprobada por el usuario. Build/debug/lab, 53 pruebas unitarias y tests instrumentados documentados en `docs/ux-ui/audits/AUTH_ONBOARDING_IMPLEMENTATION.md`. Las acciones «Empezar» y «Ya tengo una cuenta» comparten la finalización persistente antes de abrir login. La validación remota mantiene pendiente el CAPTCHA real preexistente y configuración del proveedor.
+Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la tercera usa `Omboarding 3 - Corregido.png`, proporcionada y aprobada por el usuario. Build/debug/lab, 53 pruebas unitarias y tests instrumentados documentados en `docs/ux-ui/audits/AUTH_ONBOARDING_IMPLEMENTATION.md`. Las acciones «Empezar» y «Ya tengo una cuenta» comparten la finalización persistente antes de abrir login. La validación remota mantiene pendiente el CAPTCHA real preexistente y configuración del proveedor. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 - [X] T092 [US1] Corregir registro adaptable a A16 sin scroll con teclado cerrado, recuperar transición en formulario compartido y validar frames intermedios, modo directo de registro, tamaños/IME/Reduce Motion (VIS-APS-005/006).

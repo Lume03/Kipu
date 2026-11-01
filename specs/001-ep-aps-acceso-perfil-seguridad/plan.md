@@ -133,7 +133,7 @@ supabase/
 
 ### Backend y abuso
 
-- Registro, login y recuperación pasan por `auth-access`, además de los límites nativos de Supabase Auth. En release exige CAPTCHA, consume buckets persistentes por HMAC de IP, identidad y operación, aplica límites globales y devuelve `retry_after_seconds`; el cooldown Android refleja la misma política pero nunca es la única barrera.
+- Registro, login y recuperación pasan por `auth-access`, además de los límites nativos de Supabase Auth. En release exige CAPTCHA, consume buckets persistentes por HMAC de IP, identidad y operación, aplica límites globales y devuelve `retry_after_seconds`; el cooldown Android refleja la misma política pero nunca es la única barrera. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 - El registro usa esa frontera porque FR-051 exige una diferencia observable que Supabase oculta con confirmación de correo. La configuración de este incremento exige confirmación de email: registrar nunca crea una sesión Android; después de confirmar, la persona inicia sesión. La enumeración distribuida no puede eliminarse por completo mientras FR-051 exista, por lo que requiere aceptación explícita del riesgo antes de implementar.
 - Login recibe una contraseña transitoria y devuelve un sobre de sesión únicamente al adaptador Auth, que lo instala inmediatamente en el almacén cifrado del SDK; nunca llega a ViewModel/Compose. Recuperación siempre devuelve la misma respuesta pública y normaliza su ventana temporal.
 - La Edge Function no registra correo, contraseña, CAPTCHA, token, IP sin hash ni respuesta secreta. No confía en headers enviados por el cliente como prueba de origen. Solo sus funciones auxiliares necesarias reciben `EXECUTE`, nunca `PUBLIC` o `anon`.

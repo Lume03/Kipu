@@ -325,7 +325,7 @@ Updates local alias/preset/icon/color immediately and appends to the causal outb
 - Archive updates local lifecycle and outbox without incrementing `remoteRevision`, blocks new asset operations and frees quota; history remains.
 - Archiving an account disables new operations through linked debit cards without deleting links.
 - An archived account may be reactivated; corrections/reversals remain available because they preserve truth. Archive never substitutes for transferring a balance.
-- An archived credit card cannot accept purchases, but a nonzero liability remains in current summaries and may receive an amortizing payment until settled.
+- An archived credit card cannot accept purchases or payments, and cannot be archived while it has pending debt (D4, 2026-11-01); no archived card carries a liability.
 - Reactivate validates quota and debit-link compatibility atomically.
 
 ### Delete

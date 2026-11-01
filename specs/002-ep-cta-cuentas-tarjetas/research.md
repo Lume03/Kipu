@@ -226,6 +226,7 @@
 **Evidence**: Kipu's financial baseline defines credit_products, credit_installments, credit_payment_allocations and app_notifications. The current repo also contains referential_rate_catalog, pay_credit_card_v1 and confirm_credit_purchase_v1, while the existing register_transaction_v1 and worker path do not yet provide the complete CTA canonical command contract. Treat this as a reconciliation gate before implementation.
 
 ## R-019 - Utilization Threshold Event Contract
+> **Superseded 2026-11-01 (D1, decision PO)**: el productor de eventos de umbral vive solo en el servidor; la app no evalua umbrales localmente.
 
 **Decision**: Evaluate committed utilization transitions at 50%, 80% and 100%. Emit one event for each newly crossed threshold, deduplicate retries using the financial operation identity, and permit another crossing only after utilization falls below that threshold. Send an internal event to EP-NOT/HU-42 and reuse its app_notifications store and center.
 
