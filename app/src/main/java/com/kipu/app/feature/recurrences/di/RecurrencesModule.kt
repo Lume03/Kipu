@@ -18,6 +18,9 @@ abstract class RecurrencesModule {
     @Binds @IntoSet abstract fun matchExpected(implementation: MatchCapturedMovementToExpected): CaptureCandidateResolvedListener
 
     @Binds
+    abstract fun recurrenceSyncScheduler(implementation: com.kipu.app.feature.recurrences.data.sync.WorkManagerRecurrencesSyncScheduler): com.kipu.app.feature.recurrences.data.sync.RecurrencesSyncScheduler
+
+    @Binds
     abstract fun recurrenceRepository(implementation: OfflineFirstRecurrenceRepository): RecurrenceRepository
 
     @Binds

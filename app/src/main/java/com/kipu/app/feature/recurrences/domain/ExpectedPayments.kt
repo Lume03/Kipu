@@ -10,18 +10,24 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
+import com.kipu.app.core.di.BusinessZone
+import com.kipu.app.core.di.LIMA_BUSINESS_ZONE
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.flow.first
 
 /** Materializes only the current or next occurrence, never a ledger entry. */
-class GenerateExpectedPayments @Inject constructor(private val store: ExpectedPaymentStore, private val clock: Clock) {
+class GenerateExpectedPayments @Inject constructor(
+    private val store: ExpectedPaymentStore,
+    private val clock: Clock,
+    @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
+) {
     suspend operator fun invoke(rule: RecurrenceRule) {
         val amount = (rule.templateTransaction["amount_minor"] as? JsonPrimitive)?.content?.toBigDecimalOrNull()?.let { runCatching { it.longValueExact() }.getOrNull() }
         val currency = (rule.templateTransaction["currency_code"] as? JsonPrimitive)?.content ?: return
         val now = clock.millis()
         store.syncExpectedTemplate(rule.userId, rule.id, amount, currency, now)
         if (rule.status != RecurrenceStatus.ACTIVE) return
-        val today = LocalDate.now(clock.withZone(ZoneId.of("America/Lima")))
+        val today = LocalDate.now(clock.withZone(businessZone))
         val due = if (rule.nextDueDate >= today) rule.nextDueDate else
             RecurrenceScheduleCalculator.firstOccurrenceAfter(rule.startDate, rule.frequency, rule.intervalCount, rule.customIntervalUnit, today.minusDays(1))
         if (rule.endDate != null && due > rule.endDate) return
@@ -35,6 +41,7 @@ class MatchCapturedMovementToExpected @Inject constructor(
     private val gate: CaptureAccessGate,
     private val clock: Clock,
     private val candidates: CaptureCandidateStore,
+    @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) : CaptureCandidateResolvedListener {
     override val followupFlag = CaptureFollowup.EXPECTED_PAYMENT
     suspend fun options(candidate: CaptureCandidateRecord): List<ExpectedPayment> {
@@ -44,7 +51,7 @@ class MatchCapturedMovementToExpected @Inject constructor(
         if (store.observeByOwner(candidate.ownerId).first().any { it.matchedCandidateId == candidate.id }) return emptyList()
         val amount = current.amountMinor ?: return emptyList()
         val currency = current.currency ?: return emptyList()
-        val date = Instant.ofEpochMilli(current.occurredAt ?: return emptyList()).atZone(ZoneId.of("America/Lima")).toLocalDate()
+        val date = Instant.ofEpochMilli(current.occurredAt ?: return emptyList()).atZone(businessZone).toLocalDate()
         return store.findExpectedByAmount(candidate.ownerId, amount, currency, date.minusDays(3), date.plusDays(3))
     }
     override suspend fun onResolved(candidate: CaptureCandidateRecord, transactionId: String) {

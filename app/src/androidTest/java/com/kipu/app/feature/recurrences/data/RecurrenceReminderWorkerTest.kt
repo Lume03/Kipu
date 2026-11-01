@@ -124,6 +124,7 @@ class RecurrenceReminderWorkerTest {
         status = status,
         isActive = isActive,
         revision = 1,
+        syncState = "SYNCED",
         createdAt = 1,
         updatedAt = 1,
     )

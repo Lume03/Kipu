@@ -104,7 +104,7 @@ internal fun recurrenceStateLabel(
         com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.PAUSED -> "Pausada"
         com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.CANCELLED -> "Cancelada"
     }
-    val pattern = if (nextDueDate.year == java.time.LocalDate.now().year) "d MMM" else "d MMM yyyy"
+    val pattern = if (nextDueDate.year == java.time.LocalDate.now(com.kipu.app.core.di.LIMA_BUSINESS_ZONE).year) "d MMM" else "d MMM yyyy"
     val date = nextDueDate.format(java.time.format.DateTimeFormatter.ofPattern(pattern, java.util.Locale.forLanguageTag("es-PE")))
     return if (status == com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus.CANCELLED) label else "$label · próximo $date"
 }

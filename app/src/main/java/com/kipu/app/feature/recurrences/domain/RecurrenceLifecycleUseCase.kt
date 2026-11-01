@@ -5,8 +5,11 @@ import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus
 import com.kipu.app.feature.recurrences.domain.schedule.RecurrenceScheduleCalculator
 import java.time.Clock
+import java.time.ZoneId
 import java.time.LocalDate
 import javax.inject.Inject
+import com.kipu.app.core.di.BusinessZone
+import com.kipu.app.core.di.LIMA_BUSINESS_ZONE
 
 data class RecurrenceResumePreview(
     val recurrenceId: String,
@@ -17,12 +20,13 @@ data class RecurrenceResumePreview(
 class RecurrenceLifecycleUseCase @Inject constructor(
     private val repository: RecurrenceRepository,
     private val clock: Clock,
+    @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) {
     fun previewResume(recurrence: RecurrenceRule): RecurrenceResumePreview {
         require(recurrence.status == RecurrenceStatus.PAUSED) { "Only paused recurrence may resume" }
         val firstFuture = RecurrenceScheduleCalculator.firstOccurrenceAfter(
             recurrence.startDate, recurrence.frequency, recurrence.intervalCount,
-            recurrence.customIntervalUnit, LocalDate.now(clock),
+            recurrence.customIntervalUnit, LocalDate.now(clock.withZone(businessZone)),
         )
         require(recurrence.endDate == null || firstFuture <= recurrence.endDate) { "No future due date remains before end date" }
         return RecurrenceResumePreview(recurrence.id, recurrence.revision, firstFuture)

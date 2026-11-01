@@ -47,11 +47,12 @@ class RecurrenceReminderWorker @AssistedInject constructor(
         val recurrenceId = inputData.getString(KEY_RECURRENCE_ID)?.takeIf(String::isNotBlank) ?: return Result.failure()
         val dueDate = inputData.getString(KEY_DUE_DATE)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: return Result.failure()
+        // Keep leadDays=0 suppressed until the notifications contract defines delivery.
         val leadDays = inputData.getInt(KEY_LEAD_DAYS, -1)
         if (sessionCoordinator.currentOwner?.verifiedUserId != userId) return Result.success()
 
         val recurrence = recurrenceDao.get(userId, recurrenceId) ?: return Result.success()
-        if (recurrence.status != "ACTIVE" || !recurrence.isActive || recurrence.deletedAt != null ||
+        if (recurrence.status != "ACTIVE" || recurrence.syncState != "SYNCED" || !recurrence.isActive || recurrence.deletedAt != null ||
             recurrence.nextDueDate != dueDate.toString() || recurrence.reminderLeadDays != leadDays ||
             leadDays !in 1..30 || recurrence.endDate?.let { dueDate > LocalDate.parse(it) } == true
         ) return Result.success()
@@ -60,6 +61,7 @@ class RecurrenceReminderWorker @AssistedInject constructor(
                 it.dueDate == dueDate && it.status == ExpectedPaymentStatus.ATTENDED
             }) return Result.success()
 
+        if (recurrenceDao.get(userId, recurrenceId) != recurrence) return Result.success()
         val now = Instant.now()
         reminderScheduleDao.cancelReplacedSchedules(userId, recurrenceId, dueDate.toString(), now)
         reminderScheduleDao.upsert(
@@ -84,7 +86,7 @@ class RecurrenceReminderWorker @AssistedInject constructor(
                 createdAt = now,
             ),
         )
-        if (sessionCoordinator.currentOwner?.verifiedUserId != userId || !permissionChecker.canPostDebtReminder()) {
+        if (sessionCoordinator.currentOwner?.verifiedUserId != userId || recurrenceDao.get(userId, recurrenceId) != recurrence || !permissionChecker.canPostDebtReminder()) {
             return Result.success()
         }
 
