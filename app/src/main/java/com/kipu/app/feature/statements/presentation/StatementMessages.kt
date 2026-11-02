@@ -34,6 +34,8 @@ internal fun StatementLineKind.label(installments: Int? = null): String = when (
     StatementLineKind.POINTS_REDEMPTION -> "Canje de puntos"
     StatementLineKind.INSTALLMENT_MONTHLY_CHARGE -> "Cuota del mes"
     StatementLineKind.UNKNOWN -> "Revisar"
+    StatementLineKind.ACCOUNT_DEBIT -> "Cargo"
+    StatementLineKind.ACCOUNT_CREDIT -> "Abono"
 }
 
 internal val reclassifiableKinds = setOf(StatementLineKind.PURCHASE, StatementLineKind.REFUND,

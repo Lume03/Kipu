@@ -1496,3 +1496,20 @@ class MovementSchemaCallback : androidx.room.RoomDatabase.Callback() {
         ensureCreditInstallmentStatusGuards(db)
     }
 }
+
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN source TEXT NOT NULL DEFAULT 'CREDIT_CARD'")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN account_reference TEXT")
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN possible_own_transfer INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN previous_balance_pen_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN account_debits_pen_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN account_credits_pen_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN closing_balance_pen_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN previous_balance_usd_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN account_debits_usd_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN account_credits_usd_minor INTEGER")
+        db.execSQL("ALTER TABLE statement_imports ADD COLUMN closing_balance_usd_minor INTEGER")
+
+    }
+}

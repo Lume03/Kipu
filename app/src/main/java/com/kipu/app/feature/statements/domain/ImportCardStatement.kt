@@ -42,12 +42,12 @@ class ImportCardStatement @Inject constructor(
                 StatementParseResult.InvalidStatement -> return StatementImportResult.Invalid
                 is StatementParseResult.Parsed -> result.statement
             }
-            val cards = matching.activeCreditCards(ownerId).filter { it.lastFour == parsed.cardLastFour }
+            val cards = (if (parsed.source == StatementSource.CREDIT_CARD) matching.activeCreditCards(ownerId) else emptyList()).filter { it.lastFour == parsed.cardLastFour }
             val card = cards.singleOrNull() ?: cards.filter {
                 parsed.issuer.equals("BCP", ignoreCase = true) && it.issuer.equals("BCP", ignoreCase = true)
             }.singleOrNull()
             val keyed = parsed.copy(fingerprint = card?.let { statementCardFingerprint(parsed.fingerprint, it.id) } ?: parsed.fingerprint)
-            store.findByFingerprint(ownerId, keyed.fingerprint)?.let {
+            store.findByFingerprint(ownerId, keyed.fingerprint)?.takeUnless { it.status == StatementImportStatus.DISCARDED }?.let {
                 return StatementImportResult.AlreadyImported(it.id, it.status == StatementImportStatus.COMPLETED)
             }
             val candidates = parsed.lines.filter { it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }.map { line ->

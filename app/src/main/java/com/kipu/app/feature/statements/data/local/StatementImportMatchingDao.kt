@@ -5,6 +5,12 @@ import androidx.room.Query
 
 @Dao
 interface StatementImportMatchingDao {
+    @Query("""SELECT EXISTS(SELECT 1 FROM transactions WHERE user_id=:ownerId AND source_account_id=:accountId
+        AND amount_minor=:amountMinor AND currency_code=:currency AND type=:type AND status='ACTIVE'
+        AND occurred_at>=:fromMillis AND occurred_at<:untilMillis)""")
+    suspend fun hasAccountDuplicate(ownerId: String, accountId: String, amountMinor: Long, currency: String, type: String,
+        fromMillis: Long, untilMillis: Long): Boolean
+
     @Query("""SELECT EXISTS(SELECT 1 FROM transactions WHERE user_id=:ownerId AND card_id=:cardId
         AND amount_minor=:amountMinor AND currency_code=:currency AND status='ACTIVE'
         AND occurred_at>=:fromMillis AND occurred_at<:untilMillis)

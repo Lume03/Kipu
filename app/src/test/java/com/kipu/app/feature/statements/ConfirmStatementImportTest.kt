@@ -113,8 +113,73 @@ class ConfirmStatementImportTest {
     private val transactions = object : DatabaseTransactionRunner {
         override suspend fun <R> invoke(block: suspend () -> R): R = block()
     }
+    private val accountCommands = mutableListOf<RegisterTransactionCommand>()
+    private val registerTransaction = mockk<RegisterTransaction> {
+        coEvery { this@mockk.invoke(any()) } answers {
+            val cmd = firstArg<RegisterTransactionCommand>()
+            accountCommands += cmd
+            val tx = purchase("account-${cmd.idempotencyKey}").copy(type = cmd.type, sourceAccountId = cmd.sourceAccountId, cardId = null, operationKind = null, installmentCount = null)
+            applied[cmd.idempotencyKey] = tx
+            RegisterTransactionResult.Success(tx)
+        }
+    }
+    private fun deposit() {
+        snapshot = snapshot.copy(statement = snapshot.statement.copy(source = StatementSource.DEPOSIT_ACCOUNT))
+        coEvery { matching.activeDebitCards(owner) } returns listOf(StatementImportDebitCard(
+            snapshot.statement.cardId!!, "BCP", "Savings", "9999", Currency.PEN, "linked-account"))
+    }
+    @Test fun `deposit debit and credit register expense and income in linked account and retry is idempotent`() = runTest {
+        deposit()
+        use(line("debit", StatementLineKind.ACCOUNT_DEBIT), line("credit", StatementLineKind.ACCOUNT_CREDIT))
+        assertTrue(confirm(owner, "import").completed)
+        assertEquals(listOf(MovementType.INCOME, MovementType.EXPENSE), accountCommands.map { it.type })
+        assertTrue(accountCommands.all { it.sourceAccountId == "linked-account" && it.ignoreSimilarityWarning &&
+            it.occurredAt == java.time.Instant.parse("2026-09-20T17:00:00Z").toEpochMilli() })
+        assertTrue(confirm(owner, "import").completed)
+        assertEquals(2, accountCommands.size)
+    }
+    @Test fun `deposit registers chronologically credits before debits each day and preserves PDF order`() = runTest {
+        deposit()
+        val debit = line("debit", StatementLineKind.ACCOUNT_DEBIT)
+        val credit = line("credit", StatementLineKind.ACCOUNT_CREDIT)
+        use(debit.copy(position = 1, processDate = statementDate.minusDays(1)),
+            credit.copy(id = "later", lineFingerprint = "later", position = 0, occurredDate = statementDate.plusDays(1)),
+            credit.copy(id = "second", lineFingerprint = "second", position = 0, processDate = statementDate.plusDays(1)),
+            credit.copy(position = 2),
+            credit.copy(id = "first", lineFingerprint = "first", position = 1),
+            debit.copy(id = "earlier", lineFingerprint = "earlier", position = 6, occurredDate = statementDate.minusDays(1)))
+        assertTrue(confirm(owner, "import").completed)
+        val expected = listOf("earlier", "first", "credit", "second", "debit", "later").map { id ->
+            StatementResolutionKey.of("import", if (id in listOf("debit", "credit")) "fingerprint-$id" else id)
+        }
+        assertEquals(expected, accountCommands.map { it.idempotencyKey })
+    }
+
+    @Test fun `deposit rejects missing category wrong currency and credit card`() = runTest {
+        deposit()
+        use(line("category", StatementLineKind.ACCOUNT_CREDIT).copy(categoryId = null),
+            line("currency", StatementLineKind.ACCOUNT_DEBIT).copy(currency = Currency.USD))
+        assertEquals(listOf("category"), review.missingCategoryLineIds(owner, "import"))
+        assertEquals(listOf(StatementLineFailureReason.CategoryRequired, StatementLineFailureReason.CurrencyMismatch), confirm(owner, "import").failed.map { it.reason })
+        coEvery { matching.activeDebitCards(owner) } returns emptyList()
+        assertTrue(confirm(owner, "import").failed.all { it.reason == StatementLineFailureReason.CardUnavailable })
+        assertTrue(accountCommands.isEmpty())
+    }
+    @Test fun `deposit recovers receipt after split commit before edited category validation`() = runTest {
+        deposit()
+        use(line(kind = StatementLineKind.ACCOUNT_DEBIT))
+        coEvery { store.markLineRegistered(owner, "line", any()) } returns false
+        assertEquals(StatementLineFailureReason.RegistrationFailed, confirm(owner, "import").failed.single().reason)
+        coEvery { store.markLineRegistered(owner, "line", any()) } answers {
+            snapshot = snapshot.copy(lines = snapshot.lines.map { it.copy(status = StatementImportLineStatus.REGISTERED, selected = false) })
+            true
+        }
+        snapshot = snapshot.copy(lines = snapshot.lines.map { it.copy(categoryId = null, amountMinor = 2000) })
+        assertTrue(confirm(owner, "import").completed)
+        assertEquals(1, accountCommands.size)
+    }
     private val confirm = ConfirmStatementImport(store, access, matching, credit, pay, refund,
-        movements, refundRepository, receipts, review, transactions)
+        movements, refundRepository, receipts, review, transactions, registerTransaction)
 
     private fun line(id: String = "line", kind: StatementLineKind = StatementLineKind.PURCHASE) = StatementImportLine(
         id, "import", owner, "fingerprint-$id", 0, kind, statementDate, statementDate,

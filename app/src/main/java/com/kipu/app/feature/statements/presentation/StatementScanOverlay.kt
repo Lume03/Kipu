@@ -212,6 +212,10 @@ private fun ScanScene(clock: () -> Float, summary: StatementScanSummary?, waitin
                         summary?.penTotal?.let { TotalPill("PEN $it") }
                         summary?.usdTotal?.let { TotalPill("USD $it") }
                     }
+                    // Savings statements: cargos and abonos stacked, so long amounts never clip on narrow screens.
+                    summary?.flows?.takeIf { it.isNotEmpty() }?.let { flows ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) { flows.forEach { TotalPill(it) } }
+                    }
                     if (summary?.verified == true) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Filled.VerifiedUser, null, Modifier.size(17.dp), tint = Color(0xFFA7F3D0))
                         Text("Totales verificados con el PDF", color = Color(0xFFA7F3D0), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)

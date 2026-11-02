@@ -27,6 +27,8 @@ data class StatementScanSummary(
     val usdTotal: String?,
     val verified: Boolean,
     val sample: List<Pair<String, String>>,
+    /** Savings statements: cargos and abonos as separate pills instead of the per-currency net. */
+    val flows: List<String> = emptyList(),
 )
 
 data class StatementImportUiState(
@@ -180,7 +182,7 @@ class StatementImportViewModel @Inject constructor(
                             else -> null
                         }, message = when (result) {
                             StatementImportResult.NoExtractableText -> "Este PDF no tiene texto legible; por ahora solo admitimos estados de cuenta digitales"
-                            StatementImportResult.Unsupported -> "Por ahora solo admitimos estados de cuenta BCP Visa"
+                            StatementImportResult.Unsupported -> "Por ahora solo admitimos estados de cuenta BCP Visa y de cuentas de ahorro BCP"
                             StatementImportResult.Invalid -> "No pudimos leer este estado de cuenta. Revisa el PDF e inténtalo otra vez."
                             is StatementImportResult.AlreadyImported -> "Ya importaste este estado de cuenta".takeIf { result.completed }
                             else -> null
@@ -197,11 +199,16 @@ class StatementImportViewModel @Inject constructor(
         return try {
             val snapshot = store.observe(user, importId).first() ?: return null
             val lines = snapshot.lines.filter { it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }
-            fun total(currency: Currency) = lines.filter { it.currency == currency }.takeIf { it.isNotEmpty() }
+            val deposit = snapshot.statement.isDeposit
+            fun total(currency: Currency) = lines.filter { it.currency == currency }.takeIf { it.isNotEmpty() && !deposit }
                 ?.let { rows -> statementCurrencyTotal(rows, currency) }
-            StatementScanSummary(importId, "${snapshot.statement.issuer} •••• ${snapshot.statement.cardLastFour}", lines.size, total(Currency.PEN), total(Currency.USD),
+            StatementScanSummary(importId, snapshot.statement.label(), lines.size, total(Currency.PEN), total(Currency.USD),
                 verified = snapshot.statement.reconciledPen != false && snapshot.statement.reconciledUsd != false,
-                sample = lines.take(9).map { it.description to statementPlainAmount(it.amountMinor) })
+                sample = lines.take(9).map { it.description to statementPlainAmount(it.amountMinor) },
+                flows = if (!deposit) emptyList() else lines.map { it.currency }.distinct().flatMap { currency ->
+                    listOf(false, true).filter { credit -> lines.any { it.currency == currency && it.isCredit() == credit } }
+                        .map { credit -> "${if (credit) "Abonos" else "Cargos"} ${statementFlowTotal(lines, currency, credit)}" }
+                })
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { null }
     }

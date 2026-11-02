@@ -8,6 +8,7 @@ import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -19,30 +20,42 @@ class RoomStatementImportStore @Inject constructor(
     private val database: KipuDatabase,
     private val dao: StatementImportDao,
     private val clock: Clock,
+    private val matching: StatementImportMatching,
 ) : StatementImportStore {
     override suspend fun create(ownerId: String, parsed: ParsedStatement, matchedCardId: String?, lines: List<StatementImportCandidate>): StatementImportCreation {
         val owner = owner(ownerId)
         return database.withTransaction {
-            dao.findByFingerprint(owner, parsed.fingerprint)?.let { return@withTransaction StatementImportCreation(it.toDomain(), false) }
-            require(matchedCardId == null || validCard(owner, matchedCardId))
+            dao.findByFingerprint(owner, parsed.fingerprint)?.let {
+                if (it.status != StatementImportStatus.DISCARDED.name) return@withTransaction StatementImportCreation(it.toDomain(), false)
+                check(dao.deleteDiscarded(owner, it.id) == 1)
+            }
+            require(matchedCardId == null || (parsed.source == StatementSource.CREDIT_CARD && validCard(owner, matchedCardId)))
             val now = clock.millis()
             val row = StatementImportEntity(UUID.randomUUID().toString(), owner, parsed.fingerprint, parsed.issuer,
                 parsed.cardLastFour, parsed.cycleStart.toString(), parsed.cycleEnd.toString(), parsed.dueDate?.toString(),
                 parsed.reconciliation[Currency.PEN]?.matches, parsed.reconciliation[Currency.USD]?.matches,
-                matchedCardId, StatementImportStatus.PENDING.name, now, now + RETENTION_MILLIS)
+                matchedCardId, StatementImportStatus.PENDING.name, now, now + RETENTION_MILLIS, parsed.source.name, parsed.accountReference?.takeLast(4),
+                previousBalancePenMinor = parsed.totals[Currency.PEN]?.previousBalanceMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                accountDebitsPenMinor = parsed.totals[Currency.PEN]?.accountDebitsMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                accountCreditsPenMinor = parsed.totals[Currency.PEN]?.accountCreditsMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                closingBalancePenMinor = parsed.totals[Currency.PEN]?.closingBalanceMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                previousBalanceUsdMinor = parsed.totals[Currency.USD]?.previousBalanceMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                accountDebitsUsdMinor = parsed.totals[Currency.USD]?.accountDebitsMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                accountCreditsUsdMinor = parsed.totals[Currency.USD]?.accountCreditsMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT },
+                closingBalanceUsdMinor = parsed.totals[Currency.USD]?.closingBalanceMinor.takeIf { parsed.source == StatementSource.DEPOSIT_ACCOUNT })
             dao.insert(row)
             dao.insertLines(lines.filter { it.line.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }.mapIndexed { position, candidate ->
                 val line = candidate.line
                 StatementImportLineEntity(UUID.randomUUID().toString(), row.id, owner, line.fingerprint, position,
                     line.kind.name, line.processDate.toString(), line.occurredDate.toString(), line.description.take(120),
                     line.amountMinor, line.currency.name, line.installmentCount, candidate.selected, null, null, null,
-                    candidate.possibleDuplicate, StatementImportLineStatus.PENDING.name, null)
+                    candidate.possibleDuplicate, StatementImportLineStatus.PENDING.name, null, line.possibleOwnTransfer)
             })
             StatementImportCreation(row.toDomain(), true)
         }
     }
 
-    override suspend fun findByFingerprint(ownerId: String, fingerprint: String) = dao.findByFingerprint(owner(ownerId), fingerprint)?.toDomain()
+    override suspend fun findByFingerprint(ownerId: String, fingerprint: String) = dao.findByFingerprint(owner(ownerId), fingerprint)?.takeUnless { it.status == StatementImportStatus.DISCARDED.name }?.toDomain()
 
     override fun observe(ownerId: String, importId: String) = dao.observeSnapshot(owner(ownerId), importId).map { row ->
         row?.takeIf { it.statement.status != StatementImportStatus.PENDING.name || it.statement.expiresAt > clock.millis() }
@@ -65,13 +78,27 @@ class RoomStatementImportStore @Inject constructor(
     override suspend fun setCard(ownerId: String, importId: String, cardId: String?): Boolean {
         val owner = owner(ownerId)
         return database.withTransaction {
-            if (cardId != null && !validCard(owner, cardId)) return@withTransaction false
             val existing = dao.get(owner, importId) ?: return@withTransaction false
+            if (existing.status != StatementImportStatus.PENDING.name) return@withTransaction false
+            val deposit = existing.source == StatementSource.DEPOSIT_ACCOUNT.name
+            val debit = if (deposit && cardId != null) matching.activeDebitCards(owner).singleOrNull { it.id == cardId } else null
+            if (cardId != null && (if (deposit) debit == null else !validCard(owner, cardId))) return@withTransaction false
+            val lines = dao.observeLines(owner, importId).first()
+            if (debit != null && lines.any { it.currency != debit.currency.name }) return@withTransaction false
             val base = existing.statementFingerprint.substringBefore(':')
-            val fingerprint = cardId?.let { statementCardFingerprint(base, it) } ?: base
+            val fingerprint = if (deposit) existing.statementFingerprint else cardId?.let { statementCardFingerprint(base, it) } ?: base
             val duplicate = dao.findByFingerprint(owner, fingerprint)
-            if (duplicate != null && duplicate.id != importId) return@withTransaction false
-            dao.setCard(owner, importId, cardId, fingerprint) == 1
+            if (duplicate != null && duplicate.id != importId) {
+                if (duplicate.status != StatementImportStatus.DISCARDED.name) return@withTransaction false
+                check(dao.deleteDiscarded(owner, duplicate.id) == 1)
+            }
+            if (dao.setCard(owner, importId, cardId, fingerprint) != 1) return@withTransaction false
+            if (debit != null) for (line in lines.filter { it.status == "PENDING" }) {
+                val duplicateLine = matching.hasAccountDuplicate(owner, debit.linkedAccountId, line.amountMinor,
+                    Currency.valueOf(line.currency), java.time.LocalDate.parse(line.occurredDate), StatementLineKind.valueOf(line.kind))
+                dao.setDuplicate(owner, line.id, duplicateLine)
+            }
+            true
         }
     }
 

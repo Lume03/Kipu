@@ -78,6 +78,15 @@ class ImportCardStatementTest {
         coVerify(exactly = 0) { store.create(any(), any(), any(), any()) }
     }
 
+    @Test fun `discarded match permits a fresh import for credit and deposit`() = runTest {
+        for (source in StatementSource.entries) {
+            every { parser.parse(any()) } returns StatementParseResult.Parsed(parsedStatement().copy(source = source))
+            coEvery { store.findByFingerprint("owner", "statement") } returns storedStatement(StatementImportStatus.DISCARDED)
+            assertEquals(StatementImportResult.Imported("import"), invoke())
+        }
+        coVerify(exactly = StatementSource.entries.size) { store.create(any(), any(), any(), any()) }
+    }
+
     @Test fun `no card persists with null match and one card matches regardless issuer`() = runTest {
         assertEquals(StatementImportResult.Imported("import"), invoke())
         coVerify { store.create("owner", any(), null, any()) }
@@ -158,6 +167,18 @@ class ImportCardStatementTest {
             } catch (actual: Exception) { assertSame(failure, actual) }
             assertTrue(password.all { it == '\u0000' })
         }
+    }
+
+    @Test fun `deposit always imports without card preserves defaults and duplicate PDF returns existing`() = runTest {
+        val parsed = parsedStatement(listOf(importLine(kind = StatementLineKind.ACCOUNT_DEBIT),
+            importLine("own-transfer", kind = StatementLineKind.ACCOUNT_CREDIT).copy(defaultSelected = false)))
+            .copy(source = StatementSource.DEPOSIT_ACCOUNT, cardLastFour = "", accountReference = "4567")
+        every { parser.parse(any()) } returns StatementParseResult.Parsed(parsed)
+        assertEquals(StatementImportResult.Imported("import"), invoke())
+        coVerify { store.create("owner", parsed, null, match { it.map { c -> c.selected } == listOf(true, false) }) }
+        coVerify(exactly = 0) { matching.activeCreditCards(any()) }
+        coEvery { store.findByFingerprint("owner", parsed.fingerprint) } returns storedStatement().copy(source = StatementSource.DEPOSIT_ACCOUNT)
+        assertEquals(StatementImportResult.AlreadyImported("import", false), invoke())
     }
 
     private fun card(id: String, issuer: String = "BCP") = StatementImportCard(id, issuer, "1234", Currency.PEN)

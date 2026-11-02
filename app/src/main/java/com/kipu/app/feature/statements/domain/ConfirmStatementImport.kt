@@ -1,5 +1,10 @@
 package com.kipu.app.feature.statements.domain
 
+import com.kipu.app.feature.movements.domain.RegisterTransaction
+import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
+import com.kipu.app.feature.movements.domain.model.RegisterTransactionResult
+import com.kipu.app.feature.movements.domain.model.MovementType
+
 import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.CardId
@@ -61,6 +66,7 @@ class ConfirmStatementImport @Inject constructor(
     private val receipts: CaptureRegistrationReceipts,
     private val review: PrepareStatementImportReview,
     private val transactions: DatabaseTransactionRunner,
+    private val registerTransaction: RegisterTransaction,
 ) {
     suspend operator fun invoke(ownerId: String, importId: String): ConfirmStatementResult {
         if (!access.canImport(ownerId)) return rejected(StatementLineFailureReason.PremiumRequired)
@@ -73,7 +79,13 @@ class ConfirmStatementImport @Inject constructor(
         var registered = 0
         val failed = mutableListOf<StatementLineFailure>()
         // Refund matching must see purchases created in this very batch. Payments follow the purchases too.
-        val selected = snapshot.lines.filter { it.selected && it.status == StatementImportLineStatus.PENDING }.sortedBy {
+        val pending = snapshot.lines.filter { it.selected && it.status == StatementImportLineStatus.PENDING }
+        // A day's credits fund its debits; process dates and PDF position break ties within each side.
+        val selected = if (snapshot.statement.source == StatementSource.DEPOSIT_ACCOUNT) pending.sortedWith(
+            compareBy<StatementImportLine> { it.occurredDate }
+                .thenBy { if (it.kind == StatementLineKind.ACCOUNT_CREDIT) 0 else 1 }
+                .thenBy { it.processDate }.thenBy { it.position },
+        ) else pending.sortedBy {
             when {
                 it.needsPurchaseCategory() -> 0
                 it.kind == StatementLineKind.REFUND -> 1
@@ -130,6 +142,41 @@ class ConfirmStatementImport @Inject constructor(
                 description = it.merchantProvisionalText ?: line.description)
         }
         val cardId = snapshot.statement.cardId?.takeIf(String::isNotBlank) ?: reject(StatementLineFailureReason.CardRequired)
+        if (snapshot.statement.source == StatementSource.DEPOSIT_ACCOUNT) {
+            val debit = matching.activeDebitCards(ownerId).singleOrNull { it.id == cardId }
+                ?: reject(StatementLineFailureReason.CardUnavailable)
+            if (debit.currency != line.currency) reject(StatementLineFailureReason.CurrencyMismatch)
+            val type = when (line.kind) {
+                StatementLineKind.ACCOUNT_DEBIT -> MovementType.EXPENSE
+                StatementLineKind.ACCOUNT_CREDIT -> MovementType.INCOME
+                else -> reject(StatementLineFailureReason.NotSupported)
+            }
+            val category = review.effectiveCategory(ownerId, line) ?: reject(StatementLineFailureReason.CategoryRequired)
+            if (!access.canImport(ownerId)) reject(StatementLineFailureReason.PremiumRequired)
+            // RegisterTransaction uses sourceAccountId for both EXPENSE and INCOME (the credited account for INCOME).
+            val result = registerTransaction(RegisterTransactionCommand(
+                idempotencyKey = key, userId = ownerId, type = type, amountMinor = line.amountMinor,
+                currency = line.currency.name, sourceAccountId = debit.linkedAccountId, categoryId = category,
+                merchantId = line.merchantId, merchantProvisionalText = line.description.takeIf { line.merchantId == null },
+                occurredAt = line.occurredDate.atTime(12, 0).atZone(LIMA).toInstant().toEpochMilli(),
+                note = line.description, ignoreSimilarityWarning = true))
+            val movementId = when (result) {
+                is RegisterTransactionResult.Success -> result.transaction.id
+                is RegisterTransactionResult.ValidationError -> reject(when (result.field) {
+                    "category" -> StatementLineFailureReason.CategoryRequired
+                    "currency" -> StatementLineFailureReason.CurrencyMismatch
+                    "source_account", "destination_account" -> StatementLineFailureReason.CardUnavailable
+                    else -> StatementLineFailureReason.RegistrationFailed
+                })
+                is RegisterTransactionResult.Failure -> {
+                    if (result.cause is CancellationException) throw result.cause
+                    reject(if (result.message.contains("Insufficient funds", true)) StatementLineFailureReason.InsufficientFunds else StatementLineFailureReason.RegistrationFailed)
+                }
+                else -> reject(StatementLineFailureReason.RegistrationFailed)
+            }
+            check(store.markLineRegistered(ownerId, lineId, movementId))
+            return line
+        }
         val card = matching.activeCreditCards(ownerId).singleOrNull { it.id == cardId }
             ?: reject(StatementLineFailureReason.CardUnavailable)
         if (card.currency != line.currency) reject(StatementLineFailureReason.CurrencyMismatch)
@@ -177,7 +224,7 @@ class ConfirmStatementImport @Inject constructor(
                 }
             }
             StatementLineKind.UNKNOWN -> reject(StatementLineFailureReason.ClassificationRequired)
-            StatementLineKind.POINTS_REDEMPTION, StatementLineKind.INSTALLMENT_MONTHLY_CHARGE -> reject(StatementLineFailureReason.NotSupported)
+            StatementLineKind.ACCOUNT_DEBIT, StatementLineKind.ACCOUNT_CREDIT, StatementLineKind.POINTS_REDEMPTION, StatementLineKind.INSTALLMENT_MONTHLY_CHARGE -> reject(StatementLineFailureReason.NotSupported)
         }
         check(store.markLineRegistered(ownerId, lineId, movementId))
         return line

@@ -22,9 +22,12 @@ interface StatementDocumentReader {
     suspend fun read(document: DocumentRef, password: CharArray? = null): StatementReadResult
 }
 
+enum class StatementSource { CREDIT_CARD, DEPOSIT_ACCOUNT }
+
 enum class StatementLineKind {
     PURCHASE, INSTALLMENT_PURCHASE, CARD_PAYMENT, POINTS_REDEMPTION, REFUND,
     INTEREST, INSURANCE, FEE, INSTALLMENT_MONTHLY_CHARGE, UNKNOWN,
+    ACCOUNT_DEBIT, ACCOUNT_CREDIT,
 }
 
 data class StatementLine(
@@ -39,6 +42,7 @@ data class StatementLine(
     val installmentTotalMinor: Long? = null,
     val defaultSelected: Boolean,
     val fingerprint: String,
+    val possibleOwnTransfer: Boolean = false,
 ) {
     init {
         require(amountMinor > 0)
@@ -50,13 +54,17 @@ data class StatementCurrencyTotals(
     val subtotalMinor: Long?,
     val summaryChargesMinor: Long,
     val billedMinor: Long?,
+    val accountDebitsMinor: Long? = null,
+    val accountCreditsMinor: Long? = null,
+    val closingBalanceMinor: Long? = null,
 )
 
 data class StatementReconciliation(
     val subtotalDifferenceMinor: Long?,
     val billedDifferenceMinor: Long?,
+    val accountCreditsDifferenceMinor: Long? = 0L,
 ) {
-    val matches: Boolean get() = subtotalDifferenceMinor == 0L && billedDifferenceMinor == 0L
+    val matches: Boolean get() = subtotalDifferenceMinor == 0L && billedDifferenceMinor == 0L && accountCreditsDifferenceMinor == 0L
 }
 
 data class ParsedStatement(
@@ -69,6 +77,8 @@ data class ParsedStatement(
     val totals: Map<Currency, StatementCurrencyTotals>,
     val reconciliation: Map<Currency, StatementReconciliation>,
     val fingerprint: String,
+    val source: StatementSource = StatementSource.CREDIT_CARD,
+    val accountReference: String? = null,
 )
 
 sealed interface StatementParseResult {

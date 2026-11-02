@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StatementImportDao {
+    @Query("UPDATE statement_import_lines SET possible_duplicate=:duplicate, selected=CASE WHEN :duplicate THEN 0 ELSE selected END WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING'")
+    suspend fun setDuplicate(ownerId: String, lineId: String, duplicate: Boolean)
+
+    @Query("DELETE FROM statement_imports WHERE owner_id=:ownerId AND id=:importId AND status='DISCARDED'")
+    suspend fun deleteDiscarded(ownerId: String, importId: String): Int
+
     @Transaction
     @Query("SELECT * FROM statement_imports WHERE owner_id=:ownerId AND id=:importId")
     fun observeSnapshot(ownerId: String, importId: String): Flow<StatementImportWithLines?>

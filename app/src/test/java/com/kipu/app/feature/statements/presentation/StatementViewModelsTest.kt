@@ -149,6 +149,18 @@ class StatementViewModelsTest {
         vm.clearScan(); assertEquals(null, vm.state.value.scan)
     }
 
+    @Test fun `a savings import shows the account and cargos and abonos apart in the scan`() = runTest {
+        snapshot.value = StatementImportSnapshot(storedStatement().copy(ownerId = TEST_OWNER, source = StatementSource.DEPOSIT_ACCOUNT,
+            cardLastFour = "", accountReference = "4321"), listOf(line.copy(kind = StatementLineKind.ACCOUNT_DEBIT),
+            line.copy(id = "abono", kind = StatementLineKind.ACCOUNT_CREDIT, amountMinor = 250000)))
+        coEvery { importer(TEST_OWNER, any(), true, any()) } returns StatementImportResult.Imported("import")
+        val vm = flowVm(); advanceUntilIdle(); vm.requestImport(); advanceUntilIdle(); vm.acceptConsent()
+        vm.documentPicked(uri); advanceUntilIdle()
+        val scan = requireNotNull(vm.state.value.scan)
+        assertEquals("BCP · Cuenta •••• 4321", scan.label); assertEquals(null, scan.penTotal)
+        assertEquals(listOf("Cargos −S/ 10.00", "Abonos +S/ 2,500.00"), scan.flows)
+    }
+
     @Test fun `import results map to review duplicate notice and readable errors`() = runTest {
         val results = listOf(StatementImportResult.NoExtractableText, StatementImportResult.Unsupported,
             StatementImportResult.Invalid, StatementImportResult.AlreadyImported("old", true),

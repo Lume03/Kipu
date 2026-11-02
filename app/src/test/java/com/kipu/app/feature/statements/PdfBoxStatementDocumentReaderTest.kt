@@ -90,7 +90,8 @@ class PdfBoxStatementDocumentReaderTest {
             shadowOf(context.contentResolver).registerInputStreamSupplier(uri) { file.inputStream() }
             val read = reader.read(DocumentRef(uri.toString()), null)
             assertTrue("Local sample ${index + 1}: opening failed", read is StatementReadResult.Opened)
-            val parsed = parser.parse((read as StatementReadResult.Opened).pages)
+            if (!parser.canParse((read as StatementReadResult.Opened).pages)) return@forEachIndexed
+            val parsed = parser.parse(read.pages)
             assertTrue("Local sample ${index + 1}: parsing failed", parsed is StatementParseResult.Parsed)
             val statement = (parsed as StatementParseResult.Parsed).statement
             val counts = statement.lines.groupingBy { it.kind }.eachCount()

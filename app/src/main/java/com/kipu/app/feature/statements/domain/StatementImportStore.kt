@@ -7,6 +7,13 @@ import kotlinx.coroutines.flow.Flow
 enum class StatementImportStatus { PENDING, COMPLETED, DISCARDED }
 enum class StatementImportLineStatus { PENDING, REGISTERED, EXCLUDED }
 
+data class StatementAccountTotals(
+    val previousBalanceMinor: Long?,
+    val debitsMinor: Long?,
+    val creditsMinor: Long?,
+    val closingBalanceMinor: Long?,
+)
+
 data class StatementImport(
     val id: String,
     val ownerId: String,
@@ -22,6 +29,9 @@ data class StatementImport(
     val status: StatementImportStatus,
     val createdAt: Long,
     val expiresAt: Long,
+    val source: StatementSource = StatementSource.CREDIT_CARD,
+    val accountReference: String? = null,
+    val accountTotals: Map<Currency, StatementAccountTotals> = emptyMap(),
 )
 
 data class StatementImportLine(
@@ -44,6 +54,7 @@ data class StatementImportLine(
     val possibleDuplicate: Boolean = false,
     val status: StatementImportLineStatus = StatementImportLineStatus.PENDING,
     val registeredMovementId: String? = null,
+    val possibleOwnTransfer: Boolean = false,
 )
 
 data class StatementImportSnapshot(val statement: StatementImport, val lines: List<StatementImportLine>)

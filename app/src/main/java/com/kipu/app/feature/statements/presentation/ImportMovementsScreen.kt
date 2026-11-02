@@ -24,8 +24,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Lock
@@ -155,12 +157,16 @@ internal fun ImportMovementsContent(
             Surface(shape = RoundedCornerShape(22.dp), color = palette.surfaceCard, border = androidx.compose.foundation.BorderStroke(1.dp, palette.borderSubtle),
                 modifier = Modifier.fillMaxWidth().testTag("statement_import_entry")) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OptionHeader(Icons.Filled.Description, "bad", "Estado de cuenta de tarjeta", "Premium" to "violet")
-                    Text("Trae todos los movimientos de un ciclo de una vez. Sirve para cargar compras anteriores o al agregar una tarjeta nueva.",
+                    OptionHeader(Icons.Filled.Description, "bad", "Estado de cuenta BCP", "Premium" to "violet")
+                    Text("Trae de una vez los movimientos de tu tarjeta o cuenta BCP. Sirve para cargar movimientos anteriores o al agregar una tarjeta o cuenta nueva.",
                         style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatementToneChip("PDF", "gray", Icons.Filled.Description)
                         StatementToneChip("Acepta contraseña", "gray", Icons.Filled.Lock)
+                    }
+                    Row(Modifier.testTag("statement_supported_formats"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatementToneChip("Visa crédito", "blue", Icons.Filled.CreditCard)
+                        StatementToneChip("Ahorros / débito", "blue", Icons.Filled.AccountBalance)
                     }
                     if (state.premiumLocked) Button(onClick = onPlans, shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6E2A8C), contentColor = Color.White),
@@ -247,8 +253,8 @@ private fun PendingStatementCard(statement: StatementImport, enabled: Boolean, o
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatementBankTile(statement.issuer, size = 46.dp)
                 Column(Modifier.weight(1f)) {
-                    Text("${statement.issuer} •••• ${statement.cardLastFour}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
-                    Text("Ciclo ${statementShortDay(statement.cycleStart)} – ${statementShortDay(statement.cycleEnd)}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                    Text(statement.label(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
+                    Text("${if (statement.isDeposit) "Periodo" else "Ciclo"} ${statementShortDay(statement.cycleStart)} – ${statementShortDay(statement.cycleEnd)}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -321,10 +327,10 @@ private fun StatementNoticeSheet(notice: StatementImportNotice, state: Statement
     val file: @Composable () -> Unit = { StatementFileChip(state.fileName, state.fileSize) }
     when (notice) {
         StatementImportNotice.NOT_STATEMENT -> StatementAnswerSheet(Icons.Filled.Description, "warn", "No parece un estado de cuenta",
-            "Solo leemos los estados de tarjeta que te envía el banco en PDF. El archivo no se guardó.", "Elegir otro PDF", onPrimary = onPick, onDismiss = onDismiss,
+            "Solo leemos los estados de tarjeta o cuenta que te envía el banco en PDF. El archivo no se guardó.", "Elegir otro PDF", onPrimary = onPick, onDismiss = onDismiss,
             tag = "statement_notice_not_statement", extra = file)
         StatementImportNotice.UNSUPPORTED_BANK -> StatementAnswerSheet(Icons.Filled.Description, "gray", "Aún no leemos este banco",
-            "Detectamos un estado de cuenta, pero de un banco que Kipu todavía no reconoce. Por ahora admitimos estados BCP Visa.", "Elegir otro PDF", onPrimary = onPick,
+            "Detectamos un estado de cuenta, pero de un banco que Kipu todavía no reconoce. Por ahora admitimos estados BCP Visa y de cuentas de ahorro BCP.", "Elegir otro PDF", onPrimary = onPick,
             onDismiss = onDismiss, tag = "statement_notice_unsupported", extra = file)
         StatementImportNotice.UNREADABLE -> StatementAnswerSheet(Icons.Filled.WarningAmber, "warn", "No pudimos leer el PDF",
             "Parece una imagen escaneada o no tiene texto. Para que se lea bien usa el PDF original que descargas del banco, completo y sin fotos.", "Elegir otro PDF",

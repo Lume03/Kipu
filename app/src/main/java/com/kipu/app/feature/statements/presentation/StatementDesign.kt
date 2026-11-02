@@ -46,8 +46,11 @@ import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.categories.presentation.parseHexColor
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.movements.presentation.CategoryOption
+import com.kipu.app.feature.statements.domain.StatementImport
 import com.kipu.app.feature.statements.domain.StatementImportLine
+import com.kipu.app.feature.statements.domain.StatementImportLineStatus
 import com.kipu.app.feature.statements.domain.StatementLineKind
+import com.kipu.app.feature.statements.domain.StatementSource
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.text.DecimalFormat
@@ -73,7 +76,19 @@ internal fun statementCurrencyTotal(rows: List<StatementImportLine>, currency: C
 private val Months = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 internal fun statementShortDay(date: java.time.LocalDate) = "${date.dayOfMonth} ${Months[date.monthValue - 1]}"
 
-internal fun StatementImportLine.isCredit() = kind == StatementLineKind.REFUND || kind == StatementLineKind.CARD_PAYMENT
+internal fun StatementImportLine.isCredit() = kind == StatementLineKind.REFUND || kind == StatementLineKind.CARD_PAYMENT || kind == StatementLineKind.ACCOUNT_CREDIT
+
+internal val StatementImport.isDeposit get() = source == StatementSource.DEPOSIT_ACCOUNT
+
+/** "BCP •••• 0771" for a card statement, "BCP · Cuenta •••• 4321" for a savings account one. */
+internal fun StatementImport.label() = if (isDeposit) "$issuer · Cuenta •••• ${accountReference.orEmpty()}" else "$issuer •••• $cardLastFour"
+
+/** Signed sum of one side of a savings statement: −S/ for cargos, +S/ for abonos. */
+internal fun statementFlowTotal(rows: List<StatementImportLine>, currency: Currency, credit: Boolean): String =
+    (if (credit) "+" else "−") + statementSymbol(currency) + statementPlainAmount(rows.filter { it.currency == currency && it.isCredit() == credit }.sumOf { it.amountMinor })
+
+/** Parser-owned hint, preserved independently of the user's selection and duplicate decisions. */
+internal fun StatementImportLine.maybeOwnTransfer() = possibleOwnTransfer
 
 /** Soft tinted tile with the category icon; amber dashed when the movement still has no category. */
 @Composable
@@ -137,7 +152,7 @@ internal fun StatementToneChip(text: String, tone: String, icon: ImageVector? = 
 @Composable
 internal fun StatementKindChip(kind: StatementLineKind, installments: Int?) {
     val tone = when (kind) {
-        StatementLineKind.REFUND, StatementLineKind.CARD_PAYMENT -> "ok"
+        StatementLineKind.REFUND, StatementLineKind.CARD_PAYMENT, StatementLineKind.ACCOUNT_CREDIT -> "ok"
         StatementLineKind.INTEREST -> "warn"
         StatementLineKind.INSURANCE -> "blue"
         StatementLineKind.FEE -> "violet"

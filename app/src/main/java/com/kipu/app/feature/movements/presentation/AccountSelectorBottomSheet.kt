@@ -62,6 +62,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
+import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.LocalBalanceMasked
@@ -152,6 +153,7 @@ private enum class InstrumentFilter {
 private sealed interface SelectorItem {
     data class AccountItem(val account: Account) : SelectorItem
     data class CardItem(val card: CreditCard) : SelectorItem
+    data class DebitCardItem(val card: DebitCard) : SelectorItem
 }
 
 /**
@@ -170,6 +172,8 @@ private sealed interface SelectorItem {
  *   through [onSelectionConfirmed]; "Listo" stays enabled so an empty set clears the filter.
  * - [balancesLoaded] tells a balance that is still loading ("Consultando saldo") apart from one
  *   that is not available ("Saldo no disponible").
+ * - [debitCards] are listed only by callers that choose the debit card itself (statement import);
+ *   they share the Tarjetas filter and report through [onDebitCardSelected].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -201,6 +205,8 @@ fun AccountSelectorBottomSheet(
     balancesLoaded: Boolean = false,
     showNewAccountAction: Boolean = purpose != AccountSelectorPurpose.FILTER,
     confirmLabel: String = "Listo",
+    debitCards: List<DebitCard> = emptyList(),
+    onDebitCardSelected: (DebitCard) -> Unit = {},
 ) {
     var tempSelectedAccountId by remember(selectedAccountId) { mutableStateOf(selectedAccountId) }
     var tempSelectedCardId by remember(selectedCardId) { mutableStateOf(selectedCardId) }
@@ -227,21 +233,22 @@ fun AccountSelectorBottomSheet(
 
     val accountsCount = accountsOnly.size
     val cashCount = cashAccounts.size
-    val cardsCount = cards.size
+    val cardsCount = cards.size + debitCards.size
     val totalCount = accountsCount + cashCount + cardsCount
 
-    val displayedItems: List<SelectorItem> = remember(activeFilter, accountsOnly, cashAccounts, cards) {
+    val displayedItems: List<SelectorItem> = remember(activeFilter, accountsOnly, cashAccounts, cards, debitCards) {
         when (activeFilter) {
             InstrumentFilter.ALL -> {
                 accountsOnly.map { SelectorItem.AccountItem(it) } +
                     cards.map { SelectorItem.CardItem(it) } +
+                    debitCards.map { SelectorItem.DebitCardItem(it) } +
                     cashAccounts.map { SelectorItem.AccountItem(it) }
             }
             InstrumentFilter.ACCOUNTS -> {
                 accountsOnly.map { SelectorItem.AccountItem(it) }
             }
             InstrumentFilter.CARDS -> {
-                cards.map { SelectorItem.CardItem(it) }
+                cards.map { SelectorItem.CardItem(it) } + debitCards.map { SelectorItem.DebitCardItem(it) }
             }
             InstrumentFilter.CASH -> {
                 cashAccounts.map { SelectorItem.AccountItem(it) }
@@ -396,6 +403,7 @@ fun AccountSelectorBottomSheet(
                             when (item) {
                                 is SelectorItem.AccountItem -> "account_${item.account.id.value}"
                                 is SelectorItem.CardItem -> "card_${item.card.id.value}"
+                                is SelectorItem.DebitCardItem -> "card_${item.card.id.value}"
                             }
                         },
                     ) { item ->
@@ -458,6 +466,28 @@ fun AccountSelectorBottomSheet(
                                     },
                                 )
                             }
+                            is SelectorItem.DebitCardItem -> {
+                                val card = item.card
+                                val isSelected = if (multiSelect) {
+                                    card.id.value in tempCardIds
+                                } else {
+                                    tempSelectedCardId == card.id.value
+                                }
+
+                                DebitCardItemRow(
+                                    card = card,
+                                    isSelected = isSelected,
+                                    multiSelect = multiSelect,
+                                    onSelect = {
+                                        if (multiSelect) {
+                                            tempCardIds = tempCardIds.toggle(card.id.value)
+                                        } else {
+                                            tempSelectedAccountId = null
+                                            tempSelectedCardId = card.id.value
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -498,7 +528,7 @@ fun AccountSelectorBottomSheet(
                     onClick = {
                         if (multiSelect) {
                             // Drop ids that the current rules hide (e.g. cards when not allowed).
-                            val visibleCardIds = cards.map { it.id.value }.toSet()
+                            val visibleCardIds = (cards + debitCards).map { it.id.value }.toSet()
                             onSelectionConfirmed?.invoke(tempAccountIds, tempCardIds.filter { it in visibleCardIds }.toSet())
                             onDismissRequest()
                             return@Button
@@ -519,6 +549,7 @@ fun AccountSelectorBottomSheet(
                             if (selectedCrd != null) {
                                 onCardSelected(selectedCrd)
                             }
+                            debitCards.find { it.id.value == confirmedCardId }?.let(onDebitCardSelected)
                             onCardIdSelected?.invoke(confirmedCardId)
                             onSelectionConfirmed?.invoke(emptySet(), setOf(confirmedCardId))
                             onDismissRequest()
@@ -539,7 +570,7 @@ fun AccountSelectorBottomSheet(
                 ) {
                     Text(
                         text = if (multiSelect && (tempAccountIds.size + tempCardIds.size) > 0) {
-                            "$confirmLabel (${tempAccountIds.size + tempCardIds.count { id -> cards.any { it.id.value == id } }})"
+                            "$confirmLabel (${tempAccountIds.size + tempCardIds.count { id -> (cards + debitCards).any { it.id.value == id } }})"
                         } else {
                             confirmLabel
                         },
@@ -777,6 +808,68 @@ private fun CreditCardItemRow(
                     Text("No disponible", color = CoralDebtText, style = MaterialTheme.typography.labelSmall)
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        SelectionIndicator(selected = isSelected, multiSelect = multiSelect)
+    }
+}
+
+@Composable
+private fun DebitCardItemRow(
+    card: DebitCard,
+    isSelected: Boolean,
+    multiSelect: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val cardTitle = card.alias?.takeIf { it.isNotBlank() } ?: "${card.issuer} ${networkLabel(card.network)}"
+    val cardSubtitle = "Débito · •••• ${card.lastFourDigits} · ${card.currency.name}"
+
+    SelectableInstrumentSurface(
+        isSelected = isSelected,
+        multiSelect = multiSelect,
+        onSelect = onSelect,
+        contentDesc = "$cardTitle. $cardSubtitle" + if (isSelected) ". Seleccionada" else ". No seleccionada",
+        testTag = "card_item_${card.id.value}",
+        modifier = modifier,
+    ) {
+        BrandLogo(
+            brand = KipuBrand.from(card.issuer) ?: KipuBrand.from(card.preset?.name),
+            fallbackName = card.issuer,
+            contentDescription = null,
+            size = 44.dp,
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = cardTitle,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextPrimarySlate,
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = cardSubtitle,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = TextSecondarySlate,
+                    fontSize = 12.sp,
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
 
         Spacer(modifier = Modifier.width(10.dp))

@@ -1,6 +1,7 @@
 package com.kipu.app.feature.statements.di
 
 import com.kipu.app.feature.statements.data.PdfBoxStatementDocumentReader
+import com.kipu.app.feature.statements.domain.BcpSavingsStatementParser
 import com.kipu.app.feature.statements.domain.BcpVisaStatementParser
 import com.kipu.app.feature.statements.domain.StatementDocumentReader
 import com.kipu.app.feature.statements.domain.StatementParser
@@ -27,6 +28,8 @@ abstract class StatementsModule {
     @Binds @Singleton abstract fun importMatching(value: RoomStatementImportMatching): StatementImportMatching
     @Binds @Singleton abstract fun documentReader(value: PdfBoxStatementDocumentReader): StatementDocumentReader
     @Binds @IntoSet abstract fun bcpVisaParser(value: BcpVisaStatementParser): StatementParser
+
+    @Binds @IntoSet abstract fun bcpSavingsParser(value: BcpSavingsStatementParser): StatementParser
 
     companion object {
         @Provides fun importDao(database: KipuDatabase) = database.statementImportDao()

@@ -8,6 +8,8 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountType
+import com.kipu.app.feature.accounts.domain.model.DebitCard
+import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
 import com.kipu.app.feature.categories.domain.model.CategoryType
@@ -26,8 +28,10 @@ data class StatementReviewUiState(
     val loading: Boolean = true,
     val snapshot: StatementImportSnapshot? = null,
     val cards: List<CreditCard> = emptyList(),
+    val debitCards: List<DebitCard> = emptyList(),
     val accounts: List<Account> = emptyList(),
     val categories: List<CategoryOption> = emptyList(),
+    val incomeCategories: List<CategoryOption> = emptyList(),
     val busy: Boolean = false,
     val missingCategoryIds: Set<String> = emptySet(),
     val failures: Map<String, StatementLineFailureReason> = emptyMap(),
@@ -36,16 +40,21 @@ data class StatementReviewUiState(
     val discarded: Boolean = false,
     val showPremium: Boolean = false,
 ) {
+    val source: StatementSource get() = snapshot?.statement?.source ?: StatementSource.CREDIT_CARD
+    val selectedCard: Card? get() = if (source == StatementSource.DEPOSIT_ACCOUNT) debitCards.find { it.id.value == snapshot?.statement?.cardId } else card
     val card: CreditCard? get() = cards.find { it.id.value == snapshot?.statement?.cardId }
     val selected: List<StatementImportLine> get() = snapshot?.lines.orEmpty().filter {
         it.selected && it.status == StatementImportLineStatus.PENDING
     }
-    val canConfirm: Boolean get() = !loading && !busy && card != null && selected.isNotEmpty() &&
+    val canConfirm: Boolean get() = !loading && !busy && selectedCard != null && selected.isNotEmpty() &&
         snapshot?.statement?.status == StatementImportStatus.PENDING && successCount == null
+
+    /** Abonos take income categories; every other movement, the expense ones. */
+    fun categoriesFor(kind: StatementLineKind): List<CategoryOption> = if (kind == StatementLineKind.ACCOUNT_CREDIT) incomeCategories else categories
 
     fun selectable(line: StatementImportLine): Boolean = line.status == StatementImportLineStatus.PENDING &&
         line.kind !in setOf(StatementLineKind.POINTS_REDEMPTION, StatementLineKind.INSTALLMENT_MONTHLY_CHARGE) &&
-        (card == null || card?.currency == line.currency)
+        (selectedCard == null || selectedCard?.currency == line.currency)
 }
 
 @HiltViewModel
@@ -90,19 +99,21 @@ class StatementReviewViewModel @Inject constructor(
                     launch {
                         combine(instruments.observeAccounts(true), instruments.observeCards(true)) { accounts, cards ->
                             accounts.filter { it.userId.value == user && !it.isArchived && !it.isPlanLocked && it.type != AccountType.CREDIT_LIABILITY } to
-                                cards.filterIsInstance<CreditCard>().filter { it.userId.value == user && !it.isArchived && !it.isPlanLocked }
+                                cards.filter { it.userId.value == user && !it.isArchived && !it.isPlanLocked }
                         }.catch { _state.update { it.copy(message = "No pudimos cargar tus cuentas y tarjetas.") } }
-                            .collect { (accounts, cards) -> if (hasAccess()) _state.update { it.copy(accounts = accounts, cards = cards) } }
+                            .collect { (accounts, cards) -> if (hasAccess()) _state.update { it.copy(accounts = accounts, cards = cards.filterIsInstance<CreditCard>(),
+                                debitCards = cards.filterIsInstance<DebitCard>().filter { card -> accounts.any { it.id == card.linkedAccountId } }) } }
                     }
                     launch {
                         categories(UserId(user)).catch { _state.update { it.copy(message = "No pudimos cargar tus categorías.") } }
                             .collect { items ->
                                 val options = items.filter { it.category.isActive && !it.category.isPlanLocked }
                                     .flatMap { root -> listOf(root to null) + root.subcategories.map { it to root } }
-                                    .filter { (item, _) -> item.category.isActive && !item.category.isPlanLocked && item.category.categoryType != CategoryType.INCOME }
+                                    .filter { (item, _) -> item.category.isActive && !item.category.isPlanLocked  }
                                     .map { (item, parent) -> CategoryOption(item.category.id.value, item.displayName, item.icon,
                                         item.category.categoryType, parent?.category?.id?.value, parent?.displayName, item.color) }
-                                if (hasAccess()) _state.update { it.copy(categories = options) }
+                                if (hasAccess()) _state.update { it.copy(categories = options.filter { it.categoryType != CategoryType.INCOME },
+                                    incomeCategories = options.filter { it.categoryType != CategoryType.EXPENSE }) }
                             }
                     }
                 }
@@ -113,8 +124,12 @@ class StatementReviewViewModel @Inject constructor(
     private fun hasAccess() = owner != null && (session.localAccess.value as? LocalAccess.Available)?.userId == owner
 
     fun setCard(id: String) = work { user ->
-        val card = _state.value.cards.find { it.id.value == id } ?: return@work
+        val card: Card = (if (_state.value.source == StatementSource.DEPOSIT_ACCOUNT) _state.value.debitCards else _state.value.cards).find { it.id.value == id } ?: return@work
         if (!store.setCard(user, importId, id)) {
+            if (_state.value.source == StatementSource.DEPOSIT_ACCOUNT && _state.value.snapshot?.lines?.any { it.currency != card.currency } == true) {
+                message(StatementLineFailureReason.CurrencyMismatch.message())
+                return@work
+            }
             val fingerprint = _state.value.snapshot?.statement?.statementFingerprint
             val duplicate = fingerprint?.let { store.findByFingerprint(user, statementCardFingerprint(it, id)) }
             message(if (duplicate != null && duplicate.id != importId) "Este estado de cuenta ya fue importado para esta tarjeta."
@@ -150,9 +165,11 @@ class StatementReviewViewModel @Inject constructor(
     }
 
     fun assignCategory(id: String) = work { user ->
-        if (_state.value.categories.none { it.id == id }) return@work
+        if ((_state.value.categories + _state.value.incomeCategories).none { it.id == id }) return@work
         val lines = store.observe(user, importId).first()?.lines.orEmpty().filter {
-            it.selected && it.categoryId == null && it.status == StatementImportLineStatus.PENDING && it.needsPurchaseCategory()
+            it.selected && it.categoryId == null && it.status == StatementImportLineStatus.PENDING && it.needsPurchaseCategory() &&
+                (_state.value.categories + _state.value.incomeCategories).any { category -> category.id == id &&
+                    (if (it.kind == StatementLineKind.ACCOUNT_CREDIT) category.categoryType != CategoryType.EXPENSE else category.categoryType != CategoryType.INCOME) }
         }
         for (line in lines) {
             if (!store.editLine(user, line.id, StatementImportLineEdit(line.description, line.amountMinor,
@@ -167,7 +184,7 @@ class StatementReviewViewModel @Inject constructor(
     fun confirm() = work { user ->
         val current = _state.value
         if (current.snapshot?.statement?.cardId == null) { message(StatementLineFailureReason.CardRequired.message()); return@work }
-        if (current.card == null) { message(StatementLineFailureReason.CardUnavailable.message()); return@work }
+        if (current.selectedCard == null) { message(StatementLineFailureReason.CardUnavailable.message()); return@work }
         if (current.selected.isEmpty()) { message("Selecciona al menos un movimiento para registrar."); return@work }
         val missing = prepare.missingCategoryLineIds(user, importId).toSet()
         if (missing.isNotEmpty()) {

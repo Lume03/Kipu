@@ -105,7 +105,9 @@ internal fun StatementLineEditSheet(
     val valid = parsedAmount != null && parsedDate != null && validDescription
     val bad = statementTone("bad")
     when {
-        showCategory -> StatementCategoryPicker(state.categories, category, onSelect = { category = it.id; showCategory = false }, onDismiss = { showCategory = false })
+        showCategory -> StatementCategoryPicker(state.categoriesFor(line.kind), category, onSelect = { category = it.id; showCategory = false }, onDismiss = { showCategory = false },
+            subtitle = if (line.kind == StatementLineKind.ACCOUNT_CREDIT) "Selecciona una categoría o subcategoría para clasificar tu ingreso"
+            else "Selecciona una categoría o subcategoría para clasificar tu gasto")
         showSource -> AccountSelectorBottomSheet(onDismissRequest = { showSource = false },
             accounts = state.accounts.filter { it.currency == line.currency },
             selectedAccountId = sourceAccount, allowCreditCards = false, purpose = AccountSelectorPurpose.CARD_PAYMENT,
@@ -118,7 +120,7 @@ internal fun StatementLineEditSheet(
                     Text("Editar movimiento", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
                     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatementBankTile(source.issuer, size = 24.dp)
-                        Text("Del estado ${source.issuer} •••• ${source.cardLastFour} · ${line.occurredDate.dayOfMonth}/${line.occurredDate.monthValue}",
+                        Text("Del estado ${source.label()} · ${line.occurredDate.dayOfMonth}/${line.occurredDate.monthValue}",
                             style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
                     }
                 }
@@ -188,7 +190,7 @@ internal fun StatementLineEditSheet(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("CATEGORÍA")
-                    val picked = state.categories.find { it.id == category }
+                    val picked = state.categoriesFor(line.kind).find { it.id == category }
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (picked == null) statementTone("warn").bg else palette.surfaceCard)
                         .border(1.5.dp, if (picked == null) statementTone("warn").border else palette.borderSubtle, RoundedCornerShape(16.dp))
                         .clickable(enabled = !state.busy) { showCategory = true }.padding(horizontal = 12.dp, vertical = 10.dp).testTag("statement_edit_category"),
@@ -196,7 +198,7 @@ internal fun StatementLineEditSheet(
                         StatementCategoryTile(picked, size = 40.dp)
                         Column(Modifier.weight(1f)) {
                             Text(picked?.displayName ?: "Elegir categoría", fontWeight = FontWeight.Bold, color = if (picked == null) statementTone("warn").fg else palette.primaryText)
-                            if (picked == null) Text("Se necesita para registrar las compras", style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
+                            if (picked == null) Text(if (source.isDeposit) "Se necesita para registrar el movimiento" else "Se necesita para registrar las compras", style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
                         }
                         Icon(Icons.Filled.ChevronRight, null, tint = palette.secondaryMuted)
                     }

@@ -36,10 +36,25 @@ data class StatementImportEntity(
     val status: String,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "expires_at") val expiresAt: Long,
+    @ColumnInfo(defaultValue = "'CREDIT_CARD'") val source: String = "CREDIT_CARD",
+    @ColumnInfo(name = "account_reference") val accountReference: String? = null,
+    @ColumnInfo(name = "previous_balance_pen_minor") val previousBalancePenMinor: Long? = null,
+    @ColumnInfo(name = "account_debits_pen_minor") val accountDebitsPenMinor: Long? = null,
+    @ColumnInfo(name = "account_credits_pen_minor") val accountCreditsPenMinor: Long? = null,
+    @ColumnInfo(name = "closing_balance_pen_minor") val closingBalancePenMinor: Long? = null,
+    @ColumnInfo(name = "previous_balance_usd_minor") val previousBalanceUsdMinor: Long? = null,
+    @ColumnInfo(name = "account_debits_usd_minor") val accountDebitsUsdMinor: Long? = null,
+    @ColumnInfo(name = "account_credits_usd_minor") val accountCreditsUsdMinor: Long? = null,
+    @ColumnInfo(name = "closing_balance_usd_minor") val closingBalanceUsdMinor: Long? = null,
+
 ) {
     fun toDomain() = StatementImport(id, ownerId, statementFingerprint, issuer, cardLastFour,
         LocalDate.parse(cycleStart), LocalDate.parse(cycleEnd), dueDate?.let(LocalDate::parse),
-        reconciledPen, reconciledUsd, cardId, StatementImportStatus.valueOf(status), createdAt, expiresAt)
+        reconciledPen, reconciledUsd, cardId, StatementImportStatus.valueOf(status), createdAt, expiresAt, StatementSource.valueOf(source), accountReference,
+        listOf(
+            Currency.PEN to StatementAccountTotals(previousBalancePenMinor, accountDebitsPenMinor, accountCreditsPenMinor, closingBalancePenMinor),
+            Currency.USD to StatementAccountTotals(previousBalanceUsdMinor, accountDebitsUsdMinor, accountCreditsUsdMinor, closingBalanceUsdMinor),
+        ).filter { (_, totals) -> listOf(totals.previousBalanceMinor, totals.debitsMinor, totals.creditsMinor, totals.closingBalanceMinor).any { it != null } }.toMap())
 }
 
 @Entity(tableName = "statement_import_lines", foreignKeys = [ForeignKey(
@@ -69,9 +84,10 @@ data class StatementImportLineEntity(
     @ColumnInfo(name = "possible_duplicate") val possibleDuplicate: Boolean,
     val status: String,
     @ColumnInfo(name = "registered_movement_id") val registeredMovementId: String?,
+    @ColumnInfo(name = "possible_own_transfer", defaultValue = "0") val possibleOwnTransfer: Boolean = false,
 ) {
     fun toDomain() = StatementImportLine(id, importId, ownerId, lineFingerprint, position,
         StatementLineKind.valueOf(kind), LocalDate.parse(processDate), LocalDate.parse(occurredDate),
         description, amountMinor, Currency.valueOf(currency), installmentCount, selected, categoryId,
-        merchantId, sourceAccountId, possibleDuplicate, StatementImportLineStatus.valueOf(status), registeredMovementId)
+        merchantId, sourceAccountId, possibleDuplicate, StatementImportLineStatus.valueOf(status), registeredMovementId, possibleOwnTransfer)
 }

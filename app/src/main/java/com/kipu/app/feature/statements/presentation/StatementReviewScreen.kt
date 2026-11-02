@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kipu.app.core.finance.domain.model.Currency
+import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.movements.presentation.AccountSelectorBottomSheet
 import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomSheet
@@ -144,7 +146,7 @@ fun StatementReviewScreen(
                         StatementFilter.SELECTED -> line.selected && line.status == StatementImportLineStatus.PENDING
                         StatementFilter.REVIEW -> line.needsReview(state)
                     } }
-                    if (lines.isEmpty()) item { EmptyCycle(onBack) }
+                    if (lines.isEmpty()) item { EmptyCycle(statement.isDeposit, onBack) }
                     else if (visible.isEmpty()) item { Text("No hay movimientos en este filtro.", color = palette.secondaryMuted, modifier = Modifier.padding(8.dp)) }
                     visible.groupBy { it.occurredDate }.forEach { (day, rows) ->
                         item(key = "day-$day") { DayGroup(day, rows, state, editable, onSelect, onEdit = { editId = it }) }
@@ -153,12 +155,29 @@ fun StatementReviewScreen(
             }
         }
     }
-    if (cardPicker && state.snapshot != null) AccountSelectorBottomSheet(
-        onDismissRequest = { cardPicker = false }, accounts = emptyList(), creditCards = state.cards,
-        selectedCardId = statement?.cardId, title = "Elegir tarjeta de crédito", subtitle = "Asigna los movimientos a tu tarjeta Kipu",
-        showNewAccountAction = false, onCardSelected = { cardPicker = false; onCard(it.id.value) })
-    if (categoryPicker && state.snapshot != null) StatementCategoryPicker(state.categories, null,
-        onSelect = { categoryPicker = false; onBatchCategory(it.id) }, onDismiss = { categoryPicker = false })
+    if (cardPicker && state.snapshot != null) {
+        if (statement?.isDeposit == true) AccountSelectorBottomSheet(
+            onDismissRequest = { cardPicker = false }, accounts = emptyList(), debitCards = state.debitCards,
+            selectedCardId = statement.cardId, title = "Elegir tarjeta de débito", subtitle = "Los movimientos se registrarán en su cuenta vinculada",
+            showNewAccountAction = false, onDebitCardSelected = { cardPicker = false; onCard(it.id.value) })
+        else AccountSelectorBottomSheet(
+            onDismissRequest = { cardPicker = false }, accounts = emptyList(), creditCards = state.cards,
+            selectedCardId = statement?.cardId, title = "Elegir tarjeta de crédito", subtitle = "Asigna los movimientos a tu tarjeta Kipu",
+            showNewAccountAction = false, onCardSelected = { cardPicker = false; onCard(it.id.value) })
+    }
+    // Abonos take income categories: offer the kinds the uncategorized lines need; the ViewModel applies each only where it fits.
+    val missingIncome = state.selected.filter { it.categoryId == null && it.needsPurchaseCategory() }.map { it.kind == StatementLineKind.ACCOUNT_CREDIT }.toSet()
+    if (categoryPicker && state.snapshot != null) StatementCategoryPicker(when {
+        missingIncome == setOf(true) -> state.incomeCategories
+        true in missingIncome -> (state.categories + state.incomeCategories).distinctBy { it.id }
+        else -> state.categories
+    }, null,
+        onSelect = { categoryPicker = false; onBatchCategory(it.id) }, onDismiss = { categoryPicker = false },
+        subtitle = when (missingIncome) {
+            setOf(true) -> "Selecciona una categoría o subcategoría para clasificar tus ingresos"
+            setOf(true, false) -> "Selecciona una categoría o subcategoría para clasificar tus movimientos"
+            else -> "Selecciona una categoría o subcategoría para clasificar tu gasto"
+        })
     lines.find { it.id == editId && it.status == StatementImportLineStatus.PENDING }?.let { line ->
         if (statement?.status == StatementImportStatus.PENDING && state.successCount == null) StatementLineEditSheet(line, state, source = statement,
             onDismiss = { editId = null }, onSave = { edit -> onEdit(line.id, edit) { editId = null; savedLine.value = savedLine.value + 1 } })
@@ -176,20 +195,25 @@ fun StatementReviewScreen(
 @Composable
 private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport, lines: List<StatementImportLine>, editable: Boolean, onPickCard: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
+    val deposit = statement.isDeposit
     Surface(shape = RoundedCornerShape(24.dp), color = palette.surfaceCard, border = BorderStroke(1.dp, palette.borderSubtle), modifier = Modifier.fillMaxWidth().testTag("statement_hero")) {
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatementBankTile(statement.issuer)
                 Column(Modifier.weight(1f)) {
-                    Text("${statement.issuer} •••• ${statement.cardLastFour}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
+                    Text(if (deposit) "${statement.issuer} · Cuenta de ahorros" else "${statement.issuer} •••• ${statement.cardLastFour}",
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(Icons.Filled.CalendarToday, null, Modifier.size(14.dp), tint = palette.secondaryMuted)
                         Text("${statement.cycleStart.short()} – ${statement.cycleEnd.long()}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
                     }
+                    if (deposit) Text("Cuenta •••• ${statement.accountReference.orEmpty()}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted,
+                        modifier = Modifier.testTag("statement_account_reference"))
                 }
                 statement.dueDate?.let { StatementToneChip("Vence ${it.short()}", "warn", Icons.Filled.AccessTime) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (deposit) DepositTotals(statement, lines)
+            else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 listOf(Currency.PEN to statement.reconciledPen, Currency.USD to statement.reconciledUsd).forEach { (currency, matches) ->
                     val rows = lines.filter { it.currency == currency && it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }
                     if (rows.isNotEmpty()) Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -201,7 +225,7 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
             }
             HorizontalDivider(color = palette.borderSubtle)
             Text("TARJETA DE KIPU", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, color = palette.secondaryMuted, letterSpacing = .6.sp)
-            val card = state.card
+            val card = state.selectedCard
             if (card == null) Surface(onClick = onPickCard, enabled = editable, shape = RoundedCornerShape(16.dp), color = statementTone("warn").bg,
                 border = BorderStroke(1.5.dp, statementTone("warn").border), modifier = Modifier.fillMaxWidth().testTag("statement_card_required")) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -209,8 +233,9 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
                         Icon(Icons.Filled.CreditCard, null, Modifier.size(22.dp), tint = statementTone("warn").fg)
                     }
                     Column(Modifier.weight(1f)) {
-                        Text("Elige la tarjeta", fontWeight = FontWeight.Bold, color = palette.primaryText)
-                        Text("Necesaria para registrar", style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
+                        Text(if (deposit) "Elige tu tarjeta de débito" else "Elige la tarjeta", fontWeight = FontWeight.Bold, color = palette.primaryText)
+                        Text(if (deposit && state.debitCards.isEmpty()) "Agrega los últimos 4 dígitos de tu tarjeta de débito en Cuentas › editar cuenta" else if (deposit) "Los movimientos se registrarán en su cuenta vinculada" else "Necesaria para registrar",
+                            style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
                     }
                     Icon(Icons.Filled.ChevronRight, null, tint = statementTone("warn").fg)
                 }
@@ -221,10 +246,43 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
                 }
                 Column(Modifier.weight(1f)) {
                     Text("${card.alias ?: card.issuer} •••• ${card.lastFourDigits}", fontWeight = FontWeight.Bold, color = palette.primaryText, maxLines = 1)
-                    if (card.lastFourDigits == statement.cardLastFour) StatementToneChip("Coincide con el PDF", "ok", Icons.Filled.Check)
+                    // A savings statement carries no card digits to compare: name the account that receives the movements instead.
+                    if (card is DebitCard) Text("Cuenta ${state.accounts.find { it.id == card.linkedAccountId }?.alias ?: "vinculada"} · ${card.currency.name}",
+                        style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted, maxLines = 1, modifier = Modifier.testTag("statement_linked_account"))
+                    else if (card.lastFourDigits == statement.cardLastFour) StatementToneChip("Coincide con el PDF", "ok", Icons.Filled.Check)
                     else Text(card.currency.name, style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
                 }
                 TextButton(onClick = onPickCard, enabled = editable, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cambiar", fontWeight = FontWeight.Bold) }
+            }
+        }
+    }
+}
+
+/** Savings statement at a glance: per currency, what left (cargos) and what came in (abonos), checked against the PDF summary. */
+@Composable
+private fun DepositTotals(statement: StatementImport, lines: List<StatementImportLine>) {
+    val palette = rememberCalmEmeraldColors()
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        listOf(Currency.PEN to statement.reconciledPen, Currency.USD to statement.reconciledUsd).forEach { (currency, matches) ->
+            if (lines.any { it.currency == currency } || currency in statement.accountTotals) Column(Modifier.weight(1f).testTag("statement_deposit_totals_${currency.name}"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(currency.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, color = palette.secondaryMuted, letterSpacing = .6.sp)
+                val totals = statement.accountTotals[currency]
+                if (totals != null) {
+                    Text("Saldo anterior → Saldo final", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                    Text(listOf(totals.previousBalanceMinor, totals.closingBalanceMinor).joinToString(" → ") { balance ->
+                        balance?.let { statementSymbol(currency) + statementPlainAmount(it) } ?: "—"
+                    }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = palette.primaryText)
+                }
+                listOf(false, true).forEach { credit ->
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (credit) "Abonos" else "Cargos", Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                        val total = if (credit) totals?.creditsMinor else totals?.debitsMinor
+                        Text(total?.let { (if (credit) "+" else "−") + statementSymbol(currency) + statementPlainAmount(it) }
+                            ?: statementFlowTotal(lines, currency, credit), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold,
+                            color = if (credit) palette.incomeText else palette.primaryText, maxLines = 1)
+                    }
+                }
+                if (matches == true) StatementToneChip("Verificado", "ok", Icons.Filled.Check) else StatementToneChip("Totales no cuadran", "warn", Icons.Filled.WarningAmber)
             }
         }
     }
@@ -317,7 +375,7 @@ private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUi
     val palette = rememberCalmEmeraldColors()
     val error = state.failures[line.id]?.message() ?: "Elige una categoría para continuar".takeIf { line.id in state.missingCategoryIds }
     val credit = line.isCredit()
-    val category = state.categories.find { it.id == line.categoryId }
+    val category = state.categoriesFor(line.kind).find { it.id == line.categoryId }
     val editableLine = enabled && line.status == StatementImportLineStatus.PENDING && line.kind != StatementLineKind.POINTS_REDEMPTION
     Row(Modifier.fillMaxWidth().background(if (error != null) statementTone("bad").bg.copy(alpha = .35f) else Color.Transparent)
         .clickable(enabled = editableLine, onClick = onEdit).testTag("statement_line_${line.id}").padding(horizontal = 12.dp, vertical = 12.dp).heightIn(min = 64.dp),
@@ -336,8 +394,9 @@ private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUi
                 }
             }
             if (line.possibleDuplicate) StatementToneChip("Posible duplicado", "bad", Icons.Filled.WarningAmber)
+            if (line.maybeOwnTransfer()) Box(Modifier.testTag("statement_own_transfer_${line.id}")) { StatementToneChip("¿Transferencia propia?", "blue", Icons.Filled.SwapHoriz) }
             if (line.kind == StatementLineKind.POINTS_REDEMPTION) Text("Informativo: el canje de puntos no se registra.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
-            if (state.card != null && state.card?.currency != line.currency) Text("Moneda distinta a la tarjeta; no se puede seleccionar.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+            if (state.selectedCard != null && state.selectedCard?.currency != line.currency) Text("Moneda distinta a la tarjeta; no se puede seleccionar.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
             if (line.kind == StatementLineKind.CARD_PAYMENT) Text("Cuenta origen: ${state.accounts.find { it.id.value == line.sourceAccountId }?.alias ?: "Elige una cuenta"}",
                 style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
             if (line.status == StatementImportLineStatus.REGISTERED) StatementToneChip("Registrado", "ok", Icons.Filled.Check)
@@ -351,14 +410,14 @@ private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUi
 }
 
 @Composable
-private fun EmptyCycle(onBack: () -> Unit) {
+private fun EmptyCycle(deposit: Boolean, onBack: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
     Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(palette.pillTrack), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.ReceiptLong, null, Modifier.size(34.dp), tint = palette.secondaryMuted)
         }
-        Text("No hay movimientos en este ciclo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, color = palette.primaryText)
-        Text("El estado se leyó bien, pero no trae compras en este ciclo.", style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted, textAlign = TextAlign.Center)
+        Text(if (deposit) "No hay movimientos en este periodo" else "No hay movimientos en este ciclo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, color = palette.primaryText)
+        Text(if (deposit) "El estado se leyó bien, pero no trae cargos ni abonos en este periodo." else "El estado se leyó bien, pero no trae compras en este ciclo.", style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted, textAlign = TextAlign.Center)
         TextButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver", fontWeight = FontWeight.Bold) }
     }
 }
@@ -370,11 +429,12 @@ private fun EmptyCycle(onBack: () -> Unit) {
 @Composable
 private fun ReviewBottomBar(state: StatementReviewUiState, onRegister: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
+    val deposit = state.snapshot?.statement?.isDeposit == true
     Surface(color = palette.surfaceCard, shadowElevation = 8.dp) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
             Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${state.selected.size} seleccionados", fontWeight = FontWeight.ExtraBold, color = palette.primaryText, modifier = Modifier.testTag("statement_selected_count"))
-                Text(statementTotals(state.selected), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted, modifier = Modifier.testTag("statement_selected_summary"))
+                Text(if (deposit) statementFlowTotals(state.selected) else statementTotals(state.selected), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted, modifier = Modifier.testTag("statement_selected_summary"))
             }
             Button(onClick = onRegister, enabled = state.canConfirm, shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
@@ -383,9 +443,9 @@ private fun ReviewBottomBar(state: StatementReviewUiState, onRegister: () -> Uni
                 else { Text("Registrar ${state.selected.size} movimientos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
             }
             when {
-                state.card == null -> Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                state.selectedCard == null -> Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.WarningAmber, null, Modifier.size(14.dp), tint = statementTone("warn").fg)
-                    Text("Elige la tarjeta para continuar", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = statementTone("warn").fg)
+                    Text(if (deposit) "Elige la tarjeta de débito para continuar" else "Elige la tarjeta para continuar", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = statementTone("warn").fg)
                 }
                 state.selected.isEmpty() -> Text("Marca al menos un movimiento para registrar.", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
             }
@@ -399,12 +459,19 @@ private fun StatementConfirmSheet(state: StatementReviewUiState, onDismiss: () -
     val palette = rememberCalmEmeraldColors()
     val selected = state.selected
     val missing = selected.count { it.categoryId == null && it.needsPurchaseCategory() }
+    val deposit = state.snapshot?.statement?.isDeposit == true
+    val linkedAccount = (state.selectedCard as? DebitCard)?.let { card -> state.accounts.find { it.id == card.linkedAccountId } }
     fun group(title: String, kinds: Set<StatementLineKind>): Triple<String, Int, String>? {
         val rows = selected.filter { it.kind in kinds }
         if (rows.isEmpty()) return null
         return Triple(title, rows.size, rows.groupBy { it.currency }.entries.joinToString(" · ") { (c, r) -> statementCurrencyTotal(r, c) })
     }
-    val groups = listOfNotNull(
+    fun flow(title: String, credit: Boolean): Triple<String, Int, String>? {
+        val rows = selected.filter { it.isCredit() == credit }
+        if (rows.isEmpty()) return null
+        return Triple(title, rows.size, rows.map { it.currency }.distinct().joinToString(" · ") { statementFlowTotal(rows, it, credit) })
+    }
+    val groups = if (deposit) listOfNotNull(flow("Cargos", false), flow("Abonos", true)) else listOfNotNull(
         group("Compras", setOf(StatementLineKind.PURCHASE, StatementLineKind.INSTALLMENT_PURCHASE)),
         group("Devoluciones", setOf(StatementLineKind.REFUND)), group("Pagos de tarjeta", setOf(StatementLineKind.CARD_PAYMENT)),
         group("Intereses", setOf(StatementLineKind.INTEREST)), group("Seguros y comisiones", setOf(StatementLineKind.INSURANCE, StatementLineKind.FEE)),
@@ -415,13 +482,14 @@ private fun StatementConfirmSheet(state: StatementReviewUiState, onDismiss: () -
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Registrar ${selected.size} movimientos", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
-                state.card?.let { card ->
+                state.selectedCard?.let { card ->
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(palette.tealTint(.08f)).border(1.5.dp, palette.tealTint(.3f), RoundedCornerShape(16.dp)).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Filled.CreditCard, null, tint = palette.primaryDeep)
                         Column {
                             Text("SE REGISTRAN EN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep, letterSpacing = .6.sp)
                             Text("${card.alias ?: card.issuer} •••• ${card.lastFourDigits}", fontWeight = FontWeight.Bold, color = palette.primaryText)
+                            linkedAccount?.let { Text("Cuenta ${it.alias}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted) }
                         }
                     }
                 }
@@ -447,7 +515,8 @@ private fun StatementConfirmSheet(state: StatementReviewUiState, onDismiss: () -
                             color = if (missing > 0) statementTone("warn").fg else palette.secondaryMuted, fontWeight = if (missing > 0) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
-                Text("Se suman a los movimientos de la tarjeta y actualizan tu deuda. Podrás editarlos después.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                Text(if (deposit) "Se registrarán ${selected.size} movimientos en ${linkedAccount?.alias ?: "la cuenta vinculada"}: los cargos como gastos y los abonos como ingresos. Podrás editarlos después."
+                    else "Se suman a los movimientos de la tarjeta y actualizan tu deuda. Podrás editarlos después.", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
             }
             Spacer(Modifier.height(14.dp))
             Button(onClick = onConfirm, enabled = missing == 0, shape = RoundedCornerShape(16.dp),
@@ -488,7 +557,7 @@ private fun StatementSuccess(state: StatementReviewUiState, lines: List<Statemen
             Text("${state.successCount} movimientos registrados", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center, modifier = Modifier.testTag("statement_success"))
             Spacer(Modifier.height(10.dp))
-            Text("Ya están en tu tarjeta y tu deuda refleja el estado de cuenta.", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+            Text(if (state.snapshot?.statement?.isDeposit == true) "Ya están en tu cuenta como gastos e ingresos." else "Ya están en tu tarjeta y tu deuda refleja el estado de cuenta.", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             if (registered.isNotEmpty()) Row(Modifier.padding(top = 26.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SuccessStat("$categorized", "con categoría", Modifier.weight(1f))
                 SuccessStat("${registered.size - categorized}", "sin categoría", Modifier.weight(1f))
@@ -544,8 +613,9 @@ internal fun StatementNotice(text: String, modifier: Modifier = Modifier, onDism
 }
 
 @Composable
-internal fun StatementCategoryPicker(categories: List<CategoryOption>, selected: String?, onSelect: (CategoryOption) -> Unit, onDismiss: () -> Unit) {
-    PastelCategoryPickerBottomSheet(categories = categories, selectedCategoryId = selected, onSelect = onSelect,
+internal fun StatementCategoryPicker(categories: List<CategoryOption>, selected: String?, onSelect: (CategoryOption) -> Unit, onDismiss: () -> Unit,
+    subtitle: String = "Selecciona una categoría o subcategoría para clasificar tu gasto") {
+    PastelCategoryPickerBottomSheet(categories = categories, selectedCategoryId = selected, onSelect = onSelect, subtitle = subtitle,
         onCreateCategory = { _, _, _, _, _ -> Result.failure(UnsupportedOperationException()) },
         onDismiss = onDismiss, allowCreate = false, directSelectionMode = true)
 }
@@ -554,4 +624,9 @@ internal fun statementTotals(lines: List<StatementImportLine>): String = lines.g
         total + BigDecimal.valueOf(line.amountMinor).let { if (line.kind == StatementLineKind.REFUND || line.kind == StatementLineKind.CARD_PAYMENT) -it else it }
     }.movePointLeft(2).toPlainString()
     "${currency.name} $amount"
+}.ifEmpty { "Sin importe" }
+
+/** Savings statement: per currency, cargos and abonos apart; they are different movements, never netted. */
+internal fun statementFlowTotals(lines: List<StatementImportLine>): String = lines.groupBy { it.currency }.entries.joinToString(" · ") { (currency, rows) ->
+    "${currency.name} −${statementPlainAmount(rows.filterNot { it.isCredit() }.sumOf { it.amountMinor })} / +${statementPlainAmount(rows.filter { it.isCredit() }.sumOf { it.amountMinor })}"
 }.ifEmpty { "Sin importe" }

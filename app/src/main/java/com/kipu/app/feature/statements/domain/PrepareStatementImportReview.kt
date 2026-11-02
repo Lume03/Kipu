@@ -27,6 +27,7 @@ class PrepareStatementImportReview @Inject constructor(
         if (snapshot.statement.status != StatementImportStatus.PENDING) return snapshot
         for (line in snapshot.lines) {
             if (line.status != StatementImportLineStatus.PENDING || !line.needsPurchaseCategory() || line.categoryId != null) continue
+            if (line.kind == StatementLineKind.ACCOUNT_CREDIT) continue
             val merchant = merchant(ownerId, line)
             val suggestion = systemCategory(ownerId, line.kind) ?: merchant?.let {
                 // Only learned preferences are persisted here: a general catalog suggestion is not
@@ -49,8 +50,17 @@ class PrepareStatementImportReview @Inject constructor(
                 effectiveCategory(ownerId, it) == null
         }.map { it.id }
 
-    internal suspend fun effectiveCategory(ownerId: String, line: StatementImportLine): String? =
-        line.categoryId?.takeIf(String::isNotBlank) ?: systemCategory(ownerId, line.kind)
+    internal suspend fun effectiveCategory(ownerId: String, line: StatementImportLine): String? {
+        val id = line.categoryId?.takeIf(String::isNotBlank) ?: systemCategory(ownerId, line.kind) ?: return null
+        if (line.kind != StatementLineKind.ACCOUNT_DEBIT && line.kind != StatementLineKind.ACCOUNT_CREDIT) return id
+        val all = categories.observeCategories(UserId(ownerId)).first().associateBy { it.id.value }
+        val category = all[id] ?: return null
+        val expected = if (line.kind == StatementLineKind.ACCOUNT_CREDIT) CategoryType.INCOME else CategoryType.EXPENSE
+        return id.takeIf { category.isActive && !category.isPlanLocked &&
+            (category.ownerId == null || category.ownerId == UserId(ownerId)) &&
+            (category.categoryType == CategoryType.GENERAL || category.categoryType == expected) &&
+            (category.parentId == null || all[category.parentId.value]?.let { it.isActive && !it.isPlanLocked } == true) }
+    }
 
     private suspend fun systemCategory(ownerId: String, kind: StatementLineKind): String? {
         // Canonical system ids from the existing category catalog; never create replacement categories.
@@ -70,7 +80,7 @@ class PrepareStatementImportReview @Inject constructor(
     }
 
     internal suspend fun learn(ownerId: String, line: StatementImportLine) {
-        if (!line.needsPurchaseCategory()) return
+        if (!line.needsPurchaseCategory() || line.kind == StatementLineKind.ACCOUNT_CREDIT) return
         val categoryId = line.categoryId?.takeIf(String::isNotBlank) ?: return
         // The model stores explicit category edits, while automatic system fallbacks are not corrections.
         if (categoryId == systemCategory(ownerId, line.kind)) return
@@ -100,5 +110,5 @@ class PrepareStatementImportReview @Inject constructor(
 
 internal fun StatementImportLine.needsPurchaseCategory(): Boolean = kind in setOf(
     StatementLineKind.PURCHASE, StatementLineKind.INSTALLMENT_PURCHASE, StatementLineKind.INTEREST,
-    StatementLineKind.INSURANCE, StatementLineKind.FEE,
+    StatementLineKind.INSURANCE, StatementLineKind.FEE, StatementLineKind.ACCOUNT_DEBIT, StatementLineKind.ACCOUNT_CREDIT,
 )
