@@ -56,7 +56,7 @@ class DebtReminderSchedulerTest {
 
     @Test
     fun replanReplacesUniqueWorkForTheSameInstallmentAndDueDateChange() {
-        val scheduler = scheduler(allowed = true)
+        val scheduler = scheduler()
         val first = request("2026-12-10")
         val replacement = request("2027-01-10")
 
@@ -73,7 +73,7 @@ class DebtReminderSchedulerTest {
 
     @Test
     fun retryWithTheSameReminderIdentityKeepsOnlyOnePendingWork() {
-        val scheduler = scheduler(allowed = true)
+        val scheduler = scheduler()
         val reminder = request("2026-12-10")
 
         scheduler.schedule(reminder)
@@ -87,8 +87,8 @@ class DebtReminderSchedulerTest {
 
     @Test
     fun deniedNotificationPermissionKeepsReminderScheduledWithoutChangingTheDebt() {
-        val allowed = scheduler(allowed = true)
-        val denied = scheduler(allowed = false)
+        val allowed = scheduler()
+        val denied = scheduler()
         val reminder = request("2026-12-10")
 
         allowed.schedule(reminder)
@@ -104,7 +104,7 @@ class DebtReminderSchedulerTest {
     fun explicitZeroLeadDaysDoesNotScheduleReminder() {
         val reminder = request("2026-12-10").copy(leadDays = 0)
 
-        scheduler(allowed = true).schedule(reminder)
+        scheduler().schedule(reminder)
 
         val work = workManager.getWorkInfosForUniqueWork(DebtReminderScheduler.uniqueWorkName(reminder)).get()
         assertTrue(work.isEmpty() || work.all { it.state == WorkInfo.State.CANCELLED })
@@ -114,7 +114,7 @@ class DebtReminderSchedulerTest {
     fun configuredLeadsScheduleIndependentlyPerInstallment() {
         val defaultReminder = request("2026-12-10", leadDays = 2)
         val customReminder = request("2026-12-10", leadDays = 7).copy(installmentId = OTHER_INSTALLMENT_ID)
-        val scheduler = scheduler(allowed = true)
+        val scheduler = scheduler()
 
         scheduler.schedule(defaultReminder)
         scheduler.schedule(customReminder)
@@ -127,7 +127,7 @@ class DebtReminderSchedulerTest {
 
     @Test
     fun cancellingPreviousOwnerDoesNotCancelCurrentOwnersWork() {
-        val scheduler = scheduler(allowed = true)
+        val scheduler = scheduler()
         val oldOwnerReminder = request("2026-12-10")
         val currentOwnerReminder = oldOwnerReminder.copy(userId = OTHER_OWNER_ID)
         scheduler.schedule(oldOwnerReminder)
@@ -165,7 +165,7 @@ class DebtReminderSchedulerTest {
             )
             awaitActiveNotification(tag, 0, timeoutMillis = 3_000)
 
-            scheduler(allowed = true).schedule(original.copy(dueDate = LocalDate.parse("2027-01-10")))
+            scheduler().schedule(original.copy(dueDate = LocalDate.parse("2027-01-10")))
 
             assertTrue(
                 "Replanning must withdraw the previously posted system notification",
@@ -200,7 +200,7 @@ class DebtReminderSchedulerTest {
             }
             NotificationManagerCompat.from(context).notify(tag, 0, builder.build())
             awaitActiveNotification(tag, 0, timeoutMillis = 3_000)
-            scheduler(allowed = true).schedule(request("2026-12-10"))
+            scheduler().schedule(request("2026-12-10"))
             assertTrue("Notice with metadata '$dueDateMetadata' must be preserved", manager.activeNotifications.any { it.tag == tag && it.id == 0 })
         } finally {
             NotificationManagerCompat.from(context).cancel(tag, 0)
@@ -239,7 +239,7 @@ class DebtReminderSchedulerTest {
             val posted = manager.activeNotifications.map { it.tag to it.id }.toSet()
             tags.forEach { assertTrue("Expected posted notification $it/0; active=$posted", it to 0 in posted) }
 
-            scheduler(allowed = true).cancel(OWNER_ID, DEBT_ID, INSTALLMENT_ID)
+            scheduler().cancel(OWNER_ID, DEBT_ID, INSTALLMENT_ID)
 
             val active = manager.activeNotifications.map { it.tag to it.id }.toSet()
             assertTrue("Target installment notification should be cancelled", target to 0 !in active)
@@ -280,12 +280,9 @@ class DebtReminderSchedulerTest {
         )
     }
 
-    private fun scheduler(allowed: Boolean) = WorkManagerDebtReminderScheduler(
+    private fun scheduler() = WorkManagerDebtReminderScheduler(
         context = context,
         workManager = workManager,
-        permissionChecker = object : DebtNotificationPermissionChecker {
-            override fun canPostDebtReminder(): Boolean = allowed
-        },
     )
 
     private fun request(dueDate: String, leadDays: Int = 3) = DebtReminderRequest(

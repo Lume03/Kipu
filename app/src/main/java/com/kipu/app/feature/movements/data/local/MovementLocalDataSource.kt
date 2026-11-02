@@ -754,7 +754,6 @@ class MovementLocalDataSource @Inject constructor(
             val hasSpecializedRelations = txEntity.cardId != null ||
                 txEntity.installmentCount != null ||
                 !txEntity.legacyKind.isNullOrBlank()
-            val isStandardKind = txEntity.operationKind.equals("STANDARD", ignoreCase = true)
             val isLegacyStandard = txEntity.operationKind == null && !hasSpecializedRelations
             val context = MovementMaintenanceContext(
                 hasSpecializedRelations = hasSpecializedRelations,
@@ -980,7 +979,6 @@ class MovementLocalDataSource @Inject constructor(
             val hasSpecializedRelations = txEntity.cardId != null ||
                 txEntity.installmentCount != null ||
                 !txEntity.legacyKind.isNullOrBlank()
-            val isStandardKind = txEntity.operationKind.equals("STANDARD", ignoreCase = true)
             val isLegacyStandard = txEntity.operationKind == null && !hasSpecializedRelations
             val context = MovementMaintenanceContext(
                 hasSpecializedRelations = hasSpecializedRelations,

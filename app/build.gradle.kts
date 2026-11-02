@@ -176,7 +176,6 @@ dependencies {
     // Persistence
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
-    testImplementation(libs.androidx.room.testing)
     implementation(libs.androidx.datastore.preferences)
 
     // Background work

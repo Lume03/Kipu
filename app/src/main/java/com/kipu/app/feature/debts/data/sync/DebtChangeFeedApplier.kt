@@ -16,7 +16,6 @@ import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.movements.data.local.MovementDao
 import java.time.Clock
-import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton

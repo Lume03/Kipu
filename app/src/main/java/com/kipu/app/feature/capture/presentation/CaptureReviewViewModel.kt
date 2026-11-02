@@ -374,7 +374,6 @@ class CaptureReviewViewModel @Inject constructor(
 
     fun dismissSimilar() = _state.update { it.copy(similarTransaction = null) }
 
-    fun dismissError() = _state.update { it.copy(generalError = null) }
 
     private fun submit(acceptSimilar: Boolean) {
         val owner = ownerId ?: return

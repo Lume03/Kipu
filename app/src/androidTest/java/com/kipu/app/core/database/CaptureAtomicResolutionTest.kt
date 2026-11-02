@@ -68,10 +68,10 @@ class CaptureAtomicResolutionTest {
     ).toDomain()
 
     private fun confirm(candidateStore: CaptureCandidateStore = store) = ConfirmCaptureCandidate(
-        candidateStore, gate, register, mockk<ConfirmCreditPurchase>(), { _, _, _ -> null }, Clock.systemUTC(), emptySet(),
+        candidateStore, gate, register, mockk<ConfirmCreditPurchase>(), { _, _, _ -> null }, Clock.systemUTC(),
         runner, receipts, CaptureResolutionFollowups(store, emptySet(), emptySet()),
     )
-    private fun discard() = DiscardCaptureCandidate(store, Clock.systemUTC(), emptySet(), runner, receipts,
+    private fun discard() = DiscardCaptureCandidate(store, Clock.systemUTC(), runner, receipts,
         CaptureResolutionFollowups(store, emptySet(), emptySet()))
 
     @Test fun confirmationAndAutomaticRegistrationSerializeWithDiscard() = runBlocking {

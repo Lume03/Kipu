@@ -1,6 +1,5 @@
 package com.kipu.app.feature.accounts.domain.model
 
-import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.finance.domain.model.Money
 

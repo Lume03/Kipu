@@ -97,10 +97,6 @@ interface FinancialMovementDao {
         rebuildAccountProjection(movement.userId, accountId, System.currentTimeMillis())
     }
 
-    @Transaction
-    suspend fun insertAll(movements: List<FinancialMovementEntity>) {
-        movements.forEach { insert(it) }
-    }
 
     @Query("SELECT * FROM financial_movements WHERE user_id = :userId AND id = :id")
     suspend fun getById(userId: String, id: String): FinancialMovementEntity?
@@ -140,14 +136,8 @@ interface FinancialMovementDao {
     """)
     fun observeCardDebt(userId: String, cardId: String): Flow<Long>
 
-    @Query("""
-        SELECT COALESCE(SUM(amount_minor_units), 0) FROM financial_movements 
-        WHERE user_id = :userId AND card_id = :cardId AND status = 'POSTED'
-    """)
-    suspend fun getCardDebt(userId: String, cardId: String): Long
 
-    @Query("SELECT COUNT(*) FROM ledger_entries WHERE user_id = :userId AND account_id = :accountId")
-    suspend fun countByAccount(userId: String, accountId: String): Int
+
 
     @Query("SELECT COUNT(*) FROM financial_movements WHERE user_id = :userId AND card_id = :cardId")
     suspend fun countByCard(userId: String, cardId: String): Int

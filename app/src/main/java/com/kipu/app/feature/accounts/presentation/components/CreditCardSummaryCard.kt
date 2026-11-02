@@ -70,7 +70,6 @@ fun CreditCardSummaryCard(
         DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))
     }
     val formattedDue = remember(nextDue) { nextDue.format(dateFormatter) }
-    val formattedBilling = remember(nextBilling) { nextBilling.format(dateFormatter) }
 
     val isMasked = LocalBalanceMasked.current
     val progressColorTarget = if (isMasked) {

@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -44,8 +43,6 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND is_archived = 1 ORDER BY created_at DESC")
     fun observeArchived(userId: String): Flow<List<AccountEntity>>
 
-    @Query("SELECT COUNT(*) FROM accounts WHERE user_id = :userId AND is_archived = 0 AND type NOT IN ('CASH', 'GOALS_VIRTUAL', 'CREDIT_LIABILITY')")
-    suspend fun countActiveComputableAccounts(userId: String): Int
 
     @Query("SELECT COUNT(*) FROM accounts WHERE user_id = :userId AND creation_operation_id = :creationOperationId")
     suspend fun countByCreationOperationId(userId: String, creationOperationId: String): Int

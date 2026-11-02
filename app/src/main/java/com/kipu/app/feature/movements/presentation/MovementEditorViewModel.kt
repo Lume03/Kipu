@@ -12,7 +12,6 @@ import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
 import com.kipu.app.feature.categories.domain.CategoriesRepository
 import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
-import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity
 import com.kipu.app.feature.movements.data.local.MovementRevisionSnapshotCodec

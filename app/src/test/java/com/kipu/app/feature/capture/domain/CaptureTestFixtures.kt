@@ -130,11 +130,11 @@ internal fun testConfirmCaptureCandidate(
     listeners: Set<CaptureCandidateResolvedListener>,
     transactions: com.kipu.app.core.database.DatabaseTransactionRunner = TestCaptureTransactions,
     receipts: CaptureRegistrationReceipts = noCaptureReceipts,
-) = ConfirmCaptureCandidate(store, gate, register, credit, channels, clock, listeners, transactions, receipts,
+) = ConfirmCaptureCandidate(store, gate, register, credit, channels, clock, transactions, receipts,
     CaptureResolutionFollowups(store, listeners, emptySet()))
 
 internal fun testDiscardCaptureCandidate(store: CaptureCandidateStore, clock: java.time.Clock) =
-    DiscardCaptureCandidate(store, clock, emptySet(), TestCaptureTransactions, noCaptureReceipts,
+    DiscardCaptureCandidate(store, clock, TestCaptureTransactions, noCaptureReceipts,
         CaptureResolutionFollowups(store, emptySet(), emptySet()))
 
 internal class FakeCaptureAccessGate(

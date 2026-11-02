@@ -271,8 +271,6 @@ interface MovementDao {
     @Query("SELECT * FROM transaction_revisions WHERE user_id=:userId AND transaction_id=:transactionId ORDER BY local_revision,revision_id")
     suspend fun getRevisions(userId: String, transactionId: String): List<TransactionRevisionEntity>
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertOfficialRevision(assignment: MovementOfficialRevisionEntity)
 
     @Query("SELECT * FROM movement_official_revisions WHERE user_id=:userId AND transaction_id=:transactionId AND official_revision=:revision")
     suspend fun getOfficialRevision(userId: String, transactionId: String, revision: Long): MovementOfficialRevisionEntity?

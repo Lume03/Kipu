@@ -62,10 +62,8 @@ class CategoryUseCasesTest {
             merchantRulesDao = FakeMerchantRulesDao(),
             sessionCoordinator = sessionCoordinator,
             syncScheduler = syncScheduler,
-            featureAccessPolicy = FeatureAccessPolicy(),
             quotaSelectionDao = FakeQuotaSelectionDao(),
             featureAccessCacheDao = FakeFeatureAccessCacheDao(),
-            quotaPolicy = com.kipu.app.feature.plans.domain.PlanQuotaPolicy(),
         )
 
         observeCategories = ObserveCategories(repository)

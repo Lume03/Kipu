@@ -11,7 +11,6 @@ import com.kipu.app.feature.categories.domain.model.Category
 import com.kipu.app.feature.categories.domain.model.CategoryPresentation
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.MerchantCategoryPreference
-import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.domain.usecase.DeleteMerchantCategoryPreference
 import com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference

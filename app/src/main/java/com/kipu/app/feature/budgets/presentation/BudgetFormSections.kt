@@ -1,6 +1,5 @@
 package com.kipu.app.feature.budgets.presentation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -21,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.budgets.domain.Budget
 import com.kipu.app.feature.budgets.domain.BudgetPeriodType
 import com.kipu.app.feature.movements.presentation.resolveCatalogIcon
-import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.KipuOptionalDateField
 import com.kipu.app.ui.theme.rememberPlanningColors
 

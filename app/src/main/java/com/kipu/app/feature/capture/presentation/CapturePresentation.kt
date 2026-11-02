@@ -14,7 +14,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal val CAPTURE_ZONE: ZoneId = ZoneId.of("America/Lima")
-private val CAPTURE_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm", Locale("es", "PE"))
 private val CAPTURE_DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale("es", "PE"))
 private val CAPTURE_SHORT_DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale("es", "PE"))
 private val CAPTURE_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale("es", "PE"))
@@ -50,8 +49,6 @@ internal fun formatCaptureAmount(amountMinor: Long?, currency: String?): String?
     return listOf(currencySymbol(currency), value).filter(String::isNotBlank).joinToString(" ")
 }
 
-internal fun formatCaptureDateTime(millis: Long): String =
-    CAPTURE_DATE_FORMAT.format(Instant.ofEpochMilli(millis).atZone(CAPTURE_ZONE))
 
 internal fun formatCaptureDay(millis: Long): String =
     CAPTURE_DAY_FORMAT.format(Instant.ofEpochMilli(millis).atZone(CAPTURE_ZONE))

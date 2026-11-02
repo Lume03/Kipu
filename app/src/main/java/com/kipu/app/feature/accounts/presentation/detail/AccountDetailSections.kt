@@ -5,14 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -34,7 +32,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -246,16 +243,6 @@ private fun QuickActionTile(
     }
 }
 
-@Composable
-internal fun AccountSectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = rememberCalmEmeraldColors().primaryDeep,
-        modifier = modifier,
-    )
-}
 
 @Composable
 internal fun AccountOpeningBalanceRow(account: Account, enabled: Boolean, onCorrect: () -> Unit) {
@@ -553,25 +540,6 @@ private fun ArchiveNote(text: String, container: Color, content: Color) {
     }
 }
 
-@Composable
-internal fun ColumnScope.ArchiveDebtNote(debt: Money) {
-    val colors = rememberCalmEmeraldColors()
-    Surface(shape = RoundedCornerShape(12.dp), color = colors.warningBg, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Tienes deuda pendiente de", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
-            MoneyText(debt, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = colors.warningText)
-        }
-    }
-    Text(
-        "La deuda se conserva; reactiva la tarjeta para registrar el pago.",
-        style = MaterialTheme.typography.bodySmall,
-        color = colors.secondaryMuted,
-    )
-}
 
 /** C10 / T loading: placeholders shaped like the final content, announced once to TalkBack. */
 @Composable

@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -243,4 +242,3 @@ internal enum class ChipTone { Ready, Warning, Solid, Neutral }
 internal fun readyChipIcon(): ImageVector = Icons.Filled.Check
 internal fun warningChipIcon(): ImageVector = Icons.Filled.WarningAmber
 internal fun receiptTypeIcon(income: Boolean?): ImageVector = when (income) { true -> Icons.Filled.ArrowDownward; false -> Icons.Filled.NorthEast; null -> Icons.Filled.ReceiptLong }
-internal fun forwardIcon(): ImageVector = Icons.AutoMirrored.Filled.ArrowForward

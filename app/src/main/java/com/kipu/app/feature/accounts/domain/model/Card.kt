@@ -53,9 +53,6 @@ sealed interface Card {
     val isComputableForQuota: Boolean
         get() = true
 
-    val maskedDisplay: String
-        get() = "•••• $lastFourDigits"
-
     fun validateCardCommon() {
         require(isValidLastFourDigits(lastFourDigits)) {
             "Last four digits must be exactly 4 numeric digits"

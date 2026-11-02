@@ -2,14 +2,8 @@ package com.kipu.app.feature.categories.data.sync
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
@@ -37,8 +31,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.Instant
 import java.time.OffsetDateTime
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 

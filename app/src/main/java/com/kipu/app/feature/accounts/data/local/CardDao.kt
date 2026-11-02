@@ -34,8 +34,6 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE user_id = :userId AND account_id = :accountId AND is_archived = 0")
     fun observeActiveDebitCardsForAccount(userId: String, accountId: String): Flow<List<CardEntity>>
 
-    @Query("SELECT COUNT(*) FROM cards WHERE user_id = :userId AND is_archived = 0")
-    suspend fun countActiveCards(userId: String): Int
 
     @Query("SELECT * FROM cards WHERE user_id = :userId AND issuer = :issuer AND network = :network AND last_four_digits = :lastFourDigits")
     suspend fun findDuplicates(userId: String, issuer: String, network: String, lastFourDigits: String): List<CardEntity>

@@ -2,7 +2,6 @@ package com.kipu.app.feature.receipts.domain
 
 import com.kipu.app.feature.plans.domain.FeatureAccessPolicy
 import com.kipu.app.feature.plans.domain.model.Capability
-import com.kipu.app.feature.plans.domain.model.EffectiveEntitlement
 import com.kipu.app.feature.plans.domain.model.FeatureAccessDecision
 import com.kipu.app.feature.plans.domain.model.FeatureAccessRequest
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits

@@ -54,9 +54,8 @@ class DashboardAccountGroupingTest {
     }
 
     @Test
-    fun emptyListsKeepAZeroInSolesAndPlanLabelUsesRealQuota() {
+    fun emptyListsKeepAZeroInSoles() {
         assertEquals(mapOf(Currency.PEN to 0L), sumByCurrency(emptyList()) { true })
-        assertEquals("4 de 4 cuentas y tarjetas", planUsageLabel(4, 4))
     }
 
     private fun item(

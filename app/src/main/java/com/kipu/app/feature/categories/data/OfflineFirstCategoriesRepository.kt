@@ -2,7 +2,6 @@ package com.kipu.app.feature.categories.data
 
 import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.core.finance.domain.model.MovementId
-import com.kipu.app.core.finance.domain.model.OperationId
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
@@ -53,14 +52,8 @@ import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.model.MerchantRuleSyncState
 import com.kipu.app.feature.categories.domain.model.MovementClassification
 import com.kipu.app.feature.categories.domain.model.SourceMerchantText
-import com.kipu.app.feature.plans.domain.FeatureAccessPolicy
-import com.kipu.app.feature.plans.domain.model.Capability
-import com.kipu.app.feature.plans.domain.model.FeatureAccessDecision
-import com.kipu.app.feature.plans.domain.model.FeatureAccessRequest
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
-import com.kipu.app.feature.plans.domain.PlanQuotaPolicy
 import com.kipu.app.feature.plans.domain.model.QuotaGroup
-import com.kipu.app.feature.plans.domain.model.EffectiveEntitlement
 import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
@@ -81,10 +74,8 @@ class OfflineFirstCategoriesRepository @Inject constructor(
     private val merchantRulesDao: MerchantRulesDao,
     private val sessionCoordinator: SessionCoordinator,
     private val syncScheduler: CategorySyncScheduler,
-    private val featureAccessPolicy: FeatureAccessPolicy = FeatureAccessPolicy(),
     private val quotaSelectionDao: PlanQuotaSelectionDao,
     private val featureAccessCacheDao: FeatureAccessCacheDao,
-    private val quotaPolicy: PlanQuotaPolicy,
     private val planQuotaSyncScheduler: com.kipu.app.feature.plans.data.sync.PlanQuotaSyncScheduler? = null,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : CategoriesRepository {
@@ -1038,9 +1029,4 @@ class OfflineFirstCategoriesRepository @Inject constructor(
         syncState = MerchantRuleSyncState.entries.firstOrNull { it.name == syncState } ?: MerchantRuleSyncState.FAILED,
     )
 
-    private suspend fun effectiveEntitlement(userId: String): EffectiveEntitlement? {
-        val cache = featureAccessCacheDao.get(UUID.fromString(userId))
-        if (entitlementEvaluator.evaluate(userId, cache) !is OfflineEntitlementLeaseDecision.Allowed) return null
-        return EffectiveEntitlement(verified = true, expiresAtEpochMillis = cache?.entitlementExpiresAt?.toEpochMilli())
-    }
 }

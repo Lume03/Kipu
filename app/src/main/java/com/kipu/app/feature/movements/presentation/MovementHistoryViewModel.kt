@@ -29,7 +29,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -303,7 +302,7 @@ class MovementHistoryViewModel @Inject constructor(
                     } catch (_: Exception) {
                         MovementHistoryAccessDecision.RevalidationRequired(request.query.toBasicFallback())
                     }
-                    if (isCurrent(request)) _panelAccess.value = PanelAccess(request.key, showPanel, decision)
+                    if (isCurrent(request)) _panelAccess.value = PanelAccess(request.key, decision)
                 }
         }
         queryMovementHistoryUseCase?.let { useCase ->
@@ -941,12 +940,6 @@ class MovementHistoryViewModel @Inject constructor(
     }
 }
 
-private fun AdvancedFiltersState.hasPremiumOnlyCriteria(): Boolean =
-    accountIds.isNotEmpty() || categoryIds.isNotEmpty() || minAmountMinor != null ||
-        maxAmountMinor != null || financialStates.isNotEmpty() ||
-        cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty() ||
-        paymentChannels.isNotEmpty()
-
 private fun AdvancedFiltersState.toHistoryCriteria() =
     com.kipu.app.feature.movements.domain.model.AdvancedHistoryCriteria(
         accountIds = accountIds,
@@ -999,7 +992,6 @@ private data class HistoryLoadState(
 )
 private data class PanelAccess(
     val key: HistoryKey? = null,
-    val panelShown: Boolean = false,
     val decision: MovementHistoryAccessDecision = MovementHistoryAccessDecision.NotAuthorized,
 )
 private data class HistoryDetailState(

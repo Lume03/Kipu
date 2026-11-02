@@ -119,7 +119,6 @@ private typealias Clock = () -> Float
 
 private val EaseOut = CubicBezierEasing(0.22f, 0.8f, 0.3f, 1f)
 private val Pop = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
-private val BankBlue = Color(0xFF002A8F)
 
 private fun Clock.at(start: Float, duration: Float): Float = CaptureHowTimeline.progress(invoke(), start, duration)
 

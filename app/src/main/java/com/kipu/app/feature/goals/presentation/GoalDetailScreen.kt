@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Check
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.PlanningProgressRing
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +69,6 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.goals.domain.model.GoalBackingAccount
 import com.kipu.app.feature.goals.domain.model.GoalEvent
 import com.kipu.app.feature.goals.domain.model.GoalStatus
-import com.kipu.app.ui.component.MoneyText
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -378,12 +376,6 @@ private fun parseAmount(raw: String, currency: com.kipu.app.core.finance.domain.
     Money(amount.movePointRight(2).longValueExact(), currency).takeIf { it.minorUnits > 0L }
 }.getOrNull()
 
-private fun GoalStatus.detailLabel(): String = when (this) {
-    GoalStatus.ACTIVE -> "Activa"
-    GoalStatus.COMPLETED -> "Completada"
-    GoalStatus.ARCHIVED -> "Archivada"
-    GoalStatus.LOCKED_BY_PLAN -> "Pausada por el plan · historia conservada"
-}
 
 private fun Long.moneyText(): String = BigDecimal.valueOf(this, 2).toPlainString()
 

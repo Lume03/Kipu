@@ -3,7 +3,6 @@ package com.kipu.app.feature.categories.presentation.categories
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -66,7 +64,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.feature.categories.domain.model.CategoryId
@@ -78,9 +75,6 @@ import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.movements.presentation.CustomPastelColorDialog
 import com.kipu.app.feature.movements.presentation.IconCatalogDialog
 import com.kipu.app.feature.movements.presentation.ParentCategoryChooserDialog
-import com.kipu.app.feature.movements.presentation.PastelColorUtils
-import com.kipu.app.feature.movements.presentation.PastelDesignTokens
-import com.kipu.app.feature.movements.presentation.PastelIconBadge
 import com.kipu.app.ui.theme.rememberKipuColors
 
 // Exact 6 quick icons + 7th item is the "+" button, matching Image 1

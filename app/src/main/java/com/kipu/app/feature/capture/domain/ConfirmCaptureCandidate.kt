@@ -133,7 +133,6 @@ class ConfirmCaptureCandidate @Inject constructor(
     private val confirmCreditPurchase: ConfirmCreditPurchase,
     private val walletChannels: CaptureWalletChannelResolver,
     private val clock: Clock,
-    private val resolvedListeners: Set<@JvmSuppressWildcards CaptureCandidateResolvedListener>,
     private val transactions: DatabaseTransactionRunner,
     private val receipts: CaptureRegistrationReceipts,
     private val followups: CaptureResolutionFollowups,

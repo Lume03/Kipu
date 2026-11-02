@@ -1,7 +1,6 @@
 package com.kipu.app.feature.accounts.domain.usecase
 
 import com.kipu.app.core.finance.domain.model.CardId
-import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.PersonalTea
 import com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository
 import javax.inject.Inject

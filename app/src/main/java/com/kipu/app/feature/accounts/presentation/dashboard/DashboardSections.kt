@@ -32,8 +32,6 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Event
-import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.Add
@@ -81,7 +79,6 @@ import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.colorFromHex
-import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.CardArtThumbnail
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.KipuSkeletonBlock
@@ -98,7 +95,6 @@ import java.util.Locale
 internal const val DASHBOARD_HERO_TAG = "dashboard_hero"
 internal const val DASHBOARD_LOADING_TAG = "dashboard_loading"
 internal const val DASHBOARD_ERROR_TAG = "dashboard_error"
-internal const val DASHBOARD_PLAN_TAG = "dashboard_plan_card"
 
 private val HeroLabel = Color(0xFFBDEFE6)
 private val HeroDot = Color(0xFF7DE0CF)
@@ -124,7 +120,6 @@ internal fun groupAccountsWithWallets(accounts: List<AccountWithBalance>): List<
         .map { DashboardAccountGroup(it, walletsByParent[it.account.id].orEmpty()) }
 }
 
-internal fun planUsageLabel(used: Int, max: Int): String = "$used de $max cuentas y tarjetas"
 
 /** Sums own-money balances by currency; affiliated wallets are excluded because they share a balance. */
 internal fun sumByCurrency(accounts: List<AccountWithBalance>, include: (AccountWithBalance) -> Boolean): Map<Currency, Long> {

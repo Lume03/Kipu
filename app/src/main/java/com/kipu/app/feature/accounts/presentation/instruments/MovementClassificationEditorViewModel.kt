@@ -9,12 +9,10 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.categories.domain.model.CategoryId
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
-import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import com.kipu.app.feature.categories.domain.usecase.SearchMerchantCatalog
 import com.kipu.app.feature.categories.domain.usecase.UpdateMovementClassification
-import com.kipu.app.feature.categories.presentation.components.CatalogStatus
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

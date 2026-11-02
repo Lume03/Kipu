@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kipu.app.feature.categories.domain.CategoriesRepository
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
-import com.kipu.app.feature.categories.domain.model.MerchantId
 import com.kipu.app.feature.categories.domain.usecase.SearchMerchantCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

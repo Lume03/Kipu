@@ -85,8 +85,6 @@ import java.util.UUID
 import java.time.ZoneId
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-
-private val NON_COMPUTABLE_ACCOUNT_TYPES = setOf("CASH", "GOALS_VIRTUAL", "CREDIT_LIABILITY")
 private val DIGITAL_WALLET_CHANNELS = setOf("YAPE", "PLIN")
 
 @OptIn(ExperimentalCoroutinesApi::class)

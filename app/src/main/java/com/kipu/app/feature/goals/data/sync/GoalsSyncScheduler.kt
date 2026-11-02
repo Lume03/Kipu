@@ -27,7 +27,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 

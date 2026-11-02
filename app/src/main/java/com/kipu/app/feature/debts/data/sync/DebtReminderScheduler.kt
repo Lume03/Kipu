@@ -6,18 +6,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import androidx.hilt.work.HiltWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.kipu.app.feature.debts.data.local.DebtDao
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.notifications.data.local.ReminderEventReconciler
 import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.LocalDate
@@ -65,13 +61,6 @@ interface DebtReminderScheduler {
     }
 }
 
-object NoOpDebtReminderScheduler : DebtReminderScheduler {
-    override fun schedule(request: DebtReminderRequest) = Unit
-    override fun cancel(userId: String, debtId: String, installmentId: String) = Unit
-    override fun cancelDebt(userId: String, debtId: String) = Unit
-    override fun cancelUser(userId: String) = Unit
-}
-
 @Singleton
 class AndroidDebtNotificationPermissionChecker @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -87,7 +76,6 @@ class AndroidDebtNotificationPermissionChecker @Inject constructor(
 class WorkManagerDebtReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
     private val workManager: WorkManager,
-    private val permissionChecker: DebtNotificationPermissionChecker,
 ) : DebtReminderScheduler {
     override fun schedule(request: DebtReminderRequest) {
         if (request.userId.isBlank() || request.debtId.isBlank() || request.installmentId.isBlank() ||

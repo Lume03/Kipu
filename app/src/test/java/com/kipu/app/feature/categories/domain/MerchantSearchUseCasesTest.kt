@@ -67,7 +67,6 @@ class MerchantSearchUseCasesTest {
             syncScheduler = syncScheduler,
             quotaSelectionDao = FakeQuotaSelectionDao(),
             featureAccessCacheDao = FakeFeatureAccessCacheDao(),
-            quotaPolicy = com.kipu.app.feature.plans.domain.PlanQuotaPolicy(),
         )
 
         searchMerchantCatalog = SearchMerchantCatalog(repository)

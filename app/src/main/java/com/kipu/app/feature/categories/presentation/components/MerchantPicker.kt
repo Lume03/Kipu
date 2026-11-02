@@ -37,14 +37,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +76,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kipu.app.feature.categories.domain.CategoryRules
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
-import com.kipu.app.feature.categories.domain.model.CategoryId
 
 // TAXONOMÍA DE INTERFAZ (UI TAXONOMY)
 // Documentado en EP-CCO: Agrupación visual coherente para facilitar la búsqueda

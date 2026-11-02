@@ -94,7 +94,6 @@ class EpCcoEndToEndTest {
             syncScheduler = syncScheduler,
             quotaSelectionDao = database.planQuotaSelectionDao(),
             featureAccessCacheDao = database.featureAccessCacheDao(),
-            quotaPolicy = PlanQuotaPolicy(),
         )
     }
 

@@ -1,7 +1,6 @@
 package com.kipu.app.feature.plans.domain
 
 import com.kipu.app.feature.plans.domain.model.*
-import java.util.UUID
 import javax.inject.Inject
 
 class ConfirmPlanSelection @Inject constructor(

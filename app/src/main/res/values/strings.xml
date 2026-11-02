@@ -67,96 +67,90 @@
     <string name="plan_back">Volver</string>
     <string name="plan_choose_action">Elegir plan</string>
     <string name="plan_free_title">Plan Free</string>
-    <string name="plan_free_summary">Gestión financiera esencial para empezar.</string>
-    <string name="plan_free_badge">Permanente</string>
-    <string name="plan_free_no_payment">No requiere método de pago</string>
-    <string name="plan_free_feature_core">Núcleo manual de registro</string>
-    <string name="plan_free_feature_instruments">Hasta 4 instrumentos financieros</string>
-    <string name="plan_free_feature_categories">Hasta 5 categorías personalizadas</string>
-    <string name="plan_free_feature_debts">Hasta 2 deudas activas</string>
-    <string name="plan_free_feature_goals">Hasta 2 metas de ahorro</string>
-    <string name="plan_free_feature_budgets">Hasta 2 presupuestos mensuales</string>
-    <string name="plan_included_content_description">Incluido</string>
-    <string name="plan_trial_title">Prueba Premium Gratis por 7 días</string>
-    <string name="plan_trial_badge">Completo</string>
-    <string name="plan_trial_summary">Periodo de prueba voluntario sin cobro inmediato</string>
-    <string name="plan_trial_info">7 días de acceso completo sin costo. El cobro de S/ 29.99 se realizará al término del periodo de prueba. Cancelación directa desde la configuración de cuenta en cualquier momento sin penalización.</string>
-    <string name="plan_trial_info_content_description">Información del periodo de prueba</string>
-    <string name="plan_annual_info">Opción anual: el precio indicado es S/ 29.99 por año. Esta selección guarda una preferencia; no inicia una prueba ni realiza un cobro.</string>
-    <string name="plan_monthly_info">Opción mensual: el precio indicado es S/ 4.99 por mes. Esta selección guarda una preferencia; no inicia una prueba ni realiza un cobro.</string>
-    <string name="plan_lifetime_info">Opción Lifetime: el precio indicado es S/ 49.99 como pago único. Esta selección guarda una preferencia; no realiza un cobro.</string>
-    <string name="plan_annual_title">Premium Anual</string>
-    <string name="plan_annual_price">S/ 29.99 / año</string>
-    <string name="plan_annual_badge">Recomendado</string>
-    <string name="plan_annual_savings" formatted="false">Ahorro equivalente a 50%</string>
-    <string name="plan_annual_summary">Renovación anual después del periodo de prueba.</string>
-    <string name="plan_monthly_title">Premium Mensual</string>
-    <string name="plan_monthly_price">S/ 4.99 / mes</string>
-    <string name="plan_monthly_summary">Renovación mensual después del periodo de prueba.</string>
-    <string name="plan_lifetime_title">Compra Única Lifetime</string>
-    <string name="plan_lifetime_price">S/ 49.99 pago único</string>
-    <string name="plan_lifetime_badge">Permanente</string>
-    <string name="plan_lifetime_summary">Sin periodo de prueba · Sin renovación</string>
-    <string name="plan_confirm">Confirmar plan</string>
+
+
+
+
+
+
+
+
+
+<string name="plan_included_content_description">Incluido</string>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<string name="plan_confirm">Confirmar plan</string>
     <string name="plan_continue_free">Continuar con Free</string>
     <string name="plan_confirming">Guardando&#8230;</string>
-    <string name="plan_scope_note">Validez fiscal y operativa: esta selección registra una preferencia local. En esta versión no se realizan cobros, no se inicia una prueba y no se habilitan beneficios Premium.</string>
 
-    <!-- EP-APS Auth strings -->
-    <string name="auth_login_title">Iniciar Sesión</string>
-    <string name="auth_register_title">Crear Cuenta</string>
-    <string name="auth_email_label">Correo electrónico</string>
-    <string name="auth_password_label">Contraseña</string>
-    <string name="auth_login_button">Ingresar</string>
-    <string name="auth_register_button">Registrarme</string>
-    <string name="auth_goto_register">¿No tienes cuenta? Regístrate</string>
-    <string name="auth_goto_login">¿Ya tienes cuenta? Inicia sesión</string>
-    <string name="auth_existing_account_dialog_title">Cuenta existente</string>
+<!-- EP-APS Auth strings -->
+
+
+
+
+
+
+
+<string name="auth_existing_account_dialog_title">Cuenta existente</string>
     <string name="auth_existing_account_dialog_message">El correo ingresado ya está asociado a una cuenta Kipu. ¿Deseas iniciar sesión?</string>
-    <string name="auth_confirmation_required_message">Te hemos enviado un correo de confirmación. Por favor verifica tu cuenta para ingresar.</string>
-    <string name="auth_neutral_error">Correo o contraseña incorrectos.</string>
-    <string name="auth_network_required">Se requiere conexión a internet para esta operación.</string>
-    <string name="auth_cooldown_message">Demasiados intentos. Por favor espera %d segundos.</string>
-    <string name="auth_recovery_button">¿Olvidaste tu contraseña?</string>
-    <string name="auth_recovery_title">Recuperar Acceso</string>
-    <string name="auth_recovery_sent_message">Si la cuenta existe, recibirás instrucciones en tu correo para restablecer tu acceso.</string>
 
-    <!-- EP-APS HU-05 Permissions and Consent strings -->
-    <string name="perm_title">Permisos y Automatización</string>
-    <string name="perm_subtitle">Control contextual de permisos del dispositivo y consentimiento de cuenta</string>
-    <string name="perm_manual_core_intact">El registro manual siempre permanece 100% operativo sin importar estos permisos.</string>
-    <string name="perm_own_notifications_title">Notificaciones de Kipu</string>
-    <string name="perm_own_notifications_desc">Recordatorios de presupuesto, vencimientos de deudas y balances.</string>
-    <string name="perm_own_notifications_rationale">Para enviarte alertas oportunas sobre tus finanzas personales, necesitamos permiso para mostrar notificaciones en este dispositivo. Puedes activarlo o desactivarlo en cualquier momento.</string>
-    <string name="perm_notification_listener_title">Lectura de Notificaciones Bancarias</string>
-    <string name="perm_notification_listener_desc">Sugerir transacciones automáticamente desde notificaciones bancarias.</string>
-    <string name="perm_notification_listener_rationale">Kipu puede interpretar únicamente las alertas emitidas por aplicaciones bancarias compatibles para sugerir borradores de gastos. Ningún dato sensible sale de tu dispositivo. Esta función requiere el plan Premium.</string>
-    <string name="perm_premium_required">Esta fuente de automatización requiere una suscripción Premium activa.</string>
-    <string name="perm_device_granted">Permiso concedido en el sistema</string>
-    <string name="perm_device_denied">Permiso desactivado en el sistema</string>
-    <string name="perm_account_consent_granted">Consentimiento activo</string>
-    <string name="perm_account_consent_revoked">Consentimiento revocado</string>
-    <string name="perm_open_settings">Abrir Ajustes del Sistema</string>
-    <string name="perm_grant_consent">Otorgar Consentimiento</string>
-    <string name="perm_revoke_consent">Revocar Consentimiento</string>
 
-    <!-- EP-MOV Movements strings -->
+
+<string name="auth_cooldown_message">Demasiados intentos. Por favor espera %d segundos.</string>
+
+
+
+<!-- EP-APS HU-05 Permissions and Consent strings -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- EP-MOV Movements strings -->
     <string name="movements_title">Movimientos</string>
     <string name="movements_search_placeholder">Buscar por comercio, categoría…</string>
-    <string name="movements_empty_title">Sin movimientos registrados</string>
-    <string name="movements_empty_desc">Toca el botón + para registrar tu primera transacción</string>
-    <string name="movements_sync_synced">Sincronizado</string>
+
+
+<string name="movements_sync_synced">Sincronizado</string>
     <string name="movements_sync_pending">Pendiente de sincronizar</string>
     <string name="movements_sync_error">Error de sincronización</string>
-    <string name="movements_filter_period">Período</string>
-    <string name="movements_filter_category">Categoría</string>
-    <string name="movements_filter_account">Cuenta</string>
-    <string name="movements_filter_card">Tarjeta</string>
-    <string name="movements_filter_merchant">Comercio</string>
-    <string name="movements_filter_amount">Monto</string>
-    <string name="movements_filter_status">Estado</string>
 
-    <string name="movement_register_title">Registrar movimiento</string>
+
+
+
+
+
+
+<string name="movement_register_title">Registrar movimiento</string>
     <string name="movement_type_expense">Gasto</string>
     <string name="movement_type_income">Ingreso</string>
     <string name="movement_type_transfer">Transferencia</string>
@@ -164,50 +158,46 @@
     <string name="movement_source_account">Cuenta origen</string>
     <string name="movement_destination_account">Cuenta destino</string>
     <string name="movement_category">Categoría</string>
-    <string name="movement_select_category">Seleccionar categoría</string>
-    <string name="movement_merchant">Comercio</string>
-    <string name="movement_select_merchant">Seleccionar comercio</string>
-    <string name="movement_more_details">Más detalles</string>
-    <string name="movement_date">Fecha</string>
+
+<string name="movement_merchant">Comercio</string>
+
+
+<string name="movement_date">Fecha</string>
     <string name="movement_note">Nota</string>
     <string name="movement_note_placeholder">Escribe una nota opcional</string>
-    <string name="movement_save">Guardar</string>
-    <string name="movement_saving">Guardando&#8230;</string>
 
-    <string name="movement_duplicate_title">Posible Movimiento Duplicado</string>
-    <string name="movement_duplicate_message">Se ha detectado una transacción idéntica registrada recientemente en esta cuenta. ¿Deseas guardarla de todas formas?</string>
-    <string name="movement_duplicate_cancel">Cancelar</string>
-    <string name="movement_duplicate_confirm">Confirmar</string>
+<string name="movement_saving">Guardando&#8230;</string>
 
-    <!-- Context actions for S4/S7 preparation -->
-    <string name="movement_action_edit">Editar</string>
-    <string name="movement_action_void">Anular</string>
-    <string name="movement_action_delete">Eliminar</string>
-    <string name="movement_action_refund">Reembolso</string>
 
-    <!-- Movement Edition & Revision strings (HU-20 / US4) -->
+
+
+
+<!-- Context actions for S4/S7 preparation -->
+
+
+
+<!-- Movement Edition & Revision strings (HU-20 / US4) -->
     <string name="movement_edit_title">Editar movimiento</string>
     <string name="movement_edit_save">Guardar cambios</string>
-    <string name="movement_edit_saving">Guardando corrección&#8230;</string>
-    <string name="movement_edit_specialized_warning">Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica.</string>
+
+<string name="movement_edit_specialized_warning">Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica.</string>
     <string name="movement_edit_conflict_title">Este movimiento cambió en otro dispositivo</string>
     <string name="movement_edit_conflict_discard">Descartar propuesta</string>
     <string name="movement_edit_conflict_redo">Rehacer sobre versión oficial</string>
     <string name="movement_edit_conflict_voided">El movimiento fue anulado en el servidor</string>
-    <string name="movement_edit_discard_dialog_title">¿Descartar cambios?</string>
-    <string name="movement_edit_discard_dialog_message">Tienes cambios sin guardar. ¿Deseas descartarlos?</string>
-    <string name="movement_edit_discard_dialog_confirm">Descartar</string>
-    <string name="movement_edit_discard_dialog_cancel">Continuar editando</string>
-    <string name="movement_edit_summary_title">Resumen de cambios</string>
-    <string name="movement_edit_summary_only_note">Solo se modificó la nota (sin cambios en saldos ni asientos contables)</string>
-    <string name="movement_edit_summary_date_period">Fecha actualizada (Afecta cálculo por periodo)</string>
-    <string name="movement_edit_error_amount">El monto debe ser mayor a 0</string>
-    <string name="movement_edit_error_source_account">Selecciona una cuenta de origen</string>
-    <string name="movement_edit_error_destination_account">La cuenta destino debe ser diferente al origen</string>
-    <string name="movement_edit_error_category">Selecciona una categoría para el gasto</string>
-    <string name="movement_edit_success_pending_sync">Movimiento corregido (Pendiente de sincronizar)</string>
 
-    <!-- Movement Void strings (HU-21 / US5) -->
+
+
+
+
+<string name="movement_edit_summary_only_note">Solo se modificó la nota (sin cambios en saldos ni asientos contables)</string>
+
+
+
+
+
+
+<!-- Movement Void strings (HU-21 / US5) -->
     <string name="movement_void_dialog_title">¿Anular movimiento?</string>
     <string name="movement_void_dialog_cancel">Cancelar</string>
     <string name="movement_void_dialog_confirm">Anular</string>
@@ -215,36 +205,32 @@
     <string name="movement_void_dialog_desc_expense">Se revertirá el impacto financiero de este gasto. Los registros contables originales se conservarán con un asiento de compensación.</string>
     <string name="movement_void_dialog_desc_income">Se revertirá el impacto financiero de este ingreso. Los registros contables originales se conservarán con un asiento de compensación.</string>
     <string name="movement_void_dialog_audit_notice">Los registros originales no se eliminarán y se mantendrán en la auditoría.</string>
-    <string name="movement_void_status_badge">Anulado</string>
-    <string name="movement_void_specialized_warning">Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica.</string>
-    <string name="movement_void_success_message">Movimiento anulado correctamente</string>
-    <string name="movement_void_already_voided_message">El movimiento ya se encuentra anulado</string>
 
-    <!-- Movement Advanced Filters strings (HU-22 / US6) -->
-    <string name="movements_filter_button">Filtros</string>
-    <string name="movements_filter_active">Filtros (activos)</string>
-    <string name="movements_filter_clear">Limpiar filtros</string>
-    <string name="movements_filter_title">Filtros avanzados</string>
-    <string name="movements_filter_financial_state">Estado financiero</string>
-    <string name="movements_filter_voided_only">Solo anulados</string>
-    <string name="movements_filter_amount_range">Rango de importe (centavos)</string>
-    <string name="movements_filter_min_amount">Mínimo</string>
+<string name="movement_void_specialized_warning">Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica.</string>
+
+
+<!-- Movement Advanced Filters strings (HU-22 / US6) -->
+
+
+
+
+
+
+<string name="movements_filter_min_amount">Mínimo</string>
     <string name="movements_filter_max_amount">Máximo</string>
-    <string name="movements_filter_reset">Limpiar criterios</string>
-    <string name="movements_filter_apply">Listo</string>
-    <string name="movements_filter_fallback_notice">Filtros avanzados requieren Kipu Premium o revalidación de acceso.</string>
-    <string name="movements_filter_premium_fallback">Los filtros avanzados requieren Kipu Premium. Se muestran los filtros básicos hasta que habilites Premium.</string>
-    <string name="movements_filter_revalidation_fallback">La concesión Premium venció o perdió continuidad. Reconéctate para revalidarla; mientras tanto se muestran los filtros básicos.</string>
-    <string name="movements_filter_view_plans">Revisar Premium</string>
-    <string name="movements_filter_reconnect">Conectar y revalidar</string>
-    <string name="movements_filter_empty_title">Sin resultados para los filtros</string>
-    <string name="movements_filter_empty_desc">Prueba a cambiar o limpiar los filtros seleccionados</string>
-    <string name="movements_search_empty_title">Sin resultados de búsqueda</string>
-    <string name="movements_search_empty_desc">No encontramos movimientos que coincidan con tu búsqueda</string>
-    <string name="movements_search_clear">Limpiar búsqueda</string>
 
 
-    <!-- HU-53 / HU-54 / HU-56 purchase surface -->
+
+
+
+
+
+
+
+
+
+
+<!-- HU-53 / HU-54 / HU-56 purchase surface -->
     <string name="purchase_title">Kipu Premium</string>
     <string name="purchase_subtitle">Precios y ofertas disponibles para tu cuenta en Google Play.</string>
     <string name="purchase_plan_annual">Plan anual</string>
@@ -285,7 +271,7 @@
     <string name="purchase_status_lifetime">Kipu Lifetime está activo para siempre.</string>
     <string name="purchase_status_paused">La suscripción está pausada y no concede acceso.</string>
     <string name="purchase_status_pending">La compra está pendiente; todavía no concede acceso.</string>
-    <string name="purchase_status_content_description">Estado de la compra verificado por Kipu</string>
-    <string name="purchase_success_content_description">Compra verificada correctamente</string>
+
+<string name="purchase_success_content_description">Compra verificada correctamente</string>
     <string name="purchase_option_selected_content_description">Plan seleccionado</string>
 </resources>

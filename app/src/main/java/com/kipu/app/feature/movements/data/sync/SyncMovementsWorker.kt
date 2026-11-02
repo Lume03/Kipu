@@ -18,7 +18,6 @@ import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.accounts.data.local.CardDao
 import com.kipu.app.feature.accounts.data.local.CardEntity
-import com.kipu.app.feature.accounts.data.local.CreditInstallmentEntity
 import com.kipu.app.feature.accounts.data.local.CreditPaymentAllocationEntity
 import com.kipu.app.feature.accounts.domain.model.CreditLiabilityAccountIds
 import com.kipu.app.feature.accounts.domain.model.Card
@@ -47,7 +46,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import java.time.Instant
-import java.time.LocalDate
 import java.util.UUID
 import androidx.room.withTransaction
 import javax.inject.Inject

@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.plans.data.billing
+package com.kipu.app.feature.plans.data.billing
 
 import android.app.Activity
 import com.kipu.app.core.network.AuthenticatedSession
@@ -20,7 +20,6 @@ import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
 
 @Singleton

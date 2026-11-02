@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -551,10 +549,6 @@ internal fun StatementCategoryPicker(categories: List<CategoryOption>, selected:
         onCreateCategory = { _, _, _, _, _ -> Result.failure(UnsupportedOperationException()) },
         onDismiss = onDismiss, allowCreate = false, directSelectionMode = true)
 }
-
-internal fun statementAmount(minor: Long, currency: Currency): String =
-    "${if (currency == Currency.PEN) "S/" else "US$"} ${BigDecimal.valueOf(minor, 2).toPlainString()}"
-
 internal fun statementTotals(lines: List<StatementImportLine>): String = lines.groupBy { it.currency }.entries.joinToString(" · ") { (currency, rows) ->
     val amount = rows.fold(BigDecimal.ZERO) { total, line ->
         total + BigDecimal.valueOf(line.amountMinor).let { if (line.kind == StatementLineKind.REFUND || line.kind == StatementLineKind.CARD_PAYMENT) -it else it }

@@ -18,7 +18,6 @@ sealed interface CaptureDiscardResult {
 class DiscardCaptureCandidate @Inject constructor(
     private val candidates: CaptureCandidateStore,
     private val clock: Clock,
-    private val discardedListeners: Set<@JvmSuppressWildcards CaptureCandidateDiscardedListener> = emptySet(),
     private val transactions: com.kipu.app.core.database.DatabaseTransactionRunner,
     private val receipts: CaptureRegistrationReceipts,
     private val followups: CaptureResolutionFollowups,

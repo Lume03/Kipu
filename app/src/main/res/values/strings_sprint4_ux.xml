@@ -20,41 +20,41 @@
     <string name="history_dismiss_notice">Cerrar aviso</string>
     <string name="history_query_error">No pudimos cargar el historial</string>
     <string name="history_query_error_body">Tus movimientos se conservan. Vuelve a intentar la consulta.</string>
-    <string name="history_register">Registrar movimiento</string>
-    <string name="history_detail">Detalle del movimiento</string>
-    <string name="history_detail_readonly">Movimiento anulado · Solo lectura</string>
-    <string name="history_revisions">Historial de revisiones</string>
-    <string name="history_revisions_empty">Aún no hay revisiones registradas.</string>
-    <string name="history_revisions_error">No pudimos cargar las revisiones. Cierra el detalle y vuelve a abrirlo.</string>
-    <string name="history_detail_close">Cerrar detalle</string>
+
+
+
+
+
+
+<string name="history_detail_close">Cerrar detalle</string>
     <string name="history_date">Fecha</string>
     <string name="history_note">Nota</string>
     <string name="history_amount">Importe</string>
-    <string name="history_currency">Moneda</string>
-    <string name="history_accounts">Cuentas</string>
+
+<string name="history_accounts">Cuentas</string>
     <string name="history_categories">Categorías</string>
     <string name="history_cards">Tarjetas</string>
     <string name="history_merchants">Comercios</string>
-    <string name="history_period">Período</string>
-    <string name="history_today">Hoy</string>
-    <string name="history_month">Este mes</string>
-    <string name="history_custom_dates">Elegir fechas</string>
-    <string name="history_filter_select_dates">Seleccionar fechas</string>
+
+
+
+
+<string name="history_filter_select_dates">Seleccionar fechas</string>
     <string name="history_filter_date_start">Inicio</string>
     <string name="history_filter_date_end">Fin</string>
     <string name="history_filter_date_unselected">Sin elegir</string>
     <string name="history_filter_date_input_mode">Escribir fechas</string>
     <string name="history_filter_date_calendar_mode">Elegir en el calendario</string>
-    <string name="history_filter_premium_summary">Cuenta · Tarjeta · Categoría · Importe · Comercio</string>
-    <string name="history_all_dates">Todas las fechas</string>
-    <string name="history_filter_basic">Filtros básicos · Free</string>
-    <string name="history_filter_advanced">Filtros avanzados · Premium</string>
-    <string name="history_filter_draft_notice">Los cambios se aplicarán cuando confirmes.</string>
-    <string name="history_filter_parked">Tus filtros avanzados quedan guardados y se aplicarán cuando verifiques el acceso.</string>
-    <string name="history_filter_apply">Aplicar filtros</string>
+
+
+
+
+
+
+<string name="history_filter_apply">Aplicar filtros</string>
     <string name="history_filter_cancel">Cancelar</string>
-    <string name="history_filter_select">Elegir %1$s</string>
-    <string name="history_filter_none">No hay referencias en tu historial.</string>
+
+<string name="history_filter_none">No hay referencias en tu historial.</string>
     <string name="history_filter_search">Buscar en las opciones</string>
     <string name="history_filter_no_matches">No hay opciones que coincidan con tu búsqueda.</string>
     <string name="history_filter_no_selection">Sin selección</string>
@@ -65,9 +65,9 @@
     <string name="history_filter_saved">Guardado · %1$s</string>
     <string name="history_filter_remove">Quitar filtro: %1$s</string>
     <string name="history_filter_invalid_amount">Introduce un importe válido, por ejemplo 15,50.</string>
-    <string name="history_filter_invalid_date">Selecciona una fecha válida.</string>
-    <string name="history_filter_invalid_range">El límite final debe ser igual o mayor al inicial.</string>
-    <string name="history_filter_invalid_start_date">Inicio: selecciona una fecha válida.</string>
+
+
+<string name="history_filter_invalid_start_date">Inicio: selecciona una fecha válida.</string>
     <string name="history_filter_invalid_end_date">Fin: selecciona una fecha válida.</string>
     <string name="history_filter_invalid_date_range">La fecha de fin debe ser igual o posterior al inicio.</string>
     <string name="history_filter_invalid_amount_range">El importe máximo debe ser igual o mayor al mínimo.</string>
@@ -75,8 +75,8 @@
     <string name="history_sync_state">Sincronización</string>
     <string name="history_before">Antes</string>
     <string name="history_after">Después</string>
-    <string name="history_changes">Revisa tus cambios</string>
-    <string name="history_saved_pending">Cambios guardados · Pendiente de sincronizar</string>
+
+<string name="history_saved_pending">Cambios guardados · Pendiente de sincronizar</string>
     <string name="history_voided_pending">Movimiento anulado · Pendiente de sincronizar</string>
     <string name="history_none">Sin dato</string>
 </resources>

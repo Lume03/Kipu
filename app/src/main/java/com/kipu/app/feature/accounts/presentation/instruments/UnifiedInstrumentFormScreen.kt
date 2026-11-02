@@ -1,7 +1,5 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
-import com.kipu.app.ui.theme.KipuModalSystemBars
-import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -9,15 +7,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -30,7 +22,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -47,45 +38,28 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,17 +71,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.semantics.Role
@@ -115,10 +80,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -129,17 +92,14 @@ import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
-import com.kipu.app.feature.accounts.domain.model.CardPreset
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
-import com.kipu.app.feature.accounts.presentation.components.CardStylePreset
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
-import com.kipu.app.feature.accounts.presentation.components.InstrumentCardPreview
 import com.kipu.app.ui.component.CardNetworkLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.logoRes
@@ -466,10 +426,6 @@ fun UnifiedInstrumentFormScreen(
             Card.isValidLastFourDigits(lastFourDigits)
         else -> true
     }
-    val canSaveInstrument = alias.isNotBlank() && !Card.isForbiddenSensitiveCardInput(alias) &&
-        parsedAmountForValidation != null && parsedAmountForValidation >= 0L && lastFourIsValid &&
-        (kind != InstrumentKind.CREDIT_CARD || cycleIsValid)
-    val cardNetworkLabel = networkLabel(network)
     val cardBackground = when {
         kind == InstrumentKind.CASH -> MaterialTheme.colorScheme.surfaceVariant
         kind == InstrumentKind.WALLET -> Color(0xFF005C55)
@@ -495,11 +451,6 @@ fun UnifiedInstrumentFormScreen(
             InstrumentKind.CASH -> "Efectivo"
         }
     }
-    val previewAmount = when (kind) {
-        InstrumentKind.CREDIT_CARD -> creditLimitInput.takeIf(String::isNotBlank)?.let { "${currencySymbol(currency)} $it" }
-        else -> "${currencySymbol(currency)} $balanceInput"
-    }
-    val previewLabel = if (kind == InstrumentKind.CREDIT_CARD) FinancialTerminology.TOTAL_CREDIT_LINE else "Saldo inicial"
 
     fun handleSaveCreditCard() {
         if (isSubmitting) return
@@ -1341,289 +1292,8 @@ fun UnifiedInstrumentFormScreen(
     }
 }
 
-@Composable
-private fun BankTreeSection(
-    bank: BankChoice,
-    bankChoices: List<BankChoice>,
-    isBankSelectorExpanded: Boolean,
-    onToggleBankSelector: () -> Unit,
-    onSelectBank: (BankChoice) -> Unit,
-    countLabel: String,
-    headerTitle: String,
-    reducedMotion: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val bankChevronRotation by animateFloatAsState(
-        targetValue = if (isBankSelectorExpanded) 180f else 0f,
-        animationSpec = if (reducedMotion) tween(0) else tween(KipuMotionTokens.MediumMillis),
-        label = "bankChevronRotation",
-    )
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = headerTitle,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
-                color = KipuTextMuted,
-            )
-            TextButton(
-                onClick = onToggleBankSelector,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    text = if (isBankSelectorExpanded) "Cerrar banco ✕" else "Cambiar banco ⇄",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = KipuTealPrimary,
-                )
-            }
-        }
 
-        // Bank header card
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = rememberKipuColors().surface,
-            border = BorderStroke(1.dp, KipuBorderColor),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button, onClick = onToggleBankSelector)
-                .semantics(mergeDescendants = true) {
-                    contentDescription = "Banco ${bank.name}, tocar para cambiar banco"
-                    stateDescription = if (isBankSelectorExpanded) "Selector desplegado" else "Banco seleccionado"
-                },
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(bank.color),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = bank.name.take(3).uppercase(),
-                        color = bank.textColor,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Banco de Crédito ${bank.name}".takeIf { bank.code == "BCP" } ?: bank.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = KipuInkTitle,
-                    )
-                    Text(
-                        text = "Entidad vinculada · ${bank.name}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KipuTextMuted,
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = KipuLightGreenContainer,
-                ) {
-                    Text(
-                        text = countLabel,
-                        color = KipuTealPrimary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = KipuTextMuted,
-                    modifier = Modifier.rotate(bankChevronRotation),
-                )
-            }
-        }
-
-        // Expanded bank selector dropdown
-        AnimatedVisibility(
-            visible = isBankSelectorExpanded,
-            enter = if (reducedMotion) fadeIn(tween(0)) + expandVertically(tween(0))
-            else fadeIn(tween(KipuMotionTokens.FastMillis)) + expandVertically(tween(KipuMotionTokens.MediumMillis)),
-            exit = if (reducedMotion) fadeOut(tween(0)) + shrinkVertically(tween(0))
-            else fadeOut(tween(KipuMotionTokens.QuickMillis)) + shrinkVertically(tween(KipuMotionTokens.QuickMillis)),
-        ) {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = KipuSurfaceVariantNeutral),
-                border = BorderStroke(1.dp, KipuBorderColor),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = "Selecciona una entidad bancaria:",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = KipuTextMuted,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    )
-                    bankChoices.forEach { option ->
-                        val isSelected = bank.code == option.code
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) rememberKipuColors().surface else Color.Transparent,
-                            border = if (isSelected) BorderStroke(1.5.dp, KipuTealPrimary) else null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(role = Role.RadioButton) { onSelectBank(option) }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(option.color),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        option.name.take(3).uppercase(),
-                                        color = option.textColor,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                                Text(
-                                    text = option.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = KipuInkTitle,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = "Seleccionado",
-                                        tint = KipuTealPrimary,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Tree root connector
-        Box(
-            modifier = Modifier
-                .padding(start = 27.dp)
-                .width(2.dp)
-                .height(8.dp)
-                .background(KipuBorderColor),
-        )
-
-        // Tree content branches
-        content()
-    }
-}
-
-@Composable
-private fun InstrumentKindSegment(
-    label: String,
-    icon: ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    val colors = rememberKipuColors()
-    Row(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(shape)
-            .background(if (selected) colors.primary else Color.Transparent)
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .semantics {
-                contentDescription = label
-                this.selected = selected
-                this.role = Role.RadioButton
-            }
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (selected) colors.onPrimary else KipuTextMuted,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = label,
-            color = if (selected) colors.onPrimary else KipuInkTitle,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 2,
-            softWrap = true,
-        )
-    }
-}
-
-@Composable
-private fun DashedTreeAction(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val dashedBorderColor = KipuTealPrimary.copy(alpha = 0.55f)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRoundRect(
-                color = dashedBorderColor,
-                topLeft = Offset.Zero,
-                size = Size(size.width, size.height),
-                cornerRadius = CornerRadius(14.dp.toPx()),
-                style = Stroke(
-                    width = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 5.dp.toPx())),
-                ),
-            )
-        }
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            color = KipuTealPrimary,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
 
 @Composable
 private fun TreeBranchItem(
@@ -1790,424 +1460,7 @@ private fun BranchProductCard(
     }
 }
 
-@Composable
-private fun CreditProductFamilyTree(
-    products: List<CatalogProductChoice>,
-    selectedProductName: String?,
-    reducedMotion: Boolean,
-    onSelect: (CatalogProductChoice) -> Unit,
-) {
-    val families = remember(products) {
-        products.groupBy { it.familyLabel }.entries.map { (label, items) ->
-            Triple(label, label, items)
-        }
-    }
-    val selectedFamily = products.firstOrNull { it.name == selectedProductName }?.familyLabel
-    var expandedFamily by remember(products) { mutableStateOf(selectedFamily ?: families.firstOrNull()?.first) }
-    LaunchedEffect(selectedFamily) {
-        if (selectedFamily != null) expandedFamily = selectedFamily
-    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        families.forEachIndexed { familyIndex, (familyId, familyLabel, familyProducts) ->
-            val isExpanded = expandedFamily == familyId
-            val hasSelectedProduct = familyProducts.any { it.name == selectedProductName }
-            val chevronRotation = animateFloatAsState(
-                targetValue = if (isExpanded) 180f else 0f,
-                animationSpec = if (reducedMotion) tween(0) else tween(KipuMotionTokens.SegmentMillis),
-                label = "familyChevron_$familyId",
-            )
-
-            TreeBranchItem(
-                isFirst = familyIndex == 0,
-                isLast = familyIndex == families.size - 1 && !isExpanded,
-                isSelected = hasSelectedProduct,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (hasSelectedProduct) rememberKipuColors().selectedSurface else rememberKipuColors().surface,
-                    border = BorderStroke(
-                        width = if (hasSelectedProduct) 1.5.dp else 1.dp,
-                        color = if (hasSelectedProduct) KipuTealPrimary else KipuBorderColor,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(role = Role.Button) {
-                            expandedFamily = if (isExpanded) null else familyId
-                        }
-                        .semantics(mergeDescendants = true) {
-                            contentDescription = "Familia $familyLabel, ${familyProducts.size} opciones"
-                            stateDescription = if (isExpanded) "Expandida" else "Contraída"
-                            role = Role.Button
-                        },
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = familyLabel,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = KipuInkTitle,
-                            )
-                            Text(
-                                text = "${familyProducts.size} ${if (familyProducts.size == 1) "diseño verificado" else "diseños verificados"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KipuTextMuted,
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = KipuTextMuted,
-                            modifier = Modifier.graphicsLayer { rotationZ = chevronRotation.value },
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = if (reducedMotion) fadeIn(tween(0)) + expandVertically(tween(0))
-                else fadeIn(tween(KipuMotionTokens.SubtreeEnterMillis)) + expandVertically(tween(KipuMotionTokens.SubtreeEnterMillis)),
-                exit = if (reducedMotion) fadeOut(tween(0)) + shrinkVertically(tween(0))
-                else fadeOut(tween(KipuMotionTokens.QuickMillis)) + shrinkVertically(tween(KipuMotionTokens.QuickMillis)),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 14.dp, top = 4.dp, bottom = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    familyProducts.forEachIndexed { prodIndex, product ->
-                        val isSelected = product.name == selectedProductName
-                        TreeBranchItem(
-                            isFirst = prodIndex == 0,
-                            isLast = prodIndex == familyProducts.size - 1,
-                            isSelected = isSelected,
-                        ) {
-                            BranchProductCard(
-                                title = product.name,
-                                subtitle = "${networkLabel(product.network)}${product.stylePreset?.let { " · ${it.tierLabel}" }.orEmpty()}",
-                                badgeText = product.stylePreset?.tierLabel,
-                                isBadgePrimary = isSelected,
-                                isSelected = isSelected,
-                                onClick = { onSelect(product) },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun R9CreditCardSuccessBottomSheet(
-    card: CreditCard,
-    bankChoice: BankChoice,
-    reducedMotion: Boolean,
-    onDismiss: () -> Unit,
-    onViewDetail: (CreditCard) -> Unit,
-    onRecordFirstConsumption: (CreditCard) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isMounted by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        isMounted = true
-    }
-    val checkScale by animateFloatAsState(
-        targetValue = if (isMounted) 1f else 0f,
-        animationSpec = if (reducedMotion) tween(0) else spring(
-            dampingRatio = 0.55f,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "successCheckScale",
-    )
-
-    ModalBottomSheet(
-        properties = kipuBottomSheetProperties(),
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = rememberKipuColors().surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(rememberKipuColors().dragHandle),
-            )
-        },
-    ) {
-        KipuModalSystemBars()
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // Elastic pop-in green check squircle
-            Box(
-                modifier = Modifier
-                    .scale(checkScale)
-                    .size(68.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(KipuLightGreenContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(rememberKipuColors().primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Éxito",
-                        tint = rememberKipuColors().onPrimary,
-                        modifier = Modifier.size(26.dp),
-                    )
-                }
-            }
-
-            // Title & subtitle
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = "Tarjeta registrada",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = KipuInkTitle,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "${card.alias ?: card.issuer}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = KipuTextMuted,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            // Binding summary snippet
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = KipuSurfaceVariantNeutral,
-                border = BorderStroke(1.dp, KipuBorderColor),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(bankChoice.color),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = bankChoice.name.take(3).uppercase(),
-                            color = bankChoice.textColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = "${card.issuer} ${card.alias ?: card.network.name} (•••• ${card.lastFourDigits})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = KipuInkTitle,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-
-            // Authorized credit line
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = rememberKipuColors().surface,
-                border = BorderStroke(1.dp, KipuBorderColor),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = FinancialTerminology.TOTAL_CREDIT_LINE,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = KipuTextMuted,
-                        )
-                        Text(
-                            text = "${currencySymbol(card.currency)} ${com.kipu.app.ui.component.formatMinorUnits(card.creditLimitMinorUnits)}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = KipuInkTitle,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(KipuLightGreenContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CreditCard,
-                            contentDescription = null,
-                            tint = KipuTealPrimary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-            }
-
-            // Billing and due days
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = rememberKipuColors().surface,
-                    border = BorderStroke(1.dp, KipuBorderColor),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = null,
-                                tint = KipuTextMuted,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "Próximo corte",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = KipuTextMuted,
-                            )
-                        }
-                        Text(
-                            text = "${card.billingDay.toString().padStart(2, '0')} de cada mes",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = KipuInkTitle,
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = rememberKipuColors().surface,
-                    border = BorderStroke(1.dp, KipuBorderColor),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = null,
-                                tint = KipuTextMuted,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "Próx. vencimiento",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = KipuTextMuted,
-                            )
-                        }
-                        Text(
-                            text = "${card.dueDay.toString().padStart(2, '0')} de cada mes",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = KipuInkTitle,
-                        )
-                    }
-                }
-            }
-
-
-            Spacer(Modifier.height(4.dp))
-
-            // Action buttons
-            Button(
-                onClick = { onViewDetail(card) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = rememberKipuColors().primary,
-                    contentColor = rememberKipuColors().onPrimary,
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp),
-            ) {
-                Text(
-                    text = "Ver detalle de la tarjeta →",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            OutlinedButton(
-                onClick = { onRecordFirstConsumption(card) },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = KipuTealPrimary,
-                ),
-                border = BorderStroke(1.dp, KipuTealPrimary),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp),
-            ) {
-                Text(
-                    text = "+ Registrar primer consumo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun ReferencialTeaCard(product: CreditProductReference, currency: Currency) {
@@ -2232,17 +1485,6 @@ private fun ReferencialTeaCard(product: CreditProductReference, currency: Curren
     }
 }
 
-@Composable
-private fun InfoCard(text: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = KipuSurfaceVariantNeutral),
-        border = BorderStroke(1.dp, KipuBorderColor),
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(text, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodySmall, color = KipuInkTitle)
-    }
-}
 
 private fun finishInstrumentSave(
     message: String,
@@ -2284,12 +1526,6 @@ private fun networkLabel(network: CardNetwork): String = when (network) {
     CardNetwork.OTHER -> "Otra red"
 }
 
-private fun iconLabel(icon: String): String = when (icon) {
-    "account_balance" -> "Banco"
-    "credit_card" -> "Tarjeta"
-    "wallet" -> "Billetera"
-    else -> "Efectivo"
-}
 
 private fun percentage(basisPoints: Int): String = String.format(Locale.getDefault(), "%.2f", basisPoints / 100.0)
 

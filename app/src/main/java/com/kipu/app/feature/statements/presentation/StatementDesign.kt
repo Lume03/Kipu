@@ -11,13 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.Button
@@ -221,6 +218,3 @@ internal fun StatementFileChip(name: String?, size: Long?) {
 
 internal fun statementFileSize(bytes: Long): String = if (bytes >= 1_048_576) String.format(Locale.forLanguageTag("es-PE"), "%.1f MB", bytes / 1_048_576.0)
 else "${(bytes / 1024).coerceAtLeast(1)} KB"
-
-internal val CheckIcon: ImageVector get() = Icons.Filled.Check
-internal val DotShape = CircleShape

@@ -47,7 +47,6 @@ import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.feature.receipts.domain.ReceiptImportNotice
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Edit
 
 /** Short answer to an import that did not end in a new pending receipt; resolved without leaving the inbox. */
 @OptIn(ExperimentalMaterial3Api::class)

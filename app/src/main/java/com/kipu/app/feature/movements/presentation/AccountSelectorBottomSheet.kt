@@ -80,7 +80,6 @@ private val TextPrimarySlate: Color @Composable get() = rememberKipuColors().ink
 private val TextSecondarySlate: Color @Composable get() = rememberKipuColors().inkSecondary
 private val TextPillInactive: Color @Composable get() = rememberKipuColors().inkSecondary
 private val DragHandleSlate: Color @Composable get() = rememberKipuColors().dragHandle
-private val MintBadgeContainer: Color @Composable get() = rememberKipuColors().positiveContainer
 private val MintBadgeContent: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF86EFAC) else Color(0xFF166534)
 private val CoralDebtText: Color @Composable get() = rememberKipuColors().debt
 

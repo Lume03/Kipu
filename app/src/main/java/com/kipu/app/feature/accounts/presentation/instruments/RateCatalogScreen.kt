@@ -2,11 +2,6 @@ package com.kipu.app.feature.accounts.presentation.instruments
 
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,8 +30,6 @@ import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Remove
@@ -58,12 +51,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -97,8 +87,6 @@ import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.RateReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.ui.component.formatMinorUnits
-import com.kipu.app.ui.motion.rememberReducedMotionEnabled
-import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.flow.Flow
 import java.util.Locale
@@ -383,50 +371,6 @@ fun RateCatalogScreen(
     }
 }
 
-@Composable
-private fun EducationalTipCard() {
-    val semanticColors = rememberCalmEmeraldColors()
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = semanticColors.transferBg,
-        border = BorderStroke(1.dp, semanticColors.transferBorder),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(semanticColors.transferBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Info,
-                    contentDescription = null,
-                    tint = semanticColors.transferBlue,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = "¿Sabes qué tasa tienes en tu contrato?",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = semanticColors.transferBlue,
-                )
-                Text(
-                    text = "La TEA contractual es la tasa de interés anual que tu banco te asignó en tu contrato o estado de cuenta. Configúrala abajo para simular tus cuotas con exactitud.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = semanticColors.transferBlue,
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun PersonalTeaSimulatorCard(
@@ -1489,18 +1433,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
     }
 }
 
-private fun humanizeVerificationStatus(status: String?): String = when (status?.trim()?.uppercase()) {
-    "VIGENTE_VERIFICADO" -> "Vigente y verificado"
-    "VERIFICADO" -> "Verificado"
-    "PENDIENTE", "PENDIENTE_VERIFICACION" -> "Pendiente de verificación"
-    "NO_VERIFICADO" -> "No verificado"
-    null, "" -> "Sin dato"
-    else -> status.orEmpty().replace('_', ' ').lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-}
 
-private fun formatSourcesLabel(sourceUrl: String): String {
-    return "Fuente: $sourceUrl"
-}
 
 private fun formatTeaRange(minBps: Int?, maxBps: Int?): String = when {
     minBps != null && maxBps != null -> "%.2f%% – %.2f%%".format(Locale.US, minBps / 100.0, maxBps / 100.0)

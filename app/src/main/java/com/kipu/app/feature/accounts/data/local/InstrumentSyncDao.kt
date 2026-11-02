@@ -5,7 +5,6 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InstrumentSyncDao {
@@ -113,8 +112,6 @@ interface InstrumentSyncDao {
     @Query("DELETE FROM instrument_sync_outbox WHERE user_id = :userId AND operation_id = :operationId")
     suspend fun delete(userId: String, operationId: String)
 
-    @Query("SELECT COUNT(*) FROM instrument_sync_outbox WHERE user_id = :userId AND state IN ('PENDING', 'IN_FLIGHT', 'ERROR')")
-    fun observePendingCount(userId: String): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM instrument_sync_outbox WHERE user_id = :userId AND state IN ('PENDING', 'IN_FLIGHT', 'ERROR')")
     suspend fun getPendingCount(userId: String): Int

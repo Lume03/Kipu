@@ -27,8 +27,8 @@
     <string name="credit_purchase_terms_confirmation">Al guardar confirmas estas condiciones para esta compra.</string>
     <string name="credit_purchase_show_schedule">Ver cronograma</string>
     <string name="credit_purchase_hide_schedule">Ocultar cronograma</string>
-    <string name="credit_installment_number">Cuota %1$d/%2$d</string>
-    <string name="credit_installment_due">Vence el %1$s</string>
+
+<string name="credit_installment_due">Vence el %1$s</string>
     <string name="credit_installments_title">Cuotas</string>
     <string name="credit_installments_outstanding">Saldo pendiente total</string>
     <string name="credit_installments_upcoming_total">Próximas · 7 días</string>
@@ -45,8 +45,8 @@
     <string name="credit_installments_retry">Reintentar</string>
     <string name="credit_installments_purchase_fallback">Compra con tarjeta</string>
     <string name="credit_installment_total_label">Total</string>
-    <string name="credit_installment_outstanding_label">Pendiente</string>
-    <string name="credit_installment_status_description">Estado de cuota: %1$s</string>
+
+<string name="credit_installment_status_description">Estado de cuota: %1$s</string>
     <string name="credit_installments_filter_description">Filtrar cuotas: %1$s</string>
     <string name="credit_purchase_schedule_expanded">Cronograma desplegado</string>
     <string name="credit_purchase_schedule_collapsed">Cronograma contraído</string>

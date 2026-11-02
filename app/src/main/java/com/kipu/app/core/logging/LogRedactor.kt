@@ -31,14 +31,6 @@ object LogRedactor {
         return sanitized
     }
 
-    private fun maskEmail(email: String): String {
-        val parts = email.split("@")
-        if (parts.size != 2) return "[REDACTED_EMAIL]"
-        val name = parts[0]
-        val domain = parts[1]
-        val maskedName = if (name.length <= 2) "${name.first()}***" else "${name.first()}***${name.last()}"
-        return "$maskedName@$domain"
-    }
 }
 
 /**

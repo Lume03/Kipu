@@ -303,7 +303,6 @@ class OfflineFirstCategoriesRepositoryTest {
             syncScheduler = syncScheduler,
             quotaSelectionDao = quotaSelectionDao,
             featureAccessCacheDao = FakeFeatureAccessCacheDao(),
-            quotaPolicy = com.kipu.app.feature.plans.domain.PlanQuotaPolicy(),
         )
     }
 

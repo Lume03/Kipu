@@ -175,21 +175,7 @@ interface CreditDao {
     suspend fun getOutstandingPrincipalForCard(userId: String, cardId: String): Long =
         getOutstandingBalanceForCard(userId, cardId)
 
-    @androidx.room.Query(
-        """SELECT CASE WHEN COALESCE(SUM(CASE
-                WHEN t.status = 'ACTIVE' AND t.sync_status != 'FAILED_PERMANENT'
-                THEN le.signed_amount_minor ELSE 0 END), 0) < 0
-             THEN -COALESCE(SUM(CASE
-                WHEN t.status = 'ACTIVE' AND t.sync_status != 'FAILED_PERMANENT'
-                THEN le.signed_amount_minor ELSE 0 END), 0)
-             ELSE 0 END
-           FROM cards c
-           LEFT JOIN ledger_entries le ON le.user_id = c.user_id AND le.account_id = c.account_id
-                AND le.role = 'LIABILITY'
-           LEFT JOIN transactions t ON t.user_id = le.user_id AND t.id = le.transaction_id
-           WHERE c.user_id = :userId AND c.id = :cardId AND c.type = 'CREDIT'""",
-    )
-    fun observeLedgerOutstandingPrincipalForCard(userId: String, cardId: String): kotlinx.coroutines.flow.Flow<Long>
+
 
     @androidx.room.Query(
         """SELECT CASE WHEN COALESCE(SUM(CASE

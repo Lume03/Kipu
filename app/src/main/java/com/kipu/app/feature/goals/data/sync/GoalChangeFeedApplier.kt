@@ -16,7 +16,6 @@ import com.kipu.app.feature.goals.domain.model.GoalEventType
 import com.kipu.app.feature.goals.domain.model.GoalStatus
 import com.kipu.app.feature.movements.data.local.MovementDao
 import java.time.Clock
-import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
