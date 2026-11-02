@@ -118,3 +118,63 @@ Programación: el usuario eligió verificación mensual más ejecución manual a
 ### Atribución (plan gratuito Community)
 
 El uso comercial exige un enlace visible. Ajustes muestra "Logos por Logo.dev" con enlace a https://logo.dev.
+
+
+## Descubrimiento de comercios (M3, 2026-11-02)
+
+Implementacion local pendiente de despliegue remoto. `merchant-search` verifica la sesion
+con Auth; la app nunca recibe `LOGO_DEV_SECRET_KEY` ni llama a la API de Logo.dev.
+Escribir consulta solo consulta Room; el boton explicito **Buscar en internet** envia
+`{action:"search", query, internet:true}`. Sin `internet:true` solo busca el catalogo visible.
+Consulta NFKC, minusculas y espacios compactados, 2-60 caracteres. Brand Search usa
+`method=match`, `limit=5`; se descartan dominios invalidos y solo se muestran previews
+HTTPS de `img.logo.dev`. Cache interna compartida 30 dias, autorizacion por usuario 1 hora.
+Un lease interno de 30 segundos evita llamadas paralelas repetidas para la misma consulta
+sin cache y permite recuperarse de fallos de proveedor. Los limites son ventanas moviles de 20 consultas/hora y 100/24h, incluso con cache.
+
+Agregar envia `{action:"add", query, domain}`: el servidor acepta unicamente el candidato
+cacheado para ese usuario, reutiliza un dominio global activo existente o crea uno global
+`USER_ADDED`, sin categoria predeterminada, logo `LOGO_DEV/PENDING`. La auditoria `added_by`
+queda en `internal.merchant_catalog_audit`, fuera de las respuestas y del catalogo publico.
+Se conservan las exclusiones tambo.pe, inkafarma.pe, didiglobal.com, primax.com,
+calidda.com.pe y bitel.com.pe. Diez nuevas altas globales por usuario/24h; reintentar una alta
+existente devuelve el mismo ID sin consumir otra alta ni descargar otra vez. Los dominios
+curados compartidos historicos (Google) se preservan; las nuevas altas no los duplican.
+La primera alta reutiliza el handler `merchant-logo-sync` con credenciales de servicio,
+objetos inmutables por etag y ambas variantes. Un fallo conserva el comercio para el
+siguiente mantenimiento de logos; el sincronizador existente permite reintentar PENDING/FAILED.
+
+Crear privado envia `{action:"private", name}` (1-60 caracteres, sin PAN/CVV).
+Se reutiliza el nombre normalizado propio/global existente; de lo contrario se crea con
+`user_id` del JWT, sin dominio/logo y con iniciales. Requiere conexion: no se agrega un
+nuevo tipo de comando al outbox. Buscar y agregar son catalogo basico, accesible a cualquier
+usuario autenticado; el gate Premium de aprendizaje de preferencias se mantiene separado.
+Room 35 agrega `user_id` al cache y filtra consultas por propietario. La hidratacion incremental
+recibe globales por version y todos los privados visibles para no perderlos por un cursor global.
+Las respuestas de altas se insertan inmediatamente con version local 0 para no saltar filas aun
+no hidratadas. El flujo local cambia de propietario con `SessionCoordinator.localAccess`.
+
+### Contrato para la UI
+
+`MerchantDiscoveryViewModel` (Hilt, separado del selector) expone `state`:
+`query`, `localResults`, `candidates`, `isSearching`, `isSaving`, `error`, `addedMerchant`.
+Acciones: `onQueryChanged(text)`, `searchInternet()` (solo boton), `addCandidate(candidate)`,
+`createPrivate()` (usa query), `clearError()`, `consumeAddedMerchant()`.
+Cada candidato tiene `name`, `domain`, `logoUrl`, `alreadyInCatalog`, `merchantId`, `query`.
+No reconstruir candidatos desde texto arbitrario: conservar query/domain recibidos.
+Tras `addedMerchant`, seleccionar su ID en el flujo de movimiento y consumir el evento.
+Mostrar crear privado tanto sin resultados como opcion explicita del usuario.
+La UI final se integra por separado; no hay typeahead remoto ni pruebas en telefono en M3.
+
+### Despliegue (coordinador)
+
+1. Revisar y aplicar `supabase/migrations/20261102222216_merchant_discovery.sql` despues de
+   las migraciones existentes, incluidas las dos de logos de 2026-10-28. Aplicar por el flujo
+   habitual de migraciones, comprobando antes las pendientes; M3 no aplica cambios remotos.
+2. Configurar `LOGO_DEV_SECRET_KEY` con `supabase secrets set --env-file <archivo-local-seguro>`;
+   SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY son variables automaticas del runtime.
+3. Ejecutar `supabase functions deploy merchant-search --project-ref <ref>` (JWT habilitado).
+   El modulo importado merchant-logo-sync se incluye en el bundle: no hace falta redesplegarlo.
+4. Mantener el bucket publico `merchant-logos` y el mantenimiento habitual de merchant-logo-sync.
+5. Publicar app con Room 35; verificar autenticacion, busqueda explicita, alta global y privado
+   con dos usuarios. La evidencia de M3 usa mocks y Postgres local, no certifica proveedor/remoto.
