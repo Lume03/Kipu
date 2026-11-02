@@ -58,5 +58,13 @@ RETURNS text LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
   SELECT internal.goal_canonical_json(p_command)
 $$;
 
+-- Production now denies PUBLIC function execution by default, including in
+-- temporary schemas. Grant only the synthetic role used by these test blocks.
+GRANT EXECUTE ON FUNCTION pg_temp.goal_cmd(text,uuid,bigint,jsonb),
+  pg_temp.goal_reserved_test(uuid,uuid), pg_temp.goal_sync_exists_test(uuid),
+  pg_temp.goal_receipt_exists_test(uuid), pg_temp.goal_sync_selection_exists_test(uuid[]),
+  pg_temp.goal_receipt_selection_exists_test(uuid[]), pg_temp.goal_canonical_test(jsonb)
+TO authenticated;
+
 -- Run SQL blocks under `authenticated` role, with explicit synthetic JWT identity.
 SELECT pg_catalog.set_config('request.jwt.claim.sub','96000000-0000-4000-8000-000000000001',true);
