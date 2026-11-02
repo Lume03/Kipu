@@ -1,6 +1,7 @@
 -- Run with psql -v ON_ERROR_STOP=1 -f goal_crud_test.sql (local isolated DB).
 BEGIN;
-\ir _goal_test_fixture.sql
+SELECT plan(1);
+\ir _goal_test_fixture.sql.inc
 -- Completed goals do not consume Free quota. Seed three independently of the
 -- authenticated command surface so the test can exercise legacy/current state.
 INSERT INTO public.goals(id,user_id,name,target_minor,currency_code,status,revision)
@@ -132,4 +133,6 @@ DO $$ BEGIN
     entity_id='96000000-0000-4000-8000-000000000101' AND operation='DELETE' AND revision=3)
   THEN RAISE EXCEPTION 'delete revision/feed'; END IF;
 END $$;
+SELECT pass('goal_crud_test.sql domain assertions completed');
+SELECT * FROM finish();
 ROLLBACK;

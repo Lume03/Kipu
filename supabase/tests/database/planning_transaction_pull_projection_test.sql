@@ -1,6 +1,6 @@
 BEGIN;
 SELECT plan(10);
-\ir _goal_test_fixture.sql
+\ir _goal_test_fixture.sql.inc
 INSERT INTO public.transactions(id,user_id,account_id,transaction_type,operation_kind,amount_minor,currency_code,status,revision)
 VALUES('96000000-0000-4000-8000-000000000881','96000000-0000-4000-8000-000000000001',
   '96000000-0000-4000-8000-000000000011','EXPENSE','DEBT_PAYMENT',1000,'PEN','CONFIRMED',2),

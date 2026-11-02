@@ -1,6 +1,7 @@
 BEGIN;
+SELECT plan(1);
 
-\ir _goal_test_fixture.sql
+\ir _goal_test_fixture.sql.inc
 SELECT internal.reconcile_opening_ledger();
 SET LOCAL ROLE authenticated;
 DO $$
@@ -229,4 +230,6 @@ DO $$ BEGIN
       AND operation='UPSERT' AND revision IN (2,8))<>2
     THEN RAISE EXCEPTION 'composite replacement feed is incomplete'; END IF;
 END $$;
+SELECT pass('goal_lifecycle_test.sql domain assertions completed');
+SELECT * FROM finish();
 ROLLBACK;

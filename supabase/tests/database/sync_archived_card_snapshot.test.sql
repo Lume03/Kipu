@@ -12,6 +12,7 @@ SELECT public.register_card_v1(jsonb_build_object(
     'operation_id', '95000000-0000-0000-0000-000000000101',
     'card_id', '95000000-0000-0000-0000-000000000201',
     'type', 'CREDIT',
+    'account_id', '4a45f6f2-4ede-3351-a2e1-52382d22fe3d',
     'issuer', 'BCP',
     'network', 'VISA',
     'last_four_digits', '9501',

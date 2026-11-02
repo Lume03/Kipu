@@ -5,7 +5,7 @@ $userId = '96000000-0000-4000-8000-000000000001'
 $accountId = '96000000-0000-4000-8000-000000000011'
 $goalIds = @('96000000-0000-4000-8000-000000000101', '96000000-0000-4000-8000-000000000102')
 $eventIds = @('96000000-0000-4000-8000-000000000201', '96000000-0000-4000-8000-000000000202')
-$fixture = Join-Path $PSScriptRoot '_goal_test_fixture.sql'
+$fixture = Join-Path $PSScriptRoot '_goal_test_fixture.sql.inc'
 
 function Invoke-LocalSql([string]$sql) {
   $output = $sql | & docker exec -i $Container psql -U postgres -d postgres -v ON_ERROR_STOP=1 -tA 2>&1

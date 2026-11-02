@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $container = "supabase_db_kipu"
-$fixture = Join-Path $PSScriptRoot "debt_sprint5_migration_fixture.sql"
+$fixture = Join-Path $PSScriptRoot "debt_sprint5_migration_fixture.sql.inc"
 $migrationTest = Join-Path $PSScriptRoot "debt_sprint5_migration_test.sql"
 
 npx --yes supabase@latest db reset --local --version 20261007144500

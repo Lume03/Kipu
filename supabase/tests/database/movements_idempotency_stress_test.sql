@@ -5,14 +5,14 @@ INSERT INTO auth.users (id, email)
 VALUES ('66666666-6666-4666-8666-666666666666', 'movement-idempotency-stress@kipu.test')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
 VALUES (
     'a6666666-0000-4000-8000-000000000001',
     '66666666-6666-4666-8666-666666666666',
     'Stress-test account',
     'SAVINGS',
     'PEN'
-)
+, 'GENERIC')
 ON CONFLICT (id) DO NOTHING;
 
 SET LOCAL ROLE authenticated;

@@ -7,22 +7,25 @@ INSERT INTO auth.users (id, email) VALUES
     ('44444444-4444-4444-4444-444444444444', 'user4@kipu.app')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at)
-VALUES ('44444444-4444-4444-4444-000000000001', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000011', 'Ahorros BCP', 'SAVINGS', 'PEN', 100000, now(), now(), now())
+INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at, preset_id)
+VALUES ('44444444-4444-4444-4444-000000000001', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000011', 'Ahorros BCP', 'SAVINGS', 'PEN', 100000, now(), now(), now(), 'GENERIC')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.cards (id, user_id, creation_operation_id, network, alias, last4, is_credit, credit_limit_minor, closing_day, due_day, created_at, updated_at)
-VALUES ('44444444-4444-4444-4444-000000000002', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000012', 'VISA', 'BCP', '4444', true, 500000, 15, 5, now(), now())
-ON CONFLICT DO NOTHING;
+-- Canonical cards always reference their own liability account.
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
+(internal.credit_liability_identity_v1('account', '44444444-4444-4444-4444-444444444444'::uuid, '44444444-4444-4444-4444-000000000002'::uuid), '44444444-4444-4444-4444-444444444444', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN');
+
+INSERT INTO public.cards (id,user_id,creation_operation_id,network,alias,last4,is_credit,credit_limit_minor,closing_day,due_day,created_at,updated_at,account_id,currency_code,issuer) VALUES
+('44444444-4444-4444-4444-000000000002','44444444-4444-4444-4444-444444444444','44444444-4444-4444-4444-000000000012','VISA','BCP','4444',true,500000,15,5,now(),now(),internal.credit_liability_identity_v1('account', '44444444-4444-4444-4444-444444444444'::uuid, '44444444-4444-4444-4444-000000000002'::uuid),'PEN','BCP');
 
 -- Seed the already accepted S/300 debt through the canonical schedule model.
 INSERT INTO public.transactions (
     id,user_id,account_id,card_id,transaction_type,operation_kind,amount_minor,currency_code,
-    occurred_at,installment_count,interest_mode,status,revision
+    occurred_at,installment_count,interest_mode,status,revision,category_id
 ) VALUES (
     '44444444-4444-4444-4444-000000000022','44444444-4444-4444-4444-444444444444',NULL,
     '44444444-4444-4444-4444-000000000002','EXPENSE','CARD_PURCHASE',30000,'PEN',
-    now()-interval '20 days',1,'NONE','CONFIRMED',1
+    now()-interval '20 days',1,'NONE','CONFIRMED',1,'00000000-0000-0000-0000-000000000001'
 );
 INSERT INTO public.credit_installments (user_id,transaction_id,installment_number,due_date,principal_minor,interest_minor,status)
 VALUES ('44444444-4444-4444-4444-444444444444','44444444-4444-4444-4444-000000000022',1,current_date,30000,0,'PENDING');
@@ -86,8 +89,10 @@ SELECT is(
     'Overpayment is rejected with a stable canonical error'
 );
 
-INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at)
-VALUES ('44444444-4444-4444-4444-000000000003', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000014', 'Vacia', 'SAVINGS', 'PEN', 0, now(), now(), now());
+RESET ROLE;
+INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at, preset_id)
+VALUES ('44444444-4444-4444-4444-000000000003', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000014', 'Vacia', 'SAVINGS', 'PEN', 0, now(), now(), now(), 'GENERIC');
+SET LOCAL ROLE authenticated;
 SELECT is(
     public.pay_credit_card_v1(jsonb_build_object(
         'operation_id','a4444444-4444-4444-4444-444444444443',

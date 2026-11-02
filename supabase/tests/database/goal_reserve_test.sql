@@ -1,6 +1,7 @@
 BEGIN;
+SELECT plan(1);
 
-\ir _goal_test_fixture.sql
+\ir _goal_test_fixture.sql.inc
 -- New opening facts must already be posted by the activation trigger.
 SET LOCAL ROLE authenticated;
 DO $$
@@ -99,4 +100,6 @@ BEGIN
     RAISE EXCEPTION 'transfer accounting mismatch'; END IF;
 END;
 $$;
+SELECT pass('goal_reserve_test.sql domain assertions completed');
+SELECT * FROM finish();
 ROLLBACK;

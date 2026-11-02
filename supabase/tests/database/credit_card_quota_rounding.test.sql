@@ -37,10 +37,10 @@ INSERT INTO quota_tap SELECT lives_ok($$SELECT public.register_card_v1(jsonb_bui
  'operation_id',md5('quota-credit-op')::uuid,'card_id',md5('quota-credit')::uuid,'account_id',internal.credit_liability_identity_v1('account',auth.uid(),md5('quota-credit')::uuid),
  'alias','QA credit','type','CREDIT','currency','PEN','network','VISA','issuer','BCP','last_four_digits','4321',
  'credit_limit_minor_units',100000,'billing_day',15,'due_day',5,'payload_hash','qa-credit-hash'))$$,'Premium accepts fifth independent card');
-INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(10000,3,NULL,'FIRST_INSTALLMENT_RESIDUAL')),ARRAY[3334,3333,3333]::bigint[],'interest free residual is assigned to first installment');
-INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(120000,6,4500,'FIRST_INSTALLMENT_RESIDUAL')),ARRAY[22259,22258,22258,22258,22258,22258]::bigint[],'French schedule retains interest and shifts principal residual');
-INSERT INTO quota_tap SELECT ok((SELECT bool_and(principal_minor>=0) AND sum(principal_minor)=25 FROM private.credit_purchase_schedule(25,11,4500,'FIRST_INSTALLMENT_RESIDUAL')),'negative residual preserves nonnegative principal and total');
-INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(10000,3,NULL,'LAST_INSTALLMENT_RESIDUAL')),ARRAY[3333,3333,3334]::bigint[],'legacy residual remains on last installment');
+INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(10000::bigint,3::integer,NULL::integer,'FIRST_INSTALLMENT_RESIDUAL'::text)),ARRAY[3334,3333,3333]::bigint[],'interest free residual is assigned to first installment');
+INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(120000::bigint,6::integer,4500::integer,'FIRST_INSTALLMENT_RESIDUAL'::text)),ARRAY[18485,19066,19665,20284,20921,21579]::bigint[],'French schedule retains interest and shifts principal residual');
+INSERT INTO quota_tap SELECT ok((SELECT bool_and(principal_minor>=0) AND sum(principal_minor)=25 FROM private.credit_purchase_schedule(25::bigint,11::integer,4500::integer,'FIRST_INSTALLMENT_RESIDUAL'::text)),'negative residual preserves nonnegative principal and total');
+INSERT INTO quota_tap SELECT is((SELECT array_agg(principal_minor ORDER BY installment_number) FROM private.credit_purchase_schedule(10000::bigint,3::integer,NULL::integer,'LAST_INSTALLMENT_RESIDUAL'::text)),ARRAY[3333,3333,3334]::bigint[],'legacy residual remains on last installment');
 INSERT INTO quota_tap SELECT * FROM finish();
 SELECT line FROM quota_tap;
 ROLLBACK;

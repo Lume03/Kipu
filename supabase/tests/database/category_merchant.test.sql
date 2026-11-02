@@ -125,8 +125,8 @@ SELECT is(
 
 -- Setup test movement for classification tests
 RESET ROLE;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-VALUES ('99999999-9999-9999-9999-000000000002', '11111111-1111-1111-1111-111111111111', 'Cuenta de prueba', 'CASH', 'PEN');
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+VALUES ('99999999-9999-9999-9999-000000000002', '11111111-1111-1111-1111-111111111111', 'Cuenta de prueba', 'CASH', 'PEN', 'CASH');
 
 INSERT INTO public.financial_movements (id, operation_id, user_id, kind, amount_minor_units, currency, account_id, status, effective_at, created_at)
 VALUES (

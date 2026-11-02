@@ -10,17 +10,21 @@ INSERT INTO auth.users (id,email) VALUES
     ('93000000-0000-0000-0000-000000000002','s3-credit-other@kipu.test')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id,user_id,creation_operation_id,name,account_type,currency_code,initial_balance_minor_units,opened_at,is_archived)
+INSERT INTO public.accounts (id,user_id,creation_operation_id,name,account_type,currency_code,initial_balance_minor_units,opened_at,is_archived, preset_id)
 VALUES
-    ('93000000-0000-0000-0000-000000000101','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000111','Cuenta PEN','BANK','PEN',50000,now(),false),
-    ('93000000-0000-0000-0000-000000000102','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000112','Cuenta PEN vacía','BANK','PEN',0,now(),false),
-    ('93000000-0000-0000-0000-000000000103','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000113','Cuenta USD','BANK','USD',50000,now(),false),
-    ('93000000-0000-0000-0000-000000000201','93000000-0000-0000-0000-000000000002','93000000-0000-0000-0000-000000000211','Cuenta externa','BANK','PEN',50000,now(),false);
+    ('93000000-0000-0000-0000-000000000101','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000111','Cuenta PEN','BANK','PEN',50000,now(),false, 'GENERIC'),
+    ('93000000-0000-0000-0000-000000000102','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000112','Cuenta PEN vacía','BANK','PEN',0,now(),false, 'GENERIC'),
+    ('93000000-0000-0000-0000-000000000103','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000113','Cuenta USD','BANK','USD',50000,now(),false, 'GENERIC'),
+    ('93000000-0000-0000-0000-000000000201','93000000-0000-0000-0000-000000000002','93000000-0000-0000-0000-000000000211','Cuenta externa','BANK','PEN',50000,now(),false, 'GENERIC');
 
-INSERT INTO public.cards (id,user_id,creation_operation_id,account_id,network,alias,last4,is_credit,credit_limit_minor,closing_day,due_day,personal_tea_bps,is_archived)
-VALUES
-    ('93000000-0000-0000-0000-000000000301','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000311',NULL,'VISA','Tarjeta Sprint 3','3001',true,20000,20,10,NULL,false),
-    ('93000000-0000-0000-0000-000000000302','93000000-0000-0000-0000-000000000002','93000000-0000-0000-0000-000000000312',NULL,'VISA','Tarjeta de otro usuario','3002',true,20000,20,10,NULL,false);
+-- Canonical cards always reference their own liability account.
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
+(internal.credit_liability_identity_v1('account', '93000000-0000-0000-0000-000000000001'::uuid, '93000000-0000-0000-0000-000000000301'::uuid), '93000000-0000-0000-0000-000000000001', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN'),
+(internal.credit_liability_identity_v1('account', '93000000-0000-0000-0000-000000000002'::uuid, '93000000-0000-0000-0000-000000000302'::uuid), '93000000-0000-0000-0000-000000000002', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN');
+
+INSERT INTO public.cards (id,user_id,creation_operation_id,account_id,network,alias,last4,is_credit,credit_limit_minor,closing_day,due_day,personal_tea_bps,is_archived,currency_code,issuer,closing_day_inclusive) VALUES
+('93000000-0000-0000-0000-000000000301','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000311',internal.credit_liability_identity_v1('account', '93000000-0000-0000-0000-000000000001'::uuid, '93000000-0000-0000-0000-000000000301'::uuid),'VISA','Tarjeta Sprint 3','3001',true,20000,20,10,NULL,false,'PEN','BCP',true),
+('93000000-0000-0000-0000-000000000302','93000000-0000-0000-0000-000000000002','93000000-0000-0000-0000-000000000312',internal.credit_liability_identity_v1('account', '93000000-0000-0000-0000-000000000002'::uuid, '93000000-0000-0000-0000-000000000302'::uuid),'VISA','Tarjeta de otro usuario','3002',true,20000,20,10,NULL,false,'PEN','BCP',true);
 
 INSERT INTO public.categories (id,user_id,parent_id,name,origin,is_active,remote_revision,category_type)
 VALUES ('93000000-0000-0000-0000-000000000401','93000000-0000-0000-0000-000000000001',NULL,'Compras de prueba','CUSTOM',true,1,'EXPENSE');
@@ -35,7 +39,7 @@ SELECT is(
             'id','93000000-0000-0000-0000-000000000501','type','EXPENSE','operation_kind','CARD_PURCHASE',
             'amount_minor',10000,'currency_code','PEN','source_account_id',NULL,
             'card_id','93000000-0000-0000-0000-000000000301','category_id','93000000-0000-0000-0000-000000000401',
-            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'interest_mode','NONE'
+            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'rounding_policy','FIRST_INSTALLMENT_RESIDUAL','interest_mode','NONE'
         )
     ))->>'status',
     'APPLIED',
@@ -60,7 +64,7 @@ SELECT is(
     'Inclusive closing-day purchase is due in the following monthly card cycle'
 );
 RESET ROLE;
-SELECT is((SELECT count(*)::integer FROM internal.ledger_entries WHERE transaction_id='93000000-0000-0000-0000-000000000501'),0,'Credit purchase does not debit liquid assets');
+SELECT is((SELECT count(*)::integer FROM internal.ledger_entries WHERE transaction_id='93000000-0000-0000-0000-000000000501' AND account_id='93000000-0000-0000-0000-000000000101'),0,'Credit purchase does not debit liquid assets');
 SELECT is((SELECT count(*)::integer FROM public.financial_movements WHERE user_id='93000000-0000-0000-0000-000000000001' AND card_id='93000000-0000-0000-0000-000000000301'),0,'New credit command does not use movement-only storage');
 
 SET LOCAL ROLE authenticated;
@@ -71,7 +75,7 @@ SELECT is(
             'id','93000000-0000-0000-0000-000000000501','type','EXPENSE','operation_kind','CARD_PURCHASE',
             'amount_minor',10000,'currency_code','PEN','source_account_id',NULL,
             'card_id','93000000-0000-0000-0000-000000000301','category_id','93000000-0000-0000-0000-000000000401',
-            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'interest_mode','NONE'
+            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'rounding_policy','FIRST_INSTALLMENT_RESIDUAL','interest_mode','NONE'
         )
     ))->>'status',
     'DUPLICATE',
@@ -85,7 +89,7 @@ SELECT is(
             'id','93000000-0000-0000-0000-000000000501','type','EXPENSE','operation_kind','CARD_PURCHASE',
             'amount_minor',10001,'currency_code','PEN','source_account_id',NULL,
             'card_id','93000000-0000-0000-0000-000000000301','category_id','93000000-0000-0000-0000-000000000401',
-            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'interest_mode','NONE'
+            'merchant_provisional_text','Comercio de prueba','occurred_at','2026-09-20T12:00:00Z','installment_count',3,'rounding_policy','FIRST_INSTALLMENT_RESIDUAL','interest_mode','NONE'
         )
     ))->>'status',
     'CONFLICT',
@@ -138,7 +142,7 @@ SELECT is(
     'Payment response reports the exact remaining principal'
 );
 SELECT is((SELECT status FROM public.credit_installments WHERE transaction_id='93000000-0000-0000-0000-000000000501' AND installment_number=2),'PARTIAL','Partial amount updates the in-progress installment state');
-SELECT is((SELECT sum(signed_amount_minor)::bigint FROM internal.ledger_entries WHERE transaction_id='93000000-0000-0000-0000-000000000601'),-4000::bigint,'Payment debits the real source account once');
+SELECT is((SELECT sum(signed_amount_minor)::bigint FROM internal.ledger_entries WHERE transaction_id='93000000-0000-0000-0000-000000000601' AND account_id='93000000-0000-0000-0000-000000000101'),-4000::bigint,'Payment debits the real source account once');
 SELECT is((SELECT transaction_type::text||'/'||operation_kind::text FROM public.transactions WHERE id='93000000-0000-0000-0000-000000000601'),'TRANSFER/CARD_PAYMENT','Card payment is a transfer/amortization transaction, not an expense');
 SELECT is((SELECT count(*)::integer FROM internal.ledger_entries le JOIN public.transactions tx ON tx.id=le.transaction_id WHERE tx.card_id='93000000-0000-0000-0000-000000000301' AND tx.operation_kind='CARD_PAYMENT' AND tx.transaction_type='EXPENSE'),0,'Card payments create no expense ledger entry');
 
@@ -171,7 +175,7 @@ SELECT is(
 SELECT is((SELECT status FROM public.credit_installments WHERE transaction_id='93000000-0000-0000-0000-000000000501' AND installment_number=1),'PAID','Oldest installment is fully paid first');
 SELECT is((SELECT status FROM public.credit_installments WHERE transaction_id='93000000-0000-0000-0000-000000000503'),'PARTIAL','Payment spanning dates partially amortizes the next oldest installment');
 RESET ROLE;
-SELECT is((SELECT sum(signed_amount_minor)::bigint FROM internal.ledger_entries le JOIN public.transactions tx ON tx.id=le.transaction_id WHERE tx.operation_kind='CARD_PAYMENT' AND tx.card_id='93000000-0000-0000-0000-000000000301'),-15000::bigint,'Two payments reduce liquid assets by exactly the amount paid');
+SELECT is((SELECT sum(signed_amount_minor)::bigint FROM internal.ledger_entries le JOIN public.transactions tx ON tx.id=le.transaction_id WHERE le.account_id='93000000-0000-0000-0000-000000000101' AND tx.operation_kind='CARD_PAYMENT' AND tx.card_id='93000000-0000-0000-0000-000000000301'),-15000::bigint,'Two payments reduce liquid assets by exactly the amount paid');
 
 SET LOCAL ROLE authenticated;
 SELECT is(

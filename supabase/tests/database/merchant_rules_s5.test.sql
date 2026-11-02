@@ -47,11 +47,11 @@ INSERT INTO public.billing_purchases (
 )
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
 VALUES (
     '55555555-5555-5555-5555-555555555556',
     '11111111-1111-1111-1111-111111111111', 'Merchant rule test cash', 'CASH', 'PEN'
-)
+, 'CASH')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.financial_movements (

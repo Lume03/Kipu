@@ -22,10 +22,10 @@ GRANT SELECT ON category_type_test_ids TO authenticated;
 
 INSERT INTO auth.users (id, email)
 SELECT user_id, user_id::text || '@category-type.kipu.app' FROM category_type_test_ids;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-SELECT source_account_id, user_id, 'Cuenta origen', 'SAVINGS', 'PEN' FROM category_type_test_ids;
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-SELECT destination_account_id, user_id, 'Cuenta destino', 'SAVINGS', 'PEN' FROM category_type_test_ids;
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+SELECT source_account_id, user_id, 'Cuenta origen', 'SAVINGS', 'PEN', 'GENERIC' FROM category_type_test_ids;
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+SELECT destination_account_id, user_id, 'Cuenta destino', 'SAVINGS', 'PEN', 'GENERIC' FROM category_type_test_ids;
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', (SELECT user_id::text FROM category_type_test_ids), true);

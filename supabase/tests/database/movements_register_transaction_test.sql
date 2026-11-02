@@ -16,9 +16,9 @@ INSERT INTO auth.users (id, email) VALUES
     ('44444444-4444-4444-4444-444444444444', 'user4@kipu.app')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code) VALUES
-    ('a3333333-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'BCP Ahorros', 'SAVINGS', 'PEN'),
-    ('a3333333-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'Efectivo', 'CASH', 'PEN')
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id) VALUES
+    ('a3333333-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'BCP Ahorros', 'SAVINGS', 'PEN', 'GENERIC'),
+    ('a3333333-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'Efectivo', 'CASH', 'PEN', 'CASH')
 ON CONFLICT (id) DO NOTHING;
 
 -- Test 5: Register Expense as user 3

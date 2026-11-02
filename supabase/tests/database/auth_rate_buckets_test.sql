@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(8);
+SELECT plan(10);
 
 -- 1. Verify schema and table exist
 SELECT has_schema('private', 'Schema private exists');
@@ -87,6 +87,12 @@ SELECT throws_ok(
     NULL,
     'anon cannot select from private.registration_rate_buckets'
 );
+
+-- Both OTP fast paths require the four-argument wrapper restored from baseline.
+SELECT lives_ok($$SELECT public.auth_otp_begin_verify('fixture-ip','otp-verify@kipu.test',
+ 'f0000000-0000-4000-8000-000000000001')$$,'OTP verification resolves its rate-limiter dependency');
+SELECT lives_ok($$SELECT public.auth_otp_begin_resend('fixture-ip','otp-resend@kipu.test')$$,
+ 'OTP resend resolves its rate-limiter dependency');
 
 SELECT * FROM finish();
 ROLLBACK;

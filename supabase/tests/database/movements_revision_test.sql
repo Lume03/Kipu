@@ -1,21 +1,21 @@
 BEGIN;
-SELECT plan(42);
+SELECT plan(47);
 
 INSERT INTO auth.users(id,email) VALUES
  ('80000000-0000-4000-8000-000000000001','s4-revision-owner@kipu.test'),
  ('80000000-0000-4000-8000-000000000002','s4-revision-other@kipu.test')
 ON CONFLICT(id) DO NOTHING;
 
-INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
- ('85100000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000001','Bank 1','BANK','PEN'),
- ('85100000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000001','Bank 2','BANK','PEN'),
- ('85100000-0000-4000-8000-000000000003','80000000-0000-4000-8000-000000000001','Bank 3','BANK','PEN'),
- ('85100000-0000-4000-8000-000000000004','80000000-0000-4000-8000-000000000001','Bank 4','BANK','PEN'),
- ('85100000-0000-4000-8000-000000000005','80000000-0000-4000-8000-000000000001','Bank 5','BANK','PEN');
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code, preset_id) VALUES
+ ('85100000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000001','Bank 1','BANK','PEN', 'GENERIC'),
+ ('85100000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000001','Bank 2','BANK','PEN', 'GENERIC'),
+ ('85100000-0000-4000-8000-000000000003','80000000-0000-4000-8000-000000000001','Bank 3','BANK','PEN', 'GENERIC'),
+ ('85100000-0000-4000-8000-000000000004','80000000-0000-4000-8000-000000000001','Bank 4','BANK','PEN', 'GENERIC'),
+ ('85100000-0000-4000-8000-000000000005','80000000-0000-4000-8000-000000000001','Bank 5','BANK','PEN', 'GENERIC');
 
-INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
- ('81000000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000001','Cash A','CASH','PEN'),
- ('81000000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000001','Cash B','CASH','PEN')
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code, preset_id) VALUES
+ ('81000000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000001','Cash A','CASH','PEN', 'CASH'),
+ ('81000000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000001','Cash B','CASH','PEN', 'CASH')
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO public.categories(id,user_id,name,origin,category_type) VALUES
@@ -319,5 +319,30 @@ SELECT throws_ok($$DELETE FROM internal.ledger_entries WHERE id='83000000-0000-4
 RESET ROLE;
 SELECT is((SELECT count(*) FROM internal.ledger_entries WHERE id='83000000-0000-4000-8000-000000000001'),
  1::bigint,'no RPC physically deleted the original ledger row');
+-- Regression: a corrected transfer must append a second reversal per account.
+SET LOCAL "request.jwt.claim.sub"='80000000-0000-4000-8000-000000000001';
+CREATE TEMP TABLE transfer_void_command AS
+SELECT c || jsonb_build_object('request_hash',internal.movement_revision_hash_v1(c)) AS command
+FROM (SELECT jsonb_build_object(
+ 'contract_version',1,'command_type','VOID_TRANSACTION',
+ 'idempotency_key','84000000-0000-4000-8000-000000000008',
+ 'transaction_id','82000000-0000-4000-8000-000000000003',
+ 'expected_revision',2,'depends_on_command_id',NULL,'reason','void revised transfer',
+ 'revised_payload',NULL) AS c) source;
+SELECT is((SELECT public.void_transaction_v1(command)->>'status' FROM transfer_void_command),
+ 'APPLIED','voiding a corrected transfer appends both contra entries');
+SELECT is((SELECT count(*) FROM internal.ledger_entries
+ WHERE transaction_id='82000000-0000-4000-8000-000000000003' AND entry_role='REVERSAL'),
+ 4::bigint,'each account retains both correction and void REVERSAL entries');
+SELECT ok((SELECT bool_and(balance=0) FROM (
+ SELECT account_id,sum(signed_amount_minor) AS balance FROM internal.ledger_entries
+ WHERE transaction_id='82000000-0000-4000-8000-000000000003' GROUP BY account_id) balances),
+ 'void restores each transfer account independently');
+SELECT is((SELECT public.void_transaction_v1(command)->>'status' FROM transfer_void_command),
+ 'DUPLICATE','transfer void retry reuses its receipt');
+SELECT is((SELECT count(*) FROM internal.ledger_entries
+ WHERE transaction_id='82000000-0000-4000-8000-000000000003'),8::bigint,
+ 'transfer void retry appends no duplicate effects');
+
 SELECT * FROM finish();
 ROLLBACK;

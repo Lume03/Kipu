@@ -12,8 +12,8 @@ INSERT INTO auth.users (id, email) VALUES
     ('33333333-3333-3333-3333-333333333333', 'user3@kipu.app')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at)
-VALUES ('a3333333-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'b3333333-0000-0000-0000-000000000001', 'Cuenta BCP', 'SAVINGS', 'PEN', 10000, now(), now(), now())
+INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_type, currency_code, initial_balance_minor_units, opened_at, created_at, updated_at, preset_id)
+VALUES ('a3333333-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'b3333333-0000-0000-0000-000000000001', 'Cuenta BCP', 'SAVINGS', 'PEN', 10000, now(), now(), now(), 'GENERIC')
 ON CONFLICT DO NOTHING;
 
 -- Test 3: Register debit card linked to account
@@ -54,6 +54,7 @@ SELECT lives_ok(
             'operation_id', 'c3333333-0000-0000-0000-000000000002',
             'card_id', 'd3333333-0000-0000-0000-000000000002',
             'type', 'CREDIT',
+            'account_id', 'ddb21567-32c6-3d3c-8a27-74b90dd8b80d',
             'issuer', 'BBVA',
             'network', 'VISA',
             'last_four_digits', '7777',
@@ -76,6 +77,7 @@ SELECT throws_ok(
             'operation_id', 'c3333333-0000-0000-0000-000000000003',
             'card_id', 'd3333333-0000-0000-0000-000000000003',
             'type', 'CREDIT',
+            'account_id', 'ddb21567-32c6-3d3c-8a27-74b90dd8b80d',
             'issuer', 'BCP',
             'network', 'VISA',
             'last_four_digits', '1234567812345678',

@@ -1,6 +1,6 @@
 BEGIN;
 SELECT plan(6);
-\ir _goal_test_fixture.sql
+\ir _goal_test_fixture.sql.inc
 RESET ROLE;
 
 SELECT ok(NOT has_table_privilege('authenticated','public.debts','INSERT'), 'debt creation cannot bypass commands');

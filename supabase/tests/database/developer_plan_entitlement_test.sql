@@ -34,10 +34,20 @@ SELECT ok(NOT private.is_user_pro('74000000-0000-4000-8000-000000000001'), 'revo
 SELECT internal.set_test_plans_enabled(false, 'commercial fallback');
 SELECT is((SELECT source FROM public.get_effective_plan_for_refresh('74000000-0000-4000-8000-000000000001')), 'COMMERCIAL', 'gate off restores commercial source');
 SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('74000000-0000-4000-8000-000000000001')), 'FREE', 'revoked user without purchase is Free');
+INSERT INTO public.billing_products(id,store_product_id,name,plan_type) VALUES ('developer-test-monthly','developer-test-monthly','Monthly fixture','PRO_MONTHLY');
 INSERT INTO public.billing_purchases(user_id, purchase_token_hash, product_id, purchase_state, entitlement_state, expires_at)
 SELECT '74000000-0000-4000-8000-000000000001', repeat('7',64), id, 'PURCHASED', 'ACTIVE', now()+interval '1 month'
 FROM public.billing_products WHERE plan_type='PRO_MONTHLY' LIMIT 1;
 SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('74000000-0000-4000-8000-000000000001')), 'PREMIUM', 'commercial Premium still applies');
+-- A store purchase must be purchased before either commercial projection grants Premium.
+UPDATE public.billing_purchases SET purchase_state='PENDING',entitlement_state=NULL
+WHERE user_id='74000000-0000-4000-8000-000000000001';
+SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('74000000-0000-4000-8000-000000000001')),
+ 'FREE','pending purchase cannot grant refresh Premium');
+SELECT is((SELECT plan_tier FROM public.v_feature_access WHERE user_id='74000000-0000-4000-8000-000000000001'),
+ 'FREE','pending purchase cannot grant quota Premium');
+UPDATE public.billing_purchases SET purchase_state='PURCHASED',entitlement_state='ACTIVE'
+WHERE user_id='74000000-0000-4000-8000-000000000001';
 SELECT internal.grant_developer_plan('74000000-0000-4000-8000-000000000001', 'beats commercial');
 SELECT ok((SELECT source='DEVELOPER' AND expires_at IS NULL FROM public.get_effective_plan_for_refresh('74000000-0000-4000-8000-000000000001')), 'developer beats expiring purchase');
 SELECT internal.revoke_developer_plan('74000000-0000-4000-8000-000000000001', 'return to purchase');

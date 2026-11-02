@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(37);
+SELECT plan(41);
 
 -- ---------------------------------------------------------------------------
 -- Setup test users and billing products
@@ -236,6 +236,8 @@ DELETE FROM public.billing_purchases WHERE user_id = '33333333-3333-3333-3333-33
 INSERT INTO public.billing_purchases (user_id, purchase_token_hash, product_id, purchase_state, entitlement_state, expires_at)
 VALUES ('33333333-3333-3333-3333-333333333333', repeat('1', 64), 'prod-monthly-test', 'PURCHASED', 'ACTIVE', NULL);
 
+SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('33333333-3333-3333-3333-333333333333')), 'FREE', 'Refresh projection respects entitlement fixture 1');
+
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '33333333-3333-3333-3333-333333333333';
 
@@ -275,6 +277,8 @@ UPDATE public.billing_purchases
 SET expires_at = clock_timestamp() - interval '1 day'
 WHERE user_id = '33333333-3333-3333-3333-333333333333' AND purchase_token_hash = repeat('1', 64);
 
+SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('33333333-3333-3333-3333-333333333333')), 'FREE', 'Refresh projection respects entitlement fixture 2');
+
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '33333333-3333-3333-3333-333333333333';
 
@@ -300,6 +304,8 @@ UPDATE public.billing_purchases
 SET entitlement_state = NULL, expires_at = clock_timestamp() + interval '30 days'
 WHERE user_id = '33333333-3333-3333-3333-333333333333' AND purchase_token_hash = repeat('1', 64);
 
+SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('33333333-3333-3333-3333-333333333333')), 'FREE', 'Refresh projection respects entitlement fixture 3');
+
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '33333333-3333-3333-3333-333333333333';
 
@@ -324,6 +330,8 @@ SET LOCAL ROLE postgres;
 UPDATE public.billing_purchases
 SET product_id = 'prod-lifetime-test', entitlement_state = 'ACTIVE', expires_at = NULL
 WHERE user_id = '33333333-3333-3333-3333-333333333333' AND purchase_token_hash = repeat('1', 64);
+
+SELECT is((SELECT effective_tier FROM public.get_effective_plan_for_refresh('33333333-3333-3333-3333-333333333333')), 'PREMIUM', 'Refresh projection respects entitlement fixture 4');
 
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub" = '33333333-3333-3333-3333-333333333333';

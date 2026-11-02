@@ -1,6 +1,6 @@
 BEGIN;
 SELECT plan(26);
-\ir _recurrence_test_fixture.sql
+\ir _recurrence_test_fixture.sql.inc
 
 SELECT has_table('public', 'recurrences', 'public.recurrences exists');
 SELECT has_column('public', 'recurrences', 'user_id', 'recurrences has owner key');

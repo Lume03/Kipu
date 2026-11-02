@@ -5,10 +5,10 @@ INSERT INTO auth.users (id, email) VALUES
   ('a7000000-0000-4000-8000-000000000002', 'recurrence-owner-2@kipu.test')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
 VALUES
-  ('a7100000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 'EP-REC owner 1 account', 'BANK', 'PEN'),
-  ('a7100000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000002', 'EP-REC owner 2 account', 'BANK', 'PEN')
+  ('a7100000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 'EP-REC owner 1 account', 'BANK', 'PEN', 'GENERIC'),
+  ('a7100000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000002', 'EP-REC owner 2 account', 'BANK', 'PEN', 'GENERIC')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.categories (id, user_id, name, origin, is_system, is_active, remote_revision)

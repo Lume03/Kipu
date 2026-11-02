@@ -18,8 +18,8 @@ SELECT ok(
 
 SELECT ok(
     pg_catalog.strpos(
-        pg_catalog.pg_get_functiondef('internal.register_transaction_pre_hash_v2(jsonb)'::regprocedure),
-        'v_after_debt := v_before_debt + v_amount'
+        pg_catalog.pg_get_functiondef('public.register_transaction_v1_pre_liability_s3(jsonb)'::regprocedure),
+        'v_after_debt := v_before_debt + v_financed_total'
     ) > 0,
     'The full purchase amount still contributes to outstanding debt'
 );

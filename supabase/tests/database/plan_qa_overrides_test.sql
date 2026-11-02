@@ -4,8 +4,6 @@ SELECT plan(44);
 -- Exercise the migration's ACL change transactionally; this test rolls it back.
 REVOKE ALL ON public.v_feature_access FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON public.v_feature_access TO service_role;
--- The isolated plans-test database omits this unrelated table used by the legacy RPC.
-CREATE TABLE IF NOT EXISTS public.user_devices (user_id uuid, is_active boolean);
 
 INSERT INTO auth.users(id, email) VALUES
  ('73000000-0000-4000-8000-000000000001', 'qa-plan-owner@example.test'),
@@ -40,6 +38,10 @@ SELECT set_config('request.jwt.claim.sub', '73000000-0000-4000-8000-000000000001
 SELECT ok((public.get_feature_access()->>'user_id') = '73000000-0000-4000-8000-000000000001'
           AND public.get_feature_access() ? 'limits', 'owner-scoped feature access RPC still returns its contract');
 SELECT ok(private.is_user_pro('73000000-0000-4000-8000-000000000001'), 'category quota helper observes QA Premium');
+-- The shared guard reads persisted quota groups, not the legacy count argument.
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id)
+SELECT md5('qa-quota-'||n)::uuid,'73000000-0000-4000-8000-000000000001','QA bank '||n,'BANK','PEN','GENERIC'
+FROM generate_series(1,4) n;
 SELECT ok(NOT private.is_instrument_quota_blocked('73000000-0000-4000-8000-000000000001', 4), 'Premium can create the fifth active instrument');
 SELECT ok(NOT private.is_user_pro('73000000-0000-4000-8000-000000000002'), 'another user does not inherit the QA override');
 SELECT ok(position('private.is_instrument_quota_blocked' IN pg_get_functiondef('public.create_account_v1(jsonb)'::regprocedure)) > 0, 'account creation uses the shared instrument quota guard');

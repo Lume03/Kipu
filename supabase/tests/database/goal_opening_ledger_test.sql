@@ -1,7 +1,8 @@
 -- Regression for the canonical account balance: openings and opening corrections
 -- must be represented once in ledger_entries, never added from legacy mirrors.
 BEGIN;
-\ir _goal_test_fixture.sql
+SELECT plan(1);
+\ir _goal_test_fixture.sql.inc
 
 DO $$
 DECLARE
@@ -116,4 +117,6 @@ BEGIN
   END IF;
 END;
 $$;
+SELECT pass('goal_opening_ledger_test.sql domain assertions completed');
+SELECT * FROM finish();
 ROLLBACK;

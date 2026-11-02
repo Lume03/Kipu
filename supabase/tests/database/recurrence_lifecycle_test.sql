@@ -1,6 +1,6 @@
 BEGIN;
 SELECT plan(24);
-\ir _recurrence_test_fixture.sql
+\ir _recurrence_test_fixture.sql.inc
 
 SELECT ok(to_regprocedure('public.set_recurrence_status_v1(jsonb)') IS NOT NULL,
   'lifecycle RPC is exposed with a single jsonb argument');

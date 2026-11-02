@@ -4,17 +4,21 @@ SELECT plan(7);
 INSERT INTO auth.users (id,email) VALUES
     ('94000000-0000-0000-0000-000000000001','s3-legacy-payment@kipu.test')
 ON CONFLICT (id) DO NOTHING;
-INSERT INTO public.accounts (id,user_id,creation_operation_id,name,account_type,currency_code,initial_balance_minor_units,opened_at,is_archived)
-VALUES ('94000000-0000-0000-0000-000000000101','94000000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000111','Cuenta histórica','BANK','PEN',5000,now(),false);
-INSERT INTO public.cards (id,user_id,creation_operation_id,account_id,network,alias,last4,is_credit,credit_limit_minor,closing_day,due_day,is_archived)
-VALUES ('94000000-0000-0000-0000-000000000301','94000000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000311',NULL,'VISA','Tarjeta histórica','9401',true,10000,20,10,false);
+INSERT INTO public.accounts (id,user_id,creation_operation_id,name,account_type,currency_code,initial_balance_minor_units,opened_at,is_archived, preset_id)
+VALUES ('94000000-0000-0000-0000-000000000101','94000000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000111','Cuenta histórica','BANK','PEN',5000,now(),false, 'GENERIC');
+-- Canonical cards always reference their own liability account.
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
+(internal.credit_liability_identity_v1('account', '94000000-0000-0000-0000-000000000001'::uuid, '94000000-0000-0000-0000-000000000301'::uuid), '94000000-0000-0000-0000-000000000001', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN');
+
+INSERT INTO public.cards (id,user_id,creation_operation_id,account_id,network,alias,last4,is_credit,credit_limit_minor,closing_day,due_day,is_archived,currency_code,issuer) VALUES
+('94000000-0000-0000-0000-000000000301','94000000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000311',internal.credit_liability_identity_v1('account', '94000000-0000-0000-0000-000000000001'::uuid, '94000000-0000-0000-0000-000000000301'::uuid),'VISA','Tarjeta histórica','9401',true,10000,20,10,false,'PEN','BCP');
 
 -- A later canonical expense has left only S/5.00 available today.
 INSERT INTO public.transactions (
-    id,user_id,account_id,transaction_type,operation_kind,amount_minor,currency_code,occurred_at,installment_count,interest_mode,status,revision
+    id,user_id,account_id,transaction_type,operation_kind,amount_minor,currency_code,occurred_at,installment_count,interest_mode,status,revision,category_id
 ) VALUES (
     '94000000-0000-0000-0000-000000000401','94000000-0000-0000-0000-000000000001',
-    '94000000-0000-0000-0000-000000000101','EXPENSE','STANDARD',4500,'PEN',now()-interval '1 day',1,'NONE','CONFIRMED',1
+    '94000000-0000-0000-0000-000000000101','EXPENSE','STANDARD',4500,'PEN',now()-interval '1 day',1,'NONE','CONFIRMED',1,'00000000-0000-0000-0000-000000000001'
 );
 INSERT INTO internal.ledger_entries (transaction_id,user_id,account_id,signed_amount_minor,currency_code,entry_role,occurred_at)
 VALUES ('94000000-0000-0000-0000-000000000401','94000000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000101',-4500,'PEN','PRIMARY',now()-interval '1 day');
@@ -25,7 +29,7 @@ SELECT is(
     public.register_transaction_v1(jsonb_build_object(
         'contract_version',1,'idempotency_key','94000000-0000-0000-0000-000000000501','request_hash','purchase-hash',
         'transaction',jsonb_build_object('id','94000000-0000-0000-0000-000000000501','type','EXPENSE','operation_kind','CARD_PURCHASE',
-            'amount_minor',5000,'currency_code','PEN','card_id','94000000-0000-0000-0000-000000000301',
+            'amount_minor',5000,'category_id','00000000-0000-0000-0000-000000000001','currency_code','PEN','card_id','94000000-0000-0000-0000-000000000301',
             'occurred_at','2026-08-01T12:00:00Z','installment_count',2,'interest_mode','NONE')
     ))->>'status','APPLIED','Canonical source debt is available for historical amortization');
 
