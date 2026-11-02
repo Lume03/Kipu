@@ -1,0 +1,23 @@
+BEGIN;
+SET LOCAL search_path=public,extensions;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(10);
+INSERT INTO auth.users(id,email) VALUES ('a0411111-1111-4111-8111-111111111111','debit-fixture@kipu.test'),('a0411111-1111-4111-8111-111111111112','debit-other@kipu.test');
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id) VALUES ('a0422222-2222-4222-8222-222222222222','a0411111-1111-4111-8111-111111111111','Ahorro','SAVINGS','PEN','BCP');
+INSERT INTO public.cards(id,user_id,creation_operation_id,account_id,network,alias,last4,is_credit,currency_code,issuer)
+VALUES ('a0433333-3333-4333-8333-333333333333','a0411111-1111-4111-8111-111111111111','a0444444-4444-4444-8444-444444444444','a0422222-2222-4222-8222-222222222222','VISA','Débito','1234',false,'PEN','BCP');
+SELECT set_config('request.jwt.claim.sub','a0411111-1111-4111-8111-111111111111',true);
+CREATE TEMP TABLE cmd AS SELECT jsonb_build_object('operation_id','identity-op','card_id','a0433333-3333-4333-8333-333333333333','last_four_digits','9876','expected_revision',(SELECT revision FROM public.cards WHERE id='a0433333-3333-4333-8333-333333333333')) AS val;
+SELECT is((SELECT public.update_debit_card_identity_v1(val)->>'status' FROM cmd),'APPLIED','update applies');
+SELECT is((SELECT last4::text FROM public.cards WHERE id='a0433333-3333-4333-8333-333333333333'),'9876','digits persisted');
+SELECT is((SELECT public.update_debit_card_identity_v1(val)->>'status' FROM cmd),'DUPLICATE','replay is idempotent');
+SELECT throws_ok($$SELECT public.update_debit_card_identity_v1((SELECT val || '{"last_four_digits":"1111"}'::jsonb FROM cmd))$$,'P0001','IDEMPOTENCY_CONFLICT','changed replay rejected');
+SELECT throws_ok($$SELECT public.update_debit_card_identity_v1((SELECT val || '{"operation_id":"invalid","last_four_digits":"1234567890123456"}'::jsonb FROM cmd))$$,'P0001','INVALID_DEBIT_CARD_IDENTITY','PAN rejected');
+SELECT throws_ok($$SELECT public.update_debit_card_identity_v1((SELECT val || '{"operation_id":"unicode","last_four_digits":"１２３４"}'::jsonb FROM cmd))$$,'P0001','INVALID_DEBIT_CARD_IDENTITY','non ASCII digits rejected');
+SELECT throws_ok($$SELECT public.update_debit_card_identity_v1((SELECT val || '{"operation_id":"stale"}'::jsonb FROM cmd))$$,'P0001','NOT_FOUND_OR_REVISION_CONFLICT','stale revision rejected');
+SELECT ok(EXISTS(SELECT 1 FROM internal.sync_changes WHERE entity_id='a0433333-3333-4333-8333-333333333333' AND payload->>'last_four_digits'='9876'),'updated snapshot emitted');
+SELECT set_config('request.jwt.claim.sub','a0411111-1111-4111-8111-111111111112',true);
+SELECT throws_ok($$SELECT public.update_debit_card_identity_v1((SELECT val || '{"operation_id":"other"}'::jsonb FROM cmd))$$,'P0001','NOT_FOUND_OR_REVISION_CONFLICT','other owner rejected');
+SELECT is((SELECT last4::text FROM public.cards WHERE id='a0433333-3333-4333-8333-333333333333'),'9876','rejections do not mutate card');
+SELECT * FROM finish();
+ROLLBACK;

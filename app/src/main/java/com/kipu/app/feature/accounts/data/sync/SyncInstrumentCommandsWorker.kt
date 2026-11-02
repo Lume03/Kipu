@@ -207,6 +207,17 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                         api.registerCard(dto.copy(accountId = accountId ?: dto.accountId), expectedOwner = cmd.userId)
                     }
                 }
+                "UPDATE_DEBIT_CARD_IDENTITY" -> {
+                    var dto = json.decodeFromString<com.kipu.app.feature.accounts.data.remote.UpdateDebitCardIdentityRequestDto>(cmd.payloadJson)
+                    if (cmd.attemptCount == 0 && cmd.predecessorOperationId != null) {
+                        val revision = cardDao.getById(cmd.userId, cmd.aggregateId)?.remoteRevision?.coerceAtLeast(1) ?: dto.expectedRevision
+                        dto = dto.copy(expectedRevision = revision)
+                        val payload = json.encodeToString(dto)
+                        val hash = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
+                        ownerTransaction(cmd.userId) { syncDao.updatePayload(cmd.userId, cmd.operationId, payload, hash, revision) }
+                    }
+                    api.updateDebitCardIdentity(dto, expectedOwner = cmd.userId)
+                }
                 "UPDATE_APPEARANCE" -> {
                     val dto = json.decodeFromString<UpdateAppearanceRequestDto>(cmd.payloadJson)
                     api.updateAppearance(dto, expectedOwner = cmd.userId)
@@ -256,7 +267,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 true
             }
             is FinancialApiResponse.Error -> {
-                if (result.statusCode in 400..499 && result.statusCode != 401 && result.statusCode != 408 && result.statusCode != 429) {
+                if (result.statusCode in 400..499 && result.statusCode != 401 && result.statusCode != 408 && result.statusCode != 429 && !(cmd.commandType == "UPDATE_DEBIT_CARD_IDENTITY" && result.statusCode == 404)) {
                     val errorState = if (result.statusCode == 409) "CONFLICT" else "FAILED_PERMANENT"
                     ownerTransaction(cmd.userId) { syncDao.updateState(
                         userId = cmd.userId,

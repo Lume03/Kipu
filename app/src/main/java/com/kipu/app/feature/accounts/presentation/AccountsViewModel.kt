@@ -359,6 +359,24 @@ class AccountsViewModel @Inject constructor(
         }
     }
 
+    fun updateAccountAndDebitIdentity(account: Account, alias: String, preset: AccountPreset?, colorToken: String?, iconToken: String?, card: com.kipu.app.feature.accounts.domain.model.DebitCard?, digits: String) {
+        viewModelScope.launch {
+            val cardResult = when {
+                card != null && digits != card.lastFourDigits -> financialInstrumentsRepository.updateDebitCardIdentity(card.id, digits, OperationId.generate())
+                card == null -> registerDebitForEditedAccount(account, alias, preset, colorToken, iconToken, digits) { registerDebitCardUseCase(it).map { Unit } }
+                else -> Result.success(Unit)
+            }
+            if (cardResult.isFailure) {
+                _eventChannel.send(AccountUiEvent.Error(cardResult.exceptionOrNull()?.message ?: "Error al actualizar la tarjeta"))
+                return@launch
+            }
+            updateInstrumentAppearanceUseCase(account.id, alias, preset, colorToken, iconToken).fold(
+                onSuccess = { _eventChannel.send(AccountUiEvent.ShowMessage("Cambios guardados · Pendientes de sincronización")) },
+                onFailure = { _eventChannel.send(AccountUiEvent.Error(it.message ?: "Error al actualizar la cuenta")) },
+            )
+        }
+    }
+
     fun updateAppearance(
         accountId: AccountId,
         alias: String,
@@ -561,3 +579,26 @@ class AccountsViewModel @Inject constructor(
 
 internal fun activeCreditCardOwnerId(localAccess: LocalAccess): UserId? =
     (localAccess as? LocalAccess.Available)?.userId?.let(::UserId)
+
+internal suspend fun registerDebitForEditedAccount(
+    account: Account,
+    alias: String,
+    preset: AccountPreset?,
+    colorToken: String?,
+    iconToken: String?,
+    digits: String,
+    register: suspend (com.kipu.app.feature.accounts.domain.model.DebitCard) -> Result<Unit>,
+): Result<Unit> {
+    if (digits.isEmpty()) return Result.success(Unit)
+    if (!com.kipu.app.feature.accounts.domain.model.Card.isValidLastFourDigits(digits)) return Result.failure(IllegalArgumentException("Ingresa exactamente 4 dígitos"))
+    val bank = com.kipu.app.feature.accounts.presentation.instruments.bankChoices.firstOrNull { it.accountPreset == preset && it.code != "BANBIF" }
+        ?: com.kipu.app.feature.accounts.presentation.instruments.bankChoices.first { it.code == "OTHER" }
+    val card = com.kipu.app.feature.accounts.domain.model.DebitCard(
+        id = com.kipu.app.core.finance.domain.model.CardId.generate(), userId = account.userId,
+        alias = alias, issuer = bank.name, network = com.kipu.app.feature.accounts.domain.model.CardNetwork.VISA,
+        lastFourDigits = digits, currency = account.currency, linkedAccountId = account.id, preset = bank.cardPreset,
+        stylePresetId = com.kipu.app.feature.accounts.presentation.components.CardStylePresets.forInstitution(bank.code, com.kipu.app.feature.accounts.presentation.components.CardStyleType.DEBIT).firstOrNull()?.id,
+        colorToken = colorToken ?: bank.cardPreset.defaultColorToken, iconToken = iconToken ?: bank.cardPreset.defaultIconToken,
+    )
+    return register(card)
+}

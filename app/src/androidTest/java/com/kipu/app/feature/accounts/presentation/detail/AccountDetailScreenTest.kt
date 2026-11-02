@@ -3,6 +3,10 @@ package com.kipu.app.feature.accounts.presentation.detail
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kipu.app.ui.component.LocalBalanceMasked
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
@@ -59,6 +63,18 @@ class AccountDetailScreenTest {
             instrumentation.uiAutomation.executeShellCommand(
                 "pm grant ${instrumentation.targetContext.packageName} android.permission.POST_NOTIFICATIONS",
             ).close()
+        }
+    }
+
+    @Test
+    fun partialDebitDigitsShowErrorAndDisableSave() {
+        setScreen(account())
+        compose.onNodeWithTag("edit_account").performClick()
+        val digits = compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("edit_debit_digits")))
+        for (value in listOf("1", "12", "123")) {
+            digits.performScrollTo().performTextReplacement(value)
+            compose.onNodeWithText("Deben ser exactamente 4 números").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("save_account_presentation").performScrollTo().assertIsNotEnabled()
         }
     }
 

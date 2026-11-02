@@ -31,6 +31,9 @@ interface InstrumentSyncDao {
     suspend fun recoverLegacyAffiliationCommands(userId: String, nowMicros: Long): Int
 
 
+    @Query("UPDATE instrument_sync_outbox SET payload_json = :payload, payload_hash = :hash, expected_revision = :revision WHERE user_id = :userId AND operation_id = :operationId")
+    suspend fun updatePayload(userId: String, operationId: String, payload: String, hash: String, revision: Long)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entity: InstrumentSyncOutboxEntity)
 

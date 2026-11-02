@@ -99,6 +99,14 @@ data class UpdateAppearanceRequestDto(
 )
 
 @Serializable
+data class UpdateDebitCardIdentityRequestDto(
+    @SerialName("operation_id") val operationId: String,
+    @SerialName("card_id") val cardId: String,
+    @SerialName("last_four_digits") val lastFourDigits: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+)
+
+@Serializable
 data class SetArchivedRequestDto(
     @SerialName("operation_id") val operationId: String,
     @SerialName("instrument_id") val instrumentId: String,

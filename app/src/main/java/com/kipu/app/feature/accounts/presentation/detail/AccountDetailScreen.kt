@@ -134,6 +134,8 @@ import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.CardStyleType
 import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulatorRoute
 import com.kipu.app.feature.accounts.presentation.instruments.PurchaseCandidateStateSaver
+import com.kipu.app.feature.accounts.presentation.instruments.AddFormLabel
+import com.kipu.app.feature.accounts.presentation.instruments.AddFormTextField
 import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDialog
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.component.KipuErrorState
@@ -271,6 +273,16 @@ fun AccountDetailScreen(
     AccountDetailContent(
         account = account,
         card = card,
+        linkedDebitCard = account?.let { target -> instruments.activeCards.filterIsInstance<DebitCard>().firstOrNull { it.linkedAccountId == target.id } },
+        onSaveDebitIdentity = { alias, preset, debit, digits ->
+            account?.let { target ->
+                isSubmitting = true
+                viewModel.updateAccountAndDebitIdentity(target, alias, preset,
+                    if (preset == target.preset) target.colorToken else preset?.defaultColorToken,
+                    if (preset == target.preset) target.iconToken else preset?.defaultIconToken,
+                    debit, digits)
+            }
+        },
         currentBalance = currentBalance,
         creditCardSummary = creditCardSummary,
         creditNotifications = creditNotifications.filter { it.cardId == instrumentId },
@@ -514,6 +526,8 @@ fun AccountDetailContent(
     cardInstallmentsState: CardInstallmentsUiState = CardInstallmentsUiState(isLoading = false),
     onRetryCardInstallments: () -> Unit = {},
     focusInstallments: Boolean = false,
+    linkedDebitCard: DebitCard? = null,
+    onSaveDebitIdentity: (String, AccountPreset?, DebitCard?, String) -> Unit = { _, _, _, _ -> },
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -529,6 +543,8 @@ fun AccountDetailContent(
     var openingAmount by remember(instrumentKey, account?.initialBalance?.minorUnits) {
         mutableStateOf(account?.initialBalance?.minorUnits?.let(::formatMinorUnits).orEmpty())
     }
+    var debitDigits by remember(instrumentKey, linkedDebitCard?.id, linkedDebitCard?.lastFourDigits) { mutableStateOf(linkedDebitCard?.lastFourDigits.orEmpty()) }
+    var debitDigitsError by remember(instrumentKey) { mutableStateOf<String?>(null) }
     var aliasError by remember(instrumentKey) { mutableStateOf<String?>(null) }
     var openingAmountError by remember(instrumentKey) { mutableStateOf<String?>(null) }
     val archived = account?.isArchived ?: card?.isArchived ?: false
@@ -881,9 +897,28 @@ fun AccountDetailContent(
                     isInstitutionMenuExpanded = isInstitutionMenuExpanded,
                     onInstitutionMenuExpandedChange = { isInstitutionMenuExpanded = it },
                     isSubmitting = isSubmitting,
+                    debitDigitsValid = debitDigitsError == null,
+                    debitDigitsField = account.takeIf { it.type == AccountType.SAVINGS || it.type == AccountType.BANK }?.let {
+                        {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AddFormLabel("Últimos 4 dígitos", isError = debitDigitsError != null)
+                                AddFormTextField(value = debitDigits, modifier = Modifier.testTag("edit_debit_digits"), onValueChange = { value ->
+                                    debitDigits = value.filter { c -> FinancialCard.isAsciiDigit(c) }.take(4)
+                                    debitDigitsError = if (debitDigits.isNotEmpty() && !FinancialCard.isValidLastFourDigits(debitDigits)) "Deben ser exactamente 4 números" else null
+                                }, placeholder = "Últimos 4 dígitos", keyboardType = KeyboardType.Number,
+                                    errorMessage = debitDigitsError, hint = "Solo se guardan los últimos 4 dígitos.")
+                            }
+                        }
+                    },
                     onSave = {
                         if (alias.isBlank()) {
                             aliasError = "Escribe un alias para identificar la cuenta."
+                        } else if ((linkedDebitCard != null || debitDigits.isNotEmpty()) && !FinancialCard.isValidLastFourDigits(debitDigits)) {
+                            debitDigitsError = "Deben ser exactamente 4 números"
+                        } else if ((account.type == AccountType.SAVINGS || account.type == AccountType.BANK) &&
+                            debitDigits.isNotEmpty() && debitDigits != linkedDebitCard?.lastFourDigits) {
+                            // Only a new or changed card identity needs the combined command; plain edits keep the appearance path.
+                            onSaveDebitIdentity(alias.trim(), selectedPreset, linkedDebitCard, debitDigits)
                         } else {
                             onSaveAppearance(alias.trim(), selectedPreset)
                         }

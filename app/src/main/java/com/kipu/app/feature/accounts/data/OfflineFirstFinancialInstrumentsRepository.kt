@@ -738,6 +738,31 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         }
     }
 
+    override suspend fun updateDebitCardIdentity(cardId: CardId, lastFourDigits: String, operationId: OperationId): Result<Unit> {
+        if (!Card.isValidLastFourDigits(lastFourDigits)) return Result.failure(IllegalArgumentException("Ingresa exactamente 4 dígitos"))
+        val userId = currentUserId() ?: return Result.failure(IllegalStateException("No active owner session"))
+        val nowMicros = System.currentTimeMillis() * 1_000L
+        return runCatching {
+            database.withTransaction {
+                val card = cardDao.getById(userId, cardId.value) ?: error("Card not found")
+                require(card.type == "DEBIT" && !card.isArchived) { "Only active debit cards can be edited" }
+                check(cardDao.updateDebitDigits(userId, cardId.value, lastFourDigits, nowMicros) == 1)
+                val payload = com.kipu.app.feature.accounts.data.remote.UpdateDebitCardIdentityRequestDto(
+                    operationId.value, cardId.value, lastFourDigits, card.remoteRevision.coerceAtLeast(1))
+                val payloadJson = json.encodeToString(payload)
+                syncDao.insert(InstrumentSyncOutboxEntity(
+                    operationId = operationId.value, userId = userId, commandType = "UPDATE_DEBIT_CARD_IDENTITY",
+                    aggregateType = "CARD", aggregateId = cardId.value,
+                    predecessorOperationId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId,
+                    expectedRevision = card.remoteRevision.coerceAtLeast(1), contractVersion = 1,
+                    payloadJson = payloadJson, payloadHash = sha256(payloadJson), state = "PENDING",
+                    createdAt = nowMicros, updatedAt = nowMicros,
+                ))
+            }
+            syncScheduler.scheduleSync(userId)
+        }
+    }
+
     override suspend fun updateCreditCardTerms(
         cardId: CardId,
         creditLimitMinorUnits: Long,

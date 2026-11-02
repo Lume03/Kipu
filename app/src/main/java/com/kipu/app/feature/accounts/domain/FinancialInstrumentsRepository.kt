@@ -35,6 +35,8 @@ interface FinancialInstrumentsRepository {
     suspend fun updateAccountAppearance(accountId: AccountId, alias: String, preset: AccountPreset?, colorToken: String?, iconToken: String?, operationId: OperationId): Result<Unit>
     
     // Card operations
+    suspend fun updateDebitCardIdentity(cardId: CardId, lastFourDigits: String, operationId: OperationId): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Debit card identity updates are unavailable"))
     suspend fun registerDebitCard(card: DebitCard, operationId: OperationId): Result<DebitCard>
     suspend fun registerCreditCard(card: CreditCard, operationId: OperationId): Result<CreditCard>
     suspend fun updatePersonalTea(cardId: CardId, teaBps: Int?, operationId: OperationId): Result<Unit> =

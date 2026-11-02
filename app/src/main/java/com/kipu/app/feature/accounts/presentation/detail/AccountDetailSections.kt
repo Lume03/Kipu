@@ -283,6 +283,8 @@ internal fun AccountPresentationCard(
     isSubmitting: Boolean,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    debitDigitsField: (@Composable () -> Unit)? = null,
+    debitDigitsValid: Boolean = true,
 ) {
     val colors = rememberCalmEmeraldColors()
     val selectablePresets = AccountPreset.selectableFor(account.type)
@@ -357,9 +359,10 @@ internal fun AccountPresentationCard(
                     }
                 }
             }
+            debitDigitsField?.invoke()
             Button(
                 onClick = onSave,
-                enabled = !isSubmitting && alias.isNotBlank(),
+                enabled = !isSubmitting && alias.isNotBlank() && debitDigitsValid,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primaryDeep, contentColor = colors.onPrimaryDeep),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("save_account_presentation"),

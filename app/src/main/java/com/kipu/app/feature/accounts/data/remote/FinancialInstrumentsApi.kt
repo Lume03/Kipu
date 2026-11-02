@@ -43,6 +43,10 @@ class FinancialInstrumentsApi @Inject constructor(
         return callRpc("update_instrument_appearance_v1", request, expectedOwner)
     }
 
+    suspend fun updateDebitCardIdentity(request: UpdateDebitCardIdentityRequestDto, expectedOwner: String? = null): FinancialApiResponse<CommandResponseDto> {
+        return callRpc("update_debit_card_identity_v1", request, expectedOwner)
+    }
+
     suspend fun setArchived(request: SetArchivedRequestDto, expectedOwner: String? = null): FinancialApiResponse<CommandResponseDto> {
         return callRpc("set_instrument_archived_v1", request, expectedOwner)
     }
