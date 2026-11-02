@@ -55,6 +55,12 @@ data class StatementImportLine(
     val status: StatementImportLineStatus = StatementImportLineStatus.PENDING,
     val registeredMovementId: String? = null,
     val possibleOwnTransfer: Boolean = false,
+    val suggestedMerchantId: String? = null,
+    val rememberMerchantAlias: Boolean = true,
+    val rememberMerchantCategory: Boolean = true,
+    val originalDescription: String = description,
+    /** Also records explicit rejection/removal, preventing suggestions on reopening. */
+    val merchantReviewed: Boolean = false,
 )
 
 data class StatementImportSnapshot(val statement: StatementImport, val lines: List<StatementImportLine>)
@@ -84,6 +90,10 @@ interface StatementImportStore {
     suspend fun setCard(ownerId: String, importId: String, cardId: String?): Boolean
     suspend fun setLineSelected(ownerId: String, lineId: String, selected: Boolean): Boolean
     suspend fun editLine(ownerId: String, lineId: String, edit: StatementImportLineEdit): Boolean
+    suspend fun setMerchantSuggestion(ownerId: String, lineId: String, merchantId: String?): Boolean
+    suspend fun chooseMerchant(ownerId: String, lineId: String, merchantId: String?, categoryId: String?): Boolean
+    suspend fun setRememberMerchantAlias(ownerId: String, lineId: String, remember: Boolean): Boolean
+    suspend fun setRememberMerchantCategory(ownerId: String, lineId: String, remember: Boolean): Boolean
     suspend fun setAllSelected(ownerId: String, importId: String, selected: Boolean)
     suspend fun discard(ownerId: String, importId: String): Boolean
     suspend fun markLineRegistered(ownerId: String, lineId: String, movementId: String): Boolean

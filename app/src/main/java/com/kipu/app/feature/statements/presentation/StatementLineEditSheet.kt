@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.ReceiptLong
@@ -33,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -42,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +63,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.MoneyInputParser
+import com.kipu.app.feature.categories.presentation.components.MerchantDiscoveryUi
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
+import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
+import com.kipu.app.feature.movements.presentation.components.RememberToggleRow
 import com.kipu.app.feature.movements.presentation.AccountSelectorBottomSheet
 import com.kipu.app.feature.movements.presentation.AccountSelectorPurpose
 import com.kipu.app.feature.statements.domain.*
@@ -86,6 +94,13 @@ internal fun StatementLineEditSheet(
     source: StatementImport,
     onDismiss: () -> Unit,
     onSave: (StatementImportLineEdit) -> Unit,
+    onChooseMerchant: (String) -> Unit = {},
+    onRemoveMerchant: () -> Unit = {},
+    onAcceptSuggestion: () -> Unit = {},
+    onRejectSuggestion: () -> Unit = {},
+    onRememberAlias: (Boolean) -> Unit = {},
+    onRememberCategory: (Boolean) -> Unit = {},
+    merchantDiscovery: MerchantDiscoveryUi? = null,
 ) {
     val palette = rememberCalmEmeraldColors()
     val context = LocalContext.current
@@ -97,6 +112,11 @@ internal fun StatementLineEditSheet(
     var kind by remember(line.id) { mutableStateOf(line.kind) }
     var showCategory by remember { mutableStateOf(false) }
     var showSource by remember { mutableStateOf(false) }
+    var showMerchant by remember { mutableStateOf(false) }
+    var merchantQuery by remember { mutableStateOf("") }
+    // Choosing a merchant saves at once and may bring its category: adopt it unless the draft would be emptied.
+    LaunchedEffect(line.merchantId, line.categoryId) { line.categoryId?.let { category = it } }
+    val merchant = state.merchants.firstOrNull { it.id.value == line.merchantId }
     var attempted by remember { mutableStateOf(false) }
     val parsedAmount = MoneyInputParser.parseMinorUnits(amount)?.takeIf { it > 0 }
     val parsedDate = runCatching { LocalDate.parse(date,
@@ -108,6 +128,19 @@ internal fun StatementLineEditSheet(
         showCategory -> StatementCategoryPicker(state.categoriesFor(line.kind), category, onSelect = { category = it.id; showCategory = false }, onDismiss = { showCategory = false },
             subtitle = if (line.kind == StatementLineKind.ACCOUNT_CREDIT) "Selecciona una categoría o subcategoría para clasificar tu ingreso"
             else "Selecciona una categoría o subcategoría para clasificar tu gasto")
+        showMerchant -> MerchantPickerBottomSheet(
+            state = MerchantPickerState(query = merchantQuery, catalogEntries = state.merchants, selectedMerchant = merchant),
+            onQueryChange = { merchantQuery = it },
+            onSelectMerchant = { onChooseMerchant(it.id.value); merchantQuery = "" },
+            onSetProvisionalText = {},
+            onClearSelection = { onRemoveMerchant(); merchantQuery = ""; showMerchant = false },
+            onDismiss = { merchantQuery = ""; showMerchant = false },
+            title = "Comercio",
+            subtitle = "Elige el comercio de este movimiento",
+            allowProvisionalText = false,
+            selectedMerchantIds = setOfNotNull(line.merchantId),
+            discovery = merchantDiscovery,
+        )
         showSource -> AccountSelectorBottomSheet(onDismissRequest = { showSource = false },
             accounts = state.accounts.filter { it.currency == line.currency },
             selectedAccountId = sourceAccount, allowCreditCards = false, purpose = AccountSelectorPurpose.CARD_PAYMENT,
@@ -189,6 +222,32 @@ internal fun StatementLineEditSheet(
                     } else StatementKindChip(kind, line.installmentCount)
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("COMERCIO")
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(1.5.dp, palette.borderSubtle, RoundedCornerShape(16.dp))
+                        .clickable(enabled = !state.busy) { showMerchant = true }.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp).heightIn(min = 44.dp)
+                        .testTag("statement_edit_merchant"),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (merchant != null) StatementMerchantLogo(merchant, size = 40.dp)
+                        else Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(palette.pillTrack), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Storefront, null, tint = palette.secondaryMuted)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(merchant?.name ?: "Elegir comercio", fontWeight = FontWeight.Bold, color = palette.primaryText)
+                            if (merchant == null) Text("Opcional", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                        }
+                        if (merchant != null) IconButton(onClick = onRemoveMerchant, enabled = !state.busy, modifier = Modifier.size(48.dp).testTag("statement_edit_merchant_clear")) {
+                            Icon(Icons.Filled.Close, "Quitar comercio", tint = palette.secondaryMuted)
+                        } else Icon(Icons.Filled.ChevronRight, null, tint = palette.secondaryMuted, modifier = Modifier.padding(end = 8.dp))
+                    }
+                    line.pendingSuggestion(state.merchants)?.let { suggested ->
+                        StatementMerchantSuggestion(line.id, suggested, enabled = !state.busy, onAccept = onAcceptSuggestion, onReject = onRejectSuggestion)
+                    }
+                    state.rememberAliasOptions[line.id]?.let { option ->
+                        RememberToggleRow(option.label, option.checked, onRememberAlias, enabled = !state.busy,
+                            modifier = Modifier.testTag("statement_remember_alias"))
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("CATEGORÍA")
                     val picked = state.categoriesFor(line.kind).find { it.id == category }
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (picked == null) statementTone("warn").bg else palette.surfaceCard)
@@ -201,6 +260,11 @@ internal fun StatementLineEditSheet(
                             if (picked == null) Text(if (source.isDeposit) "Se necesita para registrar el movimiento" else "Se necesita para registrar las compras", style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
                         }
                         Icon(Icons.Filled.ChevronRight, null, tint = palette.secondaryMuted)
+                    }
+                    // The option names the saved category: hide it while the draft points to another one.
+                    state.rememberCategoryOptions[line.id]?.takeIf { category == line.categoryId }?.let { option ->
+                        RememberToggleRow(option.label, option.checked, onRememberCategory, enabled = !state.busy,
+                            modifier = Modifier.testTag("statement_remember_category"))
                     }
                 }
                 if (kind == StatementLineKind.CARD_PAYMENT) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -2,6 +2,7 @@ package com.kipu.app.feature.movements.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,6 +96,55 @@ fun MerchantSelectionRow(
             }
         },
     )
+}
+
+/**
+ * "Recordar…" switch shown under the category (and merchant) fields: the whole row toggles,
+ * like the switch rows of the settings and filter forms.
+ */
+@Composable
+fun RememberToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    helper: String = "La próxima vez se elegirá automáticamente",
+) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = emeraldColors.primaryText,
+            )
+            Text(
+                text = helper,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = emeraldColors.secondaryMuted,
+            )
+        }
+        // The row owns the toggle semantics; the switch is only its visual state.
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = emeraldColors.onPrimaryDeep,
+                checkedTrackColor = emeraldColors.primaryDeep,
+            ),
+        )
+    }
 }
 
 /** Identical category trigger, including empty and error states. */

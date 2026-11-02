@@ -54,7 +54,7 @@ class OfflineFirstMovementRepository @Inject constructor(
         combine(
             transactions,
             categoryDao.observePresentationsForUser(userId),
-            merchantDao.observeMerchants(),
+            merchantDao.observeMerchants(userId),
             accountDao.observeAll(userId),
             cardDao.observeAll(userId),
         ) { entities, presentations, merchants, accounts, cards ->
@@ -286,7 +286,7 @@ class OfflineFirstMovementRepository @Inject constructor(
     private suspend fun mapEntitiesToItems(userId: String, entities: List<TransactionEntity>): List<TransactionItem> {
         if (entities.isEmpty()) return emptyList()
         val presentations = categoryDao.observePresentationsForUser(userId).first().associateBy { it.categoryId }
-        val merchants = merchantDao.observeMerchants().first().associateBy { it.id }
+        val merchants = merchantDao.observeMerchants(userId).first().associateBy { it.id }
         val accounts = accountDao.observeAll(userId).first().associateBy { it.id }
         val cards = cardDao.observeAll(userId).first().associateBy { it.id }
         return entities.map { entity ->

@@ -68,6 +68,8 @@ fun CaptureCandidateRecord.toEntity() = CaptureCandidateEntity(
     resolvedAt = resolvedAt,
     expectedMatchState = expectedMatchState?.name,
     followupsPending = followupsPending,
+    rememberMerchantAlias = rememberMerchantAlias,
+    rememberMerchantCategory = rememberMerchantCategory,
 )
 
 fun CaptureCandidateEntity.toDomain() = CaptureCandidateRecord(
@@ -104,6 +106,8 @@ fun CaptureCandidateEntity.toDomain() = CaptureCandidateRecord(
     resolvedAt = resolvedAt,
     expectedMatchState = expectedMatchState?.let(com.kipu.app.feature.capture.domain.ExpectedMatchState::valueOf),
     followupsPending = followupsPending,
+    rememberMerchantAlias = rememberMerchantAlias,
+    rememberMerchantCategory = rememberMerchantCategory,
 )
 
 fun ExpectedPayment.toEntity() = ExpectedPaymentEntity(

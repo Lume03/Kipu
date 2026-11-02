@@ -68,6 +68,8 @@ class RoomCaptureCandidateStore @Inject constructor(
             creditMode = e.creditMode,
             installmentCount = e.installmentCount,
             userCorrectedFields = e.userCorrectedFields,
+            rememberMerchantAlias = e.rememberMerchantAlias,
+            rememberMerchantCategory = e.rememberMerchantCategory,
             now = e.updatedAt,
         ) > 0
     }

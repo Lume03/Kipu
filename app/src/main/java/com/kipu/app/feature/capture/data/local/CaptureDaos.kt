@@ -52,7 +52,8 @@ interface CaptureCandidateDao {
         merchant_id=:merchantId, category_id=:categoryId, card_last4=:cardLast4, instrument_kind=:instrumentKind,
         account_id=:accountId, card_id=:cardId, instrument_ambiguous=:instrumentAmbiguous, confidence=:confidence,
         confidence_reasons=:confidenceReasons, credit_mode=:creditMode, installment_count=:installmentCount,
-        user_corrected_fields=:userCorrectedFields, updated_at=:now
+        user_corrected_fields=:userCorrectedFields, remember_merchant_alias=:rememberMerchantAlias,
+        remember_merchant_category=:rememberMerchantCategory, updated_at=:now
         WHERE owner_id=:ownerId AND id=:id AND status='PENDING'""",
     )
     suspend fun updatePending(
@@ -76,6 +77,8 @@ interface CaptureCandidateDao {
         creditMode: String?,
         installmentCount: Int?,
         userCorrectedFields: String,
+        rememberMerchantAlias: Boolean,
+        rememberMerchantCategory: Boolean,
         now: Long,
     ): Int
 

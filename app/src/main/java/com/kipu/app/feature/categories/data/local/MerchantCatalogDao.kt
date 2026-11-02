@@ -21,28 +21,28 @@ interface MerchantCatalogDao {
     suspend fun insertMerchants(merchants: List<MerchantCatalogEntity>)
 
     @Query("""
-        SELECT * FROM merchant_catalog_cache 
-        WHERE is_active = 1 AND normalized_name LIKE '%' || :query || '%' 
-        ORDER BY name ASC 
+        SELECT * FROM merchant_catalog_cache
+        WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1 AND normalized_name LIKE '%' || :query || '%'
+        ORDER BY name ASC
         LIMIT 50
     """)
-    fun searchMerchants(query: String): Flow<List<MerchantCatalogEntity>>
+    fun searchMerchants(query: String, userId: String? = null): Flow<List<MerchantCatalogEntity>>
 
-    @Query("SELECT * FROM merchant_catalog_cache WHERE is_active = 1 ORDER BY name ASC")
-    fun getAllActiveMerchants(): Flow<List<MerchantCatalogEntity>>
+    @Query("SELECT * FROM merchant_catalog_cache WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1 ORDER BY name ASC")
+    fun getAllActiveMerchants(userId: String? = null): Flow<List<MerchantCatalogEntity>>
 
-    @Query("SELECT * FROM merchant_catalog_cache WHERE is_active = 1 AND default_category_id = :categoryId ORDER BY name ASC")
-    fun getActiveMerchantsByCategory(categoryId: String): Flow<List<MerchantCatalogEntity>>
+    @Query("SELECT * FROM merchant_catalog_cache WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1 AND default_category_id = :categoryId ORDER BY name ASC")
+    fun getActiveMerchantsByCategory(categoryId: String, userId: String? = null): Flow<List<MerchantCatalogEntity>>
 
     @Query("""
         SELECT * FROM merchant_catalog_cache
-        WHERE is_active = 1
+        WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1
           AND default_category_id = :categoryId
           AND normalized_name LIKE '%' || :query || '%'
         ORDER BY name ASC
         LIMIT 50
     """)
-    fun searchMerchantsByCategory(query: String, categoryId: String): Flow<List<MerchantCatalogEntity>>
+    fun searchMerchantsByCategory(query: String, categoryId: String, userId: String? = null): Flow<List<MerchantCatalogEntity>>
 
     @Query("""
         SELECT DISTINCT presentation.category_id AS category_id, presentation.name AS name
@@ -53,23 +53,23 @@ interface MerchantCatalogDao {
           ON root.id = subcategory.parent_id AND root.is_active = 1
         JOIN category_presentations AS presentation
           ON presentation.category_id = subcategory.id AND presentation.user_id = :userId
-        WHERE merchant.is_active = 1 AND merchant.default_category_id IS NOT NULL
+        WHERE (merchant.user_id IS NULL OR merchant.user_id = :userId) AND merchant.is_active = 1 AND merchant.default_category_id IS NOT NULL
         ORDER BY presentation.name COLLATE NOCASE ASC
     """)
     fun observeMerchantCategoryFilters(userId: String): Flow<List<MerchantCategoryFilterRow>>
 
-    @Query("SELECT * FROM merchant_catalog_cache")
-    fun observeMerchants(): Flow<List<MerchantCatalogEntity>>
+    @Query("SELECT * FROM merchant_catalog_cache WHERE user_id IS NULL OR user_id = :userId")
+    fun observeMerchants(userId: String? = null): Flow<List<MerchantCatalogEntity>>
 
-    @Query("SELECT * FROM merchant_catalog_cache WHERE id = :id")
-    suspend fun getMerchantById(id: String): MerchantCatalogEntity?
+    @Query("SELECT * FROM merchant_catalog_cache WHERE id = :id AND (user_id IS NULL OR user_id = :userId)")
+    suspend fun getMerchantById(id: String, userId: String? = null): MerchantCatalogEntity?
 
-    @Query("SELECT COUNT(*) FROM merchant_catalog_cache WHERE is_active = 1")
-    suspend fun countActiveMerchants(): Int
+    @Query("SELECT COUNT(*) FROM merchant_catalog_cache WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1")
+    suspend fun countActiveMerchants(userId: String? = null): Int
 
-    @Query("SELECT * FROM merchant_catalog_cache WHERE is_active = 1 AND (logo_path IS NOT NULL OR logo_dark_path IS NOT NULL)")
-    suspend fun getMerchantsWithRemoteLogos(): List<MerchantCatalogEntity>
+    @Query("SELECT * FROM merchant_catalog_cache WHERE (user_id IS NULL OR user_id = :userId) AND is_active = 1 AND (logo_path IS NOT NULL OR logo_dark_path IS NOT NULL)")
+    suspend fun getMerchantsWithRemoteLogos(userId: String? = null): List<MerchantCatalogEntity>
 
-    @Query("SELECT MAX(version) FROM merchant_catalog_cache")
+    @Query("SELECT MAX(version) FROM merchant_catalog_cache WHERE user_id IS NULL")
     suspend fun getLatestVersion(): Long?
 }

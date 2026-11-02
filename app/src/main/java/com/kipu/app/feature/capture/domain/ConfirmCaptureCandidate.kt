@@ -54,6 +54,8 @@ data class ConfirmCaptureCommand(
     val acceptSimilar: Boolean = false,
     /** Explicit UI selection; [accountId] is always the effective ledger account. */
     val selectedAccountId: String? = null,
+    val rememberMerchantAlias: Boolean = true,
+    val rememberMerchantCategory: Boolean = true,
 ) {
     companion object {
         /** Null when the candidate lacks a value the ledger requires (amount, currency, direction, instrument). */
@@ -73,6 +75,8 @@ data class ConfirmCaptureCommand(
                 cardId = candidate.cardId,
                 creditMode = candidate.creditMode,
                 installmentCount = candidate.installmentCount,
+                rememberMerchantAlias = candidate.rememberMerchantAlias,
+                rememberMerchantCategory = candidate.rememberMerchantCategory,
             )
         }
     }
@@ -178,7 +182,9 @@ class ConfirmCaptureCandidate @Inject constructor(
             )
             val finalCommand = ConfirmCaptureCommand.fromCandidate(recovered)
             val corrected = finalCommand?.let { correctedFields(candidate, it) } ?: candidate.userCorrectedFields
-            check(candidates.resolve(recovered.copy(userCorrectedFields = corrected), CaptureCandidateStatus.CONFIRMED, transaction.id, key, clock.millis()))
+            check(candidates.resolve(recovered.copy(userCorrectedFields = corrected,
+                rememberMerchantAlias = command.rememberMerchantAlias,
+                rememberMerchantCategory = command.rememberMerchantCategory), CaptureCandidateStatus.CONFIRMED, transaction.id, key, clock.millis()))
             return CaptureConfirmationResult.Registered(transaction.id, alreadyResolved = true)
         }
         if (mode == CaptureConfirmationMode.AUTOMATIC && !AutoRegisterCaptureCandidate.isEligible(candidate)) {
@@ -376,4 +382,6 @@ internal fun CaptureCandidateRecord.withFinalValues(command: ConfirmCaptureComma
     creditMode = command.creditMode,
     installmentCount = command.installmentCount,
     userCorrectedFields = corrected,
+    rememberMerchantAlias = command.rememberMerchantAlias,
+    rememberMerchantCategory = command.rememberMerchantCategory,
 )

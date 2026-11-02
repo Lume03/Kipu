@@ -80,6 +80,52 @@ class CaptureReviewAndLearningTest {
         learner.onResolved(base.copy(ownerId = "other", status = CaptureCandidateStatus.CONFIRMED, userCorrectedFields = corrected), "tx")
         confirmVerified(alias, preference)
     }
+    @Test fun `disabled learning choices skip both followups`() = runTest {
+        val repository = mockk<CategoriesRepository>()
+        val alias = mockk<SaveMerchantAliasRule>()
+        val preference = mockk<SetMerchantCategoryPreference>()
+        val candidate = captureCandidate().copy(status = CaptureCandidateStatus.CONFIRMED,
+            userCorrectedFields = listOf(CaptureCorrectedField.MERCHANT.name, CaptureCorrectedField.CATEGORY.name),
+            rememberMerchantAlias = false, rememberMerchantCategory = false)
+        LearnFromCaptureCorrection(repository, alias, preference, FakeCaptureAccessGate()).onResolved(candidate, "tx")
+        confirmVerified(repository, alias, preference)
+    }
+
+    @Test fun `category opt out leaves alias learning enabled`() = runTest {
+        val ownerId = "61000000-0000-4000-8000-000000000001"
+        val owner = com.kipu.app.core.finance.domain.model.UserId(ownerId)
+        val repository = mockk<CategoriesRepository>()
+        val alias = mockk<SaveMerchantAliasRule>()
+        val preference = mockk<SetMerchantCategoryPreference>()
+        val merchant = com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry(
+            com.kipu.app.feature.categories.domain.model.MerchantId("merchant-1"), "Plaza Vea", "plaza vea")
+        every { repository.observePremiumVerified(owner) } returns kotlinx.coroutines.flow.flowOf(true)
+        every { repository.observeMerchantCatalog() } returns kotlinx.coroutines.flow.flowOf(listOf(merchant))
+        every { repository.observeMerchantAliasRules(owner) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+        coEvery { alias(owner, any(), merchant, merchant.id, null) } returns Result.success(mockk())
+        val candidate = captureCandidate(ownerId).copy(status = CaptureCandidateStatus.CONFIRMED,
+            userCorrectedFields = listOf("MERCHANT", "CATEGORY"), rememberMerchantCategory = false)
+        LearnFromCaptureCorrection(repository, alias, preference, FakeCaptureAccessGate(ownerId)).onResolved(candidate, "tx")
+        coVerify(exactly = 1) { alias(owner, any(), merchant, merchant.id, null) }
+        confirmVerified(preference)
+    }
+
+    @Test fun `alias opt out leaves category learning enabled`() = runTest {
+        val ownerId = "61000000-0000-4000-8000-000000000001"
+        val owner = com.kipu.app.core.finance.domain.model.UserId(ownerId)
+        val repository = mockk<CategoriesRepository>()
+        val alias = mockk<SaveMerchantAliasRule>()
+        val preference = mockk<SetMerchantCategoryPreference>()
+        every { repository.observePremiumVerified(owner) } returns kotlinx.coroutines.flow.flowOf(true)
+        every { repository.observeMerchantCategoryPreferences(owner) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+        coEvery { preference(owner, any(), any()) } returns Result.success(mockk())
+        val candidate = captureCandidate(ownerId).copy(status = CaptureCandidateStatus.CONFIRMED,
+            userCorrectedFields = listOf("MERCHANT", "CATEGORY"), rememberMerchantAlias = false)
+        LearnFromCaptureCorrection(repository, alias, preference, FakeCaptureAccessGate(ownerId)).onResolved(candidate, "tx")
+        coVerify(exactly = 1) { preference(owner, any(), any()) }
+        confirmVerified(alias)
+    }
+
     @Test fun `confirmed category correction learns for the owner only while premium`() = runTest {
         val ownerId = "61000000-0000-4000-8000-000000000001"
         val owner = com.kipu.app.core.finance.domain.model.UserId(ownerId)

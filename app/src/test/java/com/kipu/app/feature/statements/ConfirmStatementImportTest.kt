@@ -45,6 +45,15 @@ class ConfirmStatementImportTest {
             })
             true
         }
+        coEvery { setMerchantSuggestion(owner, any(), any()) } answers {
+            val id = secondArg<String>(); val merchant = thirdArg<String?>()
+            snapshot = snapshot.copy(lines = snapshot.lines.map { if (it.id == id) it.copy(suggestedMerchantId = merchant) else it }); true
+        }
+        coEvery { chooseMerchant(owner, any(), any(), any()) } answers {
+            val id = secondArg<String>(); val merchant = thirdArg<String?>(); val category = arg<String?>(3)
+            snapshot = snapshot.copy(lines = snapshot.lines.map { if (it.id == id) it.copy(merchantId = merchant, categoryId = category,
+                suggestedMerchantId = null, merchantReviewed = true) else it }); true
+        }
         coEvery { markLineRegistered(owner, any(), any()) } answers {
             val id = secondArg<String>()
             val movement = thirdArg<String>()
@@ -101,6 +110,8 @@ class ConfirmStatementImportTest {
     }
     private val category = Category(CategoryId("category"), null, null, CategoryOrigin.SYSTEM, true)
     private val categories = mockk<CategoriesRepository> {
+        every { observePremiumVerified(UserId(owner)) } returns flowOf(true)
+        coEvery { saveMerchantAliasRule(any(), any()) } returns Result.success(Unit)
         every { observeCategories(UserId(owner)) } returns flowOf(listOf(category))
         every { observeMerchantCatalog() } returns flowOf(emptyList())
         every { observeMerchantAliasRules(UserId(owner)) } returns flowOf(emptyList())
@@ -109,7 +120,7 @@ class ConfirmStatementImportTest {
     private val preference = mockk<SetMerchantCategoryPreference> {
         coEvery { this@mockk.invoke(any(), any(), any()) } returns Result.success(mockk())
     }
-    private val review = PrepareStatementImportReview(store, categories, ResolvePreferredCategory(categories), preference)
+    private val review = PrepareStatementImportReview(store, categories, ResolvePreferredCategory(categories), preference, com.kipu.app.feature.categories.domain.usecase.SaveMerchantAliasRule(categories))
     private val transactions = object : DatabaseTransactionRunner {
         override suspend fun <R> invoke(block: suspend () -> R): R = block()
     }
@@ -128,6 +139,125 @@ class ConfirmStatementImportTest {
         coEvery { matching.activeDebitCards(owner) } returns listOf(StatementImportDebitCard(
             snapshot.statement.cardId!!, "BCP", "Savings", "9999", Currency.PEN, "linked-account"))
     }
+    private fun catalog(vararg names: String) {
+        every { categories.observeMerchantCatalog() } returns flowOf(names.map {
+            MerchantCatalogEntry(MerchantId(it.lowercase()), it, it.lowercase(), defaultCategoryId = category.id)
+        })
+    }
+
+    @Test fun `review suggests without assigning and acceptance resolves preference before catalog default for credit and debit`() = runTest {
+        catalog("Tambo")
+        val learned = category.copy(id = CategoryId("learned"))
+        every { categories.observeCategories(UserId(owner)) } returns flowOf(listOf(category, learned))
+        for (kind in listOf(StatementLineKind.PURCHASE, StatementLineKind.ACCOUNT_DEBIT, StatementLineKind.ACCOUNT_CREDIT)) {
+            every { categories.observeMerchantCategoryPreferences(UserId(owner)) } returns flowOf(emptyList())
+            use(line().copy(kind = kind, description = "YQ-TAMBO BARRERA-R", originalDescription = "YQ-TAMBO BARRERA-R", categoryId = null))
+            var prepared = review(owner, "import")!!.lines.single()
+            assertEquals("tambo", prepared.suggestedMerchantId)
+            assertNull(prepared.merchantId); assertNull(prepared.categoryId)
+            assertTrue(review.chooseMerchant(owner, prepared.id, "tambo", "import"))
+            prepared = snapshot.lines.single()
+            assertEquals("category", prepared.categoryId); assertTrue(prepared.merchantReviewed); assertNull(prepared.suggestedMerchantId)
+            every { categories.observeMerchantCategoryPreferences(UserId(owner)) } returns flowOf(listOf(
+                MerchantCategoryPreference(UserId(owner), MerchantId("tambo"), learned.id)))
+            assertTrue(review.chooseMerchant(owner, prepared.id, "tambo", "import"))
+            assertEquals("learned", snapshot.lines.single().categoryId)
+        }
+    }
+
+    @Test fun `alias wins over suggestion while person and transfer descriptions stay unresolved`() = runTest {
+        catalog("Tambo", "Rappi", "Yape", "Nacion")
+        every { categories.observeMerchantAliasRules(UserId(owner)) } returns flowOf(listOf(
+            MerchantAliasRule(MerchantAliasRuleId("rule"), UserId(owner), "yq-tambo barrera-r", MerchantId("rappi"))))
+        use(line("alias").copy(description = "YQ-TAMBO BARRERA-R", originalDescription = "YQ-TAMBO BARRERA-R", categoryId = null),
+            line("person").copy(description = "Yape Doris Luq", originalDescription = "Yape Doris Luq", categoryId = null),
+            line("transfer").copy(description = "TRANSF.BCO.NACION", originalDescription = "TRANSF.BCO.NACION", categoryId = null))
+        val lines = review(owner, "import")!!.lines
+        assertEquals("rappi", lines[0].merchantId); assertEquals("category", lines[0].categoryId)
+        assertNull(lines[0].suggestedMerchantId)
+        lines.drop(1).forEach { assertNull(it.merchantId); assertNull(it.suggestedMerchantId); assertNull(it.categoryId) }
+    }
+
+    @Test fun `catalog default must be eligible for movement direction`() = runTest {
+        catalog("Tambo")
+        every { categories.observeCategories(UserId(owner)) } returns flowOf(listOf(category.copy(categoryType = CategoryType.EXPENSE)))
+        use(line().copy(kind = StatementLineKind.ACCOUNT_CREDIT, merchantId = "tambo", categoryId = null))
+        assertNull(review(owner, "import")!!.lines.single().categoryId)
+    }
+
+    @Test fun `confirmation learns original alias and category only when enabled after success`() = runTest {
+        catalog("Tambo")
+        use(line("on").copy(description = "Edited note", originalDescription = "YQ-TAMBO BARRERA-R", merchantId = "tambo", merchantReviewed = true),
+            line("off").copy(originalDescription = "Tambo 222", merchantId = "tambo", merchantReviewed = true,
+                rememberMerchantAlias = false, rememberMerchantCategory = false))
+        val result = confirm(owner, "import")
+        assertTrue(result.completed); assertEquals(2, result.registered); assertTrue(result.learningWarnings.isEmpty())
+        coVerify(exactly = 1) { categories.saveMerchantAliasRule(match { it.normalizedPattern == "yq-tambo barrera-r" && it.merchantId.value == "tambo" }, null) }
+        coVerify(exactly = 1) { preference(UserId(owner), MerchantId("tambo"), CategoryId("category")) }
+    }
+
+    @Test fun `disabled learning saves neither rule nor preference for debit and credit`() = runTest {
+        catalog("Tambo"); deposit()
+        use(line("debit", StatementLineKind.ACCOUNT_DEBIT).copy(merchantId = "tambo", merchantReviewed = true, rememberMerchantAlias = false, rememberMerchantCategory = false),
+            line("income", StatementLineKind.ACCOUNT_CREDIT).copy(merchantId = "tambo", merchantReviewed = true, rememberMerchantAlias = false, rememberMerchantCategory = false))
+        val result = confirm(owner, "import")
+        assertEquals(2, result.registered); assertTrue(result.completed)
+        coVerify(exactly = 0) { categories.saveMerchantAliasRule(any(), any()) }
+        coVerify(exactly = 0) { preference(any(), any(), any()) }
+    }
+
+    @Test fun `conflicting aliases and merchant categories are skipped independently with warnings`() = runTest {
+        catalog("Tambo", "Rappi")
+        use(line("one").copy(originalDescription = "Same text", merchantId = "tambo", merchantReviewed = true),
+            line("two").copy(originalDescription = " SAME TEXT ", merchantId = "rappi", merchantReviewed = true),
+            line("three").copy(originalDescription = "Other text", merchantId = "tambo", categoryId = "other", merchantReviewed = true))
+        val result = confirm(owner, "import")
+        assertTrue(result.completed); assertEquals(3, result.registered)
+        assertEquals(setOf(StatementLearningWarningKind.ALIAS_CONFLICT, StatementLearningWarningKind.CATEGORY_CONFLICT), result.learningWarnings.map { it.kind }.toSet())
+        coVerify(exactly = 0) { categories.saveMerchantAliasRule(match { it.normalizedPattern == "same text" }, any()) }
+        coVerify(exactly = 0) { preference(UserId(owner), MerchantId("tambo"), any()) }
+        coVerify(exactly = 1) { categories.saveMerchantAliasRule(match { it.normalizedPattern == "other text" }, null) }
+        coVerify(exactly = 1) { preference(UserId(owner), MerchantId("rappi"), CategoryId("category")) }
+    }
+
+    @Test fun `debit account expenses and income learn their accepted merchant and category`() = runTest {
+        catalog("Tambo", "Rappi"); deposit()
+        use(line("debit", StatementLineKind.ACCOUNT_DEBIT).copy(originalDescription = "YQ-TAMBO BARRERA-R", merchantId = "tambo", merchantReviewed = true),
+            line("income", StatementLineKind.ACCOUNT_CREDIT).copy(originalDescription = "DLC*RAPPI PERU", merchantId = "rappi", merchantReviewed = true))
+        val result = confirm(owner, "import")
+        assertTrue(result.completed); assertEquals(2, result.registered); assertTrue(result.learningWarnings.isEmpty())
+        coVerify(exactly = 2) { categories.saveMerchantAliasRule(any(), null) }
+        coVerify(exactly = 1) { preference(UserId(owner), MerchantId("tambo"), CategoryId("category")) }
+        coVerify(exactly = 1) { preference(UserId(owner), MerchantId("rappi"), CategoryId("category")) }
+    }
+
+    @Test fun `unverified Premium prevents both kinds of learning`() = runTest {
+        catalog("Tambo")
+        every { categories.observePremiumVerified(UserId(owner)) } returns flowOf(false)
+        use(line().copy(merchantId = "tambo", merchantReviewed = true))
+        assertTrue(confirm(owner, "import").completed)
+        coVerify(exactly = 0) { categories.saveMerchantAliasRule(any(), any()) }
+        coVerify(exactly = 0) { preference(any(), any(), any()) }
+    }
+
+    @Test fun `reopening review preserves merchant rejection and explicit category`() = runTest {
+        catalog("Tambo")
+        use(line().copy(originalDescription = "YQ-TAMBO BARRERA-R", description = "YQ-TAMBO BARRERA-R", merchantReviewed = true))
+        val prepared = review(owner, "import")!!.lines.single()
+        assertNull(prepared.merchantId); assertNull(prepared.suggestedMerchantId); assertEquals("category", prepared.categoryId)
+        coVerify(exactly = 0) { store.setMerchantSuggestion(any(), any(), any()) }
+    }
+
+    @Test fun `alias learning failure is warned while preference and durable registration succeed`() = runTest {
+        catalog("Tambo")
+        coEvery { categories.saveMerchantAliasRule(any(), any()) } returns Result.failure(IllegalStateException("offline"))
+        use(line().copy(merchantId = "tambo", merchantReviewed = true))
+        val result = confirm(owner, "import")
+        assertTrue(result.completed); assertTrue(result.failed.isEmpty()); assertEquals(1, purchases.size)
+        assertEquals(StatementLearningWarningKind.ALIAS_SAVE_FAILED, result.learningWarnings.single().kind)
+        coVerify(exactly = 1) { preference(UserId(owner), MerchantId("tambo"), CategoryId("category")) }
+    }
+
     @Test fun `deposit debit and credit register expense and income in linked account and retry is idempotent`() = runTest {
         deposit()
         use(line("debit", StatementLineKind.ACCOUNT_DEBIT), line("credit", StatementLineKind.ACCOUNT_CREDIT))

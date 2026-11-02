@@ -109,6 +109,8 @@ fun NavGraphBuilder.captureDestinations(navController: NavController) {
             onConvertToManual = viewModel::convertToManual,
             onDiscard = viewModel::discard,
             onOpenPermissions = { navController.navigate(PERMISSIONS_ROUTE) },
+            onRememberMerchant = viewModel::onRememberMerchantChanged,
+            onRememberCategory = viewModel::onRememberCategoryChanged,
         )
     }
 }

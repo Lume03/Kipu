@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.kipu.app.feature.categories.presentation.components.rememberMerchantDiscovery
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -35,6 +36,10 @@ fun NavGraphBuilder.statementDestinations(navController: NavController) {
             onSelectAll = viewModel::setAllSelected, onEdit = viewModel::editLine, onBatchCategory = viewModel::assignCategory,
             onConfirm = viewModel::confirm, onDiscard = viewModel::discard, onDismissMessage = viewModel::dismissMessage,
             onPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
-            onViewMovements = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) })
+            onViewMovements = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
+            onAcceptSuggestion = viewModel::acceptMerchantSuggestion, onRejectSuggestion = viewModel::rejectMerchantSuggestion,
+            onChooseMerchant = viewModel::chooseMerchant, onRemoveMerchant = viewModel::removeMerchant,
+            onRememberAlias = viewModel::setRememberMerchantAlias, onRememberCategory = viewModel::setRememberMerchantCategory,
+            merchantDiscovery = rememberMerchantDiscovery())
     }
 }

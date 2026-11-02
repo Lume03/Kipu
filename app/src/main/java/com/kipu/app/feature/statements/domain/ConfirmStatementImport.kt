@@ -36,11 +36,15 @@ enum class StatementLineFailureReason {
 
 data class StatementLineFailure(val lineId: String, val reason: StatementLineFailureReason)
 
+enum class StatementLearningWarningKind { ALIAS_CONFLICT, CATEGORY_CONFLICT, ALIAS_SAVE_FAILED, CATEGORY_SAVE_FAILED, LEARNING_FAILED }
+data class StatementLearningWarning(val kind: StatementLearningWarningKind, val key: String, val lineIds: List<String>)
+
 data class ConfirmStatementResult(
     val registered: Int,
     val failed: List<StatementLineFailure>,
     val completed: Boolean,
     val error: StatementLineFailureReason? = null,
+    val learningWarnings: List<StatementLearningWarning> = emptyList(),
 )
 
 object StatementResolutionKey {
@@ -77,6 +81,7 @@ class ConfirmStatementImport @Inject constructor(
         if (snapshot.statement.cardId.isNullOrBlank()) return rejected(StatementLineFailureReason.CardRequired)
 
         var registered = 0
+        val durableLines = mutableListOf<StatementImportLine>()
         val failed = mutableListOf<StatementLineFailure>()
         // Refund matching must see purchases created in this very batch. Payments follow the purchases too.
         val pending = snapshot.lines.filter { it.selected && it.status == StatementImportLineStatus.PENDING }
@@ -97,16 +102,17 @@ class ConfirmStatementImport @Inject constructor(
                 val resolvedLine = transactions { confirmLine(ownerId, importId, candidate.id) }
                 if (resolvedLine != null) {
                     registered++
-                    // Learning is a follow-up, never a reason to retry a successful ledger command.
-                    try {
-                        if (access.canImport(ownerId)) review.learn(ownerId, resolvedLine)
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { /* Financial registration remains durable. */ }
+                    durableLines += resolvedLine
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (rejected: LineRejected) { failed += StatementLineFailure(candidate.id, rejected.reason) }
             catch (_: Exception) { failed += StatementLineFailure(candidate.id, StatementLineFailureReason.RegistrationFailed) }
         }
+        val learningWarnings = try {
+            if (durableLines.isNotEmpty() && access.canImport(ownerId)) review.learn(ownerId, durableLines,
+                snapshot.lines.filter { it.selected || it.status == StatementImportLineStatus.REGISTERED }) else emptyList()
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { listOf(StatementLearningWarning(StatementLearningWarningKind.LEARNING_FAILED, importId, durableLines.map { it.id })) }
         val completed = if (failed.isEmpty()) {
             try {
                 transactions {
@@ -121,7 +127,7 @@ class ConfirmStatementImport @Inject constructor(
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { false }
         } else false
-        return ConfirmStatementResult(registered, failed, completed)
+        return ConfirmStatementResult(registered, failed, completed, learningWarnings = learningWarnings)
     }
 
     private suspend fun confirmLine(ownerId: String, importId: String, lineId: String): StatementImportLine? {

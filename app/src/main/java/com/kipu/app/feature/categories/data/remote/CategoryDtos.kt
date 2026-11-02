@@ -142,6 +142,7 @@ data class MerchantCatalogItemDto(
     @SerialName("logo_path") val logoPath: String? = null,
     @SerialName("logo_dark_path") val logoDarkPath: String? = null,
     @SerialName("logo_source") val logoSource: String = "BUNDLED",
+    @SerialName("user_id") val userId: String? = null,
 )
 
 @Serializable

@@ -49,7 +49,7 @@ class RoomStatementImportStore @Inject constructor(
                 StatementImportLineEntity(UUID.randomUUID().toString(), row.id, owner, line.fingerprint, position,
                     line.kind.name, line.processDate.toString(), line.occurredDate.toString(), line.description.take(120),
                     line.amountMinor, line.currency.name, line.installmentCount, candidate.selected, null, null, null,
-                    candidate.possibleDuplicate, StatementImportLineStatus.PENDING.name, null, line.possibleOwnTransfer)
+                    candidate.possibleDuplicate, StatementImportLineStatus.PENDING.name, null, line.possibleOwnTransfer, originalDescription = line.description.take(120))
             })
             StatementImportCreation(row.toDomain(), true)
         }
@@ -116,6 +116,15 @@ class RoomStatementImportStore @Inject constructor(
                 edit.categoryId, edit.kind.name, edit.merchantId, edit.sourceAccountId) == 1
         }
     }
+
+    override suspend fun setMerchantSuggestion(ownerId: String, lineId: String, merchantId: String?) =
+        dao.setMerchantSuggestion(owner(ownerId), lineId, merchantId) == 1
+    override suspend fun chooseMerchant(ownerId: String, lineId: String, merchantId: String?, categoryId: String?) =
+        dao.chooseMerchant(owner(ownerId), lineId, merchantId, categoryId) == 1
+    override suspend fun setRememberMerchantAlias(ownerId: String, lineId: String, remember: Boolean) =
+        dao.setRememberMerchantAlias(owner(ownerId), lineId, remember) == 1
+    override suspend fun setRememberMerchantCategory(ownerId: String, lineId: String, remember: Boolean) =
+        dao.setRememberMerchantCategory(owner(ownerId), lineId, remember) == 1
 
     override suspend fun setAllSelected(ownerId: String, importId: String, selected: Boolean) = dao.setAllSelected(owner(ownerId), importId, selected)
     override suspend fun discard(ownerId: String, importId: String) = dao.discard(owner(ownerId), importId) == 1

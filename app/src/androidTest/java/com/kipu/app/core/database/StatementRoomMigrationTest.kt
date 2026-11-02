@@ -39,6 +39,40 @@ class StatementRoomMigrationTest {
         }
     }
 
+    @Test fun captureLearningChoicesDefaultToEnabledOnUpgrade() {
+        val name = "capture-v33-to-v34"
+        helper.createDatabase(name, 33).use { db ->
+            db.execSQL("""INSERT INTO capture_candidates (id,owner_id,source_package,provider,source_event_fingerprint,
+                status,occurred_at_inferred,instrument_ambiguous,confidence,confidence_reasons,user_corrected_fields,created_at,updated_at)
+                VALUES ('candidate','owner','source','YAPE','fingerprint','PENDING',0,0,'LOW','[]','[]',1,1)""")
+        }
+        helper.runMigrationsAndValidate(name, 34, true, MIGRATION_33_34).use { db ->
+            db.query("SELECT remember_merchant_alias,remember_merchant_category FROM capture_candidates WHERE id='candidate'").use {
+                it.moveToFirst(); assertEquals(1, it.getInt(0)); assertEquals(1, it.getInt(1))
+            }
+        }
+    }
+
+    @Test fun statementMerchantChoicesUpgradeWithoutAssigningSuggestedMerchant() {
+        val name = "statement-merchants-v33-to-v34"
+        helper.createDatabase(name, 33).use { db ->
+            db.execSQL("""INSERT INTO statement_imports (id,owner_id,statement_fingerprint,issuer,card_last_four,
+                cycle_start,cycle_end,status,created_at,expires_at)
+                VALUES ('draft','owner','fp','BCP','1234','2026-07-01','2026-07-31','PENDING',1,1000)""")
+            db.execSQL("""INSERT INTO statement_import_lines (id,import_id,owner_id,line_fingerprint,position,kind,process_date,
+                occurred_date,description,amount_minor,currency,selected,possible_duplicate,status,merchant_id,category_id)
+                VALUES ('line','draft','owner','fp',0,'ACCOUNT_DEBIT','2026-07-01','2026-07-01','DLC*RAPPI PERU',100,'PEN',1,0,'PENDING','chosen','food')""")
+        }
+        helper.runMigrationsAndValidate(name, 34, true, MIGRATION_33_34).use { db ->
+            db.query("""SELECT suggested_merchant_id,remember_merchant_alias,remember_merchant_category,
+                original_description,merchant_reviewed,merchant_id,category_id FROM statement_import_lines WHERE id='line'""").use {
+                it.moveToFirst(); org.junit.Assert.assertTrue(it.isNull(0)); assertEquals(1, it.getInt(1)); assertEquals(1, it.getInt(2))
+                assertEquals("DLC*RAPPI PERU", it.getString(3)); assertEquals(0, it.getInt(4))
+                assertEquals("chosen", it.getString(5)); assertEquals("food", it.getString(6))
+            }
+        }
+    }
+
     @Test fun statementCandidatesPreserveLedger() {
         val name = "statements-v29-to-v30"
         helper.createDatabase(name, 29).use { db ->

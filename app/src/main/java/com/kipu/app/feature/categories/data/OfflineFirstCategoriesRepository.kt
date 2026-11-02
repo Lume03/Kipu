@@ -58,6 +58,7 @@ import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.combine
@@ -507,18 +508,24 @@ class OfflineFirstCategoriesRepository @Inject constructor(
         return Result.success(Unit)
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun searchMerchants(query: String): Flow<List<MerchantCatalogEntry>> {
         val normalized = CategoryRules.normalizeText(query)
-        return merchantDao.searchMerchants(normalized).map { entities ->
-            entities.map(::toMerchantCatalogEntry)
+        return sessionCoordinator.localAccess.flatMapLatest { access ->
+            merchantDao.searchMerchants(normalized, (access as? LocalAccess.Available)?.userId)
+                .map { entities -> entities.map(::toMerchantCatalogEntry) }
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun observeMerchantCatalog(): Flow<List<MerchantCatalogEntry>> =
-        merchantDao.getAllActiveMerchants().map { entities -> entities.map(::toMerchantCatalogEntry) }
+        sessionCoordinator.localAccess.flatMapLatest { access ->
+            merchantDao.getAllActiveMerchants((access as? LocalAccess.Available)?.userId)
+                .map { entities -> entities.map(::toMerchantCatalogEntry) }
+        }
 
     override suspend fun getMerchantById(id: MerchantId): MerchantCatalogEntry? =
-        merchantDao.getMerchantById(id.value)?.let(::toMerchantCatalogEntry)
+        merchantDao.getMerchantById(id.value, currentUserId())?.let(::toMerchantCatalogEntry)
 
     override fun observeMerchantCategoryFilters(): Flow<List<MerchantCategoryFilter>> {
         val userId = currentUserId() ?: return flowOf(emptyList())
@@ -562,7 +569,7 @@ class OfflineFirstCategoriesRepository @Inject constructor(
             "Alias pattern is not normalized"
         }
         require(rule.normalizedPattern.length <= 160) { "Alias pattern is too long" }
-        val merchant = merchantDao.getMerchantById(rule.merchantId.value)
+        val merchant = merchantDao.getMerchantById(rule.merchantId.value, currentUserId())
         require(merchant?.isActive == true) { "Canonical merchant is unavailable" }
         require(currentUserId() == userId) { "Owner changed while validating alias" }
 
@@ -671,7 +678,7 @@ class OfflineFirstCategoriesRepository @Inject constructor(
     ): Result<Unit> = runCatching {
         val userId = preference.ownerId.value
         require(currentUserId() == userId) { "No active owner session" }
-        val merchant = merchantDao.getMerchantById(preference.merchantId.value)
+        val merchant = merchantDao.getMerchantById(preference.merchantId.value, currentUserId())
         require(merchant?.isActive == true) { "Canonical merchant is unavailable" }
         val category = categoryDao.getCategoryById(preference.categoryId.value)
             ?: error("Preference category is unavailable")

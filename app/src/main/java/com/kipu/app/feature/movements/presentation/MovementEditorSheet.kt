@@ -73,6 +73,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerViewModel
+import com.kipu.app.feature.categories.presentation.components.MerchantDiscoveryUi
+import com.kipu.app.feature.categories.presentation.components.rememberMerchantDiscovery
+import com.kipu.app.feature.movements.presentation.components.RememberToggleRow
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.MoneyInputParser
@@ -111,6 +114,7 @@ fun MovementEditorRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val merchantPickerViewModel: MerchantPickerViewModel = hiltViewModel()
     val merchantPickerState by merchantPickerViewModel.uiState.collectAsStateWithLifecycle()
+    val merchantDiscovery = rememberMerchantDiscovery()
 
     LaunchedEffect(transactionId) {
         viewModel.loadTransaction(transactionId)
@@ -136,6 +140,8 @@ fun MovementEditorRoute(
         merchantPickerState = merchantPickerState,
         onMerchantQueryChanged = merchantPickerViewModel::onQueryChanged,
         onMerchantSelected = viewModel::onMerchantSelected,
+        onRememberCategoryChanged = viewModel::onRememberCategoryChanged,
+        merchantDiscovery = merchantDiscovery,
         onDateChanged = viewModel::onDateChanged,
         onNoteChanged = viewModel::onNoteChanged,
         onSave = viewModel::onSave,
@@ -169,6 +175,8 @@ fun MovementEditorSheet(
     merchantPickerState: MerchantPickerState = MerchantPickerState(),
     onMerchantQueryChanged: (String) -> Unit = {},
     onMerchantSelected: (MerchantCatalogEntry) -> Unit = { onMerchantChanged(it.name) },
+    onRememberCategoryChanged: (Boolean) -> Unit = {},
+    merchantDiscovery: MerchantDiscoveryUi? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -191,6 +199,8 @@ fun MovementEditorSheet(
             merchantPickerState = merchantPickerState,
             onMerchantQueryChanged = onMerchantQueryChanged,
             onMerchantSelected = onMerchantSelected,
+            onRememberCategoryChanged = onRememberCategoryChanged,
+            merchantDiscovery = merchantDiscovery,
             onDateChanged = onDateChanged,
             onNoteChanged = onNoteChanged,
             onSave = onSave,
@@ -226,6 +236,8 @@ fun MovementEditorContent(
     merchantPickerState: MerchantPickerState = MerchantPickerState(),
     onMerchantQueryChanged: (String) -> Unit = {},
     onMerchantSelected: (MerchantCatalogEntry) -> Unit = { onMerchantChanged(it.name) },
+    onRememberCategoryChanged: (Boolean) -> Unit = {},
+    merchantDiscovery: MerchantDiscoveryUi? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val ec = rememberCalmEmeraldColors()
@@ -534,6 +546,19 @@ fun MovementEditorContent(
                             ec = ec,
                             onClick = { picker = EditorPicker.MERCHANT },
                         )
+                        // Depends on both rows above: it names the category and the merchant.
+                        uiState.rememberCategory?.takeIf { uiState.movementType != MovementType.TRANSFER }?.let { option ->
+                            EditorRowDivider(ec)
+                            RememberToggleRow(
+                                label = option.label,
+                                checked = option.checked,
+                                onCheckedChange = onRememberCategoryChanged,
+                                enabled = editable,
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp)
+                                    .testTag("editor_remember_category"),
+                            )
+                        }
                         EditorRowDivider(ec)
                         val noteChanged = uiState.note.trim() != uiState.initialNote.orEmpty().trim()
                         EditorRow(
@@ -668,6 +693,7 @@ fun MovementEditorContent(
             onSetProvisionalText = onMerchantChanged,
             onClearSelection = { onMerchantChanged("") },
             onDismiss = { onMerchantQueryChanged(""); picker = null },
+            discovery = merchantDiscovery,
         )
         EditorPicker.NOTE -> TextEditSheet(
             title = "Editar nota",

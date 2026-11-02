@@ -118,6 +118,9 @@ import com.kipu.app.feature.movements.presentation.components.CategorySelectionR
 import com.kipu.app.R
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerViewModel
+import com.kipu.app.feature.categories.presentation.components.MerchantDiscoveryViewModel
+import com.kipu.app.feature.categories.presentation.components.rememberMerchantDiscovery
+import com.kipu.app.feature.movements.presentation.components.RememberToggleRow
 import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseDraft
 import com.kipu.app.feature.accounts.presentation.components.CreditPurchaseTermsSection
 import com.kipu.app.feature.accounts.domain.model.CreditCard
@@ -143,12 +146,14 @@ fun QuickMovementBottomSheet(
     modifier: Modifier = Modifier,
     viewModel: QuickMovementViewModel = hiltViewModel(),
     merchantPickerViewModel: MerchantPickerViewModel = hiltViewModel(),
+    merchantDiscoveryViewModel: MerchantDiscoveryViewModel = hiltViewModel(),
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     onNavigateToNewAccount: () -> Unit = {},
     mostUsedAccountId: String? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val merchantPickerState by merchantPickerViewModel.uiState.collectAsStateWithLifecycle()
+    val merchantDiscovery = rememberMerchantDiscovery(merchantDiscoveryViewModel)
     var showMerchantPicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     val emeraldColors = rememberCalmEmeraldColors()
@@ -204,6 +209,7 @@ fun QuickMovementBottomSheet(
             onDestinationAccountSelected = viewModel::onDestinationAccountSelected,
             onDestinationCardSelected = viewModel::onDestinationCardSelected,
             onCategorySelected = viewModel::onCategorySelected,
+            onRememberCategoryChanged = viewModel::onRememberCategoryChanged,
             onOpenMerchantPicker = { showMerchantPicker = true },
             onClearMerchant = {
                 merchantPickerViewModel.clearSelection()
@@ -282,6 +288,7 @@ fun QuickMovementBottomSheet(
                 viewModel.onMerchantCleared()
             },
             onDismiss = { showMerchantPicker = false },
+            discovery = merchantDiscovery,
         )
     }
 
@@ -325,6 +332,7 @@ fun QuickMovementContent(
     modifier: Modifier = Modifier,
     onDestinationCardSelected: (String) -> Unit = {},
     onCreditPurchaseDraftChanged: (CreditPurchaseDraft) -> Unit = {},
+    onRememberCategoryChanged: (Boolean) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -857,13 +865,23 @@ fun QuickMovementContent(
                 enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
                 exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
             ) {
-                CategorySelectionRow(
-                    categoryName = uiState.selectedCategoryName,
-                    categoryIcon = uiState.selectedCategoryIcon,
-                    required = uiState.type == MovementType.EXPENSE,
-                    error = uiState.categoryError,
-                    onClick = { showCategoryPicker = true },
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CategorySelectionRow(
+                        categoryName = uiState.selectedCategoryName,
+                        categoryIcon = uiState.selectedCategoryIcon,
+                        required = uiState.type == MovementType.EXPENSE,
+                        error = uiState.categoryError,
+                        onClick = { showCategoryPicker = true },
+                    )
+                    uiState.rememberCategory?.let { option ->
+                        RememberToggleRow(
+                            label = option.label,
+                            checked = option.checked,
+                            onCheckedChange = onRememberCategoryChanged,
+                            modifier = Modifier.testTag("quick_remember_category"),
+                        )
+                    }
+                }
             }
 
             Row(

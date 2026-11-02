@@ -12,7 +12,13 @@ import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.Card
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
+import com.kipu.app.feature.categories.domain.CategoriesRepository
+import com.kipu.app.feature.categories.domain.MerchantAliasRules
 import com.kipu.app.feature.categories.domain.model.CategoryType
+import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
+import com.kipu.app.feature.movements.domain.model.MovementType
+import com.kipu.app.feature.movements.presentation.RememberOption
+import com.kipu.app.feature.movements.presentation.rememberCategoryOption
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
 import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.statements.domain.*
@@ -24,8 +30,20 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+data class RememberAliasOption(val label: String, val checked: Boolean = true, val merchantId: String, val sourceText: String)
+
+private data class StatementRememberChoices(
+    val merchants: List<MerchantCatalogEntry>,
+    val aliases: Map<String, RememberAliasOption>,
+    val categories: Map<String, RememberOption>,
+)
+
 data class StatementReviewUiState(
     val loading: Boolean = true,
+    val merchants: List<MerchantCatalogEntry> = emptyList(),
+    val rememberAliasOptions: Map<String, RememberAliasOption> = emptyMap(),
+    val rememberCategoryOptions: Map<String, RememberOption> = emptyMap(),
+    val learningWarnings: List<StatementLearningWarning> = emptyList(),
     val snapshot: StatementImportSnapshot? = null,
     val cards: List<CreditCard> = emptyList(),
     val debitCards: List<DebitCard> = emptyList(),
@@ -66,6 +84,7 @@ class StatementReviewViewModel @Inject constructor(
     private val instruments: ObserveInstruments,
     private val categories: ObserveCategories,
     private val session: SessionCoordinator,
+    private val merchantRepository: CategoriesRepository,
 ) : ViewModel() {
     private val importId: String = savedStateHandle.get<String>("importId").orEmpty()
     private var owner: String? = (session.localAccess.value as? LocalAccess.Available)?.userId
@@ -87,8 +106,40 @@ class StatementReviewViewModel @Inject constructor(
                     launch {
                         try {
                             prepare(user, importId)
-                            store.observe(user, importId).collect { snapshot ->
+                            val rememberInputs = combine(
+                                merchantRepository.observeMerchantCatalog(),
+                                merchantRepository.observeMerchantAliasRules(UserId(user)),
+                                merchantRepository.observeMerchantCategoryPreferences(UserId(user)),
+                                categories(UserId(user)),
+                                merchantRepository.observePremiumVerified(UserId(user)).catch { emit(false) },
+                            ) { catalog, aliases, preferences, categoryItems, premium ->
+                                val flatCategories = categoryItems.flatMap { listOf(it) + it.subcategories }
+                                val allCategories = flatCategories.map { it.category }
+                                val compute: (StatementImportSnapshot?) -> StatementRememberChoices = { snapshot ->
+                                    val aliasOptions = mutableMapOf<String, RememberAliasOption>()
+                                    val categoryOptions = mutableMapOf<String, RememberOption>()
+                                    for (line in snapshot?.lines.orEmpty().filter { it.status == StatementImportLineStatus.PENDING }) {
+                                        val merchant = catalog.singleOrNull { it.isActive && it.id.value == line.merchantId } ?: continue
+                                        if (premium && line.merchantReviewed && aliases.none { it.ownerId == UserId(user) && it.deletedAt == null &&
+                                            it.normalizedPattern == MerchantAliasRules.normalize(line.originalDescription) }) {
+                                            aliasOptions[line.id] = RememberAliasOption("Recordar ${merchant.name} para '${line.originalDescription}'",
+                                                line.rememberMerchantAlias, merchant.id.value, line.originalDescription)
+                                        }
+                                        val category = allCategories.singleOrNull { it.id.value == line.categoryId }
+                                        rememberCategoryOption(UserId(user), premium, merchant.id.value, merchant.name, line.categoryId,
+                                            flatCategories.singleOrNull { it.category.id == category?.id }?.displayName, if (line.kind == StatementLineKind.ACCOUNT_CREDIT) MovementType.INCOME else MovementType.EXPENSE,
+                                            preferences, allCategories, null)?.let {
+                                                categoryOptions[line.id] = it.copy(checked = line.rememberMerchantCategory)
+                                            }
+                                    }
+                                    StatementRememberChoices(catalog.filter { it.isActive }, aliasOptions, categoryOptions)
+                                }
+                                compute
+                            }
+                            combine(store.observe(user, importId), rememberInputs) { snapshot, choices -> snapshot to choices(snapshot) }
+                                .collect { (snapshot, choices) ->
                                 if (hasAccess()) _state.update { current -> current.copy(loading = false, snapshot = snapshot,
+                                    merchants = choices.merchants, rememberAliasOptions = choices.aliases, rememberCategoryOptions = choices.categories,
                                     message = if (snapshot == null) StatementLineFailureReason.NotFound.message() else current.message,
                                     missingCategoryIds = current.missingCategoryIds.intersect(snapshot?.lines.orEmpty()
                                         .filter { it.selected && it.categoryId == null }.map { it.id }.toSet())) }
@@ -164,6 +215,33 @@ class StatementReviewViewModel @Inject constructor(
         } else message("No pudimos guardar los cambios. Revisa los datos e inténtalo otra vez.")
     }
 
+    fun acceptMerchantSuggestion(lineId: String) = work { user ->
+        val line = store.observe(user, importId).first()?.lines?.singleOrNull { it.id == lineId } ?: return@work
+        val merchant = line.suggestedMerchantId ?: return@work
+        if (!prepare.chooseMerchant(user, lineId, merchant, importId)) message("No pudimos elegir el comercio.")
+    }
+
+    fun rejectMerchantSuggestion(lineId: String) = work { user ->
+        val line = store.observe(user, importId).first()?.lines?.singleOrNull { it.id == lineId } ?: return@work
+        store.chooseMerchant(user, lineId, null, line.categoryId)
+    }
+
+    fun chooseMerchant(lineId: String, merchantId: String) = work { user ->
+        if (!prepare.chooseMerchant(user, lineId, merchantId, importId)) message("No pudimos elegir el comercio.")
+    }
+
+    fun removeMerchant(lineId: String) = work { user ->
+        prepare.chooseMerchant(user, lineId, null, importId)
+    }
+
+    fun setRememberMerchantAlias(lineId: String, remember: Boolean) = work { user ->
+        store.setRememberMerchantAlias(user, lineId, remember)
+    }
+
+    fun setRememberMerchantCategory(lineId: String, remember: Boolean) = work { user ->
+        store.setRememberMerchantCategory(user, lineId, remember)
+    }
+
     fun assignCategory(id: String) = work { user ->
         if ((_state.value.categories + _state.value.incomeCategories).none { it.id == id }) return@work
         val lines = store.observe(user, importId).first()?.lines.orEmpty().filter {
@@ -195,7 +273,7 @@ class StatementReviewViewModel @Inject constructor(
         val result = confirmer(user, importId)
         if (!hasAccess()) return@work
         _state.update { it.copy(failures = result.failed.associate { failure -> failure.lineId to failure.reason },
-            missingCategoryIds = emptySet(), successCount = if (result.completed) previous + result.registered else null,
+            learningWarnings = result.learningWarnings, missingCategoryIds = emptySet(), successCount = if (result.completed) previous + result.registered else null,
             showPremium = result.error == StatementLineFailureReason.PremiumRequired,
             message = result.error?.message() ?: if (result.failed.isNotEmpty())
                 "Registraste ${result.registered} movimientos. Revisa los que necesitan atención y vuelve a intentarlo."

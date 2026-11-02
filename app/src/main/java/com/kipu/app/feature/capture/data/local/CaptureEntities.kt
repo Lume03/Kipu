@@ -58,4 +58,6 @@ data class CaptureCandidateEntity(
     @ColumnInfo(name = "resolved_at") val resolvedAt: Long?,
     @ColumnInfo(name = "expected_match_state") val expectedMatchState: String? = null,
     @ColumnInfo(name = "followups_pending", defaultValue = "0") val followupsPending: Int = 0,
+    @ColumnInfo(name = "remember_merchant_alias", defaultValue = "1") val rememberMerchantAlias: Boolean = true,
+    @ColumnInfo(name = "remember_merchant_category", defaultValue = "1") val rememberMerchantCategory: Boolean = true,
 )

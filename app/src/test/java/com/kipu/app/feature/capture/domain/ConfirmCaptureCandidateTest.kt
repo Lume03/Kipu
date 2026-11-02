@@ -77,6 +77,15 @@ class ConfirmCaptureCandidateTest {
         assertEquals(1, resolvedCalls.size)
     }
 
+    @Test fun `confirmation persists independent learning choices for followups`() = runTest {
+        confirm(command().copy(merchantId = "merchant-2", categoryId = "category-2",
+            rememberMerchantAlias = false, rememberMerchantCategory = true))
+        val stored = store.row(owner, candidate.id)!!
+        assertEquals(false, stored.rememberMerchantAlias)
+        assertEquals(true, stored.rememberMerchantCategory)
+        assertEquals(false, resolvedCalls.single().first.rememberMerchantAlias)
+    }
+
     @Test fun `second confirmation returns the existing movement without touching the ledger again`() = runTest {
         val first = confirm(command()) as CaptureConfirmationResult.Registered
         val second = confirm(command()) as CaptureConfirmationResult.Registered

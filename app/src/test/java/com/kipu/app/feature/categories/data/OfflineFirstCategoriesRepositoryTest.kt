@@ -172,31 +172,31 @@ class FakeMerchantCatalogDao : MerchantCatalogDao {
         merchants.forEach { this.merchants[it.id] = it }
     }
 
-    override fun searchMerchants(query: String): Flow<List<MerchantCatalogEntity>> =
-        flowOf(merchants.values.filter { it.isActive && it.normalizedName.contains(query, ignoreCase = true) })
+    override fun searchMerchants(query: String, userId: String?): Flow<List<MerchantCatalogEntity>> =
+        flowOf(merchants.values.filter { (it.userId == null || it.userId == userId) && it.isActive && it.normalizedName.contains(query, ignoreCase = true) })
 
-    override fun getAllActiveMerchants(): Flow<List<MerchantCatalogEntity>> =
-        flowOf(merchants.values.filter { it.isActive })
+    override fun getAllActiveMerchants(userId: String?): Flow<List<MerchantCatalogEntity>> =
+        flowOf(merchants.values.filter { (it.userId == null || it.userId == userId) && it.isActive })
 
-    override fun getActiveMerchantsByCategory(categoryId: String): Flow<List<MerchantCatalogEntity>> =
-        flowOf(merchants.values.filter { it.isActive && it.defaultCategoryId == categoryId })
+    override fun getActiveMerchantsByCategory(categoryId: String, userId: String?): Flow<List<MerchantCatalogEntity>> =
+        flowOf(merchants.values.filter { (it.userId == null || it.userId == userId) && it.isActive && it.defaultCategoryId == categoryId })
 
-    override fun searchMerchantsByCategory(query: String, categoryId: String): Flow<List<MerchantCatalogEntity>> =
+    override fun searchMerchantsByCategory(query: String, categoryId: String, userId: String?): Flow<List<MerchantCatalogEntity>> =
         flowOf(merchants.values.filter {
-            it.isActive && it.defaultCategoryId == categoryId && it.normalizedName.contains(query, ignoreCase = true)
+            (it.userId == null || it.userId == userId) && it.isActive && it.defaultCategoryId == categoryId && it.normalizedName.contains(query, ignoreCase = true)
         })
 
     override fun observeMerchantCategoryFilters(userId: String): Flow<List<MerchantCategoryFilterRow>> =
         flowOf(emptyList())
 
-    override fun observeMerchants(): Flow<List<MerchantCatalogEntity>> = flowOf(merchants.values.toList())
+    override fun observeMerchants(userId: String?): Flow<List<MerchantCatalogEntity>> = flowOf(merchants.values.filter { it.userId == null || it.userId == userId })
 
-    override suspend fun getMerchantById(id: String): MerchantCatalogEntity? = merchants[id]
+    override suspend fun getMerchantById(id: String, userId: String?): MerchantCatalogEntity? = merchants[id]?.takeIf { it.userId == null || it.userId == userId }
 
-    override suspend fun countActiveMerchants(): Int = merchants.values.count { it.isActive }
+    override suspend fun countActiveMerchants(userId: String?): Int = merchants.values.count { it.isActive }
 
     override suspend fun getLatestVersion(): Long? = merchants.values.maxOfOrNull { it.version }
-    override suspend fun getMerchantsWithRemoteLogos(): List<MerchantCatalogEntity> =
+    override suspend fun getMerchantsWithRemoteLogos(userId: String?): List<MerchantCatalogEntity> =
         merchants.values.filter { it.logoPath != null || it.logoDarkPath != null }
 }
 

@@ -48,7 +48,7 @@ class MovementPresentationObservationTest {
         every { accountDao.observeAll(owner) } returns accounts
         every { cardDao.observeAll(owner) } returns flowOf(emptyList())
         every { categoryDao.observePresentationsForUser(owner) } returns flowOf(emptyList())
-        every { merchantDao.observeMerchants() } returns flowOf(emptyList())
+        every { merchantDao.observeMerchants(owner) } returns flowOf(emptyList())
         val repository = OfflineFirstMovementRepository(
             source, mockk(), mockk(), mockk(), mockk(), accountDao, cardDao, categoryDao, merchantDao,
         )

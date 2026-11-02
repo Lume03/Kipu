@@ -7,6 +7,8 @@ import com.kipu.app.core.session.*
 import com.kipu.app.feature.accounts.domain.model.*
 import com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments
 import com.kipu.app.feature.categories.domain.usecase.ObserveCategories
+import com.kipu.app.feature.categories.domain.usecase.CategoryItem
+import com.kipu.app.feature.categories.domain.model.*
 import com.kipu.app.feature.statements.domain.*
 import com.kipu.app.feature.statements.storedStatement
 import io.mockk.*
@@ -35,6 +37,13 @@ class StatementViewModelsTest {
     private val confirm = mockk<ConfirmStatementImport>()
     private val instruments = mockk<ObserveInstruments>()
     private val categories = mockk<ObserveCategories>()
+    private val merchantRepository = mockk<com.kipu.app.feature.categories.domain.CategoriesRepository> {
+        every { observeMerchantCatalog() } returns flowOf(emptyList())
+        every { observeMerchantAliasRules(UserId(TEST_OWNER)) } returns flowOf(emptyList())
+        every { observeMerchantCategoryPreferences(UserId(TEST_OWNER)) } returns flowOf(emptyList())
+        every { observeCategories(UserId(TEST_OWNER)) } returns flowOf(emptyList())
+        every { observePremiumVerified(UserId(TEST_OWNER)) } returns flowOf(true)
+    }
     private val uri = mockk<Uri>()
     private val card = CreditCard(CardId(TEST_CARD), UserId(TEST_OWNER), issuer = "BCP", network = CardNetwork.VISA,
         lastFourDigits = "1234", currency = Currency.PEN, creditLimitMinorUnits = 100000, billingDay = 20, dueDay = 5)
@@ -58,7 +67,55 @@ class StatementViewModelsTest {
     @After fun tearDown() { Dispatchers.resetMain() }
     private fun flowVm() = StatementImportViewModel(importer, store, premium, session)
     private fun reviewVm() = StatementReviewViewModel(SavedStateHandle(mapOf("importId" to "import")),
-        store, prepare, confirm, instruments, categories, session)
+        store, prepare, confirm, instruments, categories, session, merchantRepository)
+
+    @Test fun `review exposes checked remembered choices only for premium and eligible changed category`() = runTest {
+        val merchant = MerchantCatalogEntry(MerchantId("tambo"), "Tambo", "tambo")
+        val cat = Category(CategoryId("food"), null, null, CategoryOrigin.SYSTEM, true)
+        val premiumFlow = MutableStateFlow(true)
+        val aliasFlow = MutableStateFlow<List<MerchantAliasRule>>(emptyList())
+        val preferenceFlow = MutableStateFlow<List<MerchantCategoryPreference>>(emptyList())
+        every { merchantRepository.observeMerchantCatalog() } returns flowOf(listOf(merchant))
+        every { merchantRepository.observePremiumVerified(UserId(TEST_OWNER)) } returns premiumFlow
+        every { merchantRepository.observeMerchantAliasRules(UserId(TEST_OWNER)) } returns aliasFlow
+        every { merchantRepository.observeMerchantCategoryPreferences(UserId(TEST_OWNER)) } returns preferenceFlow
+        every { categories(UserId(TEST_OWNER)) } returns flowOf(listOf(CategoryItem(cat,
+            CategoryPresentation(cat.id, UserId(TEST_OWNER), "Comida", "food", "#000000"))))
+        snapshot.value = snapshot.value!!.copy(lines = listOf(line.copy(merchantId = "tambo", merchantReviewed = true, categoryId = "food")))
+        val vm = reviewVm(); advanceUntilIdle()
+        assertEquals("Recordar Tambo para 'Compra de prueba'", vm.state.value.rememberAliasOptions["line"]?.label)
+        assertEquals("Recordar Comida para Tambo", vm.state.value.rememberCategoryOptions["line"]?.label)
+        assertTrue(vm.state.value.rememberAliasOptions["line"]!!.checked)
+        snapshot.value = snapshot.value!!.copy(lines = listOf(snapshot.value!!.lines.single().copy(rememberMerchantAlias = false, rememberMerchantCategory = false)))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.rememberAliasOptions["line"]!!.checked)
+        assertFalse(vm.state.value.rememberCategoryOptions["line"]!!.checked)
+        aliasFlow.value = listOf(MerchantAliasRule(MerchantAliasRuleId("rule"), UserId(TEST_OWNER), "compra de prueba", merchant.id))
+        preferenceFlow.value = listOf(MerchantCategoryPreference(UserId(TEST_OWNER), merchant.id, cat.id))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.rememberAliasOptions.isEmpty()); assertTrue(vm.state.value.rememberCategoryOptions.isEmpty())
+        aliasFlow.value = emptyList(); preferenceFlow.value = emptyList(); premiumFlow.value = false
+        advanceUntilIdle()
+        assertTrue(vm.state.value.rememberAliasOptions.isEmpty()); assertTrue(vm.state.value.rememberCategoryOptions.isEmpty())
+    }
+
+    @Test fun `review dispatches merchant actions and persisted remember toggles`() = runTest {
+        snapshot.value = snapshot.value!!.copy(lines = listOf(line.copy(suggestedMerchantId = "tambo")))
+        coEvery { prepare.chooseMerchant(TEST_OWNER, "line", any(), "import") } returns true
+        val vm = reviewVm(); advanceUntilIdle()
+        vm.acceptMerchantSuggestion("line"); advanceUntilIdle()
+        coVerify { prepare.chooseMerchant(TEST_OWNER, "line", "tambo", "import") }
+        vm.chooseMerchant("line", "rappi"); advanceUntilIdle()
+        coVerify { prepare.chooseMerchant(TEST_OWNER, "line", "rappi", "import") }
+        vm.rejectMerchantSuggestion("line"); advanceUntilIdle()
+        coVerify { store.chooseMerchant(TEST_OWNER, "line", null, null) }
+        vm.removeMerchant("line"); advanceUntilIdle()
+        coVerify { prepare.chooseMerchant(TEST_OWNER, "line", null, "import") }
+        vm.setRememberMerchantAlias("line", false); advanceUntilIdle()
+        vm.setRememberMerchantCategory("line", false); advanceUntilIdle()
+        coVerify { store.setRememberMerchantAlias(TEST_OWNER, "line", false) }
+        coVerify { store.setRememberMerchantCategory(TEST_OWNER, "line", false) }
+    }
 
     @Test fun `opening import feature purges expired drafts`() = runTest {
         flowVm(); advanceUntilIdle()

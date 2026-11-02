@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.room.util.TableInfo
 import androidx.test.core.app.ApplicationProvider
 import com.kipu.app.core.database.KipuDatabase
+import com.kipu.app.core.database.migrateStatementMerchantChoices
 import com.kipu.app.core.database.MIGRATION_32_33
 import io.mockk.*
 import com.kipu.app.core.database.MIGRATION_29_30
@@ -49,6 +50,31 @@ class StatementImportRoomTest {
 
     private suspend fun create(fingerprint: String = "statement", lines: List<StatementLine> = listOf(importLine())) =
         store.create(owner, parsedStatement(lines, fingerprint), null, lines.map { StatementImportCandidate(it, true, false) }).statement
+
+    @Test fun `merchant suggestion and learning choices persist with original text and owner pending guards`() = runBlocking {
+        val draft = create()
+        var line = store.observe(owner, draft.id).first()!!.lines.single()
+        val original = line.description
+        assertTrue(line.rememberMerchantAlias); assertTrue(line.rememberMerchantCategory); assertNull(line.suggestedMerchantId)
+        assertFalse(store.setMerchantSuggestion(other, line.id, "tambo"))
+        assertTrue(store.setMerchantSuggestion(owner, line.id, "tambo"))
+        line = store.observe(owner, draft.id).first()!!.lines.single()
+        assertEquals("tambo", line.suggestedMerchantId); assertNull(line.merchantId)
+        assertTrue(store.chooseMerchant(owner, line.id, "tambo", "food"))
+        assertTrue(store.setRememberMerchantAlias(owner, line.id, false))
+        assertTrue(store.setRememberMerchantCategory(owner, line.id, false))
+        assertTrue(store.editLine(owner, line.id, StatementImportLineEdit("Edited", line.amountMinor, line.occurredDate, "food", line.kind, "tambo")))
+        line = store.observe(owner, draft.id).first()!!.lines.single()
+        assertEquals(original, line.originalDescription); assertEquals("Edited", line.description)
+        assertEquals("tambo", line.merchantId); assertNull(line.suggestedMerchantId); assertTrue(line.merchantReviewed)
+        assertFalse(line.rememberMerchantAlias); assertFalse(line.rememberMerchantCategory)
+        assertTrue(store.chooseMerchant(owner, line.id, null, null))
+        assertFalse(store.setMerchantSuggestion(owner, line.id, "rappi"))
+        assertTrue(store.markLineRegistered(owner, line.id, "registered"))
+        assertFalse(store.chooseMerchant(owner, line.id, "rappi", "food"))
+        assertFalse(store.setRememberMerchantAlias(owner, line.id, true))
+        assertFalse(store.setRememberMerchantCategory(owner, line.id, true))
+    }
 
     @Test fun `create is atomic deduplicates per owner retains ordered lines and bounded descriptions`() = runBlocking {
         val first = create(lines = listOf(importLine("second").copy(description = "x".repeat(200)), importLine("first")))
@@ -241,6 +267,7 @@ class StatementImportRoomTest {
         sql.execSQL("DROP TABLE statement_imports")
         MIGRATION_29_30.migrate(sql)
         MIGRATION_32_33.migrate(sql)
+        migrateStatementMerchantChoices(sql)
         for (table in tables) assertEquals(expected.getValue(table), TableInfo.read(sql, table))
         sql.query("SELECT COUNT(*) FROM transactions WHERE id='existing'").use {
             it.moveToFirst(); assertEquals(1, it.getInt(0))

@@ -76,11 +76,11 @@ class CategoriesApi @Inject constructor(
                 url {
                     parameters.append(
                         "select",
-                        "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source"
+                        "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id"
                     )
                     parameters.append("is_active", "eq.true")
                     if (sinceVersion > 0) {
-                        parameters.append("version", "gt.$sinceVersion")
+                        parameters.append("or", "(version.gt.$sinceVersion,user_id.not.is.null)")
                     }
                 }
             }

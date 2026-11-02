@@ -85,9 +85,15 @@ data class StatementImportLineEntity(
     val status: String,
     @ColumnInfo(name = "registered_movement_id") val registeredMovementId: String?,
     @ColumnInfo(name = "possible_own_transfer", defaultValue = "0") val possibleOwnTransfer: Boolean = false,
+    @ColumnInfo(name = "suggested_merchant_id") val suggestedMerchantId: String? = null,
+    @ColumnInfo(name = "remember_merchant_alias", defaultValue = "1") val rememberMerchantAlias: Boolean = true,
+    @ColumnInfo(name = "remember_merchant_category", defaultValue = "1") val rememberMerchantCategory: Boolean = true,
+    @ColumnInfo(name = "original_description") val originalDescription: String? = null,
+    @ColumnInfo(name = "merchant_reviewed", defaultValue = "0") val merchantReviewed: Boolean = false,
 ) {
     fun toDomain() = StatementImportLine(id, importId, ownerId, lineFingerprint, position,
         StatementLineKind.valueOf(kind), LocalDate.parse(processDate), LocalDate.parse(occurredDate),
         description, amountMinor, Currency.valueOf(currency), installmentCount, selected, categoryId,
-        merchantId, sourceAccountId, possibleDuplicate, StatementImportLineStatus.valueOf(status), registeredMovementId, possibleOwnTransfer)
+        merchantId, sourceAccountId, possibleDuplicate, StatementImportLineStatus.valueOf(status), registeredMovementId, possibleOwnTransfer,
+        suggestedMerchantId, rememberMerchantAlias, rememberMerchantCategory, originalDescription ?: description, merchantReviewed)
 }

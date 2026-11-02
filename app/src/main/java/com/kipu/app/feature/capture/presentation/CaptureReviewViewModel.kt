@@ -31,6 +31,13 @@ import com.kipu.app.feature.capture.domain.ExpectedPayment
 import com.kipu.app.feature.recurrences.domain.MatchCapturedMovementToExpected
 import com.kipu.app.feature.recurrences.domain.RecurrenceRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.kipu.app.feature.categories.domain.CategoriesRepository
+import com.kipu.app.feature.categories.domain.MerchantAliasRules
+import com.kipu.app.feature.movements.presentation.RememberOption
+import com.kipu.app.feature.movements.presentation.rememberCategoryOption
+import com.kipu.app.feature.movements.domain.model.MovementType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -72,6 +79,8 @@ data class CaptureCategoryChoice(
     val parentName: String? = null,
 )
 
+data class CaptureRememberAliasOption(val label: String, val checked: Boolean = true, val merchantId: String, val sourceText: String)
+
 data class CaptureReviewUiState(
     val isLoading: Boolean = true,
     val notFound: Boolean = false,
@@ -85,6 +94,8 @@ data class CaptureReviewUiState(
     val occurredAt: Long = 0L,
     val dateEdited: Boolean = false,
     val merchantId: String? = null,
+    val rememberMerchant: CaptureRememberAliasOption? = null,
+    val rememberCategory: RememberOption? = null,
     val categoryId: String? = null,
     val selectedInstrument: CaptureInstrumentChoice? = null,
     val creditMode: CreditMode = CreditMode.DIRECT,
@@ -139,6 +150,7 @@ class CaptureReviewViewModel @Inject constructor(
     private val convertToManual: ConvertCandidateToManual,
     private val matchExpected: MatchCapturedMovementToExpected? = null,
     private val recurrences: RecurrenceRepository? = null,
+    private val categoriesRepository: CategoriesRepository? = null,
 ) : ViewModel() {
     private val candidateId: String = savedStateHandle.get<String>(CAPTURE_CANDIDATE_ID_ARG).orEmpty()
     private var ownerId: String? = gate.currentOwnerId()
@@ -216,6 +228,49 @@ class CaptureReviewViewModel @Inject constructor(
     }
 
     private suspend fun observeOptions(owner: String): Unit = coroutineScope {
+        categoriesRepository?.let { repository ->
+            launch {
+                val ownerId = UserId(owner)
+                val data = combine(
+                    repository.observePremiumVerified(ownerId).catch { emit(false) },
+                    repository.observeMerchantCatalog().catch { emit(emptyList()) },
+                    repository.observeMerchantAliasRules(ownerId).map { it as List<com.kipu.app.feature.categories.domain.model.MerchantAliasRule>? }.catch { emit(null) },
+                    repository.observeMerchantCategoryPreferences(ownerId).map { it as List<com.kipu.app.feature.categories.domain.model.MerchantCategoryPreference>? }.catch { emit(null) },
+                    repository.observeCategories(ownerId).catch { emit(emptyList()) },
+                ) { premium, merchants, aliases, preferences, categories ->
+                    CaptureLearningData(premium, merchants, aliases, preferences, categories)
+                }
+                val input = _state.map { state -> CaptureLearningInput(state.candidate, state.merchantId, state.categoryId,
+                    state.direction, state.categories.firstOrNull { it.id == state.categoryId }?.name) }.distinctUntilChanged()
+                combine(input, data) { values, snapshot -> values to snapshot }.collect { (values, snapshot) ->
+                    val candidate = values.candidate
+                    val merchant = snapshot.merchants.firstOrNull { it.isActive && it.id.value == values.merchantId }
+                    val source = candidate?.merchantSourceText?.takeIf { it.isNotBlank() }
+                    val alias = if (snapshot.premium && candidate != null && merchant != null && source != null &&
+                        candidate.merchantId != values.merchantId && snapshot.aliases != null &&
+                        snapshot.aliases.none { it.ownerId == ownerId && it.deletedAt == null &&
+                            it.normalizedPattern == MerchantAliasRules.normalize(source) && it.merchantId == merchant.id }) {
+                        CaptureRememberAliasOption("Recordar ${merchant.name} para '$source'", merchantId = merchant.id.value, sourceText = source)
+                    } else null
+                    val category = if (candidate != null && candidate.categoryId != values.categoryId && merchant != null && snapshot.preferences != null)
+                        rememberCategoryOption(ownerId, snapshot.premium, values.merchantId, merchant.name, values.categoryId,
+                            values.categoryName, if (values.direction == CaptureDirection.INCOME) MovementType.INCOME else MovementType.EXPENSE,
+                            snapshot.preferences, snapshot.categories, null) else null
+                    _state.update { current ->
+                        val now = CaptureLearningInput(current.candidate, current.merchantId, current.categoryId, current.direction,
+                            current.categories.firstOrNull { it.id == current.categoryId }?.name)
+                        if (now != values) current else current.copy(
+                            rememberMerchant = alias?.copy(checked = current.rememberMerchant?.takeIf {
+                                it.merchantId == alias.merchantId && it.sourceText == alias.sourceText
+                            }?.checked ?: candidate?.rememberMerchantAlias ?: true),
+                            rememberCategory = category?.copy(checked = current.rememberCategory?.takeIf {
+                                it.merchantId == category.merchantId && it.categoryId == category.categoryId
+                            }?.checked ?: candidate?.rememberMerchantCategory ?: true),
+                        )
+                    }
+                }
+            }
+        }
         launch {
             combine(
                 observeInstruments.observeAccounts(activeOnly = true),
@@ -329,6 +384,9 @@ class CaptureReviewViewModel @Inject constructor(
     fun onCurrencySelected(currency: String) = _state.update { it.copy(currency = currency, amountError = null) }
 
     fun onDateSelected(occurredAt: Long) = _state.update { it.copy(occurredAt = occurredAt, dateEdited = true) }
+
+    fun onRememberMerchantChanged(checked: Boolean) = _state.update { it.copy(rememberMerchant = it.rememberMerchant?.copy(checked = checked)) }
+    fun onRememberCategoryChanged(checked: Boolean) = _state.update { it.copy(rememberCategory = it.rememberCategory?.copy(checked = checked)) }
 
     fun onMerchantChanged(id: String) = _state.update { it.copy(merchantId = id.ifBlank { null }, generalError = null) }
 
@@ -450,6 +508,8 @@ class CaptureReviewViewModel @Inject constructor(
             creditMode = if (isCredit) state.creditMode else null,
             installmentCount = if (needsInstallments) installments else null,
             acceptSimilar = acceptSimilar,
+            rememberMerchantAlias = state.rememberMerchant?.takeIf { it.merchantId == state.merchantId }?.checked == true,
+            rememberMerchantCategory = state.rememberCategory?.takeIf { it.merchantId == state.merchantId && it.categoryId == state.categoryId }?.checked == true,
         )
     }
 
@@ -589,3 +649,15 @@ class CaptureReviewViewModel @Inject constructor(
     }
 
 }
+
+private data class CaptureLearningInput(
+    val candidate: CaptureCandidateRecord?, val merchantId: String?, val categoryId: String?,
+    val direction: CaptureDirection, val categoryName: String?,
+)
+private data class CaptureLearningData(
+    val premium: Boolean,
+    val merchants: List<com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry>,
+    val aliases: List<com.kipu.app.feature.categories.domain.model.MerchantAliasRule>?,
+    val preferences: List<com.kipu.app.feature.categories.domain.model.MerchantCategoryPreference>?,
+    val categories: List<com.kipu.app.feature.categories.domain.model.Category>,
+)

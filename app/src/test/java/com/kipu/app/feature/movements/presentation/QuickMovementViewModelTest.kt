@@ -123,6 +123,8 @@ class QuickMovementViewModelTest {
             observeInstruments = observeInstruments,
             observeFinancialDashboard = ObserveFinancialDashboard(fakeInstrumentsRepo),
             observeCategories = ObserveCategories(fakeCategoriesRepo),
+            categoriesRepository = fakeCategoriesRepo,
+            setMerchantCategoryPreference = com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference(fakeCategoriesRepo),
             resolvePreferredCategory = ResolvePreferredCategory(fakeCategoriesRepo),
             createCategoryUseCase = CreateCategory(fakeCategoriesRepo),
             ensureInitialCategoryCatalog = EnsureInitialCategoryCatalog(fakeCategoriesRepo),
@@ -590,6 +592,90 @@ class QuickMovementViewModelTest {
     }
 
     @Test
+    fun `premium catalog category offers checked preference and saves it after movement`() = runTest {
+        fakeCategoriesRepo.premium.value = true
+        advanceUntilIdle()
+        val merchant = MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo")
+        viewModel.onMerchantSelected(merchant)
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onAmountChanged("5")
+        advanceUntilIdle()
+        assertEquals("Recordar Alimentaci\u00f3n para Tambo", viewModel.uiState.value.rememberCategory?.label)
+        assertEquals(true, viewModel.uiState.value.rememberCategory?.checked)
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(testCategoryId, fakeCategoriesRepo.merchantPreferences.single().categoryId)
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+    }
+
+    @Test
+    fun `remember option hides without premium or for provisional merchant`() = runTest {
+        advanceUntilIdle()
+        viewModel.onMerchantSelected(MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo"))
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.rememberCategory)
+        fakeCategoriesRepo.premium.value = true
+        viewModel.onMerchantProvisionalText("Tambo")
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.rememberCategory)
+    }
+
+    @Test
+    fun `matching saved preference hides the option`() = runTest {
+        fakeCategoriesRepo.premium.value = true
+        val merchant = MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo")
+        fakeCategoriesRepo.merchantPreferences = listOf(MerchantCategoryPreference(testUserId, merchant.id, testCategoryId))
+        advanceUntilIdle()
+        viewModel.onMerchantSelected(merchant)
+        advanceUntilIdle()
+        assertEquals(testCategoryId.value, viewModel.uiState.value.selectedCategoryId)
+        assertNull(viewModel.uiState.value.rememberCategory)
+    }
+
+    @Test
+    fun `unchecking preference saves movement without learning`() = runTest {
+        fakeCategoriesRepo.premium.value = true
+        advanceUntilIdle()
+        viewModel.onMerchantSelected(MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo"))
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onAmountChanged("5")
+        advanceUntilIdle()
+        viewModel.onRememberCategoryChanged(false)
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+        assertTrue(fakeCategoriesRepo.merchantPreferences.isEmpty())
+    }
+
+    @Test
+    fun `learning failure does not fail the saved movement`() = runTest {
+        fakeCategoriesRepo.premium.value = true
+        fakeCategoriesRepo.savePreferenceFails = true
+        advanceUntilIdle()
+        viewModel.onMerchantSelected(MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo"))
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onAmountChanged("5")
+        advanceUntilIdle()
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+        assertNull(viewModel.uiState.value.generalError)
+        assertTrue(fakeCategoriesRepo.merchantPreferences.isEmpty())
+    }
+
+    @Test
+    fun `income allows eligible category to be remembered`() = runTest {
+        fakeCategoriesRepo.premium.value = true
+        advanceUntilIdle()
+        viewModel.onTypeSelected(MovementType.INCOME)
+        viewModel.onMerchantSelected(MerchantCatalogEntry(MerchantId.generate(), "Tambo", "tambo"))
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testIncomeCategoryId.value })
+        advanceUntilIdle()
+        assertEquals("Recordar Salario para Tambo", viewModel.uiState.value.rememberCategory?.label)
+    }
+
+    @Test
     fun `merchant preference is applied to a future movement`() = runTest {
         advanceUntilIdle()
         val merchant = MerchantCatalogEntry(
@@ -715,8 +801,14 @@ class QuickMovementViewModelTest {
         private val categoryId: CategoryId,
         private val incomeCategoryId: CategoryId,
     ) : CategoriesRepository {
+        val premium = MutableStateFlow(false)
+        override fun observePremiumVerified(userId: UserId): Flow<Boolean> = premium
         val preferenceCategoryId = CategoryId.generate()
-        var merchantPreferences: List<MerchantCategoryPreference> = emptyList()
+        private val preferences = MutableStateFlow<List<MerchantCategoryPreference>>(emptyList())
+        var merchantPreferences: List<MerchantCategoryPreference>
+            get() = preferences.value
+            set(value) { preferences.value = value }
+        var savePreferenceFails = false
         var preferenceLookupDelayMillis = 0L
         var preferenceLookupFailure: Exception? = null
 
@@ -747,7 +839,12 @@ class QuickMovementViewModelTest {
         override fun observeMerchantCategoryPreferences(userId: UserId): Flow<List<MerchantCategoryPreference>> = flow {
             if (preferenceLookupDelayMillis > 0) delay(preferenceLookupDelayMillis)
             preferenceLookupFailure?.let { throw it }
-            emit(merchantPreferences)
+            preferences.collect { emit(it) }
+        }
+        override suspend fun saveMerchantCategoryPreference(preference: MerchantCategoryPreference, expectedRevision: Long?): Result<Unit> {
+            if (savePreferenceFails) return Result.failure(IllegalStateException("test failure"))
+            merchantPreferences = listOf(preference)
+            return Result.success(Unit)
         }
         override fun observeMovementClassification(movementId: MovementId): Flow<MovementClassification?> = flowOf(null)
         override suspend fun updateMovementClassification(classification: MovementClassification): Result<Unit> = Result.failure(UnsupportedOperationException())

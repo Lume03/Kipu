@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.DebitCard
+import com.kipu.app.feature.categories.presentation.components.MerchantDiscoveryUi
 import com.kipu.app.feature.movements.presentation.AccountSelectorBottomSheet
 import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomSheet
@@ -80,6 +81,13 @@ fun StatementReviewScreen(
     onDismissMessage: () -> Unit,
     onPlans: () -> Unit,
     onViewMovements: () -> Unit = onBack,
+    onAcceptSuggestion: (String) -> Unit = {},
+    onRejectSuggestion: (String) -> Unit = {},
+    onChooseMerchant: (String, String) -> Unit = { _, _ -> },
+    onRemoveMerchant: (String) -> Unit = {},
+    onRememberAlias: (String, Boolean) -> Unit = { _, _ -> },
+    onRememberCategory: (String, Boolean) -> Unit = { _, _ -> },
+    merchantDiscovery: MerchantDiscoveryUi? = null,
 ) {
     val palette = rememberCalmEmeraldColors()
     var filter by remember { mutableStateOf(StatementFilter.ALL) }
@@ -126,6 +134,9 @@ fun StatementReviewScreen(
                     StatementNotice(message, onDismiss = onDismissMessage, failed = state.failures.isNotEmpty())
                     if (state.showPremium) TextButton(onClick = onPlans) { Text("Ver planes") }
                 } }
+                statementLearningWarningsText(state.learningWarnings, lines, state.merchants)?.let { text -> item {
+                    StatementNotice(text, Modifier.testTag("statement_learning_warnings"), tone = "warn")
+                } }
                 if (statement != null) {
                     item { ReviewHero(state, statement, lines, editable, onPickCard = { cardPicker = true }) }
                     val mismatch = listOf(statement.reconciledPen, statement.reconciledUsd).any { it == false }
@@ -149,7 +160,8 @@ fun StatementReviewScreen(
                     if (lines.isEmpty()) item { EmptyCycle(statement.isDeposit, onBack) }
                     else if (visible.isEmpty()) item { Text("No hay movimientos en este filtro.", color = palette.secondaryMuted, modifier = Modifier.padding(8.dp)) }
                     visible.groupBy { it.occurredDate }.forEach { (day, rows) ->
-                        item(key = "day-$day") { DayGroup(day, rows, state, editable, onSelect, onEdit = { editId = it }) }
+                        item(key = "day-$day") { DayGroup(day, rows, state, editable, onSelect, onEdit = { editId = it },
+                            onAcceptSuggestion = onAcceptSuggestion, onRejectSuggestion = onRejectSuggestion) }
                     }
                 }
             }
@@ -180,7 +192,11 @@ fun StatementReviewScreen(
         })
     lines.find { it.id == editId && it.status == StatementImportLineStatus.PENDING }?.let { line ->
         if (statement?.status == StatementImportStatus.PENDING && state.successCount == null) StatementLineEditSheet(line, state, source = statement,
-            onDismiss = { editId = null }, onSave = { edit -> onEdit(line.id, edit) { editId = null; savedLine.value = savedLine.value + 1 } })
+            onDismiss = { editId = null }, onSave = { edit -> onEdit(line.id, edit) { editId = null; savedLine.value = savedLine.value + 1 } },
+            onChooseMerchant = { onChooseMerchant(line.id, it) }, onRemoveMerchant = { onRemoveMerchant(line.id) },
+            onAcceptSuggestion = { onAcceptSuggestion(line.id) }, onRejectSuggestion = { onRejectSuggestion(line.id) },
+            onRememberAlias = { onRememberAlias(line.id, it) }, onRememberCategory = { onRememberCategory(line.id, it) },
+            merchantDiscovery = merchantDiscovery)
     }
     if (confirmSheet) StatementConfirmSheet(state, onDismiss = { confirmSheet = false }, onCategorize = { confirmSheet = false; categoryPicker = true },
         onConfirm = { confirmSheet = false; registerRequested = true; onConfirm() })
@@ -356,14 +372,15 @@ private fun ToolsRow(state: StatementReviewUiState, editable: Boolean, onSelectA
 
 @Composable
 private fun DayGroup(day: LocalDate, rows: List<StatementImportLine>, state: StatementReviewUiState, editable: Boolean,
-    onSelect: (StatementImportLine, Boolean) -> Unit, onEdit: (String) -> Unit) {
+    onSelect: (StatementImportLine, Boolean) -> Unit, onEdit: (String) -> Unit, onAcceptSuggestion: (String) -> Unit, onRejectSuggestion: (String) -> Unit) {
     val palette = rememberCalmEmeraldColors()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(day.long().uppercase(Locale.ROOT), Modifier.padding(start = 6.dp, top = 4.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold,
             color = palette.secondaryMuted, letterSpacing = .6.sp)
         Column(Modifier.fillMaxWidth().shadow(1.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(palette.surfaceCard).border(1.dp, palette.borderSubtle, RoundedCornerShape(22.dp))) {
             rows.forEachIndexed { index, line ->
-                StatementLineRow(line, state, editable, onSelect = { onSelect(line, it) }, onEdit = { onEdit(line.id) })
+                StatementLineRow(line, state, editable, onSelect = { onSelect(line, it) }, onEdit = { onEdit(line.id) },
+                    onAcceptSuggestion = { onAcceptSuggestion(line.id) }, onRejectSuggestion = { onRejectSuggestion(line.id) })
                 if (index < rows.lastIndex) HorizontalDivider(color = palette.borderSubtle)
             }
         }
@@ -371,7 +388,8 @@ private fun DayGroup(day: LocalDate, rows: List<StatementImportLine>, state: Sta
 }
 
 @Composable
-private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUiState, enabled: Boolean, onSelect: (Boolean) -> Unit, onEdit: () -> Unit) {
+private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUiState, enabled: Boolean, onSelect: (Boolean) -> Unit, onEdit: () -> Unit,
+    onAcceptSuggestion: () -> Unit, onRejectSuggestion: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
     val error = state.failures[line.id]?.message() ?: "Elige una categoría para continuar".takeIf { line.id in state.missingCategoryIds }
     val credit = line.isCredit()
@@ -386,6 +404,10 @@ private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUi
         StatementCategoryTile(category, size = 40.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(line.description, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.primaryText, maxLines = 2)
+            state.merchants.firstOrNull { it.id.value == line.merchantId }?.let { StatementLineMerchant(line.id, it) }
+            if (line.status == StatementImportLineStatus.PENDING) line.pendingSuggestion(state.merchants)?.let { suggested ->
+                StatementMerchantSuggestion(line.id, suggested, enabled = editableLine, onAccept = onAcceptSuggestion, onReject = onRejectSuggestion)
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 StatementKindChip(line.kind, line.installmentCount)
                 if (line.kind != StatementLineKind.POINTS_REDEMPTION) {
@@ -556,6 +578,10 @@ private fun StatementSuccess(state: StatementReviewUiState, lines: List<Statemen
             Spacer(Modifier.height(26.dp))
             Text("${state.successCount} movimientos registrados", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center, modifier = Modifier.testTag("statement_success"))
+            statementLearningWarningsText(state.learningWarnings, lines, state.merchants)?.let { text ->
+                Spacer(Modifier.height(16.dp))
+                StatementNotice(text, Modifier.testTag("statement_learning_warnings"), tone = "warn")
+            }
             Spacer(Modifier.height(10.dp))
             Text(if (state.snapshot?.statement?.isDeposit == true) "Ya están en tu cuenta como gastos e ingresos." else "Ya están en tu tarjeta y tu deuda refleja el estado de cuenta.", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
             if (registered.isNotEmpty()) Row(Modifier.padding(top = 26.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -603,8 +629,9 @@ private fun StatementDiscardDialog(busy: Boolean, onDismiss: () -> Unit, onDisca
 }
 
 @Composable
-internal fun StatementNotice(text: String, modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null, failed: Boolean = false) {
-    val t = statementTone(if (failed) "bad" else "teal")
+internal fun StatementNotice(text: String, modifier: Modifier = Modifier, onDismiss: (() -> Unit)? = null, failed: Boolean = false,
+    tone: String = if (failed) "bad" else "teal") {
+    val t = statementTone(tone)
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(t.bg).border(1.dp, t.border, RoundedCornerShape(16.dp)).padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Text(text, Modifier.weight(1f).padding(vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = t.fg)

@@ -29,6 +29,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -59,6 +61,7 @@ data class MovementEditorUiState(
     val amountText: String = "",
     val selectedSourceAccountId: String? = null,
     val selectedDestinationAccountId: String? = null,
+    val rememberCategory: RememberOption? = null,
     val selectedCategoryId: String? = null,
     val selectedCategoryName: String? = null,
     val merchantName: String = "",
@@ -135,6 +138,7 @@ class MovementEditorViewModel @Inject constructor(
     private val observeInstruments: ObserveInstruments,
     private val observeCategories: ObserveCategories,
     private val categoriesRepository: CategoriesRepository,
+    private val setMerchantCategoryPreference: com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MovementEditorUiState())
@@ -146,6 +150,21 @@ class MovementEditorViewModel @Inject constructor(
     init {
         val ownerId = getUserId()
         if (ownerId != null) {
+            viewModelScope.launch {
+                val inputs = _uiState.map { state -> RememberCategoryInput(state.selectedMerchantId, state.merchantName,
+                    state.selectedCategoryId, state.selectedCategoryName, state.movementType,
+                    !state.isLoading && (state.selectedCategoryId != state.initialCategoryId || state.selectedMerchantId != state.initialMerchantId))
+                }.distinctUntilChanged()
+                observeRememberCategory(UserId(ownerId), categoriesRepository, inputs).collect { (input, option) ->
+                    _uiState.update { state ->
+                        val now = RememberCategoryInput(state.selectedMerchantId, state.merchantName, state.selectedCategoryId,
+                            state.selectedCategoryName, state.movementType,
+                            !state.isLoading && (state.selectedCategoryId != state.initialCategoryId || state.selectedMerchantId != state.initialMerchantId))
+                        if (now != input) state else state.copy(rememberCategory = option?.copy(
+                            checked = state.rememberCategory?.takeIf { it.merchantId == option.merchantId && it.categoryId == option.categoryId }?.checked ?: true))
+                    }
+                }
+            }
             viewModelScope.launch {
                 observeInstruments.observeAccounts(activeOnly = true).collect { accounts ->
                     _uiState.update { it.copy(availableAccounts = accounts) }
@@ -269,6 +288,10 @@ class MovementEditorViewModel @Inject constructor(
         _uiState.update { it.copy(selectedDestinationAccountId = accountId, destinationAccountError = null) }
     }
 
+    fun onRememberCategoryChanged(checked: Boolean) {
+        _uiState.update { state -> state.copy(rememberCategory = state.rememberCategory?.copy(checked = checked)) }
+    }
+
     fun onCategorySelected(category: CategoryOption) {
         _uiState.update {
             it.copy(
@@ -372,6 +395,13 @@ class MovementEditorViewModel @Inject constructor(
 
             when (val result = reviseTransactionUseCase(userId, command)) {
                 is MovementMutationResult.Success -> {
+                    if (getUserId() == userId) {
+                        val input = RememberCategoryInput(currentState.selectedMerchantId, currentState.merchantName,
+                            currentState.selectedCategoryId, currentState.selectedCategoryName, currentState.movementType,
+                            currentState.selectedCategoryId != currentState.initialCategoryId || currentState.selectedMerchantId != currentState.initialMerchantId)
+                        val option = resolveRememberCategory(UserId(userId), categoriesRepository, input, currentState.rememberCategory)
+                        learnRememberedCategory(UserId(userId), option, categoriesRepository, setMerchantCategoryPreference)
+                    }
                     _uiState.update { it.copy(isSaving = false, isSuccess = true) }
                     _events.send(MovementEditorUiEvent.TransactionRevised("Movimiento corregido (Pendiente de sincronizar)"))
                     _events.send(MovementEditorUiEvent.CloseEditor)

@@ -92,12 +92,13 @@ class CaptureReviewViewModelTest {
     private fun candidateRecord(block: (com.kipu.app.feature.capture.domain.CaptureCandidateRecord) -> com.kipu.app.feature.capture.domain.CaptureCandidateRecord = { it }) =
         block(captureCandidate(ownerId = owner, id = UUID.randomUUID().toString()).copy(accountId = debitAccountId, cardId = null, categoryId = "cat-1", merchantId = null))
 
-    private fun viewModel(store: FakeCaptureCandidateStore, candidateId: String): CaptureReviewViewModel {
+    private fun viewModel(store: FakeCaptureCandidateStore, candidateId: String,
+        repo: com.kipu.app.feature.categories.domain.CategoriesRepository? = null): CaptureReviewViewModel {
         val discard = com.kipu.app.feature.capture.domain.testDiscardCaptureCandidate(store, clock)
         val convert = ConvertCandidateToManual(store, gate)
         return CaptureReviewViewModel(
             SavedStateHandle(mapOf(CAPTURE_CANDIDATE_ID_ARG to candidateId)),
-            store, gate, instruments, categories, confirm, discard, convert,
+            store, gate, instruments, categories, confirm, discard, convert, categoriesRepository = repo,
         )
     }
 
@@ -236,6 +237,41 @@ class CaptureReviewViewModelTest {
         advanceUntilIdle()
         assertNull(vm.state.value.similarTransaction)
         assertEquals(listOf(false, true), sent.map { it.acceptSimilar })
+    }
+
+    @Test fun `review exposes checked learning options and sends independent choices`() = runTest(dispatcher) {
+        val candidate = candidateRecord { it.copy(merchantId = null, categoryId = "cat-1") }
+        val repo = mockk<com.kipu.app.feature.categories.domain.CategoriesRepository>()
+        val merchant = com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry(
+            com.kipu.app.feature.categories.domain.model.MerchantId("merchant-new"), "Plaza Vea", "plaza vea")
+        val category = com.kipu.app.feature.categories.domain.model.Category(
+            com.kipu.app.feature.categories.domain.model.CategoryId("cat-2"), null, null,
+            com.kipu.app.feature.categories.domain.model.CategoryOrigin.SYSTEM, true,
+            categoryType = com.kipu.app.feature.categories.domain.model.CategoryType.EXPENSE)
+        val item = com.kipu.app.feature.categories.domain.usecase.CategoryItem(category,
+            com.kipu.app.feature.categories.domain.model.CategoryPresentation(category.id, UserId(owner), "Grasa", "food", "#ffffff"))
+        every { categories.invoke(UserId(owner)) } returns flowOf(listOf(item))
+        every { repo.observePremiumVerified(UserId(owner)) } returns flowOf(true)
+        every { repo.observeMerchantCatalog() } returns flowOf(listOf(merchant))
+        every { repo.observeMerchantAliasRules(UserId(owner)) } returns flowOf(emptyList())
+        every { repo.observeMerchantCategoryPreferences(UserId(owner)) } returns flowOf(emptyList())
+        every { repo.observeCategories(UserId(owner)) } returns flowOf(listOf(category))
+        val command = slot<ConfirmCaptureCommand>()
+        coEvery { confirm(capture(command), any()) } returns CaptureConfirmationResult.Registered("tx-1", false)
+        val vm = viewModel(FakeCaptureCandidateStore(candidate), candidate.id, repo)
+        advanceUntilIdle()
+        vm.onMerchantChanged("merchant-new")
+        vm.onCategorySelected("cat-2")
+        advanceUntilIdle()
+        assertEquals("Recordar Plaza Vea para 'PLAZA VEA'", vm.state.value.rememberMerchant?.label)
+        assertEquals("Recordar Grasa para Plaza Vea", vm.state.value.rememberCategory?.label)
+        assertEquals(true, vm.state.value.rememberMerchant?.checked)
+        assertEquals(true, vm.state.value.rememberCategory?.checked)
+        vm.onRememberMerchantChanged(false)
+        vm.confirm()
+        advanceUntilIdle()
+        assertFalse(command.captured.rememberMerchantAlias)
+        assertTrue(command.captured.rememberMerchantCategory)
     }
 
     @Test fun `selecting a canonical merchant sends its id and records merchant correction`() = runTest(dispatcher) {

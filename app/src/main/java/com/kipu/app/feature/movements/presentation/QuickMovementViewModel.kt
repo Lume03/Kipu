@@ -68,7 +68,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.time.Instant
-import java.util.Locale
 import javax.inject.Inject
 
 data class CategoryOption(
@@ -102,6 +101,7 @@ data class QuickMovementUiState(
     val selectedDestinationAccountId: String? = null,
     val selectedDestinationCardId: String? = null,
     val budgetImpacts: List<QuickMovementBudgetImpact> = emptyList(),
+    val rememberCategory: RememberOption? = null,
     val selectedCategoryId: String? = null,
     val selectedCategoryName: String? = null,
     val selectedCategoryIcon: String? = null,
@@ -180,6 +180,8 @@ class QuickMovementViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
     private val getReferentialRates: GetReferentialRates? = null,
     private val simulateInstallments: SimulateInstallments = SimulateInstallments(),
+    private val categoriesRepository: com.kipu.app.feature.categories.domain.CategoriesRepository? = null,
+    private val setMerchantCategoryPreference: com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreForm())
@@ -190,7 +192,6 @@ class QuickMovementViewModel @Inject constructor(
     private var creditCatalogJob: Job? = null
 
     private var allCategoryOptions: List<CategoryOption> = emptyList()
-    private val rememberedMerchantCategories = mutableMapOf<String, String>()
     private var merchantPreferenceJob: Job? = null
     private var categorySelectionRevision = 0L
     private var categoryWasExplicitlySelected = false
@@ -265,6 +266,20 @@ class QuickMovementViewModel @Inject constructor(
         }
         val ownerId = getUserId()
         if (ownerId != null) {
+            categoriesRepository?.let { repository ->
+                viewModelScope.launch {
+                    val inputs = _uiState.map { RememberCategoryInput(it.selectedMerchantId, it.merchantName,
+                        it.selectedCategoryId, it.selectedCategoryName, it.type) }.distinctUntilChanged()
+                    observeRememberCategory(UserId(ownerId), repository, inputs).collect { (input, option) ->
+                        _uiState.update { state ->
+                            val now = RememberCategoryInput(state.selectedMerchantId, state.merchantName,
+                                state.selectedCategoryId, state.selectedCategoryName, state.type)
+                            if (input != now) state else state.copy(rememberCategory = option?.copy(
+                                checked = state.rememberCategory?.takeIf { it.merchantId == option.merchantId && it.categoryId == option.categoryId }?.checked ?: true))
+                        }
+                    }
+                }
+            }
             viewModelScope.launch {
                 combine(
                     budgetRepository.observeBudgets(ownerId).catch { emit(emptyList()) },
@@ -556,6 +571,10 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { it.copy(selectedDestinationAccountId = accountId, selectedDestinationCardId = null, destinationAccountError = null) }
     }
 
+    fun onRememberCategoryChanged(checked: Boolean) {
+        _uiState.update { state -> state.copy(rememberCategory = state.rememberCategory?.copy(checked = checked)) }
+    }
+
     fun onCategorySelected(category: CategoryOption) {
         if (category !in _uiState.value.availableCategories || _uiState.value.type == MovementType.TRANSFER) return
         categorySelectionRevision++
@@ -619,11 +638,6 @@ class QuickMovementViewModel @Inject constructor(
                     color = color,
                 )
                 allCategoryOptions = (allCategoryOptions + option).distinctBy { it.id }
-                if (rememberFrequentMerchant) {
-                    current.merchantName.trim().takeIf(String::isNotBlank)?.let { merchant ->
-                        rememberedMerchantCategories[normalizeMerchantName(merchant)] = option.id
-                    }
-                }
                 categorySelectionRevision++
                 categoryWasExplicitlySelected = true
                 merchantPreferenceJob?.cancel()
@@ -675,7 +689,7 @@ class QuickMovementViewModel @Inject constructor(
         val shouldResolveSuggestion = !categoryWasExplicitlySelected && before.type != MovementType.TRANSFER
         val generalSuggestion = if (shouldResolveSuggestion) {
             merchant.defaultCategoryId?.value?.let { id -> before.availableCategories.firstOrNull { it.id == id } }
-                ?: rememberedCategoryFor(merchant.name, before.availableCategories)
+
         } else null
         val requestRevision = categorySelectionRevision
         _uiState.update { current ->
@@ -751,10 +765,9 @@ class QuickMovementViewModel @Inject constructor(
         merchantPreferenceJob?.cancel()
         merchantPreferenceJob = null
         _uiState.update {
-            val remembered = if (categoryWasExplicitlySelected) null else rememberedCategoryFor(name, it.availableCategories)
             val selected = if (categoryWasExplicitlySelected) {
                 it.availableCategories.find { option -> option.id == it.selectedCategoryId }
-            } else remembered
+            } else null
             it.copy(
                 merchantName = name,
                 selectedMerchantId = null,
@@ -941,6 +954,7 @@ class QuickMovementViewModel @Inject constructor(
     }
 
     private fun executeCreditPurchase(state: QuickMovementUiState, amountMinor: Long, terms: PurchaseTerms) {
+        val purchaseOwner = getUserId()
         val card = state.availableCreditCards.firstOrNull { it.id.value == state.selectedSourceCardId }
         if (card == null) {
             _uiState.update { it.copy(isSaving = false, accountError = "Selecciona una tarjeta de crédito válida") }
@@ -967,6 +981,11 @@ class QuickMovementViewModel @Inject constructor(
                 note = state.note.takeIf(String::isNotBlank),
             ).fold(
                 onSuccess = {
+                    purchaseOwner?.takeIf { it == getUserId() }?.let { owner ->
+                        val option = resolveRememberCategory(UserId(owner), categoriesRepository,
+                            RememberCategoryInput(state.selectedMerchantId, state.merchantName, state.selectedCategoryId, state.selectedCategoryName, state.type), state.rememberCategory)
+                        learnRememberedCategory(UserId(owner), option, categoriesRepository, setMerchantCategoryPreference)
+                    }
                     _uiState.update { it.copy(isSaving = false) }
                     _events.send(QuickMovementUiEvent.TransactionSaved("Compra con tarjeta registrada y pendiente de sincronización"))
                     resetForm()
@@ -1006,6 +1025,12 @@ class QuickMovementViewModel @Inject constructor(
             }
             when (result) {
                 is RegisterTransactionResult.Success -> {
+                    val state = _uiState.value
+                    if (getUserId() == command.userId) {
+                        val input = RememberCategoryInput(command.merchantId, state.merchantName, command.categoryId, state.selectedCategoryName, command.type)
+                        val option = resolveRememberCategory(UserId(command.userId), categoriesRepository, input, state.rememberCategory)
+                        learnRememberedCategory(UserId(command.userId), option, categoriesRepository, setMerchantCategoryPreference)
+                    }
                     _uiState.update { it.copy(isSaving = false) }
                     val message = when (result.transaction.syncStatus) {
                         MovementSyncStatus.SYNCED, MovementSyncStatus.MIGRATED_LOCAL ->
@@ -1085,15 +1110,6 @@ class QuickMovementViewModel @Inject constructor(
             it.categoryType == expectedType || it.categoryType == CategoryType.GENERAL
         }
     }
-
-    private fun rememberedCategoryFor(merchantName: String, categories: List<CategoryOption>): CategoryOption? {
-        val normalizedName = normalizeMerchantName(merchantName)
-        if (normalizedName.isBlank()) return null
-        val categoryId = rememberedMerchantCategories[normalizedName] ?: return null
-        return categories.firstOrNull { it.id == categoryId }
-    }
-
-    private fun normalizeMerchantName(name: String): String = name.trim().lowercase(Locale.ROOT)
 
     private fun getUserId(): String? {
         return sessionCoordinator.currentOwner?.verifiedUserId

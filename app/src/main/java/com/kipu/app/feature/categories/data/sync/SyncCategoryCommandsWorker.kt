@@ -183,6 +183,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                     val entities = response.data.map { dto ->
                         MerchantCatalogEntity(
                             id = dto.id,
+                            userId = dto.userId,
                             name = dto.name,
                             normalizedName = com.kipu.app.feature.categories.domain.CategoryRules.normalizeText(dto.normalizedName),
                             isActive = dto.isActive,

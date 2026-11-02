@@ -73,6 +73,8 @@ data class CaptureCandidateRecord(
     val resolvedAt: Long?,
     val expectedMatchState: ExpectedMatchState? = null,
     val followupsPending: Int = 0,
+    val rememberMerchantAlias: Boolean = true,
+    val rememberMerchantCategory: Boolean = true,
 )
 
 data class CaptureSourceEvent(

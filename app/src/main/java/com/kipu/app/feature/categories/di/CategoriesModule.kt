@@ -11,6 +11,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class CategoriesModule {
+    @Binds
+    @Singleton
+    abstract fun bindMerchantDiscoveryRepository(
+        impl: com.kipu.app.feature.categories.data.MerchantDiscoveryRepositoryImpl,
+    ): com.kipu.app.feature.categories.domain.MerchantDiscoveryRepository
+
 
     @Binds
     @Singleton

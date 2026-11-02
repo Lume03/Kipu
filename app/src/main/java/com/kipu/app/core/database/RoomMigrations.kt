@@ -1513,3 +1513,30 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
 
     }
 }
+
+// Shared 33?34 migration: append additional columns here.
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE capture_candidates ADD COLUMN remember_merchant_alias INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE capture_candidates ADD COLUMN remember_merchant_category INTEGER NOT NULL DEFAULT 1")
+        migrateStatementMerchantChoices(db)
+    }
+}
+
+
+/** Shared by the unpublished 33?34 upgrade and focused statement schema checks. */
+internal fun migrateStatementMerchantChoices(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN suggested_merchant_id TEXT")
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN remember_merchant_alias INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN remember_merchant_category INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN original_description TEXT")
+        db.execSQL("ALTER TABLE statement_import_lines ADD COLUMN merchant_reviewed INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE statement_import_lines SET original_description=description")
+}
+
+/** Owner scope for private merchants; cached global data remains shared. */
+val MIGRATION_34_35 = object : androidx.room.migration.Migration(34, 35) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN user_id TEXT")
+    }
+}

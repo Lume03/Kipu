@@ -58,7 +58,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -279,6 +282,7 @@ fun MerchantPickerBottomSheet(
     allowProvisionalText: Boolean = true,
     selectedMerchantIds: Set<String> = emptySet(),
     dismissOnSelect: Boolean = true,
+    discovery: MerchantDiscoveryUi? = null,
 ) {
     val kipuColors = rememberKipuColors()
     ModalBottomSheet(
@@ -303,6 +307,7 @@ fun MerchantPickerBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -352,6 +357,7 @@ fun MerchantPickerBottomSheet(
                 allowProvisionalText = allowProvisionalText,
                 selectedMerchantIds = selectedMerchantIds,
                 listHeight = 360.dp,
+                discovery = discovery,
             )
         }
     }
@@ -368,9 +374,26 @@ fun MerchantPicker(
     allowProvisionalText: Boolean = true,
     selectedMerchantIds: Set<String> = emptySet(),
     listHeight: Dp = 280.dp,
+    discovery: MerchantDiscoveryUi? = null,
 ) {
     var selectedUiGroup by remember { mutableStateOf<UiMerchantGroup?>(null) }
     val typedName = state.query.trim()
+
+    // Internet search follows the picker text but never runs per keystroke: only on the explicit row.
+    if (discovery != null) {
+        val currentDiscovery by rememberUpdatedState(discovery)
+        val currentOnSelect by rememberUpdatedState(onSelectMerchant)
+        LaunchedEffect(state.query) {
+            if (currentDiscovery.state.query != state.query) currentDiscovery.onQueryChanged(state.query)
+        }
+        val added = discovery.state.addedMerchant
+        LaunchedEffect(added) {
+            if (added != null) {
+                currentOnSelect(added)
+                currentDiscovery.onAddedMerchantConsumed()
+            }
+        }
+    }
 
     val catalogToDisplay = remember(state.catalogEntries, state.searchResults, state.query) {
         if (state.query.isBlank()) {
@@ -529,6 +552,22 @@ fun MerchantPicker(
                     )
                 }
             }
+        }
+
+        if (discovery != null && typedName.isNotEmpty()) {
+            val knownMerchants = state.catalogEntries + state.searchResults + discovery.state.localResults
+            MerchantDiscoverySection(
+                discovery = discovery,
+                query = state.query,
+                localResultCount = visibleMerchants.size,
+                showCreatePrivate = !typedMatchesCatalog,
+                onPickExisting = { candidate ->
+                    val existing = candidate.merchantId?.takeIf { candidate.alreadyInCatalog }
+                        ?.let { id -> knownMerchants.firstOrNull { it.id.value == id } }
+                    existing?.let(onSelectMerchant)
+                    existing != null
+                },
+            )
         }
     }
 }

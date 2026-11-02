@@ -101,6 +101,9 @@ import com.kipu.app.feature.capture.domain.CreditMode
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerViewModel
+import com.kipu.app.feature.categories.presentation.components.MerchantDiscoveryUi
+import com.kipu.app.feature.categories.presentation.components.rememberMerchantDiscovery
+import com.kipu.app.feature.movements.presentation.components.RememberToggleRow
 import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.movements.presentation.DuplicateWarningDialog
 import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomSheet
@@ -151,9 +154,12 @@ fun CaptureReviewScreen(
     onOpenPermissions: () -> Unit,
     onChooseExpected: (String?) -> Unit = {},
     modifier: Modifier = Modifier,
+    onRememberMerchant: (Boolean) -> Unit = {},
+    onRememberCategory: (Boolean) -> Unit = {},
 ) {
     val merchantPicker: MerchantPickerViewModel = hiltViewModel()
     val merchantPickerState by merchantPicker.uiState.collectAsStateWithLifecycle()
+    val merchantDiscovery = rememberMerchantDiscovery()
     CaptureReviewContent(
         state = state,
         onBack = onBack,
@@ -176,6 +182,9 @@ fun CaptureReviewScreen(
         modifier = modifier,
         merchantPickerState = merchantPickerState,
         onMerchantQueryChanged = merchantPicker::onQueryChanged,
+        onRememberMerchant = onRememberMerchant,
+        onRememberCategory = onRememberCategory,
+        merchantDiscovery = merchantDiscovery,
     )
 }
 
@@ -204,6 +213,9 @@ internal fun CaptureReviewContent(
     modifier: Modifier = Modifier,
     merchantPickerState: MerchantPickerState,
     onMerchantQueryChanged: (String) -> Unit,
+    onRememberMerchant: (Boolean) -> Unit = {},
+    onRememberCategory: (Boolean) -> Unit = {},
+    merchantDiscovery: MerchantDiscoveryUi? = null,
 ) {
     val palette = rememberCalmEmeraldColors()
     val merchantLabel = merchantPickerState.catalogEntries.firstOrNull { it.id.value == state.merchantId }?.name
@@ -274,6 +286,8 @@ internal fun CaptureReviewContent(
                     onRetry = onConfirm,
                     onDiscard = { showDiscard = true },
                     onOpenPermissions = onOpenPermissions,
+                    onRememberMerchant = onRememberMerchant,
+                    onRememberCategory = onRememberCategory,
                 )
             }
         }
@@ -291,6 +305,7 @@ internal fun CaptureReviewContent(
             subtitle = "Elige un comercio del catálogo o déjalo vacío",
             allowProvisionalText = false,
             selectedMerchantIds = setOfNotNull(state.merchantId),
+            discovery = merchantDiscovery,
         )
         // Same picker as "Editar movimiento", so categories look and behave identically.
         CapturePicker.CATEGORY -> PastelCategoryPickerBottomSheet(
@@ -418,6 +433,8 @@ private fun ReviewForm(
     onRetry: () -> Unit,
     onDiscard: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onRememberMerchant: (Boolean) -> Unit,
+    onRememberCategory: (Boolean) -> Unit,
 ) {
     val palette = rememberCalmEmeraldColors()
     val candidate = requireNotNull(state.candidate)
@@ -509,6 +526,15 @@ private fun ReviewForm(
                     },
                     description = "Comercio: ${merchantLabel ?: "sin elegir"}. Cambiar comercio",
                 )
+                state.rememberMerchant?.let { option ->
+                    RememberToggleRow(
+                        label = option.label,
+                        checked = option.checked,
+                        onCheckedChange = onRememberMerchant,
+                        enabled = editable,
+                        modifier = Modifier.padding(horizontal = 12.dp).testTag("capture_remember_merchant"),
+                    )
+                }
                 KipuFieldRowDivider()
                 val categoryLabel = state.categories.firstOrNull { it.id == state.categoryId }?.label?.replace(" > ", " › ")
                 val categoryChanged = state.categoryId != candidate.categoryId
@@ -533,6 +559,15 @@ private fun ReviewForm(
                     error = state.categoryError,
                     description = "Categoría: ${categoryLabel ?: "sin elegir"}. Cambiar categoría",
                 )
+                state.rememberCategory?.let { option ->
+                    RememberToggleRow(
+                        label = option.label,
+                        checked = option.checked,
+                        onCheckedChange = onRememberCategory,
+                        enabled = editable,
+                        modifier = Modifier.padding(horizontal = 12.dp).testTag("capture_remember_category"),
+                    )
+                }
                 KipuFieldRowDivider()
                 InstrumentRow(state, editable, onPickInstrument)
             }

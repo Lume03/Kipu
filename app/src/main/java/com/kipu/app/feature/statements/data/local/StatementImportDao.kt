@@ -50,12 +50,34 @@ interface StatementImportDao {
         AND status='PENDING' AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
     suspend fun setLineSelected(ownerId: String, lineId: String, selected: Boolean): Int
 
-    @Query("""UPDATE statement_import_lines SET description=:description, amount_minor=:amountMinor,
-        occurred_date=:date, category_id=:categoryId, kind=:kind, merchant_id=:merchantId, source_account_id=:sourceAccountId
+    @Query("""UPDATE statement_import_lines SET original_description=COALESCE(original_description,description), description=:description, amount_minor=:amountMinor,
+        occurred_date=:date, category_id=:categoryId, kind=:kind, merchant_id=:merchantId, source_account_id=:sourceAccountId,
+        suggested_merchant_id=CASE WHEN :merchantId IS NOT NULL THEN NULL ELSE suggested_merchant_id END
         WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING' AND import_id IN
         (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
     suspend fun editLine(ownerId: String, lineId: String, description: String, amountMinor: Long, date: String,
         categoryId: String?, kind: String, merchantId: String?, sourceAccountId: String?): Int
+
+    @Query("""UPDATE statement_import_lines SET suggested_merchant_id=:merchantId
+        WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING' AND merchant_id IS NULL AND merchant_reviewed=0
+        AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
+    suspend fun setMerchantSuggestion(ownerId: String, lineId: String, merchantId: String?): Int
+
+    @Query("""UPDATE statement_import_lines SET merchant_id=:merchantId, category_id=:categoryId,
+        suggested_merchant_id=NULL, merchant_reviewed=1
+        WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING'
+        AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
+    suspend fun chooseMerchant(ownerId: String, lineId: String, merchantId: String?, categoryId: String?): Int
+
+    @Query("""UPDATE statement_import_lines SET remember_merchant_alias=:remember
+        WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING'
+        AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
+    suspend fun setRememberMerchantAlias(ownerId: String, lineId: String, remember: Boolean): Int
+
+    @Query("""UPDATE statement_import_lines SET remember_merchant_category=:remember
+        WHERE owner_id=:ownerId AND id=:lineId AND status='PENDING'
+        AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
+    suspend fun setRememberMerchantCategory(ownerId: String, lineId: String, remember: Boolean): Int
 
     @Query("""UPDATE statement_import_lines SET selected=:selected WHERE owner_id=:ownerId AND import_id=:importId
         AND status='PENDING' AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")
