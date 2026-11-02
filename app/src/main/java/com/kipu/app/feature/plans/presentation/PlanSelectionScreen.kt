@@ -126,7 +126,7 @@ private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enab
             PlanSegments(listOf(R.string.plan_tab_monthly, R.string.plan_tab_annual, R.string.plan_tab_lifetime), options.indexOf(option), enabled) { onSelected(options[it]) }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(if (developmentMode) R.string.plan_dev_price else price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("plan-price-${option.name}"))
+                    Text(stringResource(if (developmentMode) devValidity(option) else price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("plan-price-${option.name}"))
                     if (!developmentMode) Text(stringResource(period), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                 }
                 if (option == CommercialOption.ANNUAL && !developmentMode) {
@@ -142,9 +142,17 @@ private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enab
             PremiumFeature(Icons.Outlined.AllInclusive, R.string.plan_premium_unlimited)
             PremiumFeature(Icons.Outlined.Bolt, R.string.plan_premium_capture)
             PremiumFeature(Icons.Outlined.CreditCard, R.string.plan_premium_accounts)
-            Text(stringResource(if (developmentMode) R.string.plan_dev_mode_notice else note), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            if (!developmentMode) Text(stringResource(note), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         }
     }
+}
+
+@StringRes
+private fun devValidity(option: CommercialOption): Int = when (option) {
+    CommercialOption.MONTHLY -> R.string.plan_dev_validity_monthly
+    CommercialOption.LIFETIME -> R.string.plan_dev_validity_lifetime
+    CommercialOption.FREE -> R.string.plan_dev_validity_free
+    CommercialOption.ANNUAL -> R.string.plan_dev_validity_annual
 }
 
 @Composable

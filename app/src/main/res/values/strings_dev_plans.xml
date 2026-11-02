@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plan_dev_mode_notice">Modo desarrollo: sin cobro</string>
+    <string name="plan_dev_mode_chip">Modo desarrollo · sin cobro</string>
+    <string name="plan_dev_subtitle">Elige el plan que quieras probar. Puedes cambiarlo cuando quieras desde esta pantalla.</string>
     <string name="plan_dev_activate">Activar plan</string>
-    <string name="plan_dev_applied">Plan actualizado sin cobro</string>
-    <string name="plan_dev_price">Sin cobro</string>
+    <string name="plan_dev_applied_title">Plan %1$s activado</string>
+    <string name="plan_dev_applied_until">Premium vigente hasta el %1$s.</string>
+    <string name="plan_dev_applied_lifetime">Premium sin fecha de vencimiento.</string>
+    <string name="plan_dev_applied_free">Volviste a Kipu Free. Tus datos se conservan.</string>
+    <string name="plan_dev_failed_title">No se pudo activar el plan</string>
+    <string name="plan_dev_failed_body">Revisa tu conexión e inténtalo de nuevo. Tu plan actual no cambió.</string>
+    <string name="plan_dev_current">Plan actual</string>
+    <string name="plan_dev_validity_free">Funciones básicas</string>
+    <string name="plan_dev_validity_monthly">30 días</string>
+    <string name="plan_dev_validity_annual">365 días</string>
+    <string name="plan_dev_validity_lifetime">Sin vencimiento</string>
+    <string name="plan_dev_detail_free">Cupos Free: 5 categorías de gasto, 5 de ingreso y 4 instrumentos.</string>
+    <string name="plan_dev_detail_monthly">Premium completo durante un mes.</string>
+    <string name="plan_dev_detail_annual">Premium completo durante un año.</string>
+    <string name="plan_dev_detail_lifetime">Premium completo para siempre.</string>
 </resources>

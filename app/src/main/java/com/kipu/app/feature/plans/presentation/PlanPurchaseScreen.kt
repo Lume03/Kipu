@@ -36,6 +36,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,7 +62,6 @@ import com.kipu.app.feature.plans.domain.model.BillingProductKind
 import com.kipu.app.feature.plans.domain.model.CommercialOption
 import com.kipu.app.feature.plans.domain.model.LocalizedBillingOffer
 import com.kipu.app.feature.plans.domain.model.PurchaseLifecycle
-import com.kipu.app.ui.theme.KipuPrimaryContainer
 import com.kipu.app.ui.theme.KipuSelectionRing
 import com.kipu.app.ui.theme.KipuSurfaceContainerLowest
 import java.time.Instant
@@ -102,7 +102,8 @@ fun PlanPurchaseScreen(
                 .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(stringResource(if (state.developmentMode) R.string.plan_dev_mode_notice else R.string.purchase_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+            if (state.developmentMode) DevModeChip()
+            Text(stringResource(if (state.developmentMode) R.string.plan_dev_subtitle else R.string.purchase_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
 
             when {
                 state.isLoading -> LoadingOffers(reduceMotion)
@@ -112,6 +113,8 @@ fun PlanPurchaseScreen(
                         PurchaseOfferCard(
                             offer = offer,
                             selected = offer.product.storeProductId == state.selectedProductId,
+                            current = state.developmentMode && offer.product.storeProductId == state.currentProductId,
+                            developmentMode = state.developmentMode,
                             reduceMotion = reduceMotion,
                             onClick = { onOfferSelected(offer.product.storeProductId) },
                         )
@@ -123,10 +126,16 @@ fun PlanPurchaseScreen(
                 PurchaseStatus(state, reduceMotion, onRetryVerification)
                 Button(
                     onClick = onPurchase,
-                    enabled = state.selectedOffer != null && state.status !in setOf(PlanPurchaseStatus.LAUNCHING, PlanPurchaseStatus.VERIFYING, PlanPurchaseStatus.RETRYABLE),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("purchase-cta"),
+                    enabled = state.selectedOffer != null &&
+                        state.status !in setOf(PlanPurchaseStatus.LAUNCHING, PlanPurchaseStatus.VERIFYING) &&
+                        (state.developmentMode || state.status != PlanPurchaseStatus.RETRYABLE) &&
+                        !(state.developmentMode && state.selectedProductId == state.currentProductId),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("purchase-cta"),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = KipuPrimaryContainer),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 ) {
                     if (state.status == PlanPurchaseStatus.LAUNCHING || state.status == PlanPurchaseStatus.VERIFYING) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
@@ -138,6 +147,7 @@ fun PlanPurchaseScreen(
                             PlanPurchaseStatus.VERIFYING -> stringResource(R.string.purchase_verifying)
                             else -> stringResource(if (state.developmentMode) R.string.plan_dev_activate else R.string.purchase_buy)
                         },
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 if (!state.developmentMode) TextButton(onClick = onManageSubscriptions, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("purchase-manage-link")) {
@@ -154,6 +164,8 @@ private fun PurchaseOfferCard(
     selected: Boolean,
     reduceMotion: Boolean,
     onClick: () -> Unit,
+    current: Boolean = false,
+    developmentMode: Boolean = false,
 ) {
     val borderColor by animateColorAsState(
         targetValue = if (selected) KipuSelectionRing else MaterialTheme.colorScheme.outlineVariant,
@@ -179,20 +191,29 @@ private fun PurchaseOfferCard(
         elevation = CardDefaults.cardElevation(defaultElevation = elevation),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text(planTitle(offer), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text(if (offer.product.storeProductId.startsWith("dev:")) stringResource(R.string.plan_dev_mode_notice) else planTerms(offer), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(if (developmentMode) devPlanDetail(offer.product.option) else planTerms(offer), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
-                when (offer.product.option) {
-                    CommercialOption.ANNUAL -> PurchaseBadge(stringResource(R.string.purchase_badge_popular))
-                    CommercialOption.LIFETIME -> PurchaseBadge(stringResource(R.string.purchase_lifetime_badge))
-                    else -> Unit
+                when {
+                    current -> PurchaseBadge(stringResource(R.string.plan_dev_current), emphasized = true)
+                    offer.product.option == CommercialOption.ANNUAL -> PurchaseBadge(stringResource(R.string.purchase_badge_popular))
+                    offer.product.option == CommercialOption.LIFETIME && !developmentMode -> PurchaseBadge(stringResource(R.string.purchase_lifetime_badge))
+                }
+                if (selected) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = stringResource(R.string.purchase_option_selected_content_description),
+                        tint = KipuSelectionRing,
+                        modifier = Modifier.size(24.dp),
+                    )
                 }
             }
             Text(
-                offer.formattedPrice,
+                if (developmentMode) devPlanValidity(offer.product.option) else offer.formattedPrice,
                 style = MaterialTheme.typography.headlineSmall.merge(androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum")),
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.testTag("purchase-price-${offer.product.option.name.lowercase()}"),
             )
             if (offer.product.kind == BillingProductKind.SUBSCRIPTION && offer.trialPeriodDays != null) {
@@ -201,12 +222,42 @@ private fun PurchaseOfferCard(
                 Text(stringResource(R.string.purchase_trial_disclosure), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 Text(stringResource(R.string.purchase_trial_first_charge, firstChargeDate), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
-            if (selected) {
-                Text(stringResource(R.string.purchase_option_selected_content_description), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-            }
         }
     }
 }
+
+@Composable
+private fun DevModeChip() {
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = CircleShape) {
+        Text(
+            stringResource(R.string.plan_dev_mode_chip),
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).testTag("purchase-dev-mode"),
+        )
+    }
+}
+
+@Composable
+private fun devPlanValidity(option: CommercialOption): String = stringResource(
+    when (option) {
+        CommercialOption.FREE -> R.string.plan_dev_validity_free
+        CommercialOption.MONTHLY -> R.string.plan_dev_validity_monthly
+        CommercialOption.ANNUAL -> R.string.plan_dev_validity_annual
+        CommercialOption.LIFETIME -> R.string.plan_dev_validity_lifetime
+    },
+)
+
+@Composable
+private fun devPlanDetail(option: CommercialOption): String = stringResource(
+    when (option) {
+        CommercialOption.FREE -> R.string.plan_dev_detail_free
+        CommercialOption.MONTHLY -> R.string.plan_dev_detail_monthly
+        CommercialOption.ANNUAL -> R.string.plan_dev_detail_annual
+        CommercialOption.LIFETIME -> R.string.plan_dev_detail_lifetime
+    },
+)
 
 @Composable
 private fun planTitle(offer: LocalizedBillingOffer): String = when (offer.product.option) {
@@ -225,11 +276,11 @@ private fun planTerms(offer: LocalizedBillingOffer): String = when (offer.produc
 }
 
 @Composable
-private fun PurchaseBadge(text: String) {
-    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape) {
+private fun PurchaseBadge(text: String, emphasized: Boolean = false) {
+    Surface(color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape) {
         Text(
             text,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = if (emphasized) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
         )
@@ -277,16 +328,24 @@ private fun UnavailableOffers(onReloadCatalog: () -> Unit) {
 @Composable
 private fun PurchaseStatus(state: PlanPurchaseUiState, reduceMotion: Boolean, onRetryVerification: () -> Unit) {
     if (state.status == PlanPurchaseStatus.READY && !state.effectivePremium) return
+    if (state.developmentMode && state.status == PlanPurchaseStatus.VERIFIED && state.currentProductId == null) return
+    val colors = MaterialTheme.colorScheme
+    val (container, content) = when (state.status) {
+        PlanPurchaseStatus.VERIFIED -> colors.primaryContainer to colors.onPrimaryContainer
+        PlanPurchaseStatus.ERROR -> colors.errorContainer to colors.onErrorContainer
+        PlanPurchaseStatus.RETRYABLE, PlanPurchaseStatus.PENDING, PlanPurchaseStatus.UNAVAILABLE ->
+            colors.tertiaryContainer to colors.onTertiaryContainer
+        else -> colors.surfaceContainerHigh to colors.onSurface
+    }
     Card(
         modifier = Modifier.fillMaxWidth().testTag("purchase-status-${state.status.name.lowercase()}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state.status) {
                 PlanPurchaseStatus.VERIFIED -> if (state.developmentMode) {
-                    Text(stringResource(R.string.plan_dev_applied), style = MaterialTheme.typography.titleMedium)
+                    DevAppliedStatus(state)
                 } else if (state.effectivePremium) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         AnimatedVisibility(
@@ -307,15 +366,18 @@ private fun PurchaseStatus(state: PlanPurchaseUiState, reduceMotion: Boolean, on
                     Text(stringResource(R.string.purchase_pending_title), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.purchase_pending_body))
                 }
-                PlanPurchaseStatus.RETRYABLE -> {
-                    Text(stringResource(R.string.purchase_retryable_title), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.purchase_retryable_body))
-                    TextButton(onClick = onRetryVerification, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.purchase_retry)) }
+                PlanPurchaseStatus.RETRYABLE -> if (state.developmentMode) {
+                    StatusHeading(Icons.Filled.Info, stringResource(R.string.plan_dev_failed_title), content)
+                    Text(stringResource(R.string.plan_dev_failed_body), style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    StatusHeading(Icons.Filled.Info, stringResource(R.string.purchase_retryable_title), content)
+                    Text(stringResource(R.string.purchase_retryable_body), style = MaterialTheme.typography.bodyMedium)
+                    StatusAction(stringResource(R.string.purchase_retry), content, onRetryVerification)
                 }
                 PlanPurchaseStatus.ERROR -> {
-                    Text(stringResource(R.string.purchase_error_title), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.purchase_error_body))
-                    TextButton(onClick = onRetryVerification, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.purchase_retry)) }
+                    StatusHeading(Icons.Filled.Info, stringResource(if (state.developmentMode) R.string.plan_dev_failed_title else R.string.purchase_error_title), content)
+                    Text(stringResource(if (state.developmentMode) R.string.plan_dev_failed_body else R.string.purchase_error_body), style = MaterialTheme.typography.bodyMedium)
+                    if (!state.developmentMode) StatusAction(stringResource(R.string.purchase_retry), content, onRetryVerification)
                 }
                 PlanPurchaseStatus.UNAVAILABLE -> {
                     Text(stringResource(R.string.purchase_unavailable_title), style = MaterialTheme.typography.titleMedium)
@@ -333,6 +395,43 @@ private fun PurchaseStatus(state: PlanPurchaseUiState, reduceMotion: Boolean, on
         }
     }
 }
+
+@Composable
+private fun StatusHeading(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, tint: androidx.compose.ui.graphics.Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun StatusAction(text: String, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 48.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, color),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
+    ) { Text(text, fontWeight = FontWeight.SemiBold) }
+}
+
+/** The server computes the same validity; this mirrors it for display only. */
+@Composable
+private fun DevAppliedStatus(state: PlanPurchaseUiState) {
+    val option = state.offers.firstOrNull { it.product.storeProductId == state.currentProductId }?.product?.option
+    val activatedAt = state.activatedAtEpochMillis ?: System.currentTimeMillis()
+    val body = when (option) {
+        CommercialOption.FREE, null -> stringResource(R.string.plan_dev_applied_free)
+        CommercialOption.LIFETIME -> stringResource(R.string.plan_dev_applied_lifetime)
+        CommercialOption.MONTHLY -> stringResource(R.string.plan_dev_applied_until, localizedDate(activatedAt + 30L * DAY_MILLIS))
+        CommercialOption.ANNUAL -> stringResource(R.string.plan_dev_applied_until, localizedDate(activatedAt + 365L * DAY_MILLIS))
+    }
+    val name = state.offers.firstOrNull { it.product.option == option }?.let { planTitle(it) }.orEmpty()
+    StatusHeading(Icons.Filled.CheckCircle, stringResource(R.string.plan_dev_applied_title, name), MaterialTheme.colorScheme.onPrimaryContainer)
+    Text(body, style = MaterialTheme.typography.bodyMedium)
+}
+
+private const val DAY_MILLIS = 24L * 60 * 60 * 1_000
 
 @Composable
 private fun LifecycleDisclosure(lifecycle: PurchaseLifecycle, expiresAtEpochMillis: Long?) {

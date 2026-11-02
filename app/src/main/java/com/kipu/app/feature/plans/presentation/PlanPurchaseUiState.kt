@@ -28,6 +28,8 @@ data class PlanPurchaseUiState(
     val acknowledgementPending: Boolean = false,
     val errorCode: String? = null,
     val developmentMode: Boolean = false,
+    val currentProductId: String? = null,
+    val activatedAtEpochMillis: Long? = null,
 ) {
         val selectedOffer: LocalizedBillingOffer? get() = offers.firstOrNull { it.product.storeProductId == selectedProductId }
     val isLoading: Boolean get() = status == PlanPurchaseStatus.LOADING
@@ -40,6 +42,8 @@ data class PlanPurchaseUiState(
                 status = PlanPurchaseStatus.VERIFIED, effectivePremium = result.effectivePremium,
                 providerPurchaseState = null, lifecycle = null, expiresAtEpochMillis = null,
                 acknowledgementPending = false, errorCode = null,
+                currentProductId = result.productId.takeIf { it.isNotBlank() } ?: previous.currentProductId,
+                activatedAtEpochMillis = if (result.productId.isNotBlank()) System.currentTimeMillis() else previous.activatedAtEpochMillis,
             )
             is BillingVerificationResult.Verified -> previous.copy(
                 selectedProductId = result.productId,
