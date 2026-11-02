@@ -121,6 +121,16 @@ class StatementImportRoomTest {
         assertNotNull(store.findByFingerprint(other, foreign.statementFingerprint))
     }
 
+    @Test fun `expired draft is hidden and purged with its lines`() = runBlocking {
+        val statement = create()
+        val expiredStore = RoomStatementImportStore(database, database.statementImportDao(),
+            Clock.fixed(Instant.ofEpochMilli(statement.expiresAt), ZoneOffset.UTC))
+        assertTrue(expiredStore.observePending(owner).first().isEmpty())
+        assertNull(expiredStore.observe(owner, statement.id).first())
+        assertEquals(1, expiredStore.purgeExpired(owner, statement.expiresAt))
+        assertTrue(database.statementImportDao().observeLines(owner, statement.id).first().isEmpty())
+    }
+
     @Test fun `matching filters archived debit and foreign cards and validates chosen card`() = runBlocking {
         for (card in listOf(card("credit"), card("archived").copy(isArchived = true), card("debit").copy(type = "DEBIT"), card("foreign").copy(userId = other))) {
             database.cardDao().insert(card)
@@ -132,6 +142,20 @@ class StatementImportRoomTest {
         assertFalse(store.setCard(owner, statement.id, "foreign"))
         assertFalse(store.setCard(owner, statement.id, "debit"))
         assertTrue(store.setCard(owner, statement.id, "credit"))
+    }
+
+    @Test fun `manual card choice scopes deduplication when last four are shared`() = runBlocking {
+        database.cardDao().insert(card("one"))
+        database.cardDao().insert(card("two"))
+        val first = create()
+        assertTrue(store.setCard(owner, first.id, "one"))
+        val second = create()
+        assertTrue(store.setCard(owner, second.id, "two"))
+        assertNotEquals(store.observe(owner, first.id).first()!!.statement.statementFingerprint,
+            store.observe(owner, second.id).first()!!.statement.statementFingerprint)
+        val replay = create()
+        assertFalse(store.setCard(owner, replay.id, "one"))
+        assertNull(store.observe(owner, replay.id).first()!!.statement.cardId)
     }
 
     @Test fun `duplicates include both endpoints of two days and exclude third day foreign cards currencies inactive`() = runBlocking {

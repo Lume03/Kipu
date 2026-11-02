@@ -41,6 +41,6 @@ data class CalendarEvent(
 
 data class CalendarDay(val date: LocalDate, val events: List<CalendarEvent>)
 
-data class CalendarMonth(val month: YearMonth, val days: List<CalendarDay>) {
+data class CalendarMonth(val month: YearMonth, val days: List<CalendarDay>, val movementsTruncated: Boolean = false) {
     val isEmpty: Boolean get() = days.isEmpty()
 }

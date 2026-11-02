@@ -1,6 +1,5 @@
 package com.kipu.app.feature.statements
 
-import android.net.Uri
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.statements.domain.*
 import io.mockk.*
@@ -13,7 +12,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ImportCardStatementTest {
-    private val uri = mockk<Uri>()
+    private val uri = DocumentRef("content://statements/test")
     private val store = mockk<StatementImportStore>()
     private val reader = mockk<StatementDocumentReader>()
     private val matching = mockk<StatementImportMatching>()
@@ -71,12 +70,12 @@ class ImportCardStatementTest {
         coVerify(exactly = 0) { store.create(any(), any(), any(), any()) }
     }
 
-    @Test fun `reimport returns pending or completed id before card lookup`() = runTest {
+    @Test fun `reimport returns pending or completed id after card lookup`() = runTest {
         for (status in listOf(StatementImportStatus.PENDING, StatementImportStatus.COMPLETED)) {
             coEvery { store.findByFingerprint("owner", "statement") } returns storedStatement(status)
             assertEquals(StatementImportResult.AlreadyImported("import", status == StatementImportStatus.COMPLETED), invoke())
         }
-        coVerify(exactly = 0) { matching.activeCreditCards(any()); store.create(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { store.create(any(), any(), any(), any()) }
     }
 
     @Test fun `no card persists with null match and one card matches regardless issuer`() = runTest {
@@ -97,6 +96,26 @@ class ImportCardStatementTest {
         coEvery { matching.activeCreditCards("owner") } returns listOf(card("different").copy(lastFour = "9999"))
         invoke()
         coVerify(exactly = 2) { store.create("owner", any(), null, any()) }
+    }
+
+    @Test fun `resolved cards with the same last four use distinct keys and reimport reuses its key`() = runTest {
+        val imports = mutableMapOf<String, StatementImport>()
+        coEvery { store.findByFingerprint("owner", any()) } coAnswers { imports[secondArg()] }
+        coEvery { store.create("owner", any(), any(), any()) } coAnswers {
+            val parsed = secondArg<ParsedStatement>()
+            val saved = storedStatement().copy(id = "import-${imports.size}", statementFingerprint = parsed.fingerprint)
+            imports[parsed.fingerprint] = saved
+            StatementImportCreation(saved, true)
+        }
+        coEvery { matching.activeCreditCards("owner") } returns listOf(card("one"))
+        val first = invoke() as StatementImportResult.Imported
+        coEvery { matching.activeCreditCards("owner") } returns listOf(card("two"))
+        val second = invoke() as StatementImportResult.Imported
+        coEvery { matching.activeCreditCards("owner") } returns listOf(card("one"))
+        val replay = invoke() as StatementImportResult.AlreadyImported
+        assertNotEquals(first.importId, second.importId)
+        assertEquals(first.importId, replay.importId)
+        assertEquals(2, imports.size)
     }
 
     @Test fun `duplicates mismatched currency payments and points stay unselected and monthly charges excluded`() = runTest {

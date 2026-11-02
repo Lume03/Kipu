@@ -114,7 +114,13 @@ class StatementReviewViewModel @Inject constructor(
 
     fun setCard(id: String) = work { user ->
         val card = _state.value.cards.find { it.id.value == id } ?: return@work
-        if (!store.setCard(user, importId, id)) { message(StatementLineFailureReason.CardUnavailable.message()); return@work }
+        if (!store.setCard(user, importId, id)) {
+            val fingerprint = _state.value.snapshot?.statement?.statementFingerprint
+            val duplicate = fingerprint?.let { store.findByFingerprint(user, statementCardFingerprint(it, id)) }
+            message(if (duplicate != null && duplicate.id != importId) "Este estado de cuenta ya fue importado para esta tarjeta."
+                else StatementLineFailureReason.CardUnavailable.message())
+            return@work
+        }
         store.observe(user, importId).first()?.lines.orEmpty().filter { it.selected &&
             (it.currency != card.currency || it.kind == StatementLineKind.POINTS_REDEMPTION) && it.status == StatementImportLineStatus.PENDING
         }.forEach { store.setLineSelected(user, it.id, false) }

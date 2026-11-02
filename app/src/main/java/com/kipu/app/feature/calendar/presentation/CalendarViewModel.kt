@@ -86,7 +86,7 @@ class CalendarViewModel @Inject constructor(
 
     private fun contentFor(access: LocalAccess, month: YearMonth): Flow<CalendarContent> = when (access) {
         is LocalAccess.Available -> observeCalendarMonth(access.userId, month, zone)
-            .map<CalendarMonth, CalendarContent> { if (it.isEmpty) CalendarContent.Empty else CalendarContent.Loaded(it) }
+            .map<CalendarMonth, CalendarContent> { if (it.isEmpty && !it.movementsTruncated) CalendarContent.Empty else CalendarContent.Loaded(it) }
             .onStart { emit(CalendarContent.Loading) }
             .catch { emit(CalendarContent.Error(CALENDAR_LOAD_ERROR_MESSAGE)) }
         is LocalAccess.Protected -> flowOf(CalendarContent.Loading)

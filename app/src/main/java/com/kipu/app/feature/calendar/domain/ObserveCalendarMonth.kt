@@ -45,19 +45,19 @@ class ObserveCalendarMonth @Inject constructor(
     ) { movements, cards, (debts, installments), rules ->
         CalendarEventProjector.buildMonth(
             month,
-            CalendarEventProjector.fromMovements(movements, month, zone) +
+            CalendarEventProjector.fromMovements(movements.first, month, zone) +
                 CalendarEventProjector.fromCards(cards, month) +
                 CalendarEventProjector.fromDebts(debts, installments, month) +
                 CalendarEventProjector.fromRecurrences(rules, month),
-        )
+        ).copy(movementsTruncated = movements.second)
     }
 
-    private fun movements(userId: String, month: YearMonth, zone: ZoneId): Flow<List<TransactionItem>> =
+    private fun movements(userId: String, month: YearMonth, zone: ZoneId): Flow<Pair<List<TransactionItem>, Boolean>> =
         queryMovementHistory.observeHistoryInvalidations()
             .onStart { emit(Unit) }
             .map { loadMonthMovements(userId, month, zone) }
 
-    private suspend fun loadMonthMovements(userId: String, month: YearMonth, zone: ZoneId): List<TransactionItem> {
+    private suspend fun loadMonthMovements(userId: String, month: YearMonth, zone: ZoneId): Pair<List<TransactionItem>, Boolean> {
         val from = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val to = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val items = mutableListOf<TransactionItem>()
@@ -69,9 +69,9 @@ class ObserveCalendarMonth @Inject constructor(
             )
             items += page.items
             cursor = page.nextCursor
-            if (!page.hasMore || cursor == null) return items
+            if (!page.hasMore || cursor == null) return items to page.hasMore
         }
-        return items
+        return items to true
     }
 
     private fun debtsWithInstallments(userId: String): Flow<Pair<List<DebtSummary>, Map<String, List<DebtScheduleItem>>>> =

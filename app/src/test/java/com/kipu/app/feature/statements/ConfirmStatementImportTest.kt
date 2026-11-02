@@ -255,6 +255,15 @@ class ConfirmStatementImportTest {
         assertEquals("match", refundCommands.single().purchaseTransactionId)
     }
 
+    @Test fun `refund without matching merchant remains pending even with one eligible purchase`() = runTest {
+        purchases += purchase("other").copy(merchantProvisionalText = "Other merchant")
+        use(line(kind = StatementLineKind.REFUND))
+        val result = confirm(owner, "import")
+        assertEquals(StatementLineFailureReason.RefundPurchaseRequired, result.failed.single().reason)
+        assertEquals(StatementImportLineStatus.PENDING, snapshot.lines.single().status)
+        assertTrue(refundCommands.isEmpty())
+    }
+
     @Test fun `ambiguous refunds and points never create unrelated credits`() = runTest {
         purchases += listOf(purchase("one"), purchase("two"))
         use(line("refund", StatementLineKind.REFUND), line("points", StatementLineKind.POINTS_REDEMPTION))

@@ -1,6 +1,5 @@
 package com.kipu.app.feature.statements.domain
 
-import android.net.Uri
 import com.kipu.app.core.finance.domain.model.Currency
 import java.time.LocalDate
 
@@ -16,8 +15,11 @@ sealed interface StatementReadResult {
     data class Opened(val pages: List<StatementPage>) : StatementReadResult
 }
 
+@JvmInline
+value class DocumentRef(val value: String)
+
 interface StatementDocumentReader {
-    suspend fun read(uri: Uri, password: CharArray? = null): StatementReadResult
+    suspend fun read(document: DocumentRef, password: CharArray? = null): StatementReadResult
 }
 
 enum class StatementLineKind {

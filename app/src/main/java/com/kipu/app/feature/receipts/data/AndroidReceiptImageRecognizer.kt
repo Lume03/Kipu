@@ -21,8 +21,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 @Singleton
@@ -67,8 +67,6 @@ class AndroidReceiptImageRecognizer @Inject constructor(
             throw cancelled
         } catch (error: Exception) {
             unreadable("text recognition failed", error)
-        } finally {
-            bitmap.recycle()
         }
     }
 
@@ -122,17 +120,36 @@ class AndroidReceiptImageRecognizer @Inject constructor(
             }
             out.toByteArray().takeIf { it.isNotEmpty() }
         }
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
     } catch (error: Exception) {
         SecureLog.w(TAG, "Receipt image read failed: ${error.javaClass.simpleName}")
         null
     }
 
     private suspend fun recognizeBitmap(bitmap: android.graphics.Bitmap): com.google.mlkit.vision.text.Text =
-        suspendCoroutine { continuation ->
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-            recognizer.process(InputImage.fromBitmap(bitmap, 0))
-                .addOnSuccessListener { text -> recognizer.close(); continuation.resume(text) }
-                .addOnFailureListener { error -> recognizer.close(); continuation.resumeWithException(error) }
+        suspendCancellableCoroutine { continuation ->
+            val recognizer = try {
+                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            } catch (error: Exception) {
+                bitmap.recycle()
+                continuation.resumeWithException(error)
+                return@suspendCancellableCoroutine
+            }
+            try {
+                recognizer.process(InputImage.fromBitmap(bitmap, 0)).addOnCompleteListener { task ->
+                    recognizer.close()
+                    bitmap.recycle()
+                    if (continuation.isActive) {
+                        if (task.isSuccessful) continuation.resume(task.result)
+                        else continuation.resumeWithException(task.exception ?: IllegalStateException("Text recognition failed"))
+                    }
+                }
+            } catch (error: Exception) {
+                recognizer.close()
+                bitmap.recycle()
+                if (continuation.isActive) continuation.resumeWithException(error)
+            }
         }
 
     /** Logs only the failing stage and exception type; never image content or recognized text. */

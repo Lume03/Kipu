@@ -3,6 +3,7 @@ package com.kipu.app.feature.statements.data
 import android.content.Context
 import android.net.Uri
 import com.kipu.app.feature.statements.domain.StatementDocumentReader
+import com.kipu.app.feature.statements.domain.DocumentRef
 import com.kipu.app.feature.statements.domain.StatementPage
 import com.kipu.app.feature.statements.domain.StatementReadResult
 import com.kipu.app.feature.statements.domain.StatementWord
@@ -23,11 +24,11 @@ import kotlinx.coroutines.withContext
 class PdfBoxStatementDocumentReader @Inject constructor(@param:ApplicationContext private val context: Context) : StatementDocumentReader {
     private val initialized by lazy { PDFBoxResourceLoader.init(context.applicationContext) }
 
-    override suspend fun read(uri: Uri, password: CharArray?): StatementReadResult = try {
+    override suspend fun read(document: DocumentRef, password: CharArray?): StatementReadResult = try {
         withContext(Dispatchers.IO) {
             try {
                 initialized
-                val stream = context.contentResolver.openInputStream(uri) ?: return@withContext StatementReadResult.Unreadable
+                val stream = context.contentResolver.openInputStream(Uri.parse(document.value)) ?: return@withContext StatementReadResult.Unreadable
                 stream.use { input ->
                     // Explicit main-memory mode prevents PDFBox scratch files containing source data.
                     PDDocument.load(input, password?.concatToString().orEmpty(), MemoryUsageSetting.setupMainMemoryOnly()).use { document ->

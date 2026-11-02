@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import com.kipu.app.feature.capture.data.listener.KipuNotificationListenerService
@@ -70,8 +71,11 @@ class AndroidPermissionSourceGateway @Inject constructor(
 object AndroidPermissionSettings {
     fun createIntent(context: Context, source: PermissionSource): Intent = when (source) {
         PermissionSource.YAPE_RECEIPT_OCR -> error("El OCR local no requiere ajustes de Android")
-        PermissionSource.OWN_NOTIFICATIONS -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        PermissionSource.OWN_NOTIFICATIONS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        }
         PermissionSource.OTHER_APP_NOTIFICATION_CONTENT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).putExtra(
                 Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,

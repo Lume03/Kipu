@@ -13,6 +13,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConfirmReceiptCandidateTest {
+    @Test fun retriesCandidateConfirmationAfterLedgerSuccess() = runTest {
+        val owner = UUID.randomUUID().toString()
+        val candidate = newReceiptCandidate(owner, "img", YapeReceiptFields(2000, 100, "A", "operation-1234"), false)
+        val store = FakeStore(candidate)
+        val register = mockk<RegisterTransaction>()
+        val success = RegisterTransactionResult.Success(mockk())
+        coEvery { register(any()) } returns success
+
+        val result = ConfirmReceiptCandidate(store, register)(owner, candidate.id, command(owner, false))
+
+        assertEquals(success, result)
+        assertEquals(2, store.confirmAttempts)
+        assertEquals(ReceiptCandidateStatus.CONFIRMED, store.current?.status)
+    }
+
     @Test fun keepsStableIdempotencyKeyAndDuplicateOverrideWhilePreservingReceiptReference() = runTest {
         val owner = UUID.randomUUID().toString()
         val candidate = newReceiptCandidate(owner, "img", YapeReceiptFields(2000, 100, "A", "operation-1234"), false)
@@ -46,6 +61,7 @@ class ConfirmReceiptCandidateTest {
 
     private class FakeStore(candidate: ReceiptCandidate) : ReceiptCandidateStore {
         var current: ReceiptCandidate? = candidate
+        var confirmAttempts = 0
         override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?) =
             error("not used")
         override fun observe(ownerId: String) = kotlinx.coroutines.flow.emptyFlow<List<ReceiptCandidate>>()
@@ -55,7 +71,12 @@ class ConfirmReceiptCandidateTest {
             return before.copy(amountMinor = edit.amountMinor, occurredAt = edit.occurredAt,
                 recipient = edit.recipient, isIncome = edit.isIncome ?: before.isIncome).also { current = it }
         }
-        override suspend fun markConfirmed(ownerId: String, candidateId: String) = false
+        override suspend fun markConfirmed(ownerId: String, candidateId: String): Boolean {
+            confirmAttempts++
+            if (confirmAttempts == 1) return false
+            current = get(ownerId, candidateId)?.copy(status = ReceiptCandidateStatus.CONFIRMED) ?: return false
+            return true
+        }
         override suspend fun discard(ownerId: String, candidateId: String) = false
     }
 }
