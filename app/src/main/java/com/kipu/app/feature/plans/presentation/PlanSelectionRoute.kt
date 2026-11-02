@@ -18,5 +18,5 @@ import androidx.lifecycle.repeatOnLifecycle
             }
         }
     }
-    PlanSelectionScreen(state, viewModel::onOptionSelected, viewModel::confirmSelection, viewModel::continueWithFree, onNavigateBack)
+    PlanSelectionScreen(state, viewModel::onOptionSelected, viewModel::confirmSelection, viewModel::continueWithFree, onNavigateBack, viewModel::loadMode)
 }

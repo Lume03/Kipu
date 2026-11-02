@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plan_dev_mode_notice">Modo desarrollo: sin cobro</string>
+    <string name="plan_dev_activate">Activar plan</string>
+    <string name="plan_dev_applied">Plan actualizado sin cobro</string>
+    <string name="plan_dev_price">Sin cobro</string>
+</resources>

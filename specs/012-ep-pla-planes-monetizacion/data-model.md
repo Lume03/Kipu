@@ -500,3 +500,8 @@ Only authenticated and structurally valid Pub/Sub messages enter the receipt flo
 A scheduled sweep may reclaim expired leases, classify stale jobs, and leave hash-only work waiting. It must never call Google Play, infer absence/expiry/revocation, issue or extend a grant, or clear a known entitlement from `purchase_token_hash` alone. A later RTDN redelivery or authenticated restore supplies a new ephemeral token and re-enters the shared verifier. The known entitlement remains usable only within its already verified HU-56/HU-59 validity; waiting does not renew it.
 
 Both tables belong in the unexposed `internal` schema, with RLS enabled and forced, no `anon`/`authenticated` table DML, narrow server-only execution grants, and constraints/indexes for stable event identity, one active job per token hash, and exclusive lease recovery. Migration must be additive and fail visibly on unexpected live schema drift; do not mask drift with broad `IF NOT EXISTS` guards.
+
+
+## D7 — Refinamiento 2026-11-02
+
+`internal.test_plan_overrides.plan_type` representa FREE/PRO_MONTHLY/PRO_ANNUAL/PRO_LIFETIME, con tier compatible FREE/PREMIUM; expires_at admite NULL solo en FREE/Lifetime. Las filas históricas Premium se etiquetan PRO_MONTHLY conservando exactamente su expiración. La auditoría admite SET_PLAN y plan_type. `internal.dev_plan_receipts` guarda resultado JSONB por PK (user_id, operation_id), plan_type y created_at, con FK a auth.users, RLS forzado y cero acceso de cliente. No se altera el modelo financiero ni de compras. El gate existente permanece apagado por defecto y el operador `internal.set_dev_plan_mode` reutiliza su auditoría. Ver contratos de [desarrollo](contracts/dev-plan-mode.md).

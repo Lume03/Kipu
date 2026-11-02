@@ -102,7 +102,7 @@ fun PlanPurchaseScreen(
                 .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(stringResource(R.string.purchase_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(if (state.developmentMode) R.string.plan_dev_mode_notice else R.string.purchase_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
 
             when {
                 state.isLoading -> LoadingOffers(reduceMotion)
@@ -136,11 +136,11 @@ fun PlanPurchaseScreen(
                         when (state.status) {
                             PlanPurchaseStatus.LAUNCHING -> stringResource(R.string.purchase_loading)
                             PlanPurchaseStatus.VERIFYING -> stringResource(R.string.purchase_verifying)
-                            else -> stringResource(R.string.purchase_buy)
+                            else -> stringResource(if (state.developmentMode) R.string.plan_dev_activate else R.string.purchase_buy)
                         },
                     )
                 }
-                TextButton(onClick = onManageSubscriptions, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("purchase-manage-link")) {
+                if (!state.developmentMode) TextButton(onClick = onManageSubscriptions, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("purchase-manage-link")) {
                     Text(stringResource(R.string.purchase_manage_subscriptions), textAlign = TextAlign.Center)
                 }
             }
@@ -182,7 +182,7 @@ private fun PurchaseOfferCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(planTitle(offer), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text(planTerms(offer), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(if (offer.product.storeProductId.startsWith("dev:")) stringResource(R.string.plan_dev_mode_notice) else planTerms(offer), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 when (offer.product.option) {
                     CommercialOption.ANNUAL -> PurchaseBadge(stringResource(R.string.purchase_badge_popular))
@@ -285,7 +285,9 @@ private fun PurchaseStatus(state: PlanPurchaseUiState, reduceMotion: Boolean, on
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state.status) {
-                PlanPurchaseStatus.VERIFIED -> if (state.effectivePremium) {
+                PlanPurchaseStatus.VERIFIED -> if (state.developmentMode) {
+                    Text(stringResource(R.string.plan_dev_applied), style = MaterialTheme.typography.titleMedium)
+                } else if (state.effectivePremium) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         AnimatedVisibility(
                             visible = true,

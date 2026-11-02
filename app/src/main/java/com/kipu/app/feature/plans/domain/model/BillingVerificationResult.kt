@@ -1,7 +1,10 @@
-﻿package com.kipu.app.feature.plans.domain.model
+package com.kipu.app.feature.plans.domain.model
 
 sealed interface BillingVerificationResult {
     val effectivePremium: Boolean
+
+    /** A server override after signed refresh, with no simulated Play purchase state. */
+    data class DevActivated(val productId: String, override val effectivePremium: Boolean) : BillingVerificationResult
 
     data class Verifying(val productId: String) : BillingVerificationResult {
         override val effectivePremium: Boolean = false

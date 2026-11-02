@@ -5,7 +5,6 @@ import androidx.room.Query
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Transaction
-import com.kipu.app.BuildConfig
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -18,7 +17,7 @@ interface FeatureAccessCacheDao {
     @Transaction
     suspend fun putCommercialVerified(
         entity: FeatureAccessCacheEntity,
-        preserveTestOverrides: Boolean = BuildConfig.TEST_PLAN_OVERRIDES_ENABLED,
+        preserveTestOverrides: Boolean = true,
     ): Boolean {
         val current = get(entity.userId)
         if (current?.source == "SIGNED_DEVELOPER_GRANT") return false

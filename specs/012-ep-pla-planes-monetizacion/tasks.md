@@ -438,3 +438,12 @@ Dependency DAG: T114 → T115 → T116 → T117. T113 final acceptance additiona
 Dependency DAG: T119 → T120 → T121 → T122 → T123; T119 → T124 → T125; T119–T121 → T126 → T127; T118 + T123 + T125 + T127 → T128.
 
 **S5 acceptance slice**: an authenticated RTDN with a known owner and request-scoped token reaches the shared verifier and applies only current provider state; a same-account restore reuses that verifier; a hash-only missed-event job remains `WAITING_FOR_TOKEN`/`RETRYABLE` with no provider call or entitlement mutation until a new RTDN/restore token arrives. No S5 task edits or replaces the S3 purchase boundary, S4 lease, or financial history.
+
+
+## D7 — Modo desarrollo de planes
+
+**Propagated**: 2026-11-02 — FR-068–FR-073 / SC-035–SC-037.
+
+- [X] T129 [D7] Ampliar overrides y auditoría, añadir recibos y RPC autenticadas de modo/activación, operador y soporte Lifetime en proyecciones preservando las compras reales (FR-069/070/072/073).
+- [X] T130 [D7] Implementar repositorio de desarrollo y selección runtime con identidad estable, owner checks, refresco firmado y autoridad servidor en release; integrar selección y compra con aviso sin cobro y downgrade (FR-068/071/072; depende de T129).
+- [X] T131 [D7] Verificar pgTAP, Deno, JVM planes/auth, compilación instrumentada, lint y UTF-8; registrar evidencia fuera del repo, dejar gate apagado y detener Supabase local (SC-035–SC-037; depende de T129/T130).

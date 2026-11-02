@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.plans.presentation
+package com.kipu.app.feature.plans.presentation
 
 import android.app.Activity
 import androidx.lifecycle.ViewModel
@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class PlanPurchaseViewModel @Inject constructor(
@@ -43,23 +44,38 @@ class PlanPurchaseViewModel @Inject constructor(
         if (state.status == PlanPurchaseStatus.LAUNCHING || state.status == PlanPurchaseStatus.VERIFYING) return
         mutableState.update { it.copy(status = PlanPurchaseStatus.LAUNCHING, errorCode = null) }
         viewModelScope.launch {
-            runCatching { repository.startPurchase(activity, offer) }
-                .onFailure { mutableState.update { current -> current.copy(status = PlanPurchaseStatus.UNAVAILABLE, errorCode = "PLAY_UNAVAILABLE") } }
+            try {
+                repository.startPurchase(activity, offer)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.update { current -> current.copy(status = PlanPurchaseStatus.UNAVAILABLE, errorCode = "UNAVAILABLE") }
+            }
         }
     }
 
     fun retryVerification() {
         mutableState.update { it.copy(status = PlanPurchaseStatus.VERIFYING, errorCode = null) }
         viewModelScope.launch {
-            runCatching { repository.refreshPurchases() }
-                .onFailure { mutableState.update { state -> state.copy(status = PlanPurchaseStatus.RETRYABLE, errorCode = "UNAVAILABLE") } }
+            try {
+                repository.refreshPurchases()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.update { state -> state.copy(status = PlanPurchaseStatus.RETRYABLE, errorCode = "UNAVAILABLE") }
+            }
         }
     }
 
     fun refreshCatalog() {
         mutableState.update { it.copy(status = PlanPurchaseStatus.LOADING, errorCode = null) }
         viewModelScope.launch {
-            val offers = runCatching { repository.loadOffers() }.getOrDefault(emptyList())
+            val offers = try {
+                repository.loadOffers()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) { emptyList() }
+            val developmentMode = offers.any { it.product.storeProductId.startsWith("dev:") }
             if (offers.isEmpty()) {
                 mutableState.update { it.copy(offers = emptyList(), selectedProductId = null, status = PlanPurchaseStatus.UNAVAILABLE) }
                 return@launch
@@ -68,6 +84,7 @@ class PlanPurchaseViewModel @Inject constructor(
             val selected = annual ?: offers.first()
             mutableState.update { state ->
                 state.copy(
+                    developmentMode = developmentMode,
                     offers = offers.sortedBy { offer -> when (offer.product.option) { CommercialOption.ANNUAL -> 0; CommercialOption.MONTHLY -> 1; CommercialOption.LIFETIME -> 2; CommercialOption.FREE -> 3 } },
                     selectedProductId = state.selectedProductId?.takeIf { id -> offers.any { it.product.storeProductId == id } } ?: selected.product.storeProductId,
                     status = if (state.effectivePremium) PlanPurchaseStatus.VERIFIED else PlanPurchaseStatus.READY,

@@ -26,7 +26,7 @@ val goalRemoteCommandsEnabled = providers.gradleProperty("goalRemoteCommandsEnab
     .orNull
     ?.toBooleanStrictOrNull()
     ?: true // Planning RPCs activated after the documented T040 verification.
-// QA plan overrides are opt-in for local debug/lab APKs and permanently disabled in release.
+// Legacy QA settings tools only. D7 plan activation and signed grants use the server gate in every build.
 val testPlanOverridesEnabled = providers.gradleProperty("testPlanOverridesEnabled")
     .orNull
     ?.toBooleanStrictOrNull()

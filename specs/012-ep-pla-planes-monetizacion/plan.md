@@ -529,3 +529,16 @@ P30 §4.3–4.4 describes a broader periodic provider re-query. The S5 artifacts
 - No raw token or unfiltered RTDN payload appears in persistent storage, internal retry messages, logs, receipts, client responses or release artifacts.
 - The additive migration and live baseline are reviewed for RLS, grants, non-destructive behavior and remote/local drift before deployment.
 - SC-034 is satisfied by the approved no-token behavior: a hash-only job stays `WAITING_FOR_TOKEN`/`RETRYABLE` without a provider call or entitlement mutation; a later RTDN/restore token can resume verification. HU-55 production acceptance still requires the live migration/function/scheduler baseline gate and P30 documentation alignment.
+
+
+## D7 — Planes de desarrollo
+
+**Propagated**: 2026-11-02 — FR-068–FR-073 / SC-035–SC-037; decisión explícita del PO. Se conserva la historia de Sprint 1–5.
+
+Se amplía el override interno existente con plan_type, manteniendo tier y los operadores anteriores. Recibos dedicados internos con PK (user_id, operation_id) evitan acoplar este comando a recibos financieros. RLS forzado, sin grants de tablas, RPC públicas con SECURITY DEFINER/search_path vacío y EXECUTE solo authenticated; identidad siempre auth.uid(). Un lock compartido del gate y advisory lock por usuario serializan activación y apagado. Se conservan las reglas PURCHASED/ACTIVE/vigencia comercial del fix 20261102013246 y la precedencia DEVELOPER existente.
+
+`DevPlanBillingRepository` activa por RPC y fuerza `TestPlanRefresh` sin throttle; solo el grant verificado actualiza feature_access_cache. `RuntimeBillingPurchaseRepository` consulta el modo en servidor para cargar y ejecutar, mantiene el dueño del catálogo y dirige a Play o desarrollo sin fallback de cobro ante un cambio de modo. Onboarding usa la misma activación antes de persistir su preferencia inerte. Una identidad de operación por intento se conserva ante error transitorio y se renueva tras resolución terminal. Las pantallas exponen los cuatro planes y permiten volver a Free. El resultado de desarrollo es distinto de una compra Play.
+
+Se retiran las comprobaciones BuildConfig de refresco/verificación de TEST_OVERRIDE: el gate servidor y la firma son autoridad también en release; la bandera legacy puede seguir controlando exclusivamente herramientas QA de ajustes. El cache comercial respeta fuentes de override verificadas en todos los builds hasta reconciliación de servidor, sujeto siempre a firma y lease. Ni FREE ni Lifetime escriben finanzas ni tablas de compras. El vencimiento ausente de Lifetime no elimina el máximo offline de 72 horas.
+
+Validación: SC-035 pgTAP; SC-036 JVM repositorio/runtime/ViewModels y verificador; SC-037 reset, suite local, Deno, Gradle. Despliegue remoto prohibido en esta entrega. Operación de lanzamiento: apagar gate con auditoría, cargar catálogo real y validar Lifetime de pago único en verify-purchase/Play.

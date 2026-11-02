@@ -1,6 +1,5 @@
 package com.kipu.app.feature.plans.data.entitlement
 
-import com.kipu.app.BuildConfig
 import com.kipu.app.core.network.AuthenticatedSession
 import com.kipu.app.core.network.AuthenticatedSessionProvider
 import com.kipu.app.core.session.LocalOwner
@@ -18,7 +17,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 class TestPlanRefreshRepositoryTest {
@@ -27,7 +25,6 @@ class TestPlanRefreshRepositoryTest {
 
     @Test
     fun `free override replaces signed cache without billing or other data changes`() = runTest {
-        assumeTrue(BuildConfig.TEST_PLAN_OVERRIDES_ENABLED)
         val api = mockk<RefreshEntitlementApi>()
         coEvery { api.refresh(session, "spki") } returns RefreshEntitlementApiResult.Success(
             RefreshEntitlementResponseDto("FREE", "TEST_OVERRIDE", null, null),
@@ -40,6 +37,31 @@ class TestPlanRefreshRepositoryTest {
 
         assertEquals(TestPlanRefreshResult(true), result)
         coVerify(exactly = 1) { dao.putVerified(match { it.userId == userId && it.effectiveTier == "FREE" && it.source == "TEST_OVERRIDE" && it.offlineGrantPayload == null }) }
+    }
+
+    @Test
+    fun `Lifetime override refreshes in every build only from a validated server source`() = runTest {
+        val api = mockk<RefreshEntitlementApi>()
+        val grant = com.kipu.app.feature.plans.data.remote.RefreshEntitlementGrantDto("payload", "signature", "key")
+        coEvery { api.refresh(session, "spki") } returns RefreshEntitlementApiResult.Success(
+            RefreshEntitlementResponseDto("PREMIUM", "TEST_OVERRIDE", null, grant),
+        )
+        val dao = mockk<FeatureAccessCacheDao>()
+        coEvery { dao.putVerified(any()) } returns Unit
+        val verifier = mockk<OfflineEntitlementGrantVerifier>()
+        val claims = com.kipu.app.feature.plans.domain.model.OfflineEntitlementGrantClaims(
+            1, "key", UUID.randomUUID().toString(), userId.toString(), "thumbprint", 1,
+            "PREMIUM", 1000L, null, 259201000L, "TEST_OVERRIDE",
+        )
+        every { verifier.verify(any(), userId.toString()) } returns claims
+        val evaluator = mockk<EffectiveEntitlementEvaluator>()
+        every { evaluator.evaluate(any(), any()) } returns com.kipu.app.feature.plans.domain.model.OfflineEntitlementLeaseDecision.Allowed(1000L)
+        val repository = repository(api, dao, verifier, evaluator)
+        assertEquals(TestPlanRefreshResult(true), repository.refresh())
+        coVerify { dao.putVerified(match { it.source == "SIGNED_TEST_GRANT" && it.entitlementExpiresAt == null && it.offlineGrantPayload == "payload" }) }
+        every { verifier.verify(any(), userId.toString()) } returns claims.copy(source = null)
+        assertEquals("INVALID_VERIFICATION_RESPONSE", repository.refresh().code)
+        coVerify(exactly = 1) { dao.putVerified(any()) }
     }
 
     @Test

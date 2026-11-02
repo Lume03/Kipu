@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.plans.presentation
+package com.kipu.app.feature.plans.presentation
 
 import com.kipu.app.feature.plans.domain.model.BillingVerificationResult
 import com.kipu.app.feature.plans.domain.model.GooglePlayPurchaseState
@@ -27,6 +27,7 @@ data class PlanPurchaseUiState(
     val expiresAtEpochMillis: Long? = null,
     val acknowledgementPending: Boolean = false,
     val errorCode: String? = null,
+    val developmentMode: Boolean = false,
 ) {
         val selectedOffer: LocalizedBillingOffer? get() = offers.firstOrNull { it.product.storeProductId == selectedProductId }
     val isLoading: Boolean get() = status == PlanPurchaseStatus.LOADING
@@ -34,6 +35,12 @@ data class PlanPurchaseUiState(
     companion object {
         fun forResult(previous: PlanPurchaseUiState, result: BillingVerificationResult): PlanPurchaseUiState = when (result) {
             is BillingVerificationResult.Verifying -> previous.copy(selectedProductId = result.productId, status = PlanPurchaseStatus.VERIFYING, errorCode = null)
+            is BillingVerificationResult.DevActivated -> previous.copy(
+                selectedProductId = result.productId.takeIf { it.isNotBlank() } ?: previous.selectedProductId,
+                status = PlanPurchaseStatus.VERIFIED, effectivePremium = result.effectivePremium,
+                providerPurchaseState = null, lifecycle = null, expiresAtEpochMillis = null,
+                acknowledgementPending = false, errorCode = null,
+            )
             is BillingVerificationResult.Verified -> previous.copy(
                 selectedProductId = result.productId,
                 status = PlanPurchaseStatus.VERIFIED,

@@ -5,6 +5,7 @@
 **Created**: 2026-09-14
 
 **Status**: Refined
+**Refined**: 2026-11-02 — D7 aprobado por el PO: modo desarrollo de planes controlado por servidor, también en builds release, sin compras simuladas. Excepción temporal al requisito de excluir overrides en release; apagar el gate antes del lanzamiento.
 
 **Refined**: 2026-09-26 — Resolución de A1: diferenciar el pago `PENDING` informado por Google Play, el fallo temporal de verificación `RETRYABLE` y el estado `PENDING` de la outbox de selección de HU-52; se precisan copy, criterios y cobertura de pruebas.
 
@@ -807,3 +808,19 @@ P30 §4.3–4.4 describe una reconsulta periódica más amplia. HU-55 aplica aqu
 ### Trazabilidad S5 y evidencia de base remota
 
 La definición funcional procede de HU-55 en `KipuApp/Kipu md/02_Kipu_V4.2_Product_Backlog.md` y P30 `KipuApp/Procesos/30-restaurar-y-reconciliar-compras.md`; el alcance de reconsulta de P30 se acota para S5 por la decisión aprobada de no persistir tokens y esperar una nueva entrada con token. Las tablas, privacidad del token y transacción de facturación se contrastan con `data-model.md` y la migración local S3. El estado remoto reportado el 2026-10-08 confirma `billing_purchases` e `internal.billing_events`, con historial de migraciones remoto solo hasta 2026-09-30 y sin evidencia de procesamiento RTDN en vivo. Esa evidencia no prueba que el receptor, scheduler, recibos o leases de S5 estén desplegados; cualquier activación requiere reconciliar primero el catálogo remoto con las migraciones requeridas.
+
+
+## D7 — Modo desarrollo de planes (PO 2026-11-02)
+
+Refinamiento aprobado y acotado a desarrollo en el mismo proyecto Supabase. La instrucción de esta entrega conserva el checkout en `main`. HU-52 mantiene sus preferencias inertes; este flujo requiere una RPC autenticada y verificación independiente del entitlement.
+
+- **FR-068**: `dev_plan_mode()` es la única autoridad para mostrar el modo desarrollo en selección y compra. Con el gate encendido se ofrecen Free, Mensual, Anual y Lifetime con «Modo desarrollo: sin cobro». Sin el gate se conserva el flujo comercial existente.
+- **FR-069**: `dev_activate_plan(operation_id, plan_type)` obtiene el usuario de Auth, serializa por usuario y registra override, auditoría SET_PLAN y recibo en una transacción. Repetir identidad y plan devuelve el resultado original; cambiar el plan con la misma identidad produce CONFLICT. Gate apagado devuelve DEV_MODE_DISABLED sin escrituras.
+- **FR-070**: El servidor calcula 30 días para Mensual, 365 para Anual y ningún vencimiento para Lifetime. Free neutraliza el acceso de pruebas sin eliminar datos. Se preserva la precedencia existente del entitlement permanente de desarrollador (fuente DEVELOPER), independiente de este modo.
+- **FR-071**: Solo el gate permite aplicar overrides vigentes. La app refresca con `refresh-entitlement`, valida la firma y el propietario e instala el cache; Lifetime sigue limitado al lease offline de 72 horas. BuildConfig no autoriza ni impide esta fuente firmada en release.
+- **FR-072**: Ninguna activación escribe billing_products, billing_purchases, internal.billing_events ni datos financieros locales/remotos. Usuarios Free conservan los cupos de 5 categorías de ingreso + 5 de gasto y 4 instrumentos; un downgrade conserva historia y excedentes.
+- **FR-073**: Solo el operador cambia el gate, con razón y auditoría. La migración no lo habilita. Antes del lanzamiento es obligatorio apagarlo con `internal.set_dev_plan_mode(false, 'motivo')` y cargar billing_products reales. La compatibilidad comercial de Lifetime con verify-purchase y el producto Play de pago único queda pendiente de validación.
+
+- **SC-035**: pgTAP prueba los cuatro planes, expiración, gate, idempotencia, conflictos, aislamiento, privilegios, cupos y ausencia de cambios financieros/compras.
+- **SC-036**: JVM prueba selección de repositorio en runtime, RPC autenticada, éxito/rechazo/conflicto/cancelación, reintento estable, cambio de propietario y ambos ViewModels.
+- **SC-037**: Reset y suite pgTAP local, Deno focalizado, JVM de planes/auth, compilación de instrumentadas y lint pasan; remoto y gate de lanzamiento quedan al coordinador.

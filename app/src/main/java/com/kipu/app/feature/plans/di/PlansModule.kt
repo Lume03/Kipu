@@ -5,6 +5,9 @@ import androidx.work.WorkManager
 import com.kipu.app.BuildConfig
 import com.kipu.app.feature.plans.data.OfflineFirstPlanPreferencesRepository
 import com.kipu.app.feature.plans.data.billing.BillingRepository
+import com.kipu.app.feature.plans.data.billing.DevPlanBillingRepository
+import com.kipu.app.feature.plans.data.billing.RuntimeBillingPurchaseRepository
+import com.kipu.app.feature.plans.data.remote.DevPlanApi
 import com.kipu.app.feature.plans.data.entitlement.AndroidKeystoreInstallationSigningKeyProvider
 import com.kipu.app.feature.plans.data.entitlement.InstallationSigningKeyProvider
 import com.kipu.app.feature.plans.data.entitlement.BuildConfiguredOfflineEntitlementGrantPublicKeyResolver
@@ -33,7 +36,8 @@ import java.util.UUID
 abstract class PlansModule {
     @Binds abstract fun verifiedPlanAccess(value: com.kipu.app.feature.plans.data.entitlement.CurrentOwnerVerifiedPlanAccess): VerifiedPlanAccess
     @Binds abstract fun repository(value: OfflineFirstPlanPreferencesRepository): PlanPreferencesRepository
-    @Binds abstract fun billingPurchaseRepository(value: BillingRepository): BillingPurchaseRepository
+    @Binds abstract fun billingPurchaseRepository(value: RuntimeBillingPurchaseRepository): BillingPurchaseRepository
+    @Binds abstract fun devPlanOperations(value: DevPlanBillingRepository): DevPlanOperations
     @Binds abstract fun installationSigningKeyProvider(value: AndroidKeystoreInstallationSigningKeyProvider): InstallationSigningKeyProvider
     @Binds abstract fun offlineEntitlementGrantPublicKeyResolver(value: BuildConfiguredOfflineEntitlementGrantPublicKeyResolver): OfflineEntitlementGrantPublicKeyResolver
     @Binds abstract fun offlineEntitlementGrantBase64UrlDecoder(value: AndroidOfflineEntitlementGrantBase64UrlDecoder): OfflineEntitlementGrantBase64UrlDecoder
@@ -45,5 +49,6 @@ abstract class PlansModule {
         @Provides fun api(client: HttpClient): PlanSelectionApi = PlanSelectionApi(client, BuildConfig.SUPABASE_URL.trimEnd('/') + "/functions/v1")
         @Provides fun verifyPurchaseApi(client: HttpClient): VerifyPurchaseApi = VerifyPurchaseApi(client, BuildConfig.SUPABASE_URL)
         @Provides fun refreshEntitlementApi(client: HttpClient): RefreshEntitlementApi = RefreshEntitlementApi(client, BuildConfig.SUPABASE_URL)
+        @Provides fun devPlanApi(client: HttpClient): DevPlanApi = DevPlanApi(client, BuildConfig.SUPABASE_URL)
     }
 }

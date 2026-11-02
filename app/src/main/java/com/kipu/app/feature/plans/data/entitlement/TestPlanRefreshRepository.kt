@@ -1,6 +1,5 @@
 package com.kipu.app.feature.plans.data.entitlement
 
-import com.kipu.app.BuildConfig
 import com.kipu.app.core.network.AuthenticatedSessionProvider
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao
@@ -47,7 +46,6 @@ class TestPlanRefreshRepository @Inject constructor(
             }
             if (!isCurrentSessionOwner(session.userId.toString())) return TestPlanRefreshResult(false, "SESSION_CHANGED")
             if (response.source !in setOf("TEST_OVERRIDE", "COMMERCIAL", "DEVELOPER")) return invalid()
-            if (response.source == "TEST_OVERRIDE" && !BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) return invalid()
             if (response.source == "DEVELOPER" && (response.effectiveTier != "PREMIUM" || response.expiresAt != null)) return invalid()
             val entry = when (response.effectiveTier) {
                 "FREE" -> {

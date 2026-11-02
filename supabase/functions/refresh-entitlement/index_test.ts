@@ -12,6 +12,19 @@ const premium: PlanSnapshot = {
   test_plans_enabled: true,
 };
 
+Deno.test("development Lifetime refresh accepts null expiry only with enabled server gate", async () => {
+  const h = harness({ plan: { ...premium, expires_at: null } });
+  const response = await h.handler(request());
+  const body = await response.json();
+  assert(response.status === 200 && body.expiresAt === null, "Lifetime has no entitlement expiry");
+  assert(body.offlineEntitlementGrant !== null, "Lifetime still requires a signed offline grant");
+  const input = h.calls.grants[0] as Record<string, unknown>;
+  assert(input.entitlementEndsAt === null && input.source === "TEST_OVERRIDE", "server source and Lifetime reach shared bounded issuer");
+  const disabled = harness({ plan: { ...premium, expires_at: null, test_plans_enabled: false } });
+  assert((await disabled.handler(request())).status === 403, "gate disables Lifetime overrides too");
+  assert(disabled.calls.grants.length === 0, "disabled mode never signs a development grant");
+});
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }

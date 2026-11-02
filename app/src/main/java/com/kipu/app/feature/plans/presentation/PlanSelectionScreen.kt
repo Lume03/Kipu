@@ -40,16 +40,18 @@ fun PlanSelectionScreen(
     onConfirm: () -> Unit,
     onContinueFree: () -> Unit,
     onNavigateBack: (() -> Unit)? = null,
+    onRetryMode: () -> Unit = {},
 ) {
     val isFree = state.selectedOption == CommercialOption.FREE
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.plan_preference_notice), Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(if (state.developmentMode) R.string.plan_dev_mode_notice else R.string.plan_preference_notice), Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.modeError) TextButton(onClick = onRetryMode) { Text(stringResource(R.string.purchase_retry_catalog)) }
                 if (state.error != null) Text(stringResource(R.string.plan_confirmation_failed), color = MaterialTheme.colorScheme.error)
                 KipuPrimaryButton(
-                    text = stringResource(if (state.isConfirming) R.string.plan_confirming else if (isFree) R.string.plan_continue_free else R.string.plan_confirm),
+                    text = stringResource(if (state.isConfirming) R.string.plan_confirming else if (state.developmentMode) R.string.plan_dev_activate else if (isFree) R.string.plan_continue_free else R.string.plan_confirm),
                     onClick = if (isFree) onContinueFree else onConfirm,
                     enabled = state.canConfirm,
                     loading = state.isConfirming,
@@ -74,7 +76,7 @@ fun PlanSelectionScreen(
                 onOptionSelected(if (it == 0) CommercialOption.FREE else state.premiumOption)
             }
             if (isFree) FreePlanCard(state.freeLimits, !state.isConfirming && !state.isLoadingPreference) { onOptionSelected(state.premiumOption) }
-            else PremiumPlanCard(state.selectedOption, state.premiumNote, !state.isConfirming && !state.isLoadingPreference, onOptionSelected)
+            else PremiumPlanCard(state.selectedOption, state.premiumNote, !state.isConfirming && !state.isLoadingPreference, onOptionSelected, state.developmentMode)
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -107,7 +109,7 @@ private fun PlanSegments(options: List<Int>, selectedIndex: Int, enabled: Boolea
 }
 
 @Composable
-private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enabled: Boolean, onSelected: (CommercialOption) -> Unit) {
+private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enabled: Boolean, onSelected: (CommercialOption) -> Unit, developmentMode: Boolean = false) {
     val options = listOf(CommercialOption.MONTHLY, CommercialOption.ANNUAL, CommercialOption.LIFETIME)
     val price = when (option) {
         CommercialOption.MONTHLY -> R.string.plan_display_monthly_price
@@ -124,10 +126,10 @@ private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enab
             PlanSegments(listOf(R.string.plan_tab_monthly, R.string.plan_tab_annual, R.string.plan_tab_lifetime), options.indexOf(option), enabled) { onSelected(options[it]) }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("plan-price-${option.name}"))
-                    Text(stringResource(period), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                    Text(stringResource(if (developmentMode) R.string.plan_dev_price else price), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.testTag("plan-price-${option.name}"))
+                    if (!developmentMode) Text(stringResource(period), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                 }
-                if (option == CommercialOption.ANNUAL) {
+                if (option == CommercialOption.ANNUAL && !developmentMode) {
                     KipuStatusChip(
                         stringResource(R.string.plan_display_savings), KipuChipTone.NEUTRAL,
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -140,7 +142,7 @@ private fun PremiumPlanCard(option: CommercialOption, @StringRes note: Int, enab
             PremiumFeature(Icons.Outlined.AllInclusive, R.string.plan_premium_unlimited)
             PremiumFeature(Icons.Outlined.Bolt, R.string.plan_premium_capture)
             PremiumFeature(Icons.Outlined.CreditCard, R.string.plan_premium_accounts)
-            Text(stringResource(note), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(if (developmentMode) R.string.plan_dev_mode_notice else note), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

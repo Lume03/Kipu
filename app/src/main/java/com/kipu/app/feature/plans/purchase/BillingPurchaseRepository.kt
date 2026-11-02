@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 /** Application boundary for the platform purchase UI and its server-verified result stream. */
 interface BillingPurchaseRepository {
     val purchaseResults: Flow<BillingVerificationResult>
+    suspend fun isDevelopmentMode(): Boolean = false
     suspend fun loadOffers(): List<LocalizedBillingOffer>
     suspend fun startPurchase(activity: Activity, offer: LocalizedBillingOffer)
     suspend fun refreshPurchases()

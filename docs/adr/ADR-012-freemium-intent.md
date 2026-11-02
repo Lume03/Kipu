@@ -62,3 +62,8 @@ authorization failures are terminal and retain only safe diagnostics.
 - Receipt retention and per-user revision state are required for deterministic retry handling.
 - Conflicts are visible synchronization outcomes rather than silent last-write-wins changes.
 - Billing and entitlement reconciliation remain outside HU-52 and require their own approved design.
+
+
+## Refinement D7 (PO 2026-11-02)
+
+Commercial preferences remain inert. While the server operator enables the existing development gate, an authenticated user may independently activate FREE/PRO_MONTHLY/PRO_ANNUAL/PRO_LIFETIME through `dev_activate_plan`, then refresh a server-signed entitlement. This is a temporary development exception allowing server-authorized overrides in release builds; BuildConfig is not entitlement authority. No Play purchase or simulated billing row is created. Turning the gate off restores commercial evaluation; signed grants already issued remain bounded by their existing maximum 72-hour offline lease. Existing permanent DEVELOPER entitlement precedence is unchanged. Disable the gate and configure real billing products before launch; one-time Play Lifetime verification compatibility remains pending.

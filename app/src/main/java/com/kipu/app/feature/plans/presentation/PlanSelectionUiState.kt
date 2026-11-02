@@ -16,9 +16,12 @@ data class PlanSelectionUiState(
     val error: PlanSelectionError? = null,
     val freeLimits: FreePlanLimits = FreePlanLimits(),
     val premiumOption: CommercialOption = CommercialOption.ANNUAL,
+    val developmentMode: Boolean = false,
+    val isLoadingMode: Boolean = false,
+    val modeError: Boolean = false,
 ) {
     val isSubmitting get() = isConfirming
-    val canConfirm get() = !isLoadingPreference && !isLoadingEligibility && !isConfirming
+    val canConfirm get() = !isLoadingPreference && !isLoadingEligibility && !isLoadingMode && !modeError && !isConfirming
 
     val premiumNote: Int
         @StringRes get() = when (selectedOption) {

@@ -3,7 +3,6 @@ package com.kipu.app.feature.plans.data
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantPublicKeyResolver
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantBase64UrlDecoder
 import com.kipu.app.feature.plans.data.entitlement.OfflineEntitlementGrantVerifier
-import com.kipu.app.BuildConfig
 import com.kipu.app.feature.plans.data.entitlement.InstallationSigningKeyProvider
 import com.kipu.app.feature.plans.data.entitlement.InstallationPublicIdentity
 import com.kipu.app.feature.plans.domain.model.SignedOfflineEntitlementGrant
@@ -72,15 +71,11 @@ class OfflineEntitlementGrantVerifierTest {
     }
 
     @Test
-    fun rejectsTestOverrideGrantUnlessBuildOptedIn() {
+    fun acceptsServerSignedTestOverrideGrantInEveryBuild() {
         val qaGrant = signedGrant(source = "TEST_OVERRIDE")
         val claims = verifier.verify(qaGrant, owner)
-        if (BuildConfig.TEST_PLAN_OVERRIDES_ENABLED) {
-            assertNotNull(claims)
-            assertEquals("TEST_OVERRIDE", claims?.source)
-        } else {
-            assertNull(claims)
-        }
+        assertNotNull(claims)
+        assertEquals("TEST_OVERRIDE", claims?.source)
     }
 
     @Test
