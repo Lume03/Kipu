@@ -92,13 +92,37 @@ android {
         }
         release {
             buildConfigField("boolean", "TEST_PLAN_OVERRIDES_ENABLED", "false")
+            isShrinkResources = true
             // R8 shrinks/optimizes release; library consumer rules cover Room, Hilt,
             // kotlinx.serialization, Ktor and Supabase.
             optimization {
                 enable = true
                 keepRules {
+                    files.add(getDefaultProguardFile("proguard-android-optimize.txt"))
                     files.add(file("proguard-rules.pro"))
                 }
+            }
+        }
+    }
+
+    gradle.taskGraph.whenReady {
+        val isReleaseTaskScheduled = allTasks.any { task ->
+            val name = task.name
+            name.contains("Release", ignoreCase = true) &&
+                !name.contains("UnitTest", ignoreCase = true) &&
+                !name.contains("AndroidTest", ignoreCase = true)
+        }
+        if (isReleaseTaskScheduled) {
+            val supabaseUrl = configurationValue("SUPABASE_URL")
+            val supabaseKey = configurationValue("SUPABASE_PUBLISHABLE_KEY")
+            val missing = mutableListOf<String>()
+            if (supabaseUrl.isBlank()) missing.add("SUPABASE_URL")
+            if (supabaseKey.isBlank()) missing.add("SUPABASE_PUBLISHABLE_KEY")
+            if (missing.isNotEmpty()) {
+                throw GradleException(
+                    "Configuracion de release invalida: faltan las variables obligatorias de Supabase: ${missing.joinToString(", ")}. " +
+                    "Debes configurarlas en local.properties o mediante variables de entorno (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) antes de compilar la variante release."
+                )
             }
         }
     }
@@ -173,6 +197,12 @@ dependencies {
     // Bundled Latin model: receipt OCR works offline, including the first import.
     implementation(libs.mlkit.text.recognition)
     implementation(libs.androidx.exifinterface)
+    // L-12: com.tom-roush:pdfbox-android:2.0.27.0 (ultima version disponible en Maven Central)
+    // trae transitivamente org.bouncycastle:bcpkix-jdk15to18:1.72. Esta version incluye clases internas
+    // de EST (JcaJceUtils) con un trust manager permisivo que dispara la advertencia
+    // TrustAllX509TrustManager en Android Lint. Se mantiene porque Kipu utiliza PdfBox exclusivamente
+    // para extraccion offline de texto en estados de cuenta (sin llamadas de red ni certificados EST)
+    // y no existe una version mas reciente compatible de pdfbox-android.
     implementation(libs.pdfbox.android)
     implementation(libs.androidx.biometric)
     implementation(libs.play.billing)
