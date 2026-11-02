@@ -3,6 +3,7 @@ package com.kipu.app.feature.statements
 import android.content.Context
 import android.net.Uri
 import com.kipu.app.feature.statements.data.PdfBoxStatementDocumentReader
+import com.kipu.app.feature.statements.domain.DocumentRef
 import com.kipu.app.feature.statements.domain.*
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -45,9 +46,9 @@ class PdfBoxStatementDocumentReaderTest {
         }
     }
 
-    private fun register(bytes: ByteArray): Uri = Uri.parse("content://statements/synthetic").also {
+    private fun register(bytes: ByteArray): DocumentRef = Uri.parse("content://statements/synthetic").also {
         shadowOf(context.contentResolver).registerInputStreamSupplier(it) { bytes.inputStream() }
-    }
+    }.let { DocumentRef(it.toString()) }
 
     @Test fun `reads positions and clears password on successful opening`() = runBlocking {
         val password = "secret-synthetic".toCharArray()
@@ -87,7 +88,7 @@ class PdfBoxStatementDocumentReaderTest {
             // Supplier streams the private fixture directly; no copies or extracted text are written.
             val uri = Uri.parse("content://statements/local/$index")
             shadowOf(context.contentResolver).registerInputStreamSupplier(uri) { file.inputStream() }
-            val read = reader.read(uri, null)
+            val read = reader.read(DocumentRef(uri.toString()), null)
             assertTrue("Local sample ${index + 1}: opening failed", read is StatementReadResult.Opened)
             val parsed = parser.parse((read as StatementReadResult.Opened).pages)
             assertTrue("Local sample ${index + 1}: parsing failed", parsed is StatementParseResult.Parsed)

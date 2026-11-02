@@ -17,6 +17,7 @@ import com.kipu.app.feature.movements.domain.QueryMovementHistory
 import com.kipu.app.feature.movements.domain.model.MovementHistoryAccessDecision
 import com.kipu.app.feature.movements.domain.model.MovementHistoryPage
 import com.kipu.app.feature.movements.domain.model.MovementHistoryQuery
+import com.kipu.app.feature.movements.domain.model.MovementHistoryCursor
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionItem
@@ -68,7 +69,7 @@ class ObserveCalendarMonthTest {
         status = DebtLifecycleStatus.ACTIVE, syncState = "SYNCED", revision = 1L,
     )
 
-    private fun useCase(movements: RecordingMovements): ObserveCalendarMonth {
+    private fun useCase(movements: MovementHistoryQueryRepository): ObserveCalendarMonth {
         val card = CreditCard(
             id = CardId.generate(), userId = user, issuer = "BCP", network = CardNetwork.VISA, lastFourDigits = "1111",
             currency = Currency.PEN, creditLimitMinorUnits = 100_000L, billingDay = 15, dueDay = 5,
@@ -85,6 +86,23 @@ class ObserveCalendarMonthTest {
         )
         val recurrences = readOnly<RecurrenceRepository>(RecurrenceRepository::class.java, "observeAll" to { flowOf(emptyList<Any>()) })
         return ObserveCalendarMonth(QueryMovementHistory(movements), instruments, debts, recurrences)
+    }
+
+    @Test fun `indica cuando quedan movimientos despues de cinco mil`() = runTest {
+        var pages = 0
+        val movements = object : MovementHistoryQueryRepository {
+            override suspend fun queryHistory(userId: String, query: MovementHistoryQuery): MovementHistoryPage {
+                pages++
+                val items = (1..200).map { movementOn(15).let { item ->
+                    item.copy(transaction = item.transaction.copy(id = "$pages-$it"))
+                } }
+                return MovementHistoryPage(items, MovementHistoryCursor(pages.toLong(), "$pages"), true,
+                    MovementHistoryAccessDecision.Allowed)
+            }
+        }
+        val result = useCase(movements)(user.value, october, zone).first()
+        assertEquals(25, pages)
+        assertTrue(result.movementsTruncated)
     }
 
     @Test

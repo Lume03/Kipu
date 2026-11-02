@@ -190,6 +190,7 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
                 onOpenMovement = { navController.navigate("debts/movement/$it") },
                 errorMessage = state.errorMessage,
                 activities = state.activities,
+                closure = state.closure,
                 installments = state.installments,
                 initialAction = backStackEntry.arguments?.getString("action"),
             )

@@ -110,8 +110,15 @@ class DebtReminderWorker @AssistedInject constructor(
             contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val publicNotification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu)
+            .setContentTitle("Recordatorio financiero")
+            .setContentText("Tienes un recordatorio pendiente.")
+            .build()
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(com.kipu.app.R.drawable.ic_stat_kipu).setColor(KIPU_NOTIFICATION_COLOR)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicNotification)
             .setContentTitle("Recordatorio de cuota")
             .setContentText("Cuota $number de $counterparty: $amount. Este aviso no registra un pago.")
             .setStyle(NotificationCompat.BigTextStyle().bigText(

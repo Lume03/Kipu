@@ -32,7 +32,9 @@ class ConfirmReceiptCandidate @Inject constructor(
         val key = receiptRegistrationKey(ownerId, candidateId)
         // Keep the same idempotency key across duplicate-warning confirmation and retries.
         val result = registerTransaction(command.copy(idempotencyKey = key))
-        if (result is RegisterTransactionResult.Success) store.markConfirmed(ownerId, candidateId)
+        if (result is RegisterTransactionResult.Success && !store.markConfirmed(ownerId, candidateId)) {
+            store.markConfirmed(ownerId, candidateId)
+        }
         return result
     }
 }

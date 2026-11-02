@@ -199,7 +199,7 @@ class ConfirmStatementImport @Inject constructor(
             }
             description != null && MerchantAliasRules.normalize(description) == normalized
         }
-        return (if (matching.isNotEmpty()) matching else candidates).singleOrNull()?.id
+        return matching.singleOrNull()?.id
     }
 
     private fun paymentFailure(error: Throwable): StatementLineFailureReason = when {

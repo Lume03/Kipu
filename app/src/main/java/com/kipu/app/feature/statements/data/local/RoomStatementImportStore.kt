@@ -9,6 +9,10 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @Singleton
 class RoomStatementImportStore @Inject constructor(
@@ -41,16 +45,33 @@ class RoomStatementImportStore @Inject constructor(
     override suspend fun findByFingerprint(ownerId: String, fingerprint: String) = dao.findByFingerprint(owner(ownerId), fingerprint)?.toDomain()
 
     override fun observe(ownerId: String, importId: String) = dao.observeSnapshot(owner(ownerId), importId).map { row ->
-        row?.let { StatementImportSnapshot(it.statement.toDomain(), it.lines.sortedBy { line -> line.position }.map(StatementImportLineEntity::toDomain)) }
+        row?.takeIf { it.statement.status != StatementImportStatus.PENDING.name || it.statement.expiresAt > clock.millis() }
+            ?.let { StatementImportSnapshot(it.statement.toDomain(), it.lines.sortedBy { line -> line.position }.map(StatementImportLineEntity::toDomain)) }
     }
 
-    override fun observePending(ownerId: String) = dao.observePending(owner(ownerId)).map { it.map(StatementImportEntity::toDomain) }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun observePending(ownerId: String) = dao.observePending(owner(ownerId)).flatMapLatest { rows ->
+        flow {
+            while (true) {
+                val now = clock.millis()
+                val active = rows.filter { it.expiresAt > now }
+                emit(active.map(StatementImportEntity::toDomain))
+                val next = active.minOfOrNull { it.expiresAt } ?: break
+                delay((next - now).coerceAtLeast(1L))
+            }
+        }
+    }
 
     override suspend fun setCard(ownerId: String, importId: String, cardId: String?): Boolean {
         val owner = owner(ownerId)
         return database.withTransaction {
             if (cardId != null && !validCard(owner, cardId)) return@withTransaction false
-            dao.setCard(owner, importId, cardId) == 1
+            val existing = dao.get(owner, importId) ?: return@withTransaction false
+            val base = existing.statementFingerprint.substringBefore(':')
+            val fingerprint = cardId?.let { statementCardFingerprint(base, it) } ?: base
+            val duplicate = dao.findByFingerprint(owner, fingerprint)
+            if (duplicate != null && duplicate.id != importId) return@withTransaction false
+            dao.setCard(owner, importId, cardId, fingerprint) == 1
         }
     }
 

@@ -37,8 +37,8 @@ interface StatementImportDao {
     @Query("SELECT * FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING' ORDER BY created_at DESC, id")
     fun observePending(ownerId: String): Flow<List<StatementImportEntity>>
 
-    @Query("UPDATE statement_imports SET card_id=:cardId WHERE owner_id=:ownerId AND id=:importId AND status='PENDING'")
-    suspend fun setCard(ownerId: String, importId: String, cardId: String?): Int
+    @Query("UPDATE statement_imports SET card_id=:cardId, statement_fingerprint=:fingerprint WHERE owner_id=:ownerId AND id=:importId AND status='PENDING'")
+    suspend fun setCard(ownerId: String, importId: String, cardId: String?, fingerprint: String): Int
 
     @Query("""UPDATE statement_import_lines SET selected=:selected WHERE owner_id=:ownerId AND id=:lineId
         AND status='PENDING' AND import_id IN (SELECT id FROM statement_imports WHERE owner_id=:ownerId AND status='PENDING')""")

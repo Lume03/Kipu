@@ -258,15 +258,9 @@ class DebtLocalDataSource @Inject constructor(
                 setOf("GENERAL", "INCOME")
             }
         val installmentRemaining = command.installmentId?.let { installmentId ->
-            val installment = debtDao.getInstallment(userId, command.debtId, installmentId)
+            debtDao.getInstallment(userId, command.debtId, installmentId)
                 ?: return@withTransaction DebtCommandResult.Rejected("INSTALLMENT_NOT_FOUND")
-            var paid = 0L
-            for (event in debtDao.getEvents(userId, command.debtId)) {
-                if (event.installmentId != installmentId || event.eventType != DebtEventType.PAYMENT.name) continue
-                val isActive = event.transactionId?.let { movementDao.getTransactionById(userId, it)?.status != "VOIDED" } ?: true
-                if (isActive) paid = Math.addExact(paid, event.principalDeltaMinor?.let { -it } ?: event.amountMinor)
-            }
-            (installment.amountMinor - paid).coerceAtLeast(0L)
+            debtDao.getInstallmentRemaining(userId, command.debtId, installmentId)
         }
         val plan = when (val planned = settleDebt.plan(
             debt = current.toDomain(),

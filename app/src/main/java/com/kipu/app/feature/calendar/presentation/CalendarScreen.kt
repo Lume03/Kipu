@@ -199,6 +199,12 @@ fun CalendarScreen(
                         )
                     }
                     CalendarContent.Empty, is CalendarContent.Loaded -> {
+                        if (content is CalendarContent.Loaded && content.month.movementsTruncated) {
+                            item(key = "truncated") {
+                                Text("Algunos movimientos del mes no se muestran.",
+                                    style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                            }
+                        }
                         item(key = "filters") { FilterRow(filter) { filter = it } }
                         item(key = "grid") {
                             MonthGrid(

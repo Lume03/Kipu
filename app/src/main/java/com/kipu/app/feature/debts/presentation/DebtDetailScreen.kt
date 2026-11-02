@@ -72,6 +72,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,6 +99,10 @@ import java.time.temporal.ChronoUnit
 import java.util.Currency
 import java.util.Locale
 import kotlin.math.absoluteValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class DebtSettlementActivity(
     val eventId: String,
@@ -121,6 +126,7 @@ fun DebtDetailScreen(
     onSchedule: () -> Unit = {},
     errorMessage: String? = null,
     activities: List<DebtSettlementActivity> = emptyList(),
+    closure: DebtClosureSummary = DebtClosureSummary(),
     installments: List<DebtScheduleItem> = emptyList(),
     initialAction: String? = null,
     onClose: () -> Unit = onSchedule,
@@ -131,16 +137,25 @@ fun DebtDetailScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var certificateMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val certificateLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf"),
     ) { uri ->
         if (uri != null) {
-            certificateMessage = runCatching {
-                context.contentResolver.openOutputStream(uri)?.use { output ->
-                    writeDebtClosureCertificate(output, debt, activities)
-                } ?: error("No se pudo abrir el destino del PDF")
-                "Constancia PDF guardada"
-            }.getOrElse { "No se pudo guardar el PDF: ${it.message ?: "error de escritura"}" }
+            scope.launch {
+                certificateMessage = try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            writeDebtClosureCertificate(output, debt, activities)
+                        } ?: error("No se pudo abrir el destino del PDF")
+                    }
+                    "Constancia PDF guardada"
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    "No se pudo guardar el PDF: ${error.message ?: "error de escritura"}"
+                }
+            }
         }
     }
     val currency = runCatching { Currency.getInstance(debt.currencyCode) }.getOrNull()
@@ -223,7 +238,7 @@ fun DebtDetailScreen(
                 LiquidatedDebtSuccessView(
                     debt = debt,
                     formatter = formatter,
-                    activities = activities,
+                    closure = closure,
                     emeraldColors = emeraldColors,
                     onHistory = { showHistory = true },
                     onReturn = onNavigateBack,
@@ -594,20 +609,14 @@ private const val MAX_INSTALLMENT_CELLS = 12
 private fun LiquidatedDebtSuccessView(
     debt: DebtSummary,
     formatter: NumberFormat,
-    activities: List<DebtSettlementActivity>,
+    closure: DebtClosureSummary,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
     onHistory: () -> Unit,
     onReturn: () -> Unit,
 ) {
     val payable = debt.obligationType == DebtObligationType.PAYABLE
-    val effectiveActivities = activities.filterNot { it.isVoided }
-    val paidMinor = effectiveActivities.filter { it.eventType == "PAYMENT" }.sumOf { it.principalMinor }
-    val condonedMinor = effectiveActivities.filter { it.eventType == "FORGIVENESS" }.sumOf { it.principalMinor }
-    val adjustmentsMinor = effectiveActivities.filter { it.eventType == "ADJUSTMENT" }
-        .sumOf { it.principalDeltaMinor ?: 0L }
-    // The closing date is the last effective settlement event, never the current clock.
-    val closedOn = effectiveActivities.maxOfOrNull { it.occurredAt }?.let {
-        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+    val closedOn = closure.closedAt?.let {
+        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.of("America/Lima")).toLocalDate()
     }
 
     Column(
@@ -627,13 +636,13 @@ private fun LiquidatedDebtSuccessView(
             shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, emeraldColors.borderSubtle),
         ) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SettlementRow("Monto original", formatter.format(debt.principalMinor / 100.0))
-                SettlementRow(if (payable) "Pagado" else "Cobrado", formatter.format(paidMinor / 100.0))
-                if (condonedMinor != 0L) SettlementRow("Condonado", formatter.format(condonedMinor / 100.0))
-                if (adjustmentsMinor != 0L) SettlementRow("Ajustes", formatter.format(adjustmentsMinor / 100.0))
+                SettlementRow("Monto original", formatter.format(java.math.BigDecimal.valueOf(debt.principalMinor, 2)))
+                SettlementRow(if (payable) "Pagado" else "Cobrado", formatter.format(java.math.BigDecimal.valueOf(closure.paidMinor, 2)))
+                if (closure.forgivenMinor != 0L) SettlementRow("Condonado", formatter.format(java.math.BigDecimal.valueOf(closure.forgivenMinor, 2)))
+                if (closure.adjustedMinor != 0L) SettlementRow("Ajustado", formatter.format(java.math.BigDecimal.valueOf(closure.adjustedMinor, 2)))
                 LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
                     color = emeraldColors.primaryDeep, trackColor = emeraldColors.pillTrack)
-                Text(if (payable) "100 % pagado" else "100 % cobrado", style = MaterialTheme.typography.labelLarge,
+                Text("Saldo liquidado", style = MaterialTheme.typography.labelLarge,
                     color = emeraldColors.primaryDeep, fontWeight = FontWeight.Bold)
             }
         }

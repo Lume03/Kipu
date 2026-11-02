@@ -27,10 +27,28 @@ data class DebtDetailUiState(
     val debt: DebtSummary? = null,
     val hasFinancialHistory: Boolean = false,
     val activities: List<DebtSettlementActivity> = emptyList(),
+    val closure: DebtClosureSummary = DebtClosureSummary(),
     val installments: List<DebtScheduleItem> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
 )
+
+data class DebtClosureSummary(
+    val paidMinor: Long = 0,
+    val forgivenMinor: Long = 0,
+    val adjustedMinor: Long = 0,
+    val closedAt: Long? = null,
+)
+
+internal fun summarizeClosure(activities: List<DebtSettlementActivity>): DebtClosureSummary {
+    val effective = activities.filterNot { it.isVoided }
+    return DebtClosureSummary(
+        paidMinor = effective.filter { it.eventType == "PAYMENT" }.sumOf { it.principalMinor },
+        forgivenMinor = effective.filter { it.eventType == "FORGIVENESS" }.sumOf { it.principalMinor },
+        adjustedMinor = effective.filter { it.eventType == "ADJUSTMENT" }.sumOf { it.principalDeltaMinor ?: 0L },
+        closedAt = effective.maxOfOrNull { it.occurredAt },
+    )
+}
 
 sealed interface DebtDetailUiEvent {
     data object Deleted : DebtDetailUiEvent
@@ -61,21 +79,18 @@ class DebtDetailViewModel @Inject constructor(
                     debtDao.observeSettlementActivities(userId, debtId),
                     repository.observeInstallments(userId, debtId),
                 ) { debt, hasHistory, activities, installments ->
+                    val mappedActivities = activities.map { row ->
+                        DebtSettlementActivity(
+                            eventId = row.eventId, principalMinor = row.principalMinor, interestMinor = row.interestMinor,
+                            occurredAt = row.occurredAt, isVoided = row.isVoided, eventType = row.eventType,
+                            principalDeltaMinor = row.principalDeltaMinor, transactionId = row.transactionId,
+                        )
+                    }
                     DebtDetailUiState(
                         debt = debt,
                         hasFinancialHistory = hasHistory,
-                        activities = activities.map { row ->
-                            DebtSettlementActivity(
-                                eventId = row.eventId,
-                                principalMinor = row.principalMinor,
-                                interestMinor = row.interestMinor,
-                                occurredAt = row.occurredAt,
-                                isVoided = row.isVoided,
-                                eventType = row.eventType,
-                                principalDeltaMinor = row.principalDeltaMinor,
-                                transactionId = row.transactionId,
-                            )
-                        },
+                        activities = mappedActivities,
+                        closure = summarizeClosure(mappedActivities),
                         installments = installments,
                         isLoading = false,
                     )

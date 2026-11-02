@@ -8,6 +8,7 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.statements.domain.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -56,6 +57,7 @@ class StatementImportViewModel @Inject constructor(
     private val store: StatementImportStore,
     private val premium: StatementImportAccess,
     private val session: SessionCoordinator,
+    private val clock: Clock = Clock.systemUTC(),
 ) : ViewModel() {
     companion object { const val MAX_PASSWORD_ATTEMPTS = 3 }
 
@@ -76,7 +78,12 @@ class StatementImportViewModel @Inject constructor(
                     consent = false
                     _state.value = StatementImportUiState(message = "Desbloquea tu sesión para importar estados de cuenta.")
                 } else {
-                    val locked = runCatching { !premium.canImport(requireNotNull(owner)) }.getOrDefault(false)
+                    try { store.purgeExpired(requireNotNull(owner), clock.millis()) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { _state.update { it.copy(message = "No pudimos limpiar las importaciones vencidas.") } }
+                    val locked = try { !premium.canImport(requireNotNull(owner)) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { false }
                     if (hasAccess()) _state.update { it.copy(premiumLocked = locked) }
                     store.observePending(requireNotNull(owner))
                         .catch { _state.update { it.copy(message = "No pudimos cargar las importaciones pendientes.") } }
@@ -134,7 +141,9 @@ class StatementImportViewModel @Inject constructor(
     fun resumeImport(id: String) = work {
         if (!premium.canImport(requireNotNull(owner))) {
             if (hasAccess()) _state.update { it.copy(showPremium = true) }
-        } else if (hasAccess() && _state.value.pending.any { it.id == id }) {
+        } else if (hasAccess() && store.observe(requireNotNull(owner), id).first()?.statement?.let {
+                it.status == StatementImportStatus.PENDING && it.expiresAt > clock.millis()
+            } == true) {
             _state.update { it.copy(openImportId = id) }
         }
     }
@@ -145,7 +154,7 @@ class StatementImportViewModel @Inject constructor(
         _state.update { it.copy(reading = true) }
         work {
             try {
-                val result = importer(requireNotNull(owner), uri, consent, secret)
+                val result = importer(requireNotNull(owner), DocumentRef(uri.toString()), consent, secret)
                 if (!hasAccess()) return@work
                 val wrong = result == StatementImportResult.WrongPassword
                 val left = if (wrong) (_state.value.attemptsLeft - 1).coerceAtLeast(0) else _state.value.attemptsLeft
@@ -184,15 +193,18 @@ class StatementImportViewModel @Inject constructor(
     }
 
     /** Totals and a few real descriptions for the scan animation; never fails the import. */
-    private suspend fun scanSummary(user: String, importId: String): StatementScanSummary? = runCatching {
-        val snapshot = store.observe(user, importId).first() ?: return@runCatching null
-        val lines = snapshot.lines.filter { it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }
-        fun total(currency: Currency) = lines.filter { it.currency == currency }.takeIf { it.isNotEmpty() }
-            ?.let { rows -> statementCurrencyTotal(rows, currency) }
-        StatementScanSummary(importId, "${snapshot.statement.issuer} •••• ${snapshot.statement.cardLastFour}", lines.size, total(Currency.PEN), total(Currency.USD),
-            verified = snapshot.statement.reconciledPen != false && snapshot.statement.reconciledUsd != false,
-            sample = lines.take(9).map { it.description to statementPlainAmount(it.amountMinor) })
-    }.getOrNull()
+    private suspend fun scanSummary(user: String, importId: String): StatementScanSummary? {
+        return try {
+            val snapshot = store.observe(user, importId).first() ?: return null
+            val lines = snapshot.lines.filter { it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }
+            fun total(currency: Currency) = lines.filter { it.currency == currency }.takeIf { it.isNotEmpty() }
+                ?.let { rows -> statementCurrencyTotal(rows, currency) }
+            StatementScanSummary(importId, "${snapshot.statement.issuer} •••• ${snapshot.statement.cardLastFour}", lines.size, total(Currency.PEN), total(Currency.USD),
+                verified = snapshot.statement.reconciledPen != false && snapshot.statement.reconciledUsd != false,
+                sample = lines.take(9).map { it.description to statementPlainAmount(it.amountMinor) })
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { null }
+    }
 
     private fun work(block: suspend () -> Unit) {
         if (!hasAccess() || _state.value.busy) return

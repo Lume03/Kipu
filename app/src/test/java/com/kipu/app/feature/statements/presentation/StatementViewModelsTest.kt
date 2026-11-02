@@ -60,6 +60,11 @@ class StatementViewModelsTest {
     private fun reviewVm() = StatementReviewViewModel(SavedStateHandle(mapOf("importId" to "import")),
         store, prepare, confirm, instruments, categories, session)
 
+    @Test fun `opening import feature purges expired drafts`() = runTest {
+        flowVm(); advanceUntilIdle()
+        coVerify(exactly = 1) { store.purgeExpired(TEST_OWNER, any()) }
+    }
+
     @Test fun `consent is required before document picker`() = runTest {
         val vm = flowVm(); advanceUntilIdle()
         vm.requestImport(); advanceUntilIdle()
@@ -82,7 +87,7 @@ class StatementViewModelsTest {
 
     @Test fun `password retries clear the field and caller buffer`() = runTest {
         val secrets = mutableListOf<CharArray?>()
-        coEvery { importer(TEST_OWNER, uri, true, any()) } answers {
+        coEvery { importer(TEST_OWNER, any(), true, any()) } answers {
             secrets += arg<CharArray?>(3)
             if (secrets.size == 1) StatementImportResult.PasswordRequired else StatementImportResult.WrongPassword
         }
@@ -104,7 +109,7 @@ class StatementViewModelsTest {
     @Test fun `wrong passwords count attempts and lock the file after three`() = runTest {
         val results = ArrayDeque(listOf(StatementImportResult.PasswordRequired, StatementImportResult.WrongPassword,
             StatementImportResult.WrongPassword, StatementImportResult.WrongPassword))
-        coEvery { importer(TEST_OWNER, uri, true, any()) } answers { results.removeFirst() }
+        coEvery { importer(TEST_OWNER, any(), true, any()) } answers { results.removeFirst() }
         val vm = flowVm(); advanceUntilIdle()
         vm.requestImport(); advanceUntilIdle(); vm.acceptConsent(); vm.documentPicked(uri, "estado.pdf", 2048); advanceUntilIdle()
         assertEquals("estado.pdf", vm.state.value.fileName)
@@ -126,7 +131,7 @@ class StatementViewModelsTest {
             StatementImportResult.Invalid to StatementImportNotice.NOT_STATEMENT,
             StatementImportResult.AlreadyImported("old", true) to StatementImportNotice.ALREADY_IMPORTED)
         for ((result, notice) in expected) {
-            coEvery { importer(TEST_OWNER, uri, true, any()) } returns result
+            coEvery { importer(TEST_OWNER, any(), true, any()) } returns result
             val vm = flowVm(); advanceUntilIdle(); vm.requestImport(); advanceUntilIdle(); vm.acceptConsent()
             vm.documentPicked(uri); advanceUntilIdle()
             assertEquals(notice, vm.state.value.notice)
@@ -135,7 +140,7 @@ class StatementViewModelsTest {
     }
 
     @Test fun `a fresh import exposes the scan summary for the animation`() = runTest {
-        coEvery { importer(TEST_OWNER, uri, true, any()) } returns StatementImportResult.Imported("import")
+        coEvery { importer(TEST_OWNER, any(), true, any()) } returns StatementImportResult.Imported("import")
         val vm = flowVm(); advanceUntilIdle(); vm.requestImport(); advanceUntilIdle(); vm.acceptConsent()
         vm.documentPicked(uri); advanceUntilIdle()
         val scan = requireNotNull(vm.state.value.scan)
@@ -150,7 +155,7 @@ class StatementViewModelsTest {
             StatementImportResult.AlreadyImported("pending", false), StatementImportResult.Imported("new"),
             StatementImportResult.PremiumRequired)
         for (result in results) {
-            coEvery { importer(TEST_OWNER, uri, true, any()) } returns result
+            coEvery { importer(TEST_OWNER, any(), true, any()) } returns result
             val vm = flowVm(); advanceUntilIdle(); vm.requestImport(); advanceUntilIdle(); vm.acceptConsent()
             vm.documentPicked(uri); advanceUntilIdle()
             when (result) {
@@ -209,7 +214,7 @@ class StatementViewModelsTest {
     }
 
     @Test fun `lock clears source password and review data`() = runTest {
-        coEvery { importer(TEST_OWNER, uri, true, any()) } returns StatementImportResult.PasswordRequired
+        coEvery { importer(TEST_OWNER, any(), true, any()) } returns StatementImportResult.PasswordRequired
         val vm = flowVm(); val review = reviewVm(); advanceUntilIdle()
         vm.requestImport(); advanceUntilIdle(); vm.acceptConsent(); vm.documentPicked(uri); advanceUntilIdle()
         vm.passwordChanged("secreto")
