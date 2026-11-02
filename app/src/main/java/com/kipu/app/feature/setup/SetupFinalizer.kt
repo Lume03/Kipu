@@ -5,7 +5,6 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.core.finance.domain.model.UserId
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
-import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository
 import com.kipu.app.feature.accounts.domain.usecase.CreateLiquidAccount
 import com.kipu.app.feature.categories.domain.CategoriesRepository

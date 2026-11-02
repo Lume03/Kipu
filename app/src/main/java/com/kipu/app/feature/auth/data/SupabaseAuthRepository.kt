@@ -20,12 +20,10 @@ import com.kipu.app.feature.auth.domain.model.OtpFailure
 import com.kipu.app.feature.auth.domain.AuthRepository
 import com.kipu.app.feature.auth.domain.PasswordValidator
 import com.kipu.app.feature.auth.domain.model.AuthCredentials
-import com.kipu.app.feature.auth.domain.model.AuthError
 import com.kipu.app.feature.auth.domain.model.AuthResult
 import com.kipu.app.feature.auth.domain.model.CooldownState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.user.UserInfo
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
@@ -69,7 +67,6 @@ class SupabaseAuthRepository @Inject constructor(
             RegisterRequestDto(
                 email = normalizedEmail,
                 password = credentials.password,
-                captchaToken = credentials.captchaToken,
             )
         )
 
@@ -124,7 +121,6 @@ class SupabaseAuthRepository @Inject constructor(
             LoginRequestDto(
                 email = normalizedEmail,
                 password = credentials.password,
-                captchaToken = credentials.captchaToken,
             )
         )
 
@@ -218,7 +214,7 @@ class SupabaseAuthRepository @Inject constructor(
         val normalizedEmail = PasswordValidator.normalizeEmail(email)
         val digits = code.filter(Char::isDigit)
         if (digits.length != OTP_LENGTH) return Result.failure(OtpException(OtpFailure.INVALID))
-        return when (val response = authApi.verifyOtp(VerifyOtpRequestDto(normalizedEmail, digits, "dummy-dev-captcha"))) {
+        return when (val response = authApi.verifyOtp(VerifyOtpRequestDto(normalizedEmail, digits))) {
             is ApiResponse.Success -> activateSession(response.data, normalizedEmail, completingSignup = true)
             is ApiResponse.Error -> Result.failure(
                 when (response.statusCode) {
@@ -238,7 +234,7 @@ class SupabaseAuthRepository @Inject constructor(
 
     override suspend fun resendOtp(email: String): Result<Unit> {
         val normalizedEmail = PasswordValidator.normalizeEmail(email)
-        return when (val response = authApi.resendOtp(ResendOtpRequestDto(normalizedEmail, "dummy-dev-captcha"))) {
+        return when (val response = authApi.resendOtp(ResendOtpRequestDto(normalizedEmail))) {
             is ApiResponse.Success -> Result.success(Unit)
             is ApiResponse.Error -> Result.failure(
                 if (response.statusCode == 429) OtpException(OtpFailure.LOCKED, retryAfterSeconds = response.retryAfter ?: 60)

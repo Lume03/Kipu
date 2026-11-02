@@ -1,3 +1,5 @@
+// Test doubles implement asynchronous dependency interfaces.
+// deno-lint-ignore-file require-await
 import { createAuthAccessHandler, Dependencies } from "./index.ts";
 
 function assertEquals(actual: unknown, expected: unknown, message = "values differ") {

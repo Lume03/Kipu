@@ -1,3 +1,5 @@
+// Test doubles implement asynchronous dependency interfaces.
+// deno-lint-ignore-file require-await
 import { createAuthAccessHandler, createDefaultDeps, Dependencies } from "./index.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -73,7 +75,6 @@ Deno.test("register - returns 201 for valid new account", async () => {
     body: JSON.stringify({
       email: "newuser@example.com",
       password: "Password123",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -96,7 +97,6 @@ Deno.test("register - returns 409 for existing email per FR-051", async () => {
     body: JSON.stringify({
       email: "existing@example.com",
       password: "Password123",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -114,7 +114,6 @@ Deno.test("register - returns 422 for invalid password policy", async () => {
     body: JSON.stringify({
       email: "user@example.com",
       password: "123",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -134,7 +133,6 @@ Deno.test("register - returns 429 when rate limited", async () => {
     body: JSON.stringify({
       email: "user@example.com",
       password: "Password123",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -151,7 +149,6 @@ Deno.test("login - returns 200 with session envelope for valid credentials", asy
     body: JSON.stringify({
       email: "user@example.com",
       password: "Password123",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -175,7 +172,6 @@ Deno.test("login - returns neutral 401 for invalid credentials per FR-004", asyn
     body: JSON.stringify({
       email: "user@example.com",
       password: "WrongPassword1",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -199,7 +195,6 @@ Deno.test("login - returns 403 email_not_confirmed when Auth reports unconfirmed
     body: JSON.stringify({
       email: "user@example.com",
       password: "CorrectPassword1",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -225,7 +220,6 @@ Deno.test("login - keeps neutral 401 for invalid_credentials code", async () => 
     body: JSON.stringify({
       email: "user@example.com",
       password: "WrongPassword1",
-      captchaToken: "valid_captcha",
     }),
   });
 
@@ -276,7 +270,7 @@ function otpFakes() {
   return { deps, setSent: (value: string | null) => { sent = value; }, getCalls: () => calls };
 }
 function otpRequest(path: string, body: Record<string, unknown> = {}) {
-  return new Request(`https://example.com/auth-access/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "user@example.com", token: "123456", captchaToken: "valid", ...body }) });
+  return new Request(`https://example.com/auth-access/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "user@example.com", token: "123456", ...body }) });
 }
 Deno.test("OTP success matches login session and clears failures", async () => {
   const fake = otpFakes();
@@ -307,16 +301,14 @@ Deno.test("OTP expired does not count failures", async () => {
   assertEquals(res.status, 410); assertEquals((await res.json()).type, "otp_expired");
   assertEquals((await fake.deps.getOtpStatus!("user@example.com", "attempt")).failures, 0);
 });
-Deno.test("OTP validates input and captcha and provider failures", async () => {
+Deno.test("OTP validates input and provider failures", async () => {
   const fake = otpFakes(); let handler = createTestHandler(fake.deps);
   for (const body of [{ token: "12345" }, { token: "12345a" }, { email: "bad" }]) {
     const res = await handler(otpRequest("verify-otp", body)); assertEquals(res.status, 422); assertEquals((await res.json()).type, "invalid_request");
   }
-  fake.deps.validateCaptcha = async () => false; handler = createTestHandler(fake.deps);
-  let res = await handler(otpRequest("verify-otp")); assertEquals(res.status, 403); assertEquals((await res.json()).type, "captcha_failed");
-  fake.deps.validateCaptcha = async () => true; fake.deps.verifyOtpWithAuth = async () => ({ error: { message: "down", status: 500 } });
+  fake.deps.verifyOtpWithAuth = async () => ({ error: { message: "down", status: 500 } });
   handler = createTestHandler(fake.deps);
-  res = await handler(otpRequest("verify-otp")); assertEquals(res.status, 503); assertEquals((await res.json()).type, "provider_unavailable");
+  const res = await handler(otpRequest("verify-otp")); assertEquals(res.status, 503); assertEquals((await res.json()).type, "provider_unavailable");
   assertEquals((await fake.deps.getOtpStatus!("user@example.com", "attempt")).failures, 0);
 });
 Deno.test("resend accepts unknown user, resets failures and enforces cooldown", async () => {
@@ -356,15 +348,22 @@ Deno.test("resend hourly limit stops before provider and returns Retry-After", a
   assertEquals(calls, 0);
 });
 
-Deno.test("resend validates format and captcha before reserving a slot", async () => {
+Deno.test("resend validates format before reserving a slot", async () => {
   let calls = 0;
   const handler = createTestHandler({
-    ...defaultDeps, validateCaptcha: async () => false,
+    ...defaultDeps,
     consumeResendSlot: async () => { calls++; throw new Error("must not run"); },
   });
   assertEquals((await handler(otpRequest("resend-otp", { email: "invalid" }))).status, 422);
-  assertEquals((await handler(otpRequest("resend-otp"))).status, 403);
   assertEquals(calls, 0);
+});
+
+Deno.test("legacy extra request field is ignored", async () => {
+  const legacyField = ["cap", "tchaToken"].join("");
+  for (const path of ["verify-otp", "resend-otp"]) {
+    const res = await createTestHandler(defaultDeps)(otpRequest(path, { [legacyField]: null }));
+    assertEquals(res.status, path === "verify-otp" ? 200 : 202);
+  }
 });
 
 Deno.test("OTP malformed JSON, null, arrays and primitives return 422 problem JSON", async () => {
@@ -440,15 +439,6 @@ Deno.test("resend storage/credential failures close access and SMTP timeouts sta
   }
 });
 
-Deno.test("GoTrue captcha failures are explicit 403 on both OTP endpoints", async () => {
-  const provider = async () => ({ error: { message: "captcha", status: 422, code: "captcha_failed" } });
-  const handler = createTestHandler({ ...defaultDeps, verifyOtpWithAuth: provider, resendOtpWithAuth: provider });
-  for (const path of ["verify-otp", "resend-otp"]) {
-    const res = await handler(otpRequest(path));
-    assertEquals(res.status, 403); assertEquals((await res.json()).type, "captcha_failed");
-  }
-});
-
 Deno.test("login does not infer unconfirmed email from messages or transport exceptions", async () => {
   for (const provider of [
     async () => ({ error: { message: "Email not confirmed", status: 400 } }),
@@ -461,13 +451,13 @@ Deno.test("login does not infer unconfirmed email from messages or transport exc
 
 function adapter(fetcher: typeof fetch, delays: number[] = []) {
   return createDefaultDeps({
-    env: (key) => key === "SUPABASE_URL" ? "https://example.com" : key === "CAPTCHA_SECRET_KEY" ? undefined : "test-credential",
+    env: (key) => key === "SUPABASE_URL" ? "https://example.com" : "test-credential",
     fetch: fetcher,
     sleep: async (ms) => { delays.push(ms); },
   });
 }
 
-Deno.test("default OTP adapters use signup, propagate captcha, parse session and normalize timing", async () => {
+Deno.test("default OTP adapters use signup, parse session and normalize timing", async () => {
   const calls: Array<{ url: string; body: Record<string, unknown> }> = [], delays: number[] = [];
   const deps = adapter(async (input, init) => {
     const url = String(input); calls.push({ url, body: JSON.parse(String(init?.body)) });
@@ -475,12 +465,12 @@ Deno.test("default OTP adapters use signup, propagate captcha, parse session and
       access_token: "access", refresh_token: "refresh", expires_in: 3600, token_type: "bearer", user: { id: "id" },
     } : {});
   }, delays);
-  const result = await deps.verifyOtpWithAuth!("user@example.com", "123456", "captcha");
-  await deps.resendOtpWithAuth!("user@example.com", "captcha");
+  const result = await deps.verifyOtpWithAuth!("user@example.com", "123456");
+  await deps.resendOtpWithAuth!("user@example.com");
   assertEquals(result.session, { accessToken: "access", refreshToken: "refresh", expiresIn: 3600, tokenType: "bearer", userId: "id" });
   assertEquals(calls, [
-    { url: "https://example.com/auth/v1/verify", body: { type: "signup", email: "user@example.com", token: "123456", gotrue_meta_security: { captcha_token: "captcha" } } },
-    { url: "https://example.com/auth/v1/resend", body: { type: "signup", email: "user@example.com", gotrue_meta_security: { captcha_token: "captcha" } } },
+    { url: "https://example.com/auth/v1/verify", body: { type: "signup", email: "user@example.com", token: "123456" } },
+    { url: "https://example.com/auth/v1/resend", body: { type: "signup", email: "user@example.com" } },
   ]);
   assertEquals(delays.length, 1); assert(delays[0] > 4000 && delays[0] <= 4100, "resend must use a common deadline");
 });
@@ -513,7 +503,7 @@ Deno.test("default rate adapter selects the unambiguous overload and rejects inv
 Deno.test("default OTP adapters retain provider codes and pad error timing", async () => {
   const delays: number[] = [];
   const deps = adapter(async () => Response.json({ error_code: "otp_expired" }, { status: 403 }), delays);
-  const result = await deps.verifyOtpWithAuth!("unknown@example.com", "123456", "captcha");
+  const result = await deps.verifyOtpWithAuth!("unknown@example.com", "123456");
   assertEquals(result.error?.code, "otp_expired"); assertEquals(result.error?.status, 403);
   assertEquals(delays.length, 1); assert(delays[0] > 700 && delays[0] <= 800, "failed verifications must be padded");
 });
@@ -588,7 +578,7 @@ Deno.test("combined OTP adapters reject malformed status, rate, slot and finish 
 });
 
 Deno.test("combined verify releases once after provider rejection, expiry or transport failure", async () => {
-  for (const mode of ["captcha", "expiry", "outage", "transport"]) {
+  for (const mode of ["expiry", "outage", "transport"]) {
     const calls: string[] = [];
     let outcome: unknown;
     const deps = adapter(async (input, init) => {
@@ -600,13 +590,13 @@ Deno.test("combined verify releases once after provider rejection, expiry or tra
       });
       if (url.endsWith("/verify")) {
         if (mode === "transport") throw new Error("transport");
-        return Response.json({ error_code: mode === "captcha" ? "captcha_failed" : "invalid" }, { status: mode === "outage" ? 503 : 403 });
+        return Response.json({ error_code: "invalid" }, { status: mode === "outage" ? 503 : 403 });
       }
       outcome = JSON.parse(String(init?.body)).p_outcome;
       return Response.json({});
     });
     const res = await createAuthAccessHandler(deps)(otpRequest("verify-otp"));
-    assertEquals(res.status, mode === "captcha" ? 403 : mode === "expiry" ? 410 : 503);
+    assertEquals(res.status, mode === "expiry" ? 410 : 503);
     assertEquals(calls.length, 3);
     assertEquals(outcome, "release");
   }

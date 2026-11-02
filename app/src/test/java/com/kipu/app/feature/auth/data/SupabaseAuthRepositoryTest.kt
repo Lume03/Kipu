@@ -82,7 +82,7 @@ class SupabaseAuthRepositoryTest {
         val repo = repository()
         coEvery { api.login(any()) } returns ApiResponse.Error(403, ProblemDto(type = "forbidden"))
         assertEquals("Correo o contraseña incorrectos.", repo.signIn(credentials).exceptionOrNull()?.message)
-        verify(exactly = 0) { onboarding.registered(any()) }
+        coVerify(exactly = 0) { onboarding.registered(any()) }
     }
 
     @Test fun `sign in binds JWT subject and reuses memory without storage reads`() = runTest {

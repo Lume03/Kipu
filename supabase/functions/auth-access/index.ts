@@ -26,11 +26,10 @@ export type Dependencies = {
   resetOtpFailures?: (email: string, attemptId: string) => Promise<void>;
   releaseOtpAttempt?: (email: string, attemptId: string) => Promise<void>;
   consumeResendSlot?: (email: string) => Promise<OtpSlot>;
-  verifyOtpWithAuth?: (email: string, token: string, captchaToken: string) => Promise<ProviderResult>;
-  resendOtpWithAuth?: (email: string, captchaToken: string) => Promise<ProviderResult>;
+  verifyOtpWithAuth?: (email: string, token: string) => Promise<ProviderResult>;
+  resendOtpWithAuth?: (email: string) => Promise<ProviderResult>;
   consumeRateBucket: (bucketKey: string) => Promise<RateBucketResult>;
   checkEmailExists: (email: string) => Promise<boolean>;
-  validateCaptcha?: (token: string, clientIp: string) => Promise<boolean>;
   signUpWithAuth: (
     email: string,
     password: string,
@@ -142,13 +141,6 @@ export function createAuthAccessHandler(deps: Dependencies) {
       return { allowed: true, retryAfterSeconds: 0 };
     }
 
-    async function checkCaptcha(): Promise<boolean> {
-      if (!deps.validateCaptcha) return true;
-      const token = body.captchaToken ?? body.captchaProof;
-      if (typeof token !== "string" || !token.trim()) return false;
-      return deps.validateCaptcha(token.trim(), clientIp);
-    }
-
     if (path === "verify-otp" || path === "resend-otp") {
       const problem = (type: string, status: number, title: string, detail: string, extra: Record<string, unknown> = {}) =>
         json({ type, title, status, detail, ...extra }, status, {
@@ -163,18 +155,15 @@ export function createAuthAccessHandler(deps: Dependencies) {
       const attemptId = crypto.randomUUID();
       let attemptActive = false;
       try {
-        if (!(await checkCaptcha())) return problem("captcha_failed", 403, "Verificación fallida", "La verificación de seguridad falló. Intenta nuevamente.");
         const begin = path === "verify-otp" ? await deps.beginOtpVerify!(clientIp, normalizedEmail, attemptId) : await deps.beginOtpResend!(clientIp, normalizedEmail);
         const status = "status" in begin ? begin.status : undefined;
         if (status?.locked) return limited("otp_locked", status.retry_after_seconds);
         if (status?.busy) return unavailable();
         attemptActive = status !== undefined && !status.locked && !status.busy && begin.rate.allowed;
         if (!begin.rate.allowed) return limited("rate_limited", begin.rate.retry_after_seconds);
-        const captchaToken = String(body.captchaToken ?? body.captchaProof ?? "");
         if (path === "verify-otp" && status) {
-          const result = await deps.verifyOtpWithAuth!(normalizedEmail, body.token as string, captchaToken);
+          const result = await deps.verifyOtpWithAuth!(normalizedEmail, body.token as string);
           if (result.error) {
-            if (result.error.code === "captcha_failed") return problem("captcha_failed", 403, "Verificación fallida", "La verificación de seguridad falló. Intenta nuevamente.");
             if (![400, 403, 404, 422].includes(result.error.status ?? 0)) return unavailable();
             if (status.last_sent_at && Date.now() - Date.parse(status.last_sent_at) > 600_000) {
               return problem("otp_expired", 410, "Código vencido", "Solicita un nuevo código de verificación.");
@@ -195,12 +184,11 @@ export function createAuthAccessHandler(deps: Dependencies) {
         if (!deps.resendOtpWithAuth) return unavailable();
         let result: ProviderResult;
         try {
-          result = await deps.resendOtpWithAuth(normalizedEmail, captchaToken);
+          result = await deps.resendOtpWithAuth(normalizedEmail);
         } catch {
           // A slow SMTP call can time out only for a real address as well.
           result = {};
         }
-        if (result.error?.code === "captcha_failed") return problem("captcha_failed", 403, "Verificación fallida", "La verificación de seguridad falló. Intenta nuevamente.");
         // SMTP errors and upstream per-address limits can occur only for real
         // users. Mask HTTP outcomes alike; 202 acknowledges this request, not
         // mail delivery. Storage and invalid API credentials fail
@@ -228,17 +216,6 @@ export function createAuthAccessHandler(deps: Dependencies) {
             detail: "Password must be 8-72 chars with letter and number.",
           },
           422,
-        );
-      }
-
-      if (!(await checkCaptcha())) {
-        return json(
-          {
-            status: 403,
-            title: "CAPTCHA Verification Failed",
-            detail: "La verificación de seguridad falló. Intente nuevamente.",
-          },
-          403,
         );
       }
 
@@ -297,17 +274,6 @@ export function createAuthAccessHandler(deps: Dependencies) {
             detail: "Correo o contraseña incorrectos.",
           },
           401,
-        );
-      }
-
-      if (!(await checkCaptcha())) {
-        return json(
-          {
-            status: 403,
-            title: "CAPTCHA Verification Failed",
-            detail: "La verificación de seguridad falló. Intente nuevamente.",
-          },
-          403,
         );
       }
 
@@ -374,17 +340,6 @@ export function createAuthAccessHandler(deps: Dependencies) {
 
     if (path === "recovery") {
       const { email } = body;
-
-      if (!(await checkCaptcha())) {
-        return json(
-          {
-            status: 403,
-            title: "CAPTCHA Verification Failed",
-            detail: "La verificación de seguridad falló. Intente nuevamente.",
-          },
-          403,
-        );
-      }
 
       const rate = await checkRateLimits("recovery");
       if (!rate.allowed) {
@@ -504,8 +459,8 @@ export function createDefaultDeps(runtime: {
     resetOtpFailures: async (email, attemptId) => { await otpRpc("auth_otp_reset_failures", email, attemptId); },
     releaseOtpAttempt: async (email, attemptId) => { await otpRpc("auth_otp_release_attempt", email, attemptId); },
     consumeResendSlot: async (email) => await otpRpc("auth_otp_consume_resend", email) as OtpSlot,
-    verifyOtpWithAuth: (email, token, captchaToken) => authOtp("verify", { type: "signup", email, token, gotrue_meta_security: { captcha_token: captchaToken } }),
-    resendOtpWithAuth: (email, captchaToken) => authOtp("resend", { type: "signup", email, gotrue_meta_security: { captcha_token: captchaToken } }),
+    verifyOtpWithAuth: (email, token) => authOtp("verify", { type: "signup", email, token }),
+    resendOtpWithAuth: (email) => authOtp("resend", { type: "signup", email }),
     consumeRateBucket: async (bucketKey: string): Promise<RateBucketResult> => {
       const baseUrl = getBaseUrl();
       const serviceKey = getServiceRoleKey();
@@ -562,30 +517,6 @@ export function createDefaultDeps(runtime: {
         }
         const exists = await res.json();
         return Boolean(exists);
-      } catch {
-        return false;
-      }
-    },
-
-    validateCaptcha: async (token: string): Promise<boolean> => {
-      const captchaSecret = env("CAPTCHA_SECRET_KEY");
-      if (!captchaSecret) {
-        // Allow in development/test if no secret configured
-        return true;
-      }
-      try {
-        const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            secret: captchaSecret,
-            response: token,
-          }),
-          signal: AbortSignal.timeout(2000),
-        });
-        if (!res.ok) return false;
-        const data = await res.json();
-        return Boolean(data.success);
       } catch {
         return false;
       }

@@ -41,7 +41,7 @@ class AuthApiTest {
         }
         val api = AuthApi(client)
 
-        val response = api.register(RegisterRequestDto("test@example.com", "Secret123", "captcha"))
+        val response = api.register(RegisterRequestDto("test@example.com", "Secret123"))
         assertTrue(response is ApiResponse.Success)
         val data = (response as ApiResponse.Success).data
         assertEquals("ACCEPTED", data.status)
@@ -65,7 +65,7 @@ class AuthApiTest {
         }
         val api = AuthApi(client)
 
-        val response = api.register(RegisterRequestDto("existing@example.com", "Secret123", "captcha"))
+        val response = api.register(RegisterRequestDto("existing@example.com", "Secret123"))
         assertTrue(response is ApiResponse.Error)
         assertEquals(409, (response as ApiResponse.Error).statusCode)
     }
@@ -88,7 +88,7 @@ class AuthApiTest {
         }
         val api = AuthApi(client)
 
-        val response = api.login(LoginRequestDto("test@example.com", "Secret123", "captcha"))
+        val response = api.login(LoginRequestDto("test@example.com", "Secret123"))
         assertTrue(response is ApiResponse.Success)
         val data = (response as ApiResponse.Success).data
         assertEquals("token123", data.accessToken)
@@ -115,7 +115,7 @@ class AuthApiTest {
         }
         val api = AuthApi(client)
 
-        val response = api.login(LoginRequestDto("test@example.com", "Secret123", "captcha"))
+        val response = api.login(LoginRequestDto("test@example.com", "Secret123"))
         assertTrue(response is ApiResponse.Error)
         val error = response as ApiResponse.Error
         assertEquals(429, error.statusCode)
@@ -129,8 +129,8 @@ class AuthApiTest {
             install(ContentNegotiation) { json(json) }
         }
         val api = AuthApi(client)
-        assertTrue(api.login(LoginRequestDto("test@example.com", "Secret123", "captcha")) is ApiResponse.NetworkFailure)
-        assertTrue(api.register(RegisterRequestDto("test@example.com", "Secret123", "captcha")) is ApiResponse.NetworkFailure)
+        assertTrue(api.login(LoginRequestDto("test@example.com", "Secret123")) is ApiResponse.NetworkFailure)
+        assertTrue(api.register(RegisterRequestDto("test@example.com", "Secret123")) is ApiResponse.NetworkFailure)
         assertEquals(30_000L, testScheduler.currentTime)
         client.close()
     }
@@ -145,7 +145,7 @@ class AuthApiTest {
         val api = AuthApi(client)
         try {
             kotlinx.coroutines.withTimeout(50) {
-                api.login(LoginRequestDto("test@example.com", "Secret123", "captcha"))
+                api.login(LoginRequestDto("test@example.com", "Secret123"))
             }
             org.junit.Assert.fail("Caller cancellation must propagate")
         } catch (_: kotlinx.coroutines.TimeoutCancellationException) {

@@ -14,7 +14,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.kipu.app.feature.auth.presentation.AuthNavigationEvent
 import com.kipu.app.feature.setup.SetupAccountFormContent
-import com.kipu.app.feature.setup.SetupAccountKind
 import com.kipu.app.feature.setup.SetupAccountTypeContent
 import com.kipu.app.feature.setup.SetupCategoriesContent
 import com.kipu.app.feature.setup.OTP_VERIFIED_HOLD_MILLIS
@@ -126,6 +125,6 @@ fun NavGraphBuilder.setupDestinations(
 
 @androidx.compose.runtime.Composable
 private fun NavBackStackEntry.setupViewModel(navController: NavController): SetupViewModel {
-    val parent = navController.getBackStackEntry(SETUP_GRAPH_ROUTE)
+    val parent = androidx.compose.runtime.remember(this) { navController.getBackStackEntry(SETUP_GRAPH_ROUTE) }
     return androidx.hilt.navigation.compose.hiltViewModel(parent)
 }

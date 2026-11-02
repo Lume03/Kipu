@@ -144,7 +144,7 @@ class SetupViewModelTest {
         vm.confirmAll(); vm.confirmAll()
         runCurrent()
         coVerify(exactly = 1) { finalizer.apply(owner, any(), any()) }
-        verify { onboarding.setupCompleted(owner) }
+        coVerify { onboarding.setupCompleted(owner) }
         assertEquals(0, registerCalls)
         assertTrue(curtain.state.value!!.authenticated)
         assertTrue(curtain.state.value!!.registering)
@@ -157,7 +157,7 @@ class SetupViewModelTest {
         vm.confirmAll(); runCurrent()
         assertTrue(vm.save.value.error != null)
         coVerify(exactly = 0) { finalizer.apply(any(), any(), any()) }
-        verify(exactly = 0) { onboarding.setupCompleted(any()) }
+        coVerify(exactly = 0) { onboarding.setupCompleted(any()) }
     }
 
     @Test fun `wrong code clears the cells and reports the attempts left`() = runTest(dispatcher) {
@@ -204,7 +204,7 @@ class SetupViewModelTest {
         vm.chooseKind(SetupAccountKind.CASH)
         vm.confirmAll(); runCurrent()
         assertEquals("boom", vm.save.value.error)
-        verify(exactly = 0) { onboarding.setupCompleted(any()) }
+        coVerify(exactly = 0) { onboarding.setupCompleted(any()) }
         assertNull(curtain.state.value)
         vm.confirmAll(); runCurrent()
         assertNull(vm.save.value.error)

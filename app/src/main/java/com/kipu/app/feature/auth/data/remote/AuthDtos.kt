@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 data class RegisterRequestDto(
     val email: String,
     val password: String,
-    val captchaToken: String,
 )
 
 @Serializable
@@ -20,20 +19,17 @@ data class RegisterResponseDto(
 data class LoginRequestDto(
     val email: String,
     val password: String,
-    val captchaToken: String,
 )
 
 @Serializable
 data class VerifyOtpRequestDto(
     val email: String,
     val token: String,
-    val captchaToken: String,
 )
 
 @Serializable
 data class ResendOtpRequestDto(
     val email: String,
-    val captchaToken: String,
 )
 
 @Serializable
@@ -60,5 +56,4 @@ data class ProblemDto(
 @Serializable
 data class RecoveryRequestDto(
     val email: String,
-    val captchaToken: String = "valid_captcha",
 )

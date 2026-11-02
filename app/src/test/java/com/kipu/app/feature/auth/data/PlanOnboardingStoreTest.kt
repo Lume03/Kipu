@@ -1,6 +1,7 @@
 package com.kipu.app.feature.auth.data
 
 import android.app.Application
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,7 +12,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [28])
 class PlanOnboardingStoreTest {
-    @Test fun `setup pending survives recreation and plan completion and is isolated by owner`() {
+    @Test fun `setup pending survives recreation and plan completion and is isolated by owner`() = runTest {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("plan_onboarding", 0).edit().clear().commit()
         val store = PlanOnboardingStore(context)
@@ -22,7 +23,7 @@ class PlanOnboardingStoreTest {
         store.setupCompleted("A")
         assertFalse(PlanOnboardingStore(context).isSetupPending("A"))
     }
-    @Test fun `registration binds durable onboarding only to the verified owner and completing clears it`() {
+    @Test fun `registration binds durable onboarding only to the verified owner and completing clears it`() = runTest {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("plan_onboarding", 0).edit().clear().commit()
         val store = PlanOnboardingStore(context)

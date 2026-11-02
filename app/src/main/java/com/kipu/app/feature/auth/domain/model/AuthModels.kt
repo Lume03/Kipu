@@ -9,7 +9,6 @@ import java.time.Instant
 data class AuthCredentials(
     val email: String,
     val password: String,
-    val captchaToken: String = "dummy-dev-captcha",
 )
 
 /**
