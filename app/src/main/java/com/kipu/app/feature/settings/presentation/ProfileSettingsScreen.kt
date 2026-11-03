@@ -92,6 +92,7 @@ import com.kipu.app.BuildConfig
 fun ProfileSettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToDataPrivacy: (() -> Unit)? = null,
     onNavigateToPermissions: (() -> Unit)? = null,
     onNavigateToBiometrics: (() -> Unit)? = null,
     onNavigateToCategories: (() -> Unit)? = null,
@@ -559,6 +560,10 @@ fun ProfileSettingsScreen(
                         subtitle = "Movimientos detectados en notificaciones de bancos y billeteras",
                         onClick = it,
                     )
+                }
+
+                onNavigateToDataPrivacy?.let {
+                    SettingsActionCard(icon = Icons.Default.Fingerprint, title = "Datos y privacidad", subtitle = "Exporta o restaura tus datos", onClick = it)
                 }
 
                 // 7. Configurar Captura / Permisos

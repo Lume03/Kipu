@@ -44,6 +44,10 @@ fun NavGraphBuilder.settingsDestinations(
         )
     }
 
+    composable("settings/data-privacy") {
+        val viewModel: com.kipu.app.feature.portability.PortabilityViewModel = hiltViewModel()
+        com.kipu.app.feature.portability.DataPrivacyScreen(viewModel, onNavigateBack = { navController.popBackStack() })
+    }
     composable(PROFILE_SETTINGS_ROUTE) {
         val viewModel: SettingsViewModel = hiltViewModel()
         ProfileSettingsScreen(
@@ -57,6 +61,7 @@ fun NavGraphBuilder.settingsDestinations(
             onNavigateToMovements = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
             onNavigateToAccounts = { navController.navigate(ACCOUNTS_DASHBOARD_ROUTE) },
             onNavigateToPurchase = { navController.navigate(PLAN_PREFERENCE_ROUTE) },
+            onNavigateToDataPrivacy = { navController.navigate("settings/data-privacy") },
             onSignOut = onSignOut,
             onNavigateToReceipts = { navController.navigate(IMPORT_HUB_ROUTE) },
             onNavigateToCaptureInbox = { navController.navigateToCaptureInbox() },

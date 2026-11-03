@@ -365,9 +365,9 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 
 ## Sprint 9 - HU-06 parte A
 
-- [ ] Exportacion SAF CSV/JSON versionada y aislamiento por propietario.
-- [ ] Resumen reutilizable de pendientes de sincronizacion.
-- [ ] Restauracion remota idempotente por modulo con resultados reales y reintento.
-- [ ] Pantalla Datos y privacidad y nota sobre Google Play.
-- [ ] Pruebas de serializacion, privacidad, pendientes, restauracion y builds solicitados.
+- [X] Exportacion SAF CSV/JSON versionada y aislamiento por propietario.
+- [X] Resumen reutilizable de pendientes de sincronizacion.
+- [X] Restauracion remota idempotente por modulo con resultados reales y reintento.
+- [X] Pantalla Datos y privacidad y nota sobre Google Play.
+- [X] Pruebas de serializacion, privacidad, pendientes, restauracion y builds solicitados.
 - [ ] Parte B: eliminacion de cuenta (fuera de esta asignacion).
