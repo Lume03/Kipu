@@ -1,8 +1,8 @@
 # Especificación: EP-INF — Inicio e Información Financiera
 
 **Rama**: `009-ep-inf-informacion-financiera`
-**Estado**: Borrador para revisión; no aprobado para implementación
-**Fecha**: 2026-10-24
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código; validación en dispositivo físico y tareas de integración pendientes
+**Fecha**: 2026-10-24 (actualizado para Sprint 9: 2026-11-03)
 **Fuente de alcance**: `docs/producto/backlog.md` HU-39–HU-41, `docs/producto/trazabilidad-y-dependencias.md`, planificación base del cronograma.
 
 ## Propósito y alcance de la épica
@@ -36,7 +36,13 @@ Como usuario quiero consultar fechas de movimientos y obligaciones para anticipa
 Dependencias: bloqueantes HU-09, HU-29, HU-33; relacionada HU-44.
 
 ### US3 / HU-41 — Estadísticas y analítica financiera (P2, Alta, 8 pts, S9)
-Incremento futuro separado: el usuario analiza gastos, crédito, deudas y metas y compara resultados sin duplicar transferencias. No se compromete a S7.
+Implementada en Sprint 9 (2026-11-03): lógica y UI en la pestaña Análisis (`feature/analytics/`, `AnalyticsScreen`, `AnalyticsViewModel`, ruta `analytics`). El usuario analiza gastos, crédito, deudas y metas y compara resultados sin duplicar transferencias. En Free muestra resumen básico del mes actual; capacidades avanzadas y comparaciones requieren Premium efectivo (HU-58).
+
+**Limitaciones conocidas del incremento S9:**
+1. **Solo meses completos**: La consulta y agregación operan únicamente por mes calendario completo (sin rangos de fechas personalizados).
+2. **Comparación por totales por moneda**: La comparación entre periodos se realiza sobre los totales globales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
+3. **Tareas abiertas**: T021 (GATE-ANALYTICS-04 formal) y T027–T030 (accesibilidad con TalkBack, integración transversal y cierre formal) permanecen abiertas.
+4. **UI tests compilados sin ejecutar**: Las pruebas instrumentadas de interfaz (`AnalyticsScreenTest` en androidTest) compilan exitosamente en `assembleDebugAndroidTest`, pero no se han ejecutado en hardware/dispositivo físico (validación en dispositivo pendiente).
 
 1. Con gasto S/100 y transferencia S/200, gasto operativo suma S/100.
 2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas.
@@ -93,7 +99,7 @@ Resumen patrimonial; activo real/cuenta; cuenta por cobrar; pasivo/deuda; movimi
 |---|---:|---|---|---|---|
 | HU-39 | 8 / S7 | HU-07, HU-18, HU-19 | HU-22 | HU-41 | S7 |
 | HU-40 | 5 / S7 | HU-09, HU-29, HU-33 | Ninguna | HU-44 | S7 |
-| HU-41 | 8 / S9 | HU-39, HU-36, HU-09, HU-26, HU-30, HU-58 | HU-22 | HU-25 | S9 futuro |
+| HU-41 | 8 / S9 | HU-39, HU-36, HU-09, HU-26, HU-30, HU-58 | HU-22 | HU-25 | S9 (implementada; validación en dispositivo pendiente) |
 
 Las puntuaciones son esfuerzo relativo. La planificación fuente marca S7 como Sprint Goal con 42 puntos incluyendo HU-39/40; S9 incluye HU-41 en 29 puntos. No se redefine el Sprint 7 ni se traslada HU-41 a él.
 

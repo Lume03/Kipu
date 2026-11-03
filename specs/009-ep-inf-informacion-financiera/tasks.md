@@ -1,7 +1,7 @@
 # Tareas previstas: EP-INF — Inicio e Información Financiera
 
 **Entrada**: `spec.md`, `plan.md`, `research.md`, `data-model.md`.
-**Estado**: S7 (HU-39/HU-40) implementada en `s7/inf`; T014, T027, T028 siguen abiertas (ver nota). HU-41 (T021–T026) y T029–T030 fuera de este incremento.
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 y T027–T030 abiertas, UI tests compilados sin ejecutar en dispositivo.
 
 > Nota 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
 
@@ -53,7 +53,12 @@
 
 - [x] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
 - [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
-> Nota HU-41 UI (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) compila pero no se ejecutó en dispositivo.
+> Nota HU-41 UI y alcance S9 (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) compila pero no se ejecutó en dispositivo.
+> Limitaciones registradas del incremento S9:
+> 1. Solo meses completos (sin rango de fechas personalizado).
+> 2. Comparación por totales por moneda (sin desglose por categoría).
+> 3. Tareas T021 y T027–T030 permanecen abiertas.
+> 4. UI tests instrumentados compilados sin ejecutar en hardware/dispositivo físico.
 
 ## Fase 5 — Integración y aceptación
 

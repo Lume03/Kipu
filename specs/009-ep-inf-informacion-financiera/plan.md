@@ -53,3 +53,13 @@ La guía [quickstart.md](quickstart.md) describe validación de aceptación excl
 - Patrimonio: `feature/home/domain/NetWorth.kt`, `ObserveNetWorthSummary.kt`; presentación en `feature/home/presentation/` (`HomeNetWorthViewModel`, `NetWorthCard`), integrada como ítem del `DashboardScreen` existente.
 - Calendario: `feature/calendar/domain/` (`CalendarEvent`, `CalendarEventProjector`, `ObserveCalendarMonth`), `feature/calendar/presentation/` (`CalendarViewModel`, `CalendarScreen`) y `navigation/CalendarNavigation.kt` (ruta `calendar`, acceso desde Inicio).
 - Fuentes, rutas y decisiones de interpretación: ver «Verificación de código real para S7» en [research.md](research.md).
+
+## Implementación S9 — HU-41 (2026-11-03)
+
+- **Lógica de analítica**: Implementada en `feature/analytics/` (`CalculateFinancialAnalyticsUseCase`). Excluye transferencias, principal de deudas/tarjetas y reservas; maneja periodos parciales, base cero con «Sin base de comparación» y comparaciones por moneda. Pruebas unitarias de dominio y persistencia Room ejecutadas en verde (`AnalyticsOperatingRulesTest`, `AnalyticsEntitlementTest`, etc.).
+- **Interfaz de usuario**: Implementada en `feature/analytics/presentation/` (`AnalyticsScreen`, `AnalyticsViewModel`, estados y mapeo visual) e integrada en la navegación (`AnalyticsNavigation.kt`, pestaña Análisis). En Free expone estadísticas del mes actual y aviso/gating hacia Premium; usuarios Premium acceden a selector de periodos y comparaciones.
+- **Limitaciones registradas**:
+  1. Solo meses completos (no admite rangos de fechas personalizados).
+  2. Comparación limitada a totales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
+  3. Tareas T021 (GATE-ANALYTICS-04 formal) y T027–T030 permanecen abiertas.
+  4. Pruebas de UI (`AnalyticsScreenTest`) compiladas en target androidTest pero sin ejecutar en dispositivo físico (validación en dispositivo pendiente).

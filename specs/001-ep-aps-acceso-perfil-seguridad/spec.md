@@ -17,7 +17,7 @@
 | Épica | EP-APS - Acceso, Perfil y Seguridad |
 | Responsable de Épica | Integrante 9 - Desarrollo de pruebas, integración y herramientas |
 | Sprint de cierre del incremento | Sprint 1 - "Kipu arranca con identidad y privacidad" |
-| Historias incluidas | HU-01, HU-02, HU-03, HU-04 y HU-05 |
+| Historias incluidas | HU-01, HU-02, HU-03, HU-04 y HU-05 (Sprint 1); HU-06 partes A y B (Sprint 9) |
 | Puntos integrados | 19 puntos |
 | Prioridad | Alta, con HU-03 de prioridad Media |
 | Estado del artefacto | V1.0 - Aprobado para implementación |
@@ -44,7 +44,7 @@ Permitir que una persona cree una cuenta Kipu, acceda exclusivamente a su propio
 
 ### Fuera de Alcance
 
-- HU-06 - Portabilidad, eliminación de cuenta y restauración, cuyo cierre corresponde al Sprint 9.
+- HU-06 - Portabilidad, eliminación de cuenta y restauración: incorporada en Sprint 9 (partes A y B implementadas en código; migración 20261103152406_delete_account y Edge Function delete-account desplegadas remotamente; validación en dispositivo pendiente).
 - Inicio de sesión con proveedores sociales o identidades bancarias.
 - Open Banking, lectura bancaria directa, lectura de SMS o correos y ejecución de pagos.
 - Implementación de captura automática, análisis de contenido u OCR; HU-05 solo configura y explica permisos y fuentes.
@@ -322,7 +322,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 - **FR-052**: Ajustes DEBE organizarse en Mi suscripción, Preferencias financieras, Tema de la aplicación, Notificaciones y alertas, y Seguridad y copias de seguridad, conforme a las referencias visuales aprobadas.
 - **FR-053**: La moneda principal DEBE ofrecer PEN y USD como opciones visibles; el inicio del ciclo mensual DEBE poder ajustarse entre los días 1 y 28 mediante controles de incremento y decremento. La máscara de montos DEBE conservar su comportamiento existente.
 - **FR-054**: Ajustes DEBE mantener operativos los accesos existentes a permisos, biometría y cierre de sesión. El acceso a permisos DEBE aparecer en Notificaciones y alertas; el de biometría, en Seguridad y copias de seguridad.
-- **FR-055**: En Sprint 9 HU-06 incorpora exportación CSV/JSON, restauración remota de datos sincronizados y aviso de pendientes locales; la eliminación de cuenta permanece pendiente en este sprint. Las demás acciones no implementadas DEBEN identificarse como pendientes y NO DEBEN presentar datos inventados ni ejecutar acciones simuladas.
+- **FR-055**: En Sprint 9 HU-06 incorpora exportación CSV/JSON v1 con SAF aislada por propietario, restauración remota idempotente por módulo con resultado detallado y aviso de cambios pendientes locales (Parte A); y eliminación durable de cuenta con reautenticación password <= 5 minutos, Edge Function `delete-account` y purge SQL transaccional (Parte B). Migración `20261103152406_delete_account` y Edge Function `delete-account` desplegadas en remoto el 2026-11-03 (smoke test 401 confirmado); validación en dispositivo físico pendiente. Las demás acciones no implementadas DEBEN identificarse como pendientes y NO DEBEN presentar datos inventados ni ejecutar acciones simuladas.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -367,7 +367,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 | RSK-APS-004 | Solicitar permisos sin consentimiento informado o seguir procesando tras revocación. | Explicar antes de solicitar, reflejar estados reales y detener señales posteriores al detectar revocación. |
 | RSK-APS-005 | Prometer persistencia o recuperación de cambios nunca sincronizados. | Advertir pendientes antes de cerrar y no afirmar que podrán restaurarse desde otro dispositivo. |
 | RSK-APS-006 | El registro de un correo existente permite inferir que la cuenta existe. | Limitar esa revelación al registro, aplicar protección ante abuso y mantener neutros los flujos de acceso y recuperación. |
-| DEC-APS-001 | HU-06 entra en el incremento de Sprint 9. | Parte A: exportación CSV/JSON, restauración remota y aviso de pendientes; parte B: eliminación de cuenta pendiente en este sprint. |
+| DEC-APS-001 | HU-06 entra en el incremento de Sprint 9. | Partes A y B implementadas: exportación CSV/JSON v1, restauración remota idempotente por módulo, aviso de pendientes, y eliminación de cuenta durable con reauth password <=5 min. Migración 20261103152406_delete_account y Edge Function delete-account desplegadas en remoto el 2026-11-03 (smoke test 401 sin JWT); validación en dispositivo pendiente. |
 | DEC-APS-002 | La política exacta de contraseña, verificación y vigencia de enlaces es configurable. | La especificación exige cumplir y comunicar la política vigente; sus parámetros concretos se documentarán y validarán en el plan. |
 
 ## Success Criteria *(mandatory)*
@@ -435,8 +435,8 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 
 ### Refinamiento Sprint 9 - HU-06 parte A
 
-La exportacion usa SAF y filtra estrictamente por propietario; CSV incluye movimientos y JSON versionado incluye las entidades propias sincronizadas. Se excluyen credenciales, datos ajenos, catalogos globales, facturacion, entitlements, evidencia local y tablas operacionales. La restauracion recupera datos sincronizados desde el servidor mediante mecanismos idempotentes e informa resultados parciales o errores; antes de exportar o restaurar se advierte sobre pendientes locales. La suscripcion se gestiona en Google Play. La eliminacion de cuenta corresponde a la parte B, aun pendiente.
+La exportacion usa SAF y filtra estrictamente por propietario; CSV incluye movimientos y JSON versionado incluye las entidades propias sincronizadas. Se excluyen credenciales, datos ajenos, catalogos globales, facturacion, entitlements, evidencia local y tablas operacionales. La restauracion recupera datos sincronizados desde el servidor mediante mecanismos idempotentes e informa resultados parciales o errores; antes de exportar o restaurar se advierte sobre pendientes locales. La suscripcion se gestiona en Google Play. La eliminacion de cuenta corresponde a la parte B, implementada y desplegada a nivel backend como se detalla abajo.
 
 ### Refinamiento Sprint 9 — HU-06 parte B (2026-11-03)
 
-El Product Owner autoriza escenarios 4–6 en `main`, actualización manual de estos artefactos y despliegue de migración/Edge sin ejecutar eliminaciones de usuarios reales. Se implementa resumen de pérdida de datos y pendientes locales, cancelación sin borrado, reautenticación con el login vigente de correo/contraseña y confirmación explícita; Google Play no se cancela automáticamente. El servidor exige JWT validado y AMR password reciente; borra datos propios transaccionalmente y después Auth, con estados reales completed/pending/error e idempotencia mediante recibo privado. Android conserva solicitud durable y datos no sincronizados ante fallos remotos, separa progreso remoto/local, permite recuperación desde acceso y limpia partición, evidencia, preferencias, trabajos y tokens únicamente tras completar remoto. Contrato, política por tabla y límite de despliegue: [account-deletion-v1.md](account-deletion-v1.md). Este refinamiento sustituye la condición «parte B pendiente» del párrafo anterior solo para implementación; el estado remoto se verifica por separado.
+El Product Owner autoriza escenarios 4–6 en `main`, actualización manual de estos artefactos y despliegue de migración/Edge sin ejecutar eliminaciones de usuarios reales. Se implementa resumen de pérdida de datos y pendientes locales, cancelación sin borrado, reautenticación con el login vigente de correo/contraseña y confirmación explícita; Google Play no se cancela automáticamente. El servidor exige JWT validado y AMR password reciente; borra datos propios transaccionalmente y después Auth, con estados reales completed/pending/error e idempotencia mediante recibo privado. Android conserva solicitud durable y datos no sincronizados ante fallos remotos, separa progreso remoto/local, permite recuperación desde acceso y limpia partición, evidencia, preferencias, trabajos y tokens únicamente tras completar remoto. Contrato, política por tabla y límite de despliegue: [account-deletion-v1.md](account-deletion-v1.md). Migración 20261103152406_delete_account y Edge Function delete-account desplegadas en remoto el 2026-11-03 (smoke test 401 sin JWT / JWT inválido confirmado); validación en dispositivo físico pendiente.

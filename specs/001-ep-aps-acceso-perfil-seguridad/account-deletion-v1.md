@@ -69,18 +69,11 @@ Desde el acceso se puede consultar una solicitud inconclusa del dispositivo aunq
 
 ## Despliegue y verificación
 
-`npx supabase migration list` devolvió `LegacyProjectNotLinkedError: Cannot find project ref. Have you run supabase link?`. No se enlazó el checkout, no se improvisaron credenciales y no se aplicó ni desplegó nada remotamente. El proyecto leído por MCP tiene URL `https://tnvapmertsncbslafoug.supabase.co`; esa lectura no sustituye el enlace CLI requerido ni prueba despliegue.
+La migración `20261103152406_delete_account.sql` y la Edge Function `delete-account` fueron **DESPLEGADAS en remoto el 2026-11-03**.
 
-El coordinador debe ejecutar:
+Comprobaciones ejecutadas por el coordinador:
+- `npx supabase db push`: migración `20261103152406_delete_account.sql` aplicada en Supabase remoto (`https://tnvapmertsncbslafoug.supabase.co`).
+- `npx supabase functions deploy delete-account`: función `delete-account` desplegada y activa.
+- Smoke test: llamada `POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account` con cuerpo JSON sin JWT / con JWT inválido devolvió HTTP 401 (`{"code":401,"error":"missing_authorization"}`), confirmando endpoint activo y debidamente protegido sin JWT.
 
-```powershell
-npx supabase link --project-ref tnvapmertsncbslafoug
-npx supabase migration list
-# Solo si la única pendiente es 20261103152406_delete_account.sql y no hay divergencias:
-npx supabase db push
-npx supabase functions deploy delete-account
-npx supabase functions list
-curl.exe -i -X POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account -H "Content-Type: application/json" -d '{}'
-```
-
-La última llamada debe dar 401. No ejecutar una eliminación con credenciales de usuarios reales. Si aparecen otras migraciones pendientes, detenerse y consultar al coordinador/Owner antes de aplicar. Los resultados locales y sus límites se registran en el informe de verificación de este incremento.
+No se ejecutaron eliminaciones contra cuentas de usuarios reales durante la verificación. La validación end-to-end en dispositivo físico permanece pendiente.

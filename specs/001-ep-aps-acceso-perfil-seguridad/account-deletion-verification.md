@@ -1,6 +1,6 @@
 # Verificación HU-06 parte B — 2026-11-03
 
-**Veredicto: APPROVED para implementación y validación local. Despliegue remoto pendiente por CLI no enlazado.**
+**Veredicto: APPROVED para implementación, validación local y despliegue backend. Migración y Edge Function desplegadas en remoto el 2026-11-03. Validación en dispositivo físico pendiente.**
 
 Alcance: escenarios 4–6 de HU-06, implementados en `main` por autorización explícita del Owner. No se hicieron push, PR, merge, instalación en dispositivos ni `connectedAndroidTest`. No se borró ningún usuario real. El contrato y la política completa por tabla están en [account-deletion-v1.md](account-deletion-v1.md).
 
@@ -24,25 +24,16 @@ La prueba de persistencia usa Okio/NIO como almacenamiento de prueba por la sem�
 
 ## Estado remoto y pasos exactos
 
-La primera comprobación `npx supabase migration list` devolvió:
+El despliegue remoto fue completado por el coordinador el 2026-11-03:
 
-```text
-LegacyProjectNotLinkedError
-Cannot find project ref. Have you run supabase link?
-```
+1. `npx supabase db push` aplicó la migración `20261103152406_delete_account.sql` en el proyecto remoto (`https://tnvapmertsncbslafoug.supabase.co`).
+2. `npx supabase functions deploy delete-account` desplegó la Edge Function `delete-account`.
+3. Smoke test ejecutado:
+   ```powershell
+   curl.exe -i -X POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account -H "Content-Type: application/json" -d '{}'
+   ```
+   Resultado: HTTP/2 401 Unauthorized (`{"code":401,"error":"missing_authorization"}`), verificando función activa y endpoint correctamente protegido contra accesos sin JWT.
 
-Conforme al despacho, no se enlazó el proyecto ni se improvisaron credenciales; tampoco se sustituyó la precondición CLI por una mutación MCP. La URL leída mediante MCP es `https://tnvapmertsncbslafoug.supabase.co`. Quedan a cargo del coordinador:
-
-```powershell
-npx supabase link --project-ref tnvapmertsncbslafoug
-npx supabase migration list
-# Continuar solo si la única pendiente es 20261103152406_delete_account.sql y no hay divergencias.
-npx supabase db push
-npx supabase functions deploy delete-account
-npx supabase functions list
-curl.exe -i -X POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account -H "Content-Type: application/json" -d '{}'
-```
-
-Verificar función activa y HTTP 401 sin JWT. Si hay otras pendientes, consultar antes de aplicar; no borrar usuarios reales para comprobar este despliegue. Hasta entonces, el endpoint nuevo no se considera disponible en remoto.
+No se ejecutaron eliminaciones contra credenciales o datos de usuarios reales durante la verificación. La validación end-to-end en dispositivo físico permanece pendiente.
 
 Los logs brutos locales `account-deletion-validation.log`, `account-deletion-deno-all.log`, `account-deletion-pgtap.log` y los cuatro logs pgTAP de regresión están excluidos de Git mediante las reglas existentes de logs. Este informe conserva el resultado verificable sin payloads ni credenciales. Las tres bases temporales creadas durante preparación se retiraron; el contenedor de prueba independiente se detuvo al terminar.

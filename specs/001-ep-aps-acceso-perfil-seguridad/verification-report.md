@@ -20,9 +20,11 @@ Settings permission controls now reflect verified Premium capture access and pre
 
 No database schema, SQL, or remote deployment changes are included in this increment.
 
-## Sprint 9 — HU-06 parte A (2026-11-03)
+## Sprint 9 — HU-06 partes A y B (2026-11-03)
 
-**Verdict: APPROVED — validación local de parte A.** Trabajo en `main` autorizado por el Product Owner para Sprint 9; parte B permanece pendiente.
+**Verdict: APPROVED — validación local de partes A y B; despliegue backend verificado; validación en dispositivo físico pendiente.** Trabajo en `main` autorizado por el Product Owner para Sprint 9; partes A y B completadas e integradas.
+
+### Parte A — Portabilidad y restauración
 
 Implementado: exportación CSV/JSON mediante CreateDocument en Ajustes > Datos y privacidad; contrato JSON `schemaVersion = 1` documentado en `portability-json-v1.md`; resumen reutilizable de las diez colas por propietario; hidratación completa de módulos desde Supabase; resultados reales por módulo y globales con reintento exclusivo de fallidos; aviso de pendientes locales, conexión y gestión de suscripción en Google Play. La pantalla expone un slot Compose `accountDeletion` para integrar parte B.
 
@@ -36,4 +38,15 @@ Validación final, sobre los archivos entregados:
 - Pruebas Room repiten hidrataciones con datos y comprueban filas/saldos; se comprueba propietario ajeno, exclusión de secretos/evidencia/tablas operacionales, exportación vacía, error HTTP, página incompleta y preservación de una edición local de cuenta.
 - `git diff --check`: PASS.
 
-**Room permanece en versión 36; sin migraciones ni cambios de esquema. Supabase: sin SQL nuevo, migraciones, aplicación remota ni despliegues.** Las lecturas usan los contratos existentes. No se ejecutaron connectedAndroidTest ni instalaciones en dispositivos; la integración SAF y el proveedor remoto no se afirman verificados en un dispositivo o proyecto desplegado. El informe histórico de Sprint 8 anterior conserva su alcance independiente.
+### Parte B — Eliminación de cuenta durable
+Implementado: flujo en Datos y privacidad con resumen de pérdida de datos y advertencia de cambios locales pendientes, reautenticación mediante contraseña vigente (<= 300 s), confirmación explícita, UUID y capacidad aleatoria de 256 bits persistida en DataStore privado (`noBackupFilesDir`). Limpieza transaccional de partición local, preferencias, evidencia temporal en Room/archivos y revocación de sesión tras confirmación remota. En backend: migración `20261103152406_delete_account.sql` con función `purge_account_data` (SECURITY DEFINER, service-only) transaccional con bloqueo de repoblación e inventario de tablas; y Edge Function `delete-account` que valida JWT y AMR password, ejecuta el purge y borra la cuenta en Supabase Auth mediante Admin API, con manejo de recibos idempotentes.
+
+Validación Parte B:
+- 1.581 pruebas unitarias Android (exit 0) y APKs debug/androidTest generados.
+- 142 pruebas Deno para Edge Functions (exit 0), incluidas 10 de delete-account.
+- 27/27 aserciones pgTAP para `account_deletion.test.sql` y 181 aserciones totales de regresión pgTAP (todas verdes).
+- Detalle y evidencias en `account-deletion-verification.md` y contrato en `account-deletion-v1.md`.
+
+### Despliegue remoto y límites
+- **Despliegue remoto verificado el 2026-11-03**: Migración `20261103152406_delete_account.sql` aplicada mediante `npx supabase db push` y Edge Function `delete-account` desplegada con `npx supabase functions deploy delete-account`. Smoke test HTTP `POST /functions/v1/delete-account` devolvió 401 sin JWT / con JWT inválido, confirmando endpoint activo y debidamente protegido.
+- **Pendiente**: Validación visual y end-to-end en hardware / dispositivo físico, y prueba de integración de SAF con apps de terceros. No se ejecutaron borrados contra cuentas de usuarios reales. Room permanece en versión 36 (sin migraciones de Room para esta historia). El informe histórico de Sprint 8 anterior conserva su alcance independiente.

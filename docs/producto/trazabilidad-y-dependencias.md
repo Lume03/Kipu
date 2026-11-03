@@ -51,7 +51,7 @@
 - **Sprint 6:** HU-24, HU-30, HU-31, HU-32, HU-33, HU-35, HU-44
 - **Sprint 7:** HU-25, HU-36, HU-37, HU-38, HU-39, HU-40
 - **Sprint 8:** HU-34, HU-43, HU-45, HU-46, HU-47, HU-48, HU-50, HU-51
-- **Sprint 9:** HU-06, HU-41, HU-49
+- **Sprint 9:** HU-06, HU-41, HU-49 *(implementadas en S9 a nivel lógico/pruebas locales; validación en dispositivo pendiente)*
 - **Sprint 10:** HU-60
 
 ---
@@ -70,6 +70,8 @@
 | **HU-04 Preferencias y privacidad de saldos** | S1 | 3 | HU-01 | Ninguna | Ninguna | Ninguna |
 | **HU-05 Permisos y fuentes de automatización** | S1 | 3 | HU-01 | HU-52, HU-58 | HU-45 | HU-45 |
 | **HU-06 Portabilidad, eliminación de cuenta y restauración** | S9 | 8 | HU-01, HU-07, HU-18 | HU-19, HU-55 | HU-59 | Ninguna |
+
+> **Estado Sprint 9 (2026-11-03):** HU-06 implementada en S9 (partes A y B; migración `20261103152406_delete_account` y Edge Function `delete-account` desplegadas en remoto con smoke test 401 confirmado); validación en dispositivo físico pendiente.
 
 ---
 
@@ -178,6 +180,8 @@
 | **HU-40 Calendario financiero** | S7 | 5 | HU-09, HU-29, HU-33 | Ninguna | HU-44 | Ninguna |
 | **HU-41 Estadísticas y analítica financiera** | S9 | 8 | HU-39, HU-36, HU-09, HU-26, HU-30, HU-58 | HU-22 | HU-25 | Ninguna |
 
+> **Estado Sprint 9 (2026-11-03):** HU-41 implementada en S9 (lógica y UI en pestaña Análisis; meses completos y totales por moneda); validación en dispositivo físico pendiente.
+
 ---
 
 ### EP-NOT - Centro de Notificaciones y Avisos
@@ -205,6 +209,8 @@
 | **HU-49 Yape híbrido, OCR y deduplicación** | S9 | 13 | HU-45, HU-46, HU-23, HU-58, HU-59 | HU-51, HU-16 | HU-34, HU-50 | Ninguna |
 | **HU-50 Aprendizaje desde correcciones** | S8 | 8 | HU-16, HU-17, HU-46, HU-51 | Ninguna | HU-47, HU-49 | Ninguna |
 | **HU-51 Bandeja y evidencia mínima** | S8 | 5 | HU-46 | Ninguna | HU-47, HU-43, HU-50 | HU-34, HU-43, HU-50 |
+
+> **Estado Sprint 9 (2026-11-03):** HU-49 implementada en S9 (Yape híbrido, OCR local Free y Room v36 `capture_evidence`); validación en dispositivo físico pendiente.
 
 ---
 
