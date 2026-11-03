@@ -51,8 +51,9 @@
 - [x] T024 [US3] Implementar resumen básico Free del periodo actual y estados base cero/desconocido/periodo parcial.
 > Nota HU-41: T022–T024 cubren lógica y pruebas JVM; la interfaz Compose y su integración quedan para el siguiente paso. La consulta Room se compiló con su prueba instrumentada, pendiente de ejecución en dispositivo.
 
-- [ ] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
-- [ ] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
+- [x] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
+- [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
+> Nota HU-41 UI (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) compila pero no se ejecutó en dispositivo.
 
 ## Fase 5 — Integración y aceptación
 
