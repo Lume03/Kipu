@@ -70,13 +70,18 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
         }
 
         // Fill missing server categories without overwriting pending local edits.
-        hydrateCategories(userId)
+        val hydration = CategoryHydration(categoryDao, merchantDao, applicationContext, api)
+        try {
+            hydration.hydrateCategories(userId)
+            hydration.hydrateMerchantCatalog()
+        } catch (e: CancellationException) { throw e } catch (_: Exception) { return Result.retry() }
 
         // 1. Hydrate / refresh merchant catalog
-        hydrateMerchantCatalog()
+
 
         // 2. Process pending outbox commands
         val pendingCommands = categoryDao.getPendingOutboxCommands(userId)
+        var needsRetry = false
         for (cmd in pendingCommands) {
             when (val outcome = processCommand(cmd)) {
                 CommandOutcome.Applied -> categoryDao.updateOutboxCommand(cmd.copy(state = "COMPLETED", errorCode = null))
@@ -84,6 +89,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                     cmd.copy(state = "FAILED", errorCode = outcome.code),
                 )
                 CommandOutcome.Retry -> {
+                    needsRetry = true
                     if (cmd.attemptCount >= MAX_RETRIES) {
                         markMerchantCommandFailed(cmd)
                         categoryDao.updateOutboxCommand(cmd.copy(state = "FAILED", errorCode = "RETRY_LIMIT"))
@@ -96,124 +102,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             }
         }
 
-        return Result.success()
-    }
-
-    private suspend fun hydrateCategories(userId: String) {
-        try {
-            val pendingCommands = categoryDao.getPendingOutboxCommands(userId)
-            val pendingCategoryIds = pendingCommands.map { it.aggregateId }.toSet()
-
-            val categories = when (val response = api.fetchCategories()) {
-                is CategoryApiResponse.Success -> {
-                    val visible = response.data.filter { it.userId == null || it.userId == userId }
-                    for (dto in visible) {
-                        val existing = categoryDao.getCategoryById(dto.id)
-                        val entity = CategoryEntity(
-                            id = dto.id,
-                            userId = dto.userId,
-                            parentId = dto.parentId,
-                            origin = dto.origin,
-                            categoryType = dto.categoryType,
-                            isActive = dto.isActive,
-                            remoteRevision = dto.remoteRevision,
-                            createdAt = parseRemoteInstant(dto.createdAt).toEpochMilli(),
-                            updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
-                        )
-                        if (existing == null) {
-                            categoryDao.insertCategory(entity)
-                        } else if (dto.id !in pendingCategoryIds && dto.remoteRevision >= existing.remoteRevision) {
-                            categoryDao.updateCategory(entity)
-                        }
-                    }
-                    visible
-                }
-                else -> {
-                    SecureLog.w("SyncCategoryCommandsWorker", "Failed to load categories")
-                    emptyList()
-                }
-            }
-
-            when (val response = api.fetchCategoryPresentations()) {
-                is CategoryApiResponse.Success -> {
-                    val userPresentations = response.data.filter { it.userId == userId }
-                    for (dto in userPresentations) {
-                        val existing = categoryDao.getPresentation(userId, dto.categoryId)
-                        val entity = CategoryPresentationEntity(
-                            categoryId = dto.categoryId,
-                            userId = dto.userId,
-                            name = dto.name,
-                            icon = dto.icon,
-                            color = dto.color,
-                            remoteRevision = dto.remoteRevision,
-                            updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
-                        )
-                        if (existing == null) {
-                            categoryDao.insertPresentation(entity)
-                        } else if (dto.categoryId !in pendingCategoryIds && dto.remoteRevision >= existing.remoteRevision) {
-                            categoryDao.insertPresentation(entity)
-                        }
-                    }
-                }
-                else -> SecureLog.w("SyncCategoryCommandsWorker", "Failed to load category presentations")
-            }
-
-            // System categories have a server name but no user presentation until customized.
-            categoryDao.insertPresentationsIfAbsent(categories.filter { it.origin == "SYSTEM" }.map { dto ->
-                CategoryPresentationEntity(
-                    categoryId = dto.id, userId = userId, name = dto.name,
-                    icon = dto.iconKey ?: "category", color = "#757575",
-                    remoteRevision = dto.remoteRevision,
-                    updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
-                )
-            })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            SecureLog.e("SyncCategoryCommandsWorker", "Error loading categories", e)
-        }
-    }
-
-    private suspend fun hydrateMerchantCatalog() {
-        try {
-            val latestVersion = merchantDao.getLatestVersion() ?: 0L
-            when (val response = api.fetchMerchantCatalog(sinceVersion = latestVersion)) {
-                is CategoryApiResponse.Success -> {
-                    val now = System.currentTimeMillis()
-                    val entities = response.data.map { dto ->
-                        MerchantCatalogEntity(
-                            id = dto.id,
-                            userId = dto.userId,
-                            name = dto.name,
-                            normalizedName = com.kipu.app.feature.categories.domain.CategoryRules.normalizeText(dto.normalizedName),
-                            isActive = dto.isActive,
-                            version = dto.version,
-                            lastSyncedAt = now,
-                            defaultCategoryId = dto.defaultCategoryId,
-                            priority = dto.priority,
-                            logoKey = dto.logoKey,
-                            brandColor = dto.brandColor,
-                            logoPath = dto.logoPath,
-                            logoDarkPath = dto.logoDarkPath,
-                            logoSource = dto.logoSource,
-                        )
-                    }
-                    if (entities.isNotEmpty()) {
-                        merchantDao.insertMerchants(entities)
-                        if (MerchantLogoPrefetchPlan.hasRemoteLogos(entities)) {
-                            MerchantLogoPrefetchWorker.enqueue(applicationContext)
-                        }
-                    }
-                }
-                else -> {
-                    SecureLog.w("SyncCategoryCommandsWorker", "Failed to refresh merchant catalog")
-                }
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            SecureLog.e("SyncCategoryCommandsWorker", "Error hydrating merchant catalog", e)
-        }
+        return if (needsRetry) Result.retry() else Result.success()
     }
 
     private suspend fun processCommand(cmd: com.kipu.app.feature.categories.data.local.CategorySyncOutboxEntity): CommandOutcome {

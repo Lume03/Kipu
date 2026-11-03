@@ -22,6 +22,8 @@ internal data class SyncAccountPayload(
     @SerialName("opened_at") val openedAt: String,
     @SerialName("is_archived") val isArchived: Boolean = false,
     @SerialName("linked_account_id") val linkedAccountId: String? = null,
+    val color: String? = null,
+    val icon: String? = null,
 )
 
 @Serializable

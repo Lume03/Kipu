@@ -85,7 +85,7 @@ class SyncGoalsWorker @AssistedInject constructor(
                 failed = true
             }
         }
-        if (!pullChanges(userId)) failed = true
+        if (!GoalHydration(financialApi, changeFeedApplier, database, movementSyncScheduler, sessionCoordinator).pullChanges(userId)) failed = true
         if (outboxDao.getPendingForUser(userId).isNotEmpty()) failed = true
         return if (failed) Result.retry() else Result.success()
     }
@@ -134,30 +134,6 @@ class SyncGoalsWorker @AssistedInject constructor(
             ?: result.result?.take(96)
             ?: if (state == "RETRYABLE") "UNKNOWN_REMOTE_RESULT" else null
         return localDataSource.finishRemoteCommand(command, state, error, result.revision, result.goals.orEmpty())
-    }
-
-    private suspend fun pullChanges(userId: String): Boolean {
-        repeat(MAX_CHANGE_PAGES) {
-            val checkpoint = database.goalDao().getSyncCheckpoint(userId)?.sequence ?: 0L
-            when (val response = financialApi.pullChanges(PullChangesRequestDto(afterSequence = checkpoint))) {
-                is FinancialApiResponse.Success -> {
-                    val page = response.data
-                    if (page.changes.isEmpty()) return page.nextSequence == checkpoint
-                    when (val applied = changeFeedApplier.applyPage(userId, page)) {
-                        is GoalChangeApplyResult.Applied -> if (!page.hasMore) return true
-                        is GoalChangeApplyResult.Conflict -> return false
-                        is GoalChangeApplyResult.Rejected -> {
-                            if (applied.code == "MISSING_GOAL_EVENT_TRANSACTION") {
-                                movementSyncScheduler.scheduleSync(userId)
-                            }
-                            return false
-                        }
-                    }
-                }
-                is FinancialApiResponse.Error, is FinancialApiResponse.NetworkFailure -> return false
-            }
-        }
-        return false
     }
 
     companion object {

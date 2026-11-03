@@ -189,6 +189,9 @@ class RecurrenceSyncTest {
         assertEquals("SYNCED", db.recurrenceDao().get(OWNER, "remote")?.syncState)
         assertEquals("ACTIVE", db.recurrenceDao().get(OWNER, "remote")?.status)
         assertEquals(10L, db.recurrenceDao().checkpoint(OWNER)?.sequence)
+        val hydration = RecurrenceHydration(db.recurrenceDao(), repository, api, session)
+        repeat(2) { assertTrue(hydration.hydrateFully(OWNER)) }
+        assertEquals(1L, db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM recurrences WHERE id='remote'").use { it.moveToFirst(); it.getLong(0) })
     }
 
     @Test fun feedWithForeignOwnerIsRejectedWithoutAdvancingCheckpoint() = runTest {

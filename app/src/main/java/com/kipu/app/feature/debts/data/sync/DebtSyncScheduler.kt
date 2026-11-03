@@ -94,7 +94,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             if (processCommand(command)) needsRetry = true
         }
 
-        if (!pullChanges(targetOwner)) needsRetry = true
+        if (!DebtHydration(debtDao, financialApi, changeFeedApplier, sessionCoordinator).pullChanges(targetOwner)) needsRetry = true
         if (outboxDao.countPending(targetOwner) > 0) needsRetry = true
         reminderReconciler.reconcile(targetOwner)
         return if (needsRetry) Result.retry() else Result.success()
@@ -189,32 +189,6 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             }
             movementDao.updateCommandReceiptStatus(command.userId, command.operationId, receiptStatus, now)
         }
-    }
-
-    private suspend fun pullChanges(userId: String): Boolean {
-        var checkpoint = debtDao.getSyncCheckpoint(userId)?.sequence ?: 0L
-        repeat(MAX_PAGES_PER_RUN) {
-            when (val response = financialApi.pullChanges(PullChangesRequestDto(afterSequence = checkpoint))) {
-                is FinancialApiResponse.Success -> {
-                    val page = response.data
-                    when (val applied = changeFeedApplier.applyPage(userId, page)) {
-                        is DebtChangeApplyResult.Applied -> checkpoint = applied.nextSequence
-                        is DebtChangeApplyResult.Conflict -> {
-                            SecureLog.w(TAG, "Debt change feed stopped on a stale revision")
-                            return true
-                        }
-                        is DebtChangeApplyResult.Rejected -> {
-                            SecureLog.w(TAG, "Debt change page rejected: ${applied.code}")
-                            return false
-                        }
-                    }
-                    if (page.changes.isEmpty() || !page.hasMore) return true
-                }
-                is FinancialApiResponse.Error -> return response.statusCode in 400..499 && response.statusCode != 401
-                is FinancialApiResponse.NetworkFailure -> return false
-            }
-        }
-        return false
     }
 
     private fun retryDelay(attempt: Int): Long =

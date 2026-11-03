@@ -68,42 +68,39 @@ class CategoriesApi @Inject constructor(
         return callRpc("resolve_category_conflict_v1", request)
     }
 
-    suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> {
-        return remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
-            val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
-            val response = httpClient.get("rest/v1/merchant_services") {
-                header(HttpHeaders.Authorization, auth)
-                url {
-                    parameters.append(
-                        "select",
-                        "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id"
-                    )
-                    parameters.append("is_active", "eq.true")
-                    if (sinceVersion > 0) {
-                        parameters.append("or", "(version.gt.$sinceVersion,user_id.not.is.null)")
-                    }
-                }
-            }
-            response.toCategoryApiResponse()
-        }
+    suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
+        val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
+        fetchPages("merchant_services", "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id", "id", auth, sinceVersion)
     }
 
     suspend fun fetchCategories(): CategoryApiResponse<List<CategoryCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
-        val response = httpClient.get("rest/v1/categories") {
-            header(HttpHeaders.Authorization, auth)
-            url { parameters.append("select", "id,name,icon_key,user_id,parent_id,origin,category_type,is_active,remote_revision,created_at,updated_at") }
-        }
-        response.toCategoryApiResponse()
+        fetchPages("categories", "id,name,icon_key,user_id,parent_id,origin,category_type,is_active,remote_revision,created_at,updated_at", "id", auth)
     }
 
     suspend fun fetchCategoryPresentations(): CategoryApiResponse<List<CategoryPresentationCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
-        val response = httpClient.get("rest/v1/category_presentations") {
-            header(HttpHeaders.Authorization, auth)
-            url { parameters.append("select", "category_id,user_id,name,icon,color,remote_revision,updated_at") }
+        fetchPages("category_presentations", "category_id,user_id,name,icon,color,remote_revision,updated_at", "category_id,user_id", auth)
+    }
+
+    private suspend inline fun <reified T> fetchPages(table: String, columns: String, order: String, auth: String, sinceVersion: Long = 0L): CategoryApiResponse<List<T>> {
+        val all = mutableListOf<T>()
+        while (true) {
+            val response = httpClient.get("rest/v1/$table") {
+                header(HttpHeaders.Authorization, auth)
+                url {
+                    parameters.append("select", columns)
+                    if (table == "merchant_services" && sinceVersion > 0) parameters.append("or", "(version.gt.$sinceVersion,user_id.not.is.null)")
+                    parameters.append("order", order)
+                    parameters.append("limit", "500")
+                    parameters.append("offset", all.size.toString())
+                }
+            }
+            if (response.status.value !in 200..299) return CategoryApiResponse.Error(response.status.value, null)
+            val page = response.body<List<T>>()
+            all.addAll(page)
+            if (page.size < 500) return CategoryApiResponse.Success(all)
         }
-        response.toCategoryApiResponse()
     }
 
     private suspend inline fun <reified REQ : Any> callRpc(

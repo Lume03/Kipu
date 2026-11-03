@@ -40,11 +40,11 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
     private val userId = UUID.randomUUID().toString()
     private val categoryDao = mockk<CategoryDao>(relaxed = true)
 
-    private fun worker(status: HttpStatusCode, rpcBody: String): SyncCategoryCommandsWorker {
+    private fun worker(status: HttpStatusCode, rpcBody: String, getFails: Boolean = false): SyncCategoryCommandsWorker {
         val client = HttpClient(MockEngine { request ->
             val isRpc = request.method == HttpMethod.Post
             if (isRpc) respond(rpcBody, status, headersOf(HttpHeaders.ContentType, "application/json"))
-            else respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            else respond(if (getFails) "{}" else "[]", if (getFails) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
             defaultRequest { url("https://kipu.test/") }
@@ -75,7 +75,8 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
         val body = """{"code":"PGRST301","message":"JWT expired","details":null,"hint":null}"""
         for (code in listOf(400, 401, 409, 429, 500)) {
             val w = worker(HttpStatusCode.fromValue(code), body)
-            assertTrue(w.doWork() is ListenableWorker.Result.Success)
+            val result = w.doWork()
+            assertTrue(if (code in listOf(401, 429, 500)) result is ListenableWorker.Result.Retry else result is ListenableWorker.Result.Success)
             coVerify(exactly = 0) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
         }
     }
@@ -84,5 +85,10 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
         val w = worker(HttpStatusCode.OK, """{"success":true,"status":"APPLIED"}""")
         w.doWork()
         coVerify(exactly = 1) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+    }
+
+    @Test fun `failed hydration is retried and cannot be reported as completed`() = runTest {
+        assertTrue(worker(HttpStatusCode.OK, "{}", getFails = true).doWork() is ListenableWorker.Result.Retry)
+        coVerify(exactly = 0) { categoryDao.updateOutboxCommand(any()) }
     }
 }

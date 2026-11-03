@@ -183,43 +183,8 @@ class SyncBudgetCommandsWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun hydrate(userId: String): Result {
-        val budgets = when (val result = api.fetchBudgets(userId)) {
-            is BudgetApiResponse.Success -> result.data
-            is BudgetApiResponse.Error -> return if (shouldRetry(result.statusCode)) Result.retry() else Result.failure()
-            is BudgetApiResponse.NetworkFailure -> return Result.retry()
-        }
-        val periods = when (val result = api.fetchPeriods(userId)) {
-            is BudgetApiResponse.Success -> result.data
-            is BudgetApiResponse.Error -> return if (shouldRetry(result.statusCode)) Result.retry() else Result.failure()
-            is BudgetApiResponse.NetworkFailure -> return Result.retry()
-        }
-
-        val blockedBudgetIds = budgetDao.allOutbox(userId)
-            .filter { it.state == PENDING || it.state == FAILED }
-            .mapTo(mutableSetOf()) { it.aggregateId }
-        transactionRunner {
-            for (remote in budgets) {
-                if (remote.userId != userId || remote.id in blockedBudgetIds || budgetDao.getTombstone(userId, remote.id) != null) continue
-                if (remote.periodType == "CUSTOM" && (remote.rangeStartOn == null || remote.rangeEndOn == null)) {
-                    SecureLog.w("SyncBudgetCommandsWorker", "Skipping a legacy custom budget without date bounds")
-                    continue
-                }
-                val local = budgetDao.getBudget(userId, remote.id)
-                if (local == null || remote.revision >= local.revision) {
-                    budgetDao.upsertBudget(remote.toLocalEntity(zoneId))
-                }
-            }
-
-            for (remote in periods) {
-                if (remote.userId != userId || remote.budgetId in blockedBudgetIds || budgetDao.getTombstone(userId, remote.budgetId) != null) continue
-                if (budgetDao.getBudget(userId, remote.budgetId) == null) continue
-                // The remote snapshot of the period scope is authoritative.
-                budgetDao.upsertPeriod(remote.toLocalEntity())
-            }
-        }
-        return Result.success()
-    }
+    private suspend fun hydrate(userId: String): Result =
+        if (BudgetHydration(budgetDao, transactionRunner, api, zoneId).hydrateFully(userId, strict = false)) Result.success() else Result.retry()
 
     private fun remoteFailure(error: BudgetApiResponse.Error): Outcome.Failure {
         val message = runCatching {

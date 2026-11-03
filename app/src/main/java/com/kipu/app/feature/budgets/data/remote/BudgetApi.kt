@@ -34,39 +34,38 @@ class BudgetApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
-    suspend fun fetchBudgets(userId: String): BudgetApiResponse<List<BudgetRemoteDto>> {
-        val auth = authHeader(userId) ?: return unauthenticated()
-        return execute(
-            block = {
-                httpClient.get("rest/v1/budgets") {
-                    header(HttpHeaders.Authorization, auth)
-                    url {
-                        parameters.append("select", BUDGET_COLUMNS)
-                        parameters.append("user_id", "eq.$userId")
-                        parameters.append("deleted_at", "is.null")
-                        parameters.append("order", "updated_at.asc,id.asc")
-                    }
-                }
-            },
-            decode = { it.body() },
-        )
-    }
+    suspend fun fetchBudgets(userId: String): BudgetApiResponse<List<BudgetRemoteDto>> =
+        fetchAll(userId, "budgets", BUDGET_COLUMNS, "updated_at.asc,id.asc")
 
-    suspend fun fetchPeriods(userId: String): BudgetApiResponse<List<BudgetPeriodRemoteDto>> {
-        val auth = authHeader(userId) ?: return unauthenticated()
-        return execute(
-            block = {
-                httpClient.get("rest/v1/budget_periods") {
+    suspend fun fetchPeriods(userId: String): BudgetApiResponse<List<BudgetPeriodRemoteDto>> =
+        fetchAll(userId, "budget_periods", PERIOD_COLUMNS, "starts_on.asc,id.asc")
+
+    private suspend inline fun <reified T> fetchAll(userId: String, table: String, columns: String, order: String): BudgetApiResponse<List<T>> {
+        val rows = mutableListOf<T>()
+        while (true) {
+            val auth = authHeader(userId) ?: return unauthenticated()
+            val result: BudgetApiResponse<List<T>> = execute(block = {
+                httpClient.get("rest/v1/$table") {
                     header(HttpHeaders.Authorization, auth)
                     url {
-                        parameters.append("select", PERIOD_COLUMNS)
+                        parameters.append("select", columns)
                         parameters.append("user_id", "eq.$userId")
-                        parameters.append("order", "starts_on.asc,id.asc")
+                        if (table == "budgets") parameters.append("deleted_at", "is.null")
+                        parameters.append("order", order)
+                        parameters.append("offset", rows.size.toString())
+                        parameters.append("limit", "500")
                     }
                 }
-            },
-            decode = { it.body() },
-        )
+            }, decode = { it.body() })
+            when (result) {
+                is BudgetApiResponse.Success -> {
+                    rows.addAll(result.data)
+                    if (result.data.size < 500) return BudgetApiResponse.Success(rows)
+                }
+                is BudgetApiResponse.Error -> return result
+                is BudgetApiResponse.NetworkFailure -> return result
+            }
+        }
     }
 
     suspend fun fetchTombstones(userId: String): BudgetApiResponse<List<BudgetTombstoneRemoteDto>> {
