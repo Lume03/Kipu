@@ -6,7 +6,7 @@
 
 ## Scope & Traceability
 
-Incluye HU-45, HU-46, HU-47, HU-48, HU-50 y HU-51 del backlog (S8, 2026-10-28–2026-11-03). No incluye SMS, HU-49 (Yape híbrido/OCR, S9), ni sincronización de candidatos, eventos fuente o evidencia. Accesibilidad no se añade como requisito de aceptación para este alcance.
+Incluye HU-45, HU-46, HU-47, HU-48, HU-50 y HU-51 del backlog (S8, 2026-10-28–2026-11-03). Incluye HU-49 mediante el refinamiento S9 aprobado abajo. No incluye SMS ni sincronización de candidatos, eventos fuente o evidencia. Accesibilidad no se añade como requisito de aceptación para este alcance.
 
 Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps bancarias, BCP, Interbank, BBVA y Scotiabank, mediante catálogo versionado y parsers con fixtures. Solo en builds debug `com.android.shell` simula el proveedor indicado por el título; nunca es fuente en release. Candidatos, eventos y evidencia viven solo en Room. El aprendizaje usa las tablas/casos existentes HU-16/HU-17, que ya sincronizan; no hay migración Supabase nueva.
 
@@ -128,3 +128,9 @@ La suite `:app:testDebugUnitTest` terminó con **1014 pruebas, 0 fallos, 0 error
 Capturas: `qa-free.png`, `qa2-1.png`–`qa2-9.png`, `qa3-1.png`–`qa3-7.png`. QA3 no aportó evidencia del replay del mismo comando manual ni de estado remoto nuevo tras retirar override; el registro manual ordinario se abrió, pero no se guardó. El repost con nuevo `postTime` creó candidato `POSSIBLE_DUPLICATE` sin segundo movimiento y no se describe como duplicado exacto.
 
 El override Premium QA fue temporal; el gate quedó cerrado y los overrides quedaron en cero al final. El caché local de QA3 no se refrescó concluyentemente. Esta evidencia local no acredita despliegue ni estado remoto.
+
+## Refinamiento HU-49 aprobado por Owner - 2026-11-03
+
+D1: evidencias locales de notificación y OCR comparten raíz de candidato/movimiento en ambos órdenes cuando coinciden referencias normalizadas. Adjuntar evidencia nunca escribe ledger ni sobrescribe campos existentes/editados. Las raíces confirmadas siguen siendo destinos válidos. Sin referencia en al menos una fuente, importe + moneda + dirección + contraparte normalizada + hora dentro de ±10 minutos solo propone unión cuando hay exactamente una raíz compatible que aún no tenga esa fuente; el usuario elige unir o mantener separado. Referencias distintas, ambigüedad y reembolsos históricos no se fusionan por importe. Evidencias y candidatos permanecen solo en Room.
+
+D2: OCR Yape local sigue disponible en Free con consentimiento y revisión (decisión 2026-10-21); sustituye escenario 7 del backlog. Sin consentimiento no se procesa imagen. Una captura Premium vencida mantiene descarte/conversión manual explícita, sin repetir OCR. Imagen incompleta requiere corrección y MIME no imagen se rechaza antes de abrir bytes.
