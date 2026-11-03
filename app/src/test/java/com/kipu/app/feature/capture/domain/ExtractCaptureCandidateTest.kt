@@ -64,6 +64,20 @@ class ExtractCaptureCandidateTest {
     private fun signal(text: String = "Yapeaste S/ 25.50 a Juan P.", key: String = "key", source: String = CaptureSourceCatalog.DEBUG_SHELL) =
         CaptureSignal(CaptureProvider.YAPE, source, key, now - 1000, "Yape", text)
 
+    @Test fun yapeIncomeFixtureCreatesLocalPendingCandidateWithConfidenceAndIntegrity() = runTest {
+        val source = signal("Jose Perez te yape\u00f3 S/ 50.00 el 03/11/2026 10:30\nOperaci\u00f3n: 00123",
+            source = "com.bcp.innovacxion.yapeapp")
+        val candidate = (pipeline()(owner, source) as CaptureExtractionResult.Created).candidate
+        assertEquals(CaptureDirection.INCOME, candidate.direction)
+        assertEquals(5000L, candidate.amountMinor)
+        assertEquals("00123", candidate.operationReference)
+        assertEquals(CaptureCandidateStatus.PENDING, candidate.status)
+        assertNull(candidate.resolvedTransactionId)
+        assertEquals(CaptureConfidenceLevel.LOW, CaptureConfidenceScorer().score(candidate).level)
+        assertTrue(CaptureReason.INSTRUMENT_UNRESOLVED in candidate.confidenceReasons)
+        assertFalse(candidate.evidenceSnippet.orEmpty().contains("00123"))
+    }
+
     @Test fun `repeat delivery produces one candidate and duplicate outcome`() = runTest {
         val extract = pipeline()
         assertTrue(extract(owner, signal()) is CaptureExtractionResult.Created)

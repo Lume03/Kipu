@@ -79,6 +79,17 @@ class ImportYapeReceiptTest {
         coVerify(exactly = 0) { store.import(any(), any(), any(), any()) }
     }
 
+    @Test fun blurredAmountRemainsNullAndRequiresManualCorrection() = runTest {
+        val useCase = ImportYapeReceipt(ReceiptScanAccess { true },
+            ReceiptImageRecognizer { RecognizedReceiptText("Yape\nS/ ??", "blurred") }, YapeReceiptParser(),
+            object : ReceiptCandidateStore by mockk() {
+                override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?) =
+                    ReceiptCandidateSaveResult.Saved(newReceiptCandidate(ownerId, imageFingerprint, fields, isIncome))
+            }, consent())
+        val result = assertIs<ReceiptImportResult.CandidateCreated>(useCase("owner", mockk<Uri>(), true))
+        assertEquals(null, result.candidate.amountMinor)
+    }
+
     private fun consent(granted: Boolean = true) = object : ReceiptOcrConsent {
         private var allowed = granted
         override suspend fun isGranted(ownerId: String) = allowed
