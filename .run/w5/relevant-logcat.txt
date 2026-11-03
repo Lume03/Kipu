@@ -1,0 +1,25 @@
+11-02 15:25:34.440 14842 14885 I duiv    : DatabaseHelperBasic.doInitializationTraced returned SQLiteDatabase: /data/user/0/com.google.android.apps.messaging/databases/bugle_backup_db
+11-02 15:25:34.444 14842 14884 I duir    : DatabaseHelperBasic: sqlite version is 3.44.5
+11-02 15:25:34.494 14842 14884 I duiv    : DatabaseHelperBasic.doInitializationTraced() returned SQLiteDatabase: /data/user/0/com.google.android.apps.messaging/databases/bugle_db
+11-02 15:25:34.494 14842 14884 I duiv    : DatabaseHelperBasic.doInitializationTraced returned SQLiteDatabase: /data/user/0/com.google.android.apps.messaging/databases/bugle_db
+11-02 15:25:34.981 13654 13678 W SQLiteLog: (28) double-quoted string literal: "play-pass"
+11-02 15:25:35.708 13616 13648 W SQLiteLog: (28) double-quoted string literal: "play-pass"
+11-02 15:25:37.101 15334 15476 W SQLiteLog: (28) walIndexRecover: rc 0, nPage 0, mxFrame 0, /data/data/com.sec.android.app.shealth/databases/SecureHealthData.db-wal
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: Error inserting pk=acnt val={"id":"ja4urqwsje3Nbu0mpiYI7K0sLY3FbO2t\n","hash":[-41,92],"saVer":"15.7.01.1","userNameFrom":-1}
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: android.database.sqlite.SQLiteConstraintException: UNIQUE constraint failed: info.pk (code 1555 SQLITE_CONSTRAINT_PRIMARYKEY[1555])
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForLastInsertedRowId(Native Method)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteConnection.executeForLastInsertedRowId(SQLiteConnection.java:1335)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteSession.executeForLastInsertedRowId(SQLiteSession.java:825)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteStatement.executeInsert(SQLiteStatement.java:89)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteDatabase.insertWithOnConflict(SQLiteDatabase.java:2531)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.database.sqlite.SQLiteDatabase.insert(SQLiteDatabase.java:2399)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.content.ContentProvider.insert(ContentProvider.java:2017)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.content.ContentProvider$Transport.insert(ContentProvider.java:456)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.content.ContentResolver.insert(ContentResolver.java:2224)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at android.content.ContentResolver.insert(ContentResolver.java:2186)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at e2.a.S(r8-map-id-495fe657f33914e5b9c16d28895d3e40222bef9e43e6e83d5a81d70c991942e7:51)
+11-02 15:25:37.725 15495 15559 E SQLiteDatabase: 	at m2.d$a.run(r8-map-id-495fe657f33914e5b9c16d28895d3e40222bef9e43e6e83d5a81d70c991942e7:192)
+11-02 15:25:37.777 15334 15474 W SQLiteLog: (28) walIndexRecover: rc 0, nPage 0, mxFrame 0, /data/data/com.sec.android.app.shealth/databases/SecureHealthData.db-wal
+11-02 15:25:38.158 15334 15600 W .shealth:remote: Long monitor contention with owner data-req-1 (15604) at android.database.sqlite.SQLiteConnection android.database.sqlite.SQLiteConnectionPool.waitForConnection(java.lang.String, int, android.os.CancellationSignal)(SQLiteConnectionPool.java:1021) waiters=0 in void android.database.sqlite.SQLiteConnectionPool.releaseConnection(android.database.sqlite.SQLiteConnection) for 127ms
+11-02 15:25:38.159 15334 15602 W .shealth:remote: Long monitor contention with owner data-req-1 (15604) at android.database.sqlite.SQLiteConnection android.database.sqlite.SQLiteConnectionPool.waitForConnection(java.lang.String, int, android.os.CancellationSignal)(SQLiteConnectionPool.java:1021) waiters=1 in android.database.sqlite.SQLiteConnection android.database.sqlite.SQLiteConnectionPool.waitForConnection(java.lang.String, int, android.os.CancellationSignal) for 127ms
+11-02 15:25:38.285 15334 15600 W .shealth:remote: Long monitor contention with owner data-req-1 (15604) at android.database.sqlite.SQLiteConnection android.database.sqlite.SQLiteConnectionPool.waitForConnection(java.lang.String, int, android.os.CancellationSignal)(SQLiteConnectionPool.java:1021) waiters=0 in void android.database.sqlite.SQLiteConnectionPool.releaseConnection(android.database.sqlite.SQLiteConnection) for 124ms

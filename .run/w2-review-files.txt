@@ -1,0 +1,15 @@
+app/src/main/java/com/kipu/app/feature/statements/domain/ConfirmStatementImport.kt
+app/src/main/java/com/kipu/app/feature/statements/domain/StatementModels.kt
+app/src/main/java/com/kipu/app/feature/statements/domain/BcpSavingsStatementParser.kt
+app/src/main/java/com/kipu/app/feature/statements/domain/StatementImportStore.kt
+app/src/main/java/com/kipu/app/feature/statements/data/local/StatementImportEntities.kt
+app/src/main/java/com/kipu/app/feature/statements/data/local/RoomStatementImportStore.kt
+app/src/main/java/com/kipu/app/core/database/RoomMigrations.kt
+app/schemas/com.kipu.app.core.database.KipuDatabase/33.json
+app/src/main/java/com/kipu/app/feature/statements/presentation/StatementDesign.kt
+app/src/main/java/com/kipu/app/feature/statements/presentation/StatementReviewScreen.kt
+app/src/test/java/com/kipu/app/feature/statements/ConfirmStatementImportTest.kt
+app/src/test/java/com/kipu/app/feature/statements/BcpSavingsStatementParserTest.kt
+app/src/test/java/com/kipu/app/feature/statements/StatementImportRoomTest.kt
+app/src/test/java/com/kipu/app/feature/statements/presentation/StatementReviewScreenTest.kt
+app/src/androidTest/java/com/kipu/app/core/database/StatementRoomMigrationTest.kt

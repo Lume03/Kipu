@@ -1,0 +1,7 @@
+// Local-only: signs the R8 release build with the debug key so it installs over
+// the debug app without wiping login/data. Not for store uploads.
+allprojects {
+    pluginManager.withPlugin("com.android.application") {
+        android.buildTypes.release.signingConfig = android.signingConfigs.debug
+    }
+}
