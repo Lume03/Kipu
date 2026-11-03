@@ -46,9 +46,11 @@
 **Independent Test**: Validar HU-41 1–6 y FR-009–FR-011 con golden fixtures, escenarios de base cero/periodo parcial y capacidades efectivas; fuera de la aceptación S7.
 
 - [ ] T021 [US3] Resolver GATE-ANALYTICS-04: catálogo de métricas, moneda, periodos, comparación y reglas de filtrado; registrar aprobación antes de codificar.
-- [ ] T022 [P] [US3] Resolver acceso Premium efectivo/Free y filtros con HU-58/EP-PLA, incluyendo expiración/offline.
-- [ ] T023 [US3] Añadir pruebas de dominio para excluir transferencias, principal, reservas y anulaciones y para tratar reembolsos según contrato.
-- [ ] T024 [US3] Implementar resumen básico Free del periodo actual y estados base cero/desconocido/periodo parcial.
+- [x] T022 [P] [US3] Resolver acceso Premium efectivo/Free y filtros con HU-58/EP-PLA, incluyendo expiración/offline.
+- [x] T023 [US3] Añadir pruebas de dominio para excluir transferencias, principal, reservas y anulaciones y para tratar reembolsos según contrato.
+- [x] T024 [US3] Implementar resumen básico Free del periodo actual y estados base cero/desconocido/periodo parcial.
+> Nota HU-41: T022–T024 cubren lógica y pruebas JVM; la interfaz Compose y su integración quedan para el siguiente paso. La consulta Room se compiló con su prueba instrumentada, pendiente de ejecución en dispositivo.
+
 - [ ] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
 - [ ] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
 

@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.analytics.data
+package com.kipu.app.feature.analytics.data
 
 import androidx.room.ColumnInfo
 import androidx.room.Dao
@@ -7,6 +7,10 @@ import kotlinx.coroutines.flow.Flow
 
 /** Expense projection follows MovementDao.getExpensesInPeriod and TransactionLinkDao refund rules. */
 data class AnalyticsExpenseEntity(
+    val type: String, val status: String,
+    @ColumnInfo(name = "sync_status") val syncStatus: String,
+    @ColumnInfo(name = "operation_kind") val operationKind: String?,
+    @ColumnInfo(name = "legacy_kind") val legacyKind: String?,
     @ColumnInfo(name = "amount_minor") val amountMinor: Long,
     @ColumnInfo(name = "refunded_minor") val refundedMinor: Long,
     @ColumnInfo(name = "currency_code") val currency: String,
@@ -19,7 +23,7 @@ data class AnalyticsExpenseEntity(
 @Dao
 interface AnalyticsDao {
     @Query("""
-        SELECT t.amount_minor, t.currency_code, t.category_id, t.source_account_id, t.card_id, t.merchant_id,
+        SELECT t.type, t.status, t.sync_status, t.operation_kind, t.legacy_kind, t.amount_minor, t.currency_code, t.category_id, t.source_account_id, t.card_id, t.merchant_id,
           COALESCE((SELECT SUM(r.amount_minor) FROM transaction_links l
             JOIN transactions r ON r.user_id = l.user_id AND r.id = l.target_transaction_id
             WHERE l.user_id = t.user_id AND l.source_transaction_id = t.id AND l.link_type = 'REFUND'

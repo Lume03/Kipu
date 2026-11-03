@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.analytics
+package com.kipu.app.feature.analytics
 
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
@@ -31,6 +31,16 @@ class AnalyticsCalculatorTest {
         val filters = AnalyticsFilters(categoryIds = setOf("food"), accountIds = setOf("cash"), types = setOf(MovementType.EXPENSE), currency = Currency.PEN)
         assertEquals(Money(10000, Currency.PEN), AnalyticsCalculator.calculate(current, today, filters, rows).totals[Currency.PEN])
         assertFalse(AnalyticsCalculator.calculate(current, today, filters.copy(types = setOf(MovementType.TRANSFER)), rows).hasRecords)
+    }
+    @Test fun premiumComparisonUsesSameCombinedFiltersInBothPeriods() {
+        val filters = AnalyticsFilters(categoryIds = setOf("food"), accountIds = setOf("cash"), types = setOf(MovementType.EXPENSE), currency = Currency.PEN)
+        val before = AnalyticsCalculator.calculate(previous, today, filters, listOf(expense(10000), expense(70000, account = "other")))
+        val after = AnalyticsCalculator.calculate(current, today, filters, listOf(expense(15000), expense(90000, category = "rent")))
+        val result = AnalyticsCalculator.compare(before, after)
+        assertEquals(previous, result.previous.period)
+        assertEquals(current, result.current.period)
+        assertEquals(Money(5000, Currency.PEN), result.byCurrency.getValue(Currency.PEN).difference)
+        assertEquals(PercentageChange.Value(BigDecimal("50.00")), result.byCurrency.getValue(Currency.PEN).percentage)
     }
     @Test fun comparisonWithValidAndZeroBase() {
         val comparison = AnalyticsCalculator.compare(result(previous, expense(10000)), result(current, expense(15000), expense(200, currency = "USD")))
