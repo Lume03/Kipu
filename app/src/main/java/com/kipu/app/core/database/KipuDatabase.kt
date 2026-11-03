@@ -171,6 +171,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
 )
 @TypeConverters(DatabaseConverters::class)
 abstract class KipuDatabase : RoomDatabase() {
+    abstract fun analyticsDao(): com.kipu.app.feature.analytics.data.AnalyticsDao
     abstract fun statementImportDao(): StatementImportDao
     abstract fun statementImportMatchingDao(): StatementImportMatchingDao
     abstract fun planPreferencesDao(): PlanPreferencesDao
