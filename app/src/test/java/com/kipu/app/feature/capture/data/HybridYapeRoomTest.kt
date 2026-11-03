@@ -39,10 +39,10 @@ class HybridYapeRoomTest {
         val n = notification()
         assertTrue(captures.insertIfAbsent(n))
         captures.updatePending(n.copy(amountMinor = 9999, userCorrectedFields = listOf("amountMinor")))
-        assertEquals(ReceiptCandidateSaveResult.Duplicate(n.id), receipts.import(owner, "image", fields(), true))
+        assertEquals(ReceiptCandidateSaveResult.Duplicate(n.id), receipts.import(owner, "image", fields().copy(amountMinor = 9999), true))
         assertEquals(9999L, captures.get(owner, n.id)?.amountMinor)
         assertTrue(captures.markResolved(owner, n.id, CaptureCandidateStatus.CONFIRMED, "movement", "resolution", emptyList(), 20))
-        assertEquals(ReceiptCandidateSaveResult.Duplicate(n.id), receipts.import(owner, "image-2", fields(), true))
+        assertEquals(ReceiptCandidateSaveResult.Duplicate(n.id), receipts.import(owner, "image-2", fields().copy(amountMinor = 9999), true))
         assertEquals("movement", RoomCaptureCorrelation(db).movement(owner, "capture:${n.id}"))
         assertEquals(1, db.captureEvidenceDao().all(owner).map { it.root }.distinct().size)
         assertTrue(receipts.observe(owner).first().isEmpty())
@@ -51,10 +51,10 @@ class HybridYapeRoomTest {
     @Test fun shareThenNotificationKeepsReceiptAndNoSecondCandidateForConfirmedOrPending() = runBlocking {
         val r = (receipts.import(owner, "image", fields(), true) as ReceiptCandidateSaveResult.Saved).candidate
         receipts.edit(owner, r.id, ReceiptCandidateEdit(7777, r.occurredAt, "Editado", r.reference, true))
-        assertFalse(captures.insertIfAbsent(notification()))
+        assertFalse(captures.insertIfAbsent(notification().copy(amountMinor = 7777)))
         assertEquals(7777L, receipts.get(owner, r.id)?.amountMinor)
         receipts.markConfirmed(owner, r.id)
-        assertFalse(captures.insertIfAbsent(notification()))
+        assertFalse(captures.insertIfAbsent(notification().copy(amountMinor = 7777)))
         assertTrue(captures.observePending(owner).first().isEmpty())
         assertEquals(1, db.captureEvidenceDao().all(owner).map { it.root }.distinct().size)
     }
@@ -114,5 +114,18 @@ class HybridYapeRoomTest {
         assertThrows(android.database.sqlite.SQLiteConstraintException::class.java) {
             sql.execSQL("INSERT INTO capture_evidence VALUES ('owner','ocr','four','receipt:four','REF',0)")
         }
+    }
+    @Test fun conflictingReferenceFactsStaySeparateAndMigrationSeedsOnce() = runBlocking {
+        val n = notification()
+        assertTrue(captures.insertIfAbsent(n))
+        assertTrue(captures.insertIfAbsent(notification().copy(amountMinor = 6000)))
+        assertTrue(captures.insertIfAbsent(notification().copy(currency = "USD")))
+        assertTrue(captures.insertIfAbsent(notification().copy(direction = CaptureDirection.EXPENSE)))
+        assertEquals(4, captures.observePending(owner).first().size)
+        db.openHelper.writableDatabase.execSQL("DELETE FROM capture_evidence")
+        com.kipu.app.core.database.MIGRATION_36_37.migrate(db.openHelper.writableDatabase)
+        assertEquals(4, db.captureEvidenceDao().all(owner).size)
+        assertEquals(3, db.captureEvidenceDao().nearbyFacts(owner, 5000, 400000, 1600000).size)
+        assertTrue(db.captureEvidenceDao().nearbyFacts(owner, 5000, 2000000, 3000000).isEmpty())
     }
 }

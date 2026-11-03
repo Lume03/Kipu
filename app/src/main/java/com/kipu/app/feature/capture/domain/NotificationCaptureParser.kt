@@ -93,7 +93,7 @@ private class PeruNotificationParser : NotificationCaptureParser {
             amountMinor = money?.first, currency = money?.second, direction = direction,
             merchantSourceText = merchant, cardLast4 = last4, occurredAt = occurredAt,
             occurredAtReliable = occurredAt != null, instrumentKind = instrument,
-            operationReference = Regex("(?i)(?:operaci[o\u00f3]n|referencia|c[o\u00f3]digo de operaci[o\u00f3]n)[: #\\s]*([A-Z0-9-]+)").find(content)?.groupValues?.get(1),
+            operationReference = operationReference(content),
             issues = buildSet {
                 if (money == null) add(CaptureIssue.AMOUNT_MISSING)
                 if (distinct.size > 1) add(CaptureIssue.AMOUNT_AMBIGUOUS)
@@ -102,6 +102,11 @@ private class PeruNotificationParser : NotificationCaptureParser {
             },
         )
     }
+
+    private fun operationReference(content: String): String? =
+        Regex("""(?i)(?:\b(?:operaci[o\u00f3]n|referencia|c[o\u00f3]digo de operaci[o\u00f3]n|nro\.?|n[\u00b0\u00ba])(?=[\s:#])\s*[:#]?\s+|\b(?:operaci[o\u00f3]n|referencia|nro\.?|n[\u00b0\u00ba])\s*[:#]\s*|#\s*)([A-Z0-9][A-Z0-9-]*)(?![A-Z0-9-])""")
+            .findAll(content).map { it.groupValues[1] }
+            .firstOrNull { token -> token.count { it.isLetterOrDigit() } >= 6 && token.any { it.isDigit() } }
 
     private fun parseWallet(signal: CaptureSignal): ParsedCapture {
         // Only this complete payment format establishes an expense; bank verbs are not a fallback.

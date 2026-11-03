@@ -20,4 +20,13 @@ class HybridYapeMigrationTest {
             db.query("SELECT COUNT(*) FROM capture_evidence").use { it.moveToFirst(); assertEquals(0L, it.getLong(0)) }
         }
     }
+    @Test fun v36To37SeedsHistoricalProvenanceAndValidatesSchema() {
+        val name = "hybrid-yape-36-37"
+        helper.createDatabase(name,36).use { db ->
+            db.execSQL("INSERT INTO receipt_candidates (candidate_id,owner_id,provider,amount_minor,occurred_at,recipient,reference,reference_fingerprint,image_fingerprint,status,created_at,updated_at,is_income,fields_edited) VALUES ('candidate','owner','YAPE',5000,1000,'Persona','00123456','hash','image','PENDING',1000,1000,1,0)")
+        }
+        helper.runMigrationsAndValidate(name,37,true,MIGRATION_36_37).use { db ->
+            db.query("SELECT root,reference FROM capture_evidence").use { it.moveToFirst(); assertEquals("receipt:candidate",it.getString(0)); assertEquals("00123456",it.getString(1)) }
+        }
+    }
 }

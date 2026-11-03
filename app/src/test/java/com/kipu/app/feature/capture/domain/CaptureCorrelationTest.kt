@@ -44,10 +44,22 @@ class CaptureCorrelationTest {
     @Test fun yapeIncomeNotificationFixtureExtractsAmountDirectionAndOperation() {
         val parsed = YapeNotificationParser().parse(CaptureSignal(CaptureProvider.YAPE,
             "com.bcp.innovacxion.yapeapp", "notification-1", 1000, "Yape",
-            "José Pérez te yape\u00f3 S/ 50.00 el 03/11/2026 10:30\nOperaci\u00f3n: 00123"))
+            "José Pérez te yape\u00f3 S/ 50.00 el 03/11/2026 10:30\nOperaci\u00f3n: 00123456"))
         assertEquals(5000L, parsed.amountMinor)
         assertEquals(CaptureDirection.INCOME, parsed.direction)
-        assertEquals("00123", parsed.operationReference)
+        assertEquals("00123456", parsed.operationReference)
         assertTrue(parsed.occurredAtReliable)
+    }
+    @Test fun sameReferenceCannotHideDifferentMoneyOrDirection() {
+        for (other in listOf(share.copy(amount = 6000), share.copy(currency = "USD"), share.copy(income = false), share.copy(amount = null))) {
+            assertFalse(CaptureCorrelation.sameReference(notification, other))
+        }
+    }
+    @Test fun providerReferencesAreConservative() {
+        for (provider in listOf(CaptureProvider.BCP, CaptureProvider.BBVA, CaptureProvider.INTERBANK, CaptureProvider.YAPE)) {
+            fun parse(text: String) = NotificationCaptureParsers.forProvider(provider).parse(CaptureSignal(provider,"pkg","id",1,"Pago","Pagaste S/ 10.00. $text")).operationReference
+            for (text in listOf("operacion con tu tarjeta", "Operacion exitosa", "Operaciones", "referencia 1234 5678", "Operacion: ABCDEF", "referencia123456")) assertNull("$provider $text", parse(text))
+            for (text in listOf("Operacion: 00123456", "Referencia AB-123456", "Nro: 00123456", "N\u00b0 00123456", "#00123456")) assertNotNull("$provider $text", parse(text))
+        }
     }
 }

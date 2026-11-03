@@ -17,7 +17,9 @@ object CaptureCorrelation {
             .lowercase(Locale.ROOT).trim().replace(Regex("\\s+"), " ")
     }?.takeIf { it.isNotBlank() }
     fun sameReference(a: CorrelationFacts, b: CorrelationFacts): Boolean =
-        reference(a.reference) != null && reference(a.reference) == reference(b.reference)
+        reference(a.reference) != null && reference(a.reference) == reference(b.reference) &&
+            a.amount != null && a.amount > 0 && a.amount == b.amount &&
+            a.currency != null && a.currency == b.currency && a.income != null && a.income == b.income
     fun compatible(a: CorrelationFacts, b: CorrelationFacts): Boolean {
         if (a.root == b.root || a.source == b.source) return false
         val ar = reference(a.reference); val br = reference(b.reference)

@@ -29,7 +29,9 @@ class RoomReceiptCandidateStore @Inject constructor(
         return database.withTransaction {
             val candidate = newReceiptCandidate(owner, imageFingerprint, fields, isIncome)
             val target = com.kipu.app.feature.capture.data.local.RoomCaptureCorrelation(database).attach(
-                owner, "OCR:YAPE", imageFingerprint, "receipt:${candidate.id}", fields.reference)
+                owner, "OCR:YAPE", imageFingerprint, "receipt:${candidate.id}", fields.reference,
+                com.kipu.app.feature.capture.domain.CorrelationFacts("receipt:${candidate.id}", "OCR:YAPE", fields.reference,
+                    fields.amountMinor, "PEN", isIncome, fields.recipient, fields.occurredAt))
             if (target != null) {
                 com.kipu.app.feature.capture.data.local.RoomCaptureCorrelation(database).completeEmpty(owner, target,
                     com.kipu.app.feature.capture.domain.CorrelationFacts("receipt:${candidate.id}", "OCR:YAPE", fields.reference,

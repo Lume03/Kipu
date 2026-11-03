@@ -45,7 +45,9 @@ class RoomCaptureCandidateStore @Inject constructor(
     override suspend fun insertIfAbsent(record: CaptureCandidateRecord): Boolean = database.withTransaction {
         val correlation = RoomCaptureCorrelation(database)
         val target = correlation.attach(record.ownerId, "NOTIFICATION:${record.sourcePackage}",
-            record.sourceEventFingerprint, "capture:${record.id}", record.operationReference)
+            record.sourceEventFingerprint, "capture:${record.id}", record.operationReference,
+            com.kipu.app.feature.capture.domain.CorrelationFacts("capture:${record.id}", "NOTIFICATION:${record.sourcePackage}", record.operationReference,
+                record.amountMinor, record.currency, record.direction?.let { it == com.kipu.app.feature.capture.domain.CaptureDirection.INCOME }, record.merchantSourceText, record.occurredAt))
         if (target != null) {
             correlation.completeEmpty(record.ownerId, target, com.kipu.app.feature.capture.domain.CorrelationFacts(
                 "capture:${record.id}", "NOTIFICATION:${record.sourcePackage}", record.operationReference,

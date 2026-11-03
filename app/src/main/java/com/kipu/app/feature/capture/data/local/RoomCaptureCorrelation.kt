@@ -11,26 +11,15 @@ import javax.inject.Singleton
 class RoomCaptureCorrelation @Inject constructor(private val db: KipuDatabase) {
     private val evidence get() = db.captureEvidenceDao()
 
-    private suspend fun seed(owner: String) {
-        for (c in db.captureCandidateDao().all(owner)) evidence.insert(CaptureEvidenceEntity(
-            owner, "NOTIFICATION:${c.sourcePackage}", c.sourceEventFingerprint, "capture:${c.id}", null))
-        // Existing receipts from v35 participate without changing their historical identity.
-        for (r in db.receiptCandidateDao().all(owner)) {
-            val ref = CaptureCorrelation.reference(r.reference)
-            evidence.insert(CaptureEvidenceEntity(owner, "OCR:YAPE", r.imageFingerprint,
-                "receipt:${r.candidateId}", ref))
-            if (ref != null) evidence.insert(CaptureEvidenceEntity(owner, "OCR:YAPE", "${r.imageFingerprint}:ref:$ref",
-                "receipt:${r.candidateId}", ref))
-        }
-    }
-
     /** Caller wraps this and candidate insertion in the SAME Room transaction. */
-    suspend fun attach(owner: String, source: String, event: String, root: String, reference: String?): String? {
-        seed(owner)
+    suspend fun attach(owner: String, source: String, event: String, root: String, reference: String?, incoming: CorrelationFacts): String? {
         val ref = CaptureCorrelation.reference(reference)
-        val rows = evidence.all(owner)
-        val target = rows.firstOrNull { it.source == source && it.eventId == event }?.root
-            ?: ref?.let { key -> rows.firstOrNull { it.reference == key }?.root }
+        val target = evidence.event(owner, source, event)?.root
+            ?: ref?.let { key -> evidence.byReference(owner, key).firstOrNull { row ->
+                facts(owner, row.root, row.source, row.reference)?.let { existing ->
+                    CaptureCorrelation.sameReference(incoming, existing)
+                } == true
+            }?.root }
         evidence.insert(CaptureEvidenceEntity(owner, source, event, target ?: root, ref))
         return target
     }
@@ -65,14 +54,28 @@ class RoomCaptureCorrelation @Inject constructor(private val db: KipuDatabase) {
     }
 
     suspend fun suggestion(owner: String, root: String): String? = db.withTransaction {
-        seed(owner)
-        val rows = evidence.all(owner)
-        if (rows.any { it.root == root && it.separated }) return@withTransaction null
-        val own = rows.firstOrNull { it.root == root } ?: return@withTransaction null
-        val incoming = facts(owner, root, own.source, rows.firstOrNull { it.root == root && it.reference != null }?.reference) ?: return@withTransaction null
-        val separatedRoots = rows.filter { it.separated }.map { it.root }.toSet()
-        CaptureCorrelation.suggestion(incoming, rows.filter { it.root != root && it.root !in separatedRoots }.mapNotNull {
-            facts(owner, it.root, it.source, it.reference)
+        val ownRows = evidence.byRoot(owner, root)
+        if (ownRows.any { it.separated }) return@withTransaction null
+        val own = ownRows.firstOrNull() ?: return@withTransaction null
+        val incoming = facts(owner, root, own.source, ownRows.firstOrNull { it.reference != null }?.reference) ?: return@withTransaction null
+        val amount = incoming.amount ?: return@withTransaction null
+        val time = incoming.time ?: return@withTransaction null
+        val rows = evidence.nearbyFacts(owner, amount, time - 600_000, time + 600_000)
+        // Resolve confirmed receipt transactions in two batch reads, never per candidate.
+        val receiptKeys = rows.filter { it.root.startsWith("receipt:") }.associate {
+            receiptRegistrationKey(owner, it.root.substringAfter(':')) to it.root
+        }
+        val receipts = if (receiptKeys.isEmpty()) emptyList() else db.movementDao().getCorrelationReceipts(owner, receiptKeys.keys.toList())
+        val transactions = if (receipts.isEmpty()) emptyMap() else db.movementDao().getCorrelationTransactions(owner, receipts.mapNotNull { it.transactionId }).associateBy { it.id }
+        val receiptTransactions = receipts.mapNotNull { receipt ->
+            val key = receiptKeys[receipt.idempotencyKey] ?: return@mapNotNull null
+            val transaction = transactions[receipt.transactionId] ?: return@mapNotNull null
+            key to transaction
+        }.toMap()
+        CaptureCorrelation.suggestion(incoming, rows.filter { it.root != root }.mapNotNull { row ->
+            val transaction = receiptTransactions[row.root] ?: return@mapNotNull row
+            if (transaction.status != "ACTIVE" || transaction.type !in listOf("INCOME", "EXPENSE") || transaction.operationKind == "REFUND") return@mapNotNull null
+            row.copy(amount = transaction.amountMinor, currency = transaction.currencyCode, income = transaction.type == "INCOME", counterparty = transaction.merchantProvisionalText ?: row.counterparty, time = transaction.occurredAt)
         })
     }
 
@@ -85,7 +88,7 @@ class RoomCaptureCorrelation @Inject constructor(private val db: KipuDatabase) {
         val pending = if (root.startsWith("receipt:")) db.receiptCandidateDao().get(owner, id)?.status == "PENDING"
             else db.captureCandidateDao().get(owner, id)?.status == "PENDING"
         if (!pending) return@withTransaction false
-        val sourceEvidence = evidence.all(owner).first { it.root == root }
+        val sourceEvidence = evidence.byRoot(owner, root).first()
         facts(owner, root, sourceEvidence.source, sourceEvidence.reference)?.let { completeEmpty(owner, target, it) }
         if (root.startsWith("receipt:")) db.receiptCandidateDao().discard(owner, id, System.currentTimeMillis())
         else db.captureCandidateDao().discard(owner, id, System.currentTimeMillis())

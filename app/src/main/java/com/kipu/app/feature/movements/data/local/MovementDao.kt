@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MovementDao {
+    @Query("SELECT * FROM local_command_receipts WHERE user_id=:owner AND idempotency_key IN (:keys)")
+    suspend fun getCorrelationReceipts(owner: String, keys: List<String>): List<LocalCommandReceiptEntity>
+    @Query("SELECT * FROM transactions WHERE user_id=:owner AND id IN (:ids)")
+    suspend fun getCorrelationTransactions(owner: String, ids: List<String>): List<TransactionEntity>
+
     @Query("""
         UPDATE movement_outbox SET state = 'PENDING', next_attempt_at = NULL,
             lease_until = NULL, last_error_code = NULL, updated_at = :now
@@ -292,6 +297,9 @@ interface MovementDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertConflictProposal(proposal: MovementConflictProposalEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertHydratedConflictProposal(proposal: MovementConflictProposalEntity)
 
     @Query("SELECT * FROM movement_conflict_proposals WHERE user_id=:userId AND transaction_id=:transactionId AND resolution='UNRESOLVED'")
     suspend fun getConflictProposals(userId: String, transactionId: String): List<MovementConflictProposalEntity>

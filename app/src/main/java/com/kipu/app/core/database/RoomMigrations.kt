@@ -1551,3 +1551,18 @@ val MIGRATION_35_36 = object : Migration(35, 36) {
         db.execSQL("CREATE INDEX IF NOT EXISTS index_capture_evidence_owner_id_root ON capture_evidence(owner_id, root)")
     }
 }
+
+/** Seed historical provenance exactly once, atomically with the upgrade. */
+val MIGRATION_36_37 = object : Migration(36, 37) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX index_capture_evidence_owner_id_reference_source")
+        db.execSQL("CREATE INDEX index_capture_evidence_owner_id_reference_source ON capture_evidence(owner_id,reference,source)")
+        db.execSQL("INSERT OR IGNORE INTO capture_evidence(owner_id,source,event_id,root,reference,separated) SELECT owner_id,'NOTIFICATION:' || source_package,source_event_fingerprint,'capture:' || id,NULL,0 FROM capture_candidates")
+        db.query("SELECT owner_id,image_fingerprint,candidate_id,reference FROM receipt_candidates").use { c ->
+            while (c.moveToNext()) {
+                val reference = com.kipu.app.feature.capture.domain.CaptureCorrelation.reference(c.getString(3))
+                db.execSQL("INSERT OR IGNORE INTO capture_evidence(owner_id,source,event_id,root,reference,separated) VALUES(?,'OCR:YAPE',?,?,?,0)", arrayOf(c.getString(0), c.getString(1), "receipt:${c.getString(2)}", reference))
+            }
+        }
+    }
+}
