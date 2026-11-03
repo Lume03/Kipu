@@ -50,6 +50,9 @@ interface TransactionLinkDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(link: TransactionLinkEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertHydrated(link: TransactionLinkEntity)
+
     @Query("SELECT * FROM transaction_links WHERE user_id=:userId AND target_transaction_id=:refundId")
     suspend fun getByRefundId(userId: String, refundId: String): TransactionLinkEntity?
 

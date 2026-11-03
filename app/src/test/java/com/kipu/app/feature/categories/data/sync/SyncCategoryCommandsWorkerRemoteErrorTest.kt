@@ -88,7 +88,7 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
     }
 
     @Test fun `failed hydration is retried and cannot be reported as completed`() = runTest {
-        assertTrue(worker(HttpStatusCode.OK, "{}", getFails = true).doWork() is ListenableWorker.Result.Retry)
-        coVerify(exactly = 0) { categoryDao.updateOutboxCommand(any()) }
+        assertTrue(worker(HttpStatusCode.OK, """{"success":true,"status":"APPLIED"}""", getFails = true).doWork() is ListenableWorker.Result.Retry)
+        coVerify(exactly = 1) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
     }
 }

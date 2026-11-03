@@ -53,8 +53,8 @@ class RestoreUserData @Inject constructor(
 ) {
     private val mutex = Mutex()
     private val runner = RestoreRunner(linkedMapOf<String, suspend (String) -> Boolean>(
-        "Categorías y comercios" to { owner -> categories.hydrateFully(owner) && supplements.merchantRules(owner) },
-        "Cuentas, tarjetas y movimientos" to { owner -> movements.hydrateFully(owner) && supplements.movementHistory(owner) && supplements.financialFacts(owner) },
+        "Categorías y comercios" to { owner -> restoreAll({ categories.hydrateFully(owner) }, { supplements.merchantRules(owner) }) },
+        "Cuentas, tarjetas y movimientos" to { owner -> restoreAll({ movements.hydrateFully(owner) }, { supplements.movementHistory(owner) }, { supplements.financialFacts(owner) }) },
         "Deudas y cuotas" to { owner -> debts.hydrateFully(owner) },
         "Metas y reservas" to { owner -> goals.hydrateFully(owner) },
         "Presupuestos" to { owner -> budgets.hydrateFully(owner) },
@@ -73,4 +73,13 @@ class RestoreUserData @Inject constructor(
     suspend operator fun invoke(owner: String, previous: RestoreResult? = null): RestoreResult = mutex.withLock {
         runner.run(owner, previous)
     }
+}
+
+internal suspend fun restoreAll(vararg steps: suspend () -> Boolean): Boolean {
+    var success = true
+    for (step in steps) {
+        val result = try { step() } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
+        if (!result) success = false
+    }
+    return success
 }

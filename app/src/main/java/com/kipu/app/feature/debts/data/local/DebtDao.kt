@@ -31,6 +31,9 @@ data class DebtDueBalanceRow(
 
 @Dao
 interface DebtDao {
+    @Query("SELECT COUNT(*) FROM debt_command_outbox WHERE user_id=:userId AND state NOT IN ('APPLIED','DUPLICATE','COMPLETED','SYNCED','SUCCEEDED')")
+    suspend fun countUnresolvedCommands(userId: String): Int
+
     /** Same valid-payment principal rule as getInstallmentRemaining; no state is written here. */
     @Query("""
         SELECT d.id AS debtId, i.id AS installmentId, i.installment_number AS installmentNumber,

@@ -106,7 +106,7 @@ class SupplementaryHydration @Inject constructor(
                     arrayOf<Any>(row.text("revision_id"), revision, owner, tx, revision),
                 )
             }
-            for (row in links) db.transactionLinkDao().insert(TransactionLinkEntity(
+            for (row in links) db.transactionLinkDao().insertHydrated(TransactionLinkEntity(
                 userId = owner, sourceTransactionId = row.text("source_transaction_id"), targetTransactionId = row.text("target_transaction_id"),
                 linkType = row.text("link_type"), createdAt = requireNotNull(row.timestamp("created_at")),
             ))

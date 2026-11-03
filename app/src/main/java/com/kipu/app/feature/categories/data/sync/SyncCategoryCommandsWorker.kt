@@ -71,17 +71,17 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
 
         // Fill missing server categories without overwriting pending local edits.
         val hydration = CategoryHydration(categoryDao, merchantDao, applicationContext, api)
+        var needsRetry = false
         try {
             hydration.hydrateCategories(userId)
             hydration.hydrateMerchantCatalog()
-        } catch (e: CancellationException) { throw e } catch (_: Exception) { return Result.retry() }
+        } catch (e: CancellationException) { throw e } catch (_: Exception) { needsRetry = true }
 
         // 1. Hydrate / refresh merchant catalog
 
 
         // 2. Process pending outbox commands
         val pendingCommands = categoryDao.getPendingOutboxCommands(userId)
-        var needsRetry = false
         for (cmd in pendingCommands) {
             when (val outcome = processCommand(cmd)) {
                 CommandOutcome.Applied -> categoryDao.updateOutboxCommand(cmd.copy(state = "COMPLETED", errorCode = null))

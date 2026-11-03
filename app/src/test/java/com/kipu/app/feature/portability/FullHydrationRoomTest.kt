@@ -66,6 +66,11 @@ class FullHydrationRoomTest {
         db.openHelper.writableDatabase.execSQL("INSERT INTO instrument_sync_outbox(operation_id,user_id,command_type,aggregate_type,aggregate_id,contract_version,payload_json,payload_hash,state,attempt_count,created_at,updated_at) VALUES('local',?,'UPDATE_APPEARANCE','ACCOUNT','cash',1,'{}','h','PENDING',0,1,1)", arrayOf(owner))
         assertTrue(hydrate.hydrateFully(owner))
         assertEquals("Edición local", db.accountDao().getById(owner, "cash")?.alias)
+        for (state in listOf("CONFLICT", "FAILED_PERMANENT")) {
+            db.openHelper.writableDatabase.execSQL("UPDATE instrument_sync_outbox SET state=?", arrayOf(state))
+            assertTrue(hydrate.hydrateFully(owner))
+            assertEquals("Caja", db.accountDao().getById(owner, "cash")?.alias)
+        }
     }
     @Test fun emptyUnfinishedPageIsNotACompletedRestore() = runTest {
         coEvery { api.pullChanges(any(), any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0, true))
@@ -78,6 +83,12 @@ class FullHydrationRoomTest {
         val hydrate = GoalHydration(api, applier, db, mockk(relaxed = true), session)
         repeat(2) { assertTrue(hydrate.hydrateFully(owner)) }
         assertEquals(1, count("goals")); assertEquals(1, count("goal_events")); assertEquals(0, count("ledger_entries"))
+        val goalCheckpoint = db.goalDao().getSyncCheckpoint(owner)
+        db.goalOutboxDao().insert(com.kipu.app.feature.goals.data.local.GoalOutboxEntity(owner,"pending","goal","UPDATE_GOAL","h",payload="{}",createdAt=1,updatedAt=1))
+        db.openHelper.writableDatabase.execSQL("UPDATE goals SET revision=2,sync_state='PENDING' WHERE user_id=?",arrayOf(owner))
+        assertFalse(hydrate.hydrateFully(owner))
+        assertEquals(goalCheckpoint,db.goalDao().getSyncCheckpoint(owner))
+
     }
     @Test fun debtsFullReplayKeepsOneDebtAndReturnsHttpErrorAsFailure() = runTest {
         feed(change("DEBT", "debt", """{"id":"debt","user_id":"$owner","obligation_type":"PAYABLE","counterparty_name":"Ana","total_minor":1000,"currency_code":"PEN","opened_on":"2026-11-01","opening_mode":"HISTORICAL","status":"ACTIVE","revision":1,"created_at":"2026-11-01T00:00:00Z","updated_at":"2026-11-01T00:00:00Z"}"""))
@@ -87,6 +98,12 @@ class FullHydrationRoomTest {
         assertEquals(1, count("debts")); assertEquals(0, count("ledger_entries"))
         coEvery { api.pullChanges(any(), any()) } returns FinancialApiResponse.Error(403, null)
         assertFalse(hydrate.hydrateFully(owner))
+        assertTrue(hydrate.pullChanges(owner)) // permanent 4xx does not retry forever in normal sync
+        val debtCheckpoint = db.debtDao().getSyncCheckpoint(owner)
+        db.debtOutboxDao().insert(com.kipu.app.feature.debts.data.local.DebtOutboxEntity(owner,"pending","debt","UPDATE_DEBT","h","{}",createdAt=1,updatedAt=1))
+        db.openHelper.writableDatabase.execSQL("UPDATE debts SET revision=2,sync_state='PENDING' WHERE user_id=?",arrayOf(owner))
+        assertFalse(hydrate.hydrateFully(owner))
+        assertEquals(debtCheckpoint,db.debtDao().getSyncCheckpoint(owner))
     }
     @Test fun budgetSnapshotTwiceDoesNotDuplicateBudgetOrPeriod() = runTest {
         val remote = mockk<BudgetApi>()

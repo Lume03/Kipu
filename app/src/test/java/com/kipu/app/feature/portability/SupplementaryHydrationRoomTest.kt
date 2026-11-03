@@ -32,6 +32,7 @@ class SupplementaryHydrationRoomTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val db = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java).allowMainThreadQueries().build()
         val bodies = mapOf(
+            "transaction_links" to """[{"id":"link","user_id":"$owner","source_transaction_id":"t","target_transaction_id":"refund","link_type":"REFUND","created_at":"2026-11-01T00:00:00Z"}]""",
             "transaction_revisions" to """[{"id":"r","user_id":"$owner","transaction_id":"t","command_id":null,"command_type":"REGISTER_TRANSACTION","base_revision":0,"local_revision":1,"previous_payload":null,"new_payload":{"amount_minor":100},"change_reason":null,"provenance":"REMOTE","created_at":"2026-11-01T00:00:00Z"}]""",
             "movement_official_revisions" to """[{"user_id":"$owner","transaction_id":"t","official_revision":1,"revision_id":"r","official_revision_id":"r","assigned_at":"2026-11-01T00:00:00Z"}]""",
             "financial_movements" to """[{"id":"opening","operation_id":"op","operation_sequence":0,"user_id":"$owner","kind":"OPENING","amount_minor_units":1000,"currency":"PEN","account_id":"cash","opening_account_id":"cash","effective_at":"2026-11-01T00:00:00Z","status":"POSTED","created_at":"2026-11-01T00:00:00Z"}]""",
@@ -44,13 +45,14 @@ class SupplementaryHydrationRoomTest {
         try {
             db.accountDao().insert(AccountEntity("cash", owner, "create", "Caja", "CASH", "PEN", null, null, null, 1000, 1, createdAt = 1, updatedAt = 1))
             db.movementDao().insertTransactions(listOf(TransactionEntity("t", owner, "INCOME", 100, "PEN", occurredAt = 1)))
+            db.movementDao().insertTransactions(listOf(TransactionEntity("refund", owner, "INCOME", 100, "PEN", occurredAt = 1)))
             db.movementDao().insertPulledLedgerEntries(listOf(com.kipu.app.feature.movements.data.local.LedgerEntryEntity("remote:opening:cash", owner, "remote:opening:cash", "cash", "DESTINATION", 1000, "PEN", 1)))
             val session = mockk<SessionCoordinator> { every { currentOwner } returns LocalOwner(owner) }
             val auth = mockk<AuthenticatedSessionProvider> { coEvery { currentSession() } returns AuthenticatedSession(UUID.fromString(owner), "token") }
             val hydration = SupplementaryHydration(client, auth, session, db)
             repeat(2) { assertTrue(hydration.movementHistory(owner)); assertTrue(hydration.financialFacts(owner)); assertTrue(hydration.merchantRules(owner)) }
             fun count(table: String) = db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
-            assertEquals(1, count("transaction_revisions")); assertEquals(1, count("movement_official_revisions"))
+            assertEquals(1, count("transaction_links")); assertEquals(1, count("transaction_revisions")); assertEquals(1, count("movement_official_revisions"))
             assertEquals(1, count("financial_movements")); assertEquals(1, count("merchant_alias_rules"))
             assertEquals(1, count("ledger_entries")); assertEquals(1000L, db.movementDao().calculateLedgerSumForAccount(owner, "cash"))
         } finally { client.close(); db.close() }

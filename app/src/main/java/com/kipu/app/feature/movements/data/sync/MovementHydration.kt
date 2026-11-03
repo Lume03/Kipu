@@ -341,7 +341,7 @@ class MovementHydration @javax.inject.Inject constructor(
 
     private fun hasUnsentInstrument(userId: String, aggregateId: String): Boolean =
         database.openHelper.readableDatabase.query(androidx.sqlite.db.SimpleSQLiteQuery(
-            "SELECT EXISTS(SELECT 1 FROM instrument_sync_outbox WHERE user_id=? AND aggregate_id=? AND state NOT IN ('SYNCED','COMPLETED'))",
+            "SELECT EXISTS(SELECT 1 FROM instrument_sync_outbox WHERE user_id=? AND aggregate_id=? AND state IN ('PENDING','IN_FLIGHT','ERROR'))",
             arrayOf(userId, aggregateId),
         )).use { it.moveToFirst(); it.getInt(0) != 0 }
 
@@ -401,7 +401,7 @@ class MovementHydration @javax.inject.Inject constructor(
                 val revId = pending.revisionId
                 val rev = revId?.let { movementDao.getRevision(userId, it) }
                 if (rev != null) {
-                    movementDao.insertConflictProposal(
+                    movementDao.insertHydratedConflictProposal(
                         MovementConflictProposalEntity(
                             userId = userId,
                             proposalId = java.util.UUID.randomUUID().toString(),
