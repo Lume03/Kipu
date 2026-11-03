@@ -322,7 +322,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 - **FR-052**: Ajustes DEBE organizarse en Mi suscripción, Preferencias financieras, Tema de la aplicación, Notificaciones y alertas, y Seguridad y copias de seguridad, conforme a las referencias visuales aprobadas.
 - **FR-053**: La moneda principal DEBE ofrecer PEN y USD como opciones visibles; el inicio del ciclo mensual DEBE poder ajustarse entre los días 1 y 28 mediante controles de incremento y decremento. La máscara de montos DEBE conservar su comportamiento existente.
 - **FR-054**: Ajustes DEBE mantener operativos los accesos existentes a permisos, biometría y cierre de sesión. El acceso a permisos DEBE aparecer en Notificaciones y alertas; el de biometría, en Seguridad y copias de seguridad.
-- **FR-055**: Estado de suscripción, vigencia, facturación, restauración de compras, cupos, categorías, anticipación de vencimientos, exportación, restauración local y eliminación de cuenta PUEDEN mostrarse como interfaz preparada para futuras épicas, pero DEBEN identificarse como pendientes y NO DEBEN presentar datos inventados como reales ni ejecutar acciones no implementadas.
+- **FR-055**: En Sprint 9 HU-06 incorpora exportación CSV/JSON, restauración remota de datos sincronizados y aviso de pendientes locales; la eliminación de cuenta permanece pendiente en este sprint. Las demás acciones no implementadas DEBEN identificarse como pendientes y NO DEBEN presentar datos inventados ni ejecutar acciones simuladas.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -367,7 +367,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 | RSK-APS-004 | Solicitar permisos sin consentimiento informado o seguir procesando tras revocación. | Explicar antes de solicitar, reflejar estados reales y detener señales posteriores al detectar revocación. |
 | RSK-APS-005 | Prometer persistencia o recuperación de cambios nunca sincronizados. | Advertir pendientes antes de cerrar y no afirmar que podrán restaurarse desde otro dispositivo. |
 | RSK-APS-006 | El registro de un correo existente permite inferir que la cuenta existe. | Limitar esa revelación al registro, aplicar protección ante abuso y mantener neutros los flujos de acceso y recuperación. |
-| DEC-APS-001 | HU-06 pertenece a la épica, pero no al incremento. | Mantenerla trazable como evolución del Sprint 9 sin requisitos implementables en esta versión. |
+| DEC-APS-001 | HU-06 entra en el incremento de Sprint 9. | Parte A: exportación CSV/JSON, restauración remota y aviso de pendientes; parte B: eliminación de cuenta pendiente en este sprint. |
 | DEC-APS-002 | La política exacta de contraseña, verificación y vigencia de enlaces es configurable. | La especificación exige cumplir y comunicar la política vigente; sus parámetros concretos se documentarán y validarán en el plan. |
 
 ## Success Criteria *(mandatory)*
@@ -430,4 +430,9 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 - La inspección de errores y registros operativos confirma ausencia de secretos y datos sensibles prohibidos.
 - Los recorridos afectados cumplen los criterios de accesibilidad y se verifican en dispositivos representativos.
 - Existe revisión cruzada de trazabilidad entre HU, requisitos, escenarios, pruebas y evidencia.
-- HU-06 permanece fuera de la implementación y está identificada como evolución del Sprint 9.
+- HU-06 entra en Sprint 9 según el refinamiento posterior; el alcance anterior corresponde a Sprint 1.
+
+
+### Refinamiento Sprint 9 - HU-06 parte A
+
+La exportacion usa SAF y filtra estrictamente por propietario; CSV incluye movimientos y JSON versionado incluye las entidades propias sincronizadas. Se excluyen credenciales, datos ajenos, catalogos globales, facturacion, entitlements, evidencia local y tablas operacionales. La restauracion recupera datos sincronizados desde el servidor mediante mecanismos idempotentes e informa resultados parciales o errores; antes de exportar o restaurar se advierte sobre pendientes locales. La suscripcion se gestiona en Google Play. La eliminacion de cuenta corresponde a la parte B, aun pendiente.

@@ -361,3 +361,13 @@ With US1 complete:
 Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la tercera usa `Omboarding 3 - Corregido.png`, proporcionada y aprobada por el usuario. Build/debug/lab, 53 pruebas unitarias y tests instrumentados documentados en `docs/ux-ui/audits/AUTH_ONBOARDING_IMPLEMENTATION.md`. Las acciones «Empezar» y «Ya tengo una cuenta» comparten la finalización persistente antes de abrir login. La validación remota mantiene pendiente el CAPTCHA real preexistente y configuración del proveedor. Superseded 2026-11-01 (D3): CAPTCHA eliminado; protección por rate limits.
 
 - [X] T092 [US1] Corregir registro adaptable a A16 sin scroll con teclado cerrado, recuperar transición en formulario compartido y validar frames intermedios, modo directo de registro, tamaños/IME/Reduce Motion (VIS-APS-005/006).
+
+
+## Sprint 9 - HU-06 parte A
+
+- [ ] Exportacion SAF CSV/JSON versionada y aislamiento por propietario.
+- [ ] Resumen reutilizable de pendientes de sincronizacion.
+- [ ] Restauracion remota idempotente por modulo con resultados reales y reintento.
+- [ ] Pantalla Datos y privacidad y nota sobre Google Play.
+- [ ] Pruebas de serializacion, privacidad, pendientes, restauracion y builds solicitados.
+- [ ] Parte B: eliminacion de cuenta (fuera de esta asignacion).

@@ -162,3 +162,8 @@ No aplica: el diseño no requiere excepciones a la constitución.
 ## Ajustes visuales de perfil (2026-09-21)
 
 La pantalla Ajustes adopta las cinco secciones de la referencia Stitch. Se conservan los flujos existentes para PEN/USD, día 1–28, máscara de montos, tema guardado, permisos, biometría y cierre de sesión. La suscripción se representa sin estado Premium, fecha ni facturación ficticios. Categorías, anticipación de vencimientos, compras, cupos, exportación, restauración y eliminación se muestran como pendientes sin acciones operativas; las épicas propietarias conectarán esos controles y sus datos reales. No se amplía el modelo de persistencia de EP-APS para estos futuros módulos.
+
+
+## Sprint 9 - HU-06 parte A
+
+Exportar datos propios mediante SAF, CSV de movimientos y JSON versionado de entidades sincronizadas, excluyendo secretos y datos operacionales. Restaurar desde repositorios de sincronizacion existentes de forma idempotente, informando fallos por modulo y pendientes locales antes de operar; no restaurar entitlements. La eliminacion de cuenta se implementara en parte B.
