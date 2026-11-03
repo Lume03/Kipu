@@ -1,0 +1,16 @@
+BEGIN;
+SET LOCAL search_path=public,extensions;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(8);
+INSERT INTO auth.users(id,email) VALUES('a0699999-1111-4111-8111-111111111111','s9-concurrent@kipu.test');
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id) VALUES('a0699999-1111-4111-8111-111111111111','a0699999-1111-4111-8111-111111111111','Fixture','BANK','PEN','GENERIC');
+SELECT ok(EXISTS(SELECT 1 FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='advisory' AND mode='ShareLock'),'normal writes acquire shared advisory lock');
+SELECT ok(NOT EXISTS(SELECT 1 FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='advisory' AND mode='ExclusiveLock'),'normal writes do not acquire exclusive lock');
+SELECT is(public.purge_account_data('a0699999-1111-4111-8111-111111111111','a0699999-2222-4222-8222-222222222222',repeat('a',64))->>'state','data_deleted','first request purges');
+SELECT ok(EXISTS(SELECT 1 FROM pg_locks WHERE pid=pg_backend_pid() AND locktype='advisory' AND mode='ExclusiveLock'),'purge retains exclusive lock');
+SELECT is(public.purge_account_data('a0699999-1111-4111-8111-111111111111','a0699999-3333-4333-8333-333333333333',repeat('b',64)),jsonb_build_object('state','in_progress'),'second device gets only in_progress, without foreign capability');
+SELECT is((SELECT count(*) FROM private.account_deletion_requests WHERE user_id='a0699999-1111-4111-8111-111111111111'),1::bigint,'only one active request');
+SELECT ok(public.account_deletion_status('a0699999-2222-4222-8222-222222222222',repeat('b',64)) IS NULL,'second device cannot read first capability');
+SELECT is(public.purge_account_data('a0699999-1111-4111-8111-111111111111','a0699999-2222-4222-8222-222222222222',repeat('a',64))->>'state','data_deleted','first request still reconciles');
+SELECT * FROM finish();
+ROLLBACK;

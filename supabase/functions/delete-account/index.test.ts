@@ -88,3 +88,10 @@ Deno.test("missing Auth after a lost completion response reconciles only a match
   assert((await (await f.handler(f.request())).json()).status === "completed");
   assert(f.calls.join(",") === "complete");
 });
+
+Deno.test("a concurrent owner request is pending without exposing its capability or deleting Auth", async () => {
+  const f = fixture({ purge: () => Promise.resolve({ state: "in_progress" }) });
+  const r = await f.handler(f.request());
+  assert(r.status === 202 && (await r.json()).status === "in_progress");
+  assert(!f.calls.includes("deleteAuth") && !f.calls.includes("complete"));
+});

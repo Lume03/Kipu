@@ -3,7 +3,7 @@ export type Receipt = { state: "data_deleted" | "completed"; user_id: string | n
 export type Dependencies = {
   user: (jwt: string) => Promise<{ id: string } | null>;
   receipt: (id: string, hash: string) => Promise<Receipt | null>;
-  purge: (user: string, id: string, hash: string) => Promise<void>;
+  purge: (user: string, id: string, hash: string) => Promise<void | { state: string }>;
   deleteUser: (user: string) => Promise<void>;
   userExists: (user: string) => Promise<boolean>;
   complete: (id: string, hash: string) => Promise<void>;
@@ -58,7 +58,10 @@ export function createDeleteAccountHandler(deps: Dependencies) {
       if (!receipt && !recentPassword(jwt, user.id, (deps.now ?? (() => Date.now() / 1000))())) {
         return json("error", 403, "recent_reauthentication_required");
       }
-      if (!receipt) await deps.purge(user.id, id, hash);
+      if (!receipt) {
+        const purged = await deps.purge(user.id, id, hash);
+        if (purged?.state === "in_progress") return json("in_progress", 202, "another_request_active");
+      }
       dataDeleted = true;
       try { await deps.deleteUser(user.id); } catch {
         // A previous timeout may have removed Auth successfully. Distinguish a
@@ -95,7 +98,7 @@ export function productionDependencies(): Dependencies {
       return await r.json();
     },
     receipt: (id, hash) => rpc("account_deletion_status", { p_request_id: id, p_secret_hash: hash }),
-    purge: async (user, id, hash) => { await rpc("purge_account_data", { p_user_id: user, p_request_id: id, p_secret_hash: hash }); },
+    purge: (user, id, hash) => rpc("purge_account_data", { p_user_id: user, p_request_id: id, p_secret_hash: hash }),
     // The REST equivalent of auth.admin.deleteUser, service credential stays in Edge.
     deleteUser: async (user) => { const r = await authRequest(`admin/users/${user}`, "DELETE"); if (!r.ok) throw new Error("Auth deletion failed"); },
     userExists: async (user) => {
