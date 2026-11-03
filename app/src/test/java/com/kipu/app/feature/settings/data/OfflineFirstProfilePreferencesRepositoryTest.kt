@@ -117,6 +117,7 @@ private class FakeProfileDao : ProfilePreferencesDao() {
     override suspend fun pendingOutboxCount(userId: UUID) = findPendingOutbox(userId).size
     override suspend fun findPendingOutbox(userId: UUID) =
         outbox.filter { it.userId == userId && it.status in setOf("PENDING", "IN_FLIGHT", "WAITING_FOR_AUTH") }
+    override suspend fun findUnresolvedOutbox(userId: UUID) = outbox.filter { it.userId == userId }
     override suspend fun findAllPendingOutbox() = outbox.filter { it.status == "PENDING" }
     override suspend fun findOldestPendingOutbox(userId: UUID) =
         outbox.filter { it.userId == userId && it.status == "PENDING" }.minByOrNull { it.createdAt }

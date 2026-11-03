@@ -49,7 +49,6 @@ class RestoreUserData @Inject constructor(
     categories: CategoryHydration,
     supplements: SupplementaryHydration,
     profile: ProfilePreferencesRepository,
-    pending: PendingLocalChanges,
 ) {
     private val mutex = Mutex()
     private val runner = RestoreRunner(linkedMapOf<String, suspend (String) -> Boolean>(
@@ -60,7 +59,7 @@ class RestoreUserData @Inject constructor(
         "Presupuestos" to { owner -> budgets.hydrateFully(owner) },
         "Recurrencias" to { owner -> recurrences.hydrateFully(owner) },
         "Perfil y preferencias" to { owner ->
-            pending(owner).byModule["profile_preference_outbox"] == 0 && profile.refreshProfile(UUID.fromString(owner)).isSuccess
+            profile.refreshProfile(UUID.fromString(owner)).isSuccess
         },
     ).mapValues { (_, operation) ->
         val guarded: suspend (String) -> Boolean = { owner ->

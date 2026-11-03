@@ -206,14 +206,15 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
     }
 
     override suspend fun refreshProfile(userId: UUID): Result<UserProfile> {
-        return remoteCall(onFailure = { Result.failure(it) }) {
-            val session = sessionProvider.currentSession()
-            if (session != null) {
-                runCatching { supabaseClient.auth.importAuthToken(session.accessToken) }
-            }
+        return remoteCall(onFailure = {
+            SecureLog.e("ProfilePreferencesRepo", "Error refreshing profile via ensure_profile", it)
+            Result.failure(it)
+        }) {
+            check(importSessionFor(userId)) { "Active session does not match the profile owner" }
             val remote = supabaseClient.postgrest.rpc("ensure_profile").decodeAs<RemoteProfileDto>()
+            check(UUID.fromString(remote.userId) == userId) { "Remote profile owner mismatch" }
             val entity = UserProfileCacheEntity(
-                userId = UUID.fromString(remote.userId),
+                userId = userId,
                 displayName = remote.displayName,
                 currencyCode = remote.currencyCode,
                 timeZone = remote.timeZone,
@@ -225,8 +226,7 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
                 syncState = SyncState.SYNCED.name,
                 updatedLocallyAt = Instant.now(),
             )
-            profileDao.putProfile(entity)
-            Result.success(entity.toDomain())
+            Result.success(profileDao.hydrateProfile(entity).toDomain())
         }
     }
 }
