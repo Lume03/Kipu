@@ -185,6 +185,7 @@ fun CaptureReviewScreen(
         onRememberMerchant = onRememberMerchant,
         onRememberCategory = onRememberCategory,
         merchantDiscovery = merchantDiscovery,
+        mergeSuggestion = { state.candidate?.let { CaptureMergeSuggestion(it.ownerId, "capture:${it.id}", onMerged = onBack) } },
     )
 }
 
@@ -216,6 +217,7 @@ internal fun CaptureReviewContent(
     onRememberMerchant: (Boolean) -> Unit = {},
     onRememberCategory: (Boolean) -> Unit = {},
     merchantDiscovery: MerchantDiscoveryUi? = null,
+    mergeSuggestion: @Composable () -> Unit = {},
 ) {
     val palette = rememberCalmEmeraldColors()
     val merchantLabel = merchantPickerState.catalogEntries.firstOrNull { it.id.value == state.merchantId }?.name
@@ -269,6 +271,7 @@ internal fun CaptureReviewContent(
                 state.resolvedForChoice != null -> ExpectedPaymentChoice(state, onChooseExpected, onBack)
                 state.notFound || state.candidate == null -> CaptureUnavailable(onBack)
                 else -> ReviewForm(
+                    mergeSuggestion = mergeSuggestion,
                     state = state,
                     merchantLabel = merchantLabel,
                     onDirection = onDirection,
@@ -416,6 +419,7 @@ private fun List<String>.joinNatural(): String =
 
 @Composable
 private fun ReviewForm(
+    mergeSuggestion: @Composable () -> Unit = {},
     state: CaptureReviewUiState,
     merchantLabel: String?,
     onDirection: (CaptureDirection) -> Unit,
@@ -447,6 +451,7 @@ private fun ReviewForm(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         AccessBanner(state, onOpenPermissions)
+        mergeSuggestion()
 
         AnimatedVisibility(state.generalError != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             val (errorTitle, errorBody) = splitErrorMessage(state.generalError.orEmpty())

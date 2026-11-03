@@ -118,6 +118,10 @@ class ReceiptFlowViewModel @Inject constructor(
                 consumeImport()
                 val duplicate = store.get(requireNotNull(owner), result.existingCandidateId)
                 if (!hasAccess()) return
+                if (duplicate == null) {
+                    message("Comprobante vinculado a la captura original. Revísala en la bandeja de capturas; no se creó otro movimiento.")
+                    return
+                }
                 val movement = duplicate?.takeIf { it.status == ReceiptCandidateStatus.CONFIRMED }
                     ?.let { store.registeredMovementId(requireNotNull(owner), it.id) }
                 if (!hasAccess()) return

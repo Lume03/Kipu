@@ -27,10 +27,19 @@ class RoomReceiptCandidateStore @Inject constructor(
     override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?): ReceiptCandidateSaveResult {
         val owner = UUID.fromString(ownerId).toString()
         return database.withTransaction {
+            val candidate = newReceiptCandidate(owner, imageFingerprint, fields, isIncome)
+            val target = com.kipu.app.feature.capture.data.local.RoomCaptureCorrelation(database).attach(
+                owner, "OCR:YAPE", imageFingerprint, "receipt:${candidate.id}", fields.reference)
+            if (target != null) {
+                com.kipu.app.feature.capture.data.local.RoomCaptureCorrelation(database).completeEmpty(owner, target,
+                    com.kipu.app.feature.capture.domain.CorrelationFacts("receipt:${candidate.id}", "OCR:YAPE", fields.reference,
+                        fields.amountMinor, "PEN", isIncome, fields.recipient, fields.occurredAt))
+                return@withTransaction ReceiptCandidateSaveResult.Duplicate(target.substringAfter(':'))
+            }
             val refFingerprint = fields.reference.normalizedReference()?.sha256()
             val duplicate = dao.findImage(owner, imageFingerprint) ?: refFingerprint?.let { dao.findReference(owner, it) }
             if (duplicate != null) return@withTransaction ReceiptCandidateSaveResult.Duplicate(duplicate.candidateId)
-            val candidate = newReceiptCandidate(owner, imageFingerprint, fields, isIncome)
+
             val row = candidate.toEntity()
             if (dao.insert(row) != -1L) ReceiptCandidateSaveResult.Saved(candidate)
             else {

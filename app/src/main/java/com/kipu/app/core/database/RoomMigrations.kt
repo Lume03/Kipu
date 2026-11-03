@@ -1540,3 +1540,14 @@ val MIGRATION_34_35 = object : androidx.room.migration.Migration(34, 35) {
         db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN user_id TEXT")
     }
 }
+
+
+val MIGRATION_35_36 = object : Migration(35, 36) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE receipt_candidates ADD COLUMN fields_edited INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE receipt_candidates SET fields_edited=1 WHERE updated_at != created_at")
+        db.execSQL("CREATE TABLE IF NOT EXISTS capture_evidence (owner_id TEXT NOT NULL, source TEXT NOT NULL, event_id TEXT NOT NULL, root TEXT NOT NULL, reference TEXT, separated INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(owner_id, source, event_id))")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_capture_evidence_owner_id_reference_source ON capture_evidence(owner_id, reference, source)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_capture_evidence_owner_id_root ON capture_evidence(owner_id, root)")
+    }
+}

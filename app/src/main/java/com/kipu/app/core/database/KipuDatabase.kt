@@ -156,6 +156,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         ReminderScheduleEntity::class,
         LocalReminderEventEntity::class,
         ReceiptCandidateEntity::class,
+        com.kipu.app.feature.capture.data.local.CaptureEvidenceEntity::class,
         BudgetEntity::class,
         BudgetPeriodEntity::class,
         BudgetAlertLedgerEntity::class,
@@ -165,7 +166,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CaptureCandidateEntity::class,
         ExpectedPaymentEntity::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -198,6 +199,7 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun recurrenceOutboxDao(): RecurrenceOutboxDao
     abstract fun reminderScheduleDao(): ReminderScheduleDao
     abstract fun localReminderEventDao(): LocalReminderEventDao
+    abstract fun captureEvidenceDao(): com.kipu.app.feature.capture.data.local.CaptureEvidenceDao
     abstract fun receiptCandidateDao(): ReceiptCandidateDao
     abstract fun budgetDao(): BudgetDao
     abstract fun budgetAlertLedgerDao(): BudgetAlertLedgerDao

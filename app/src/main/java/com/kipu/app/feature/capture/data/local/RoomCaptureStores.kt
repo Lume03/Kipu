@@ -42,8 +42,18 @@ class RoomCaptureCandidateStore @Inject constructor(
     override suspend fun findBySourceFingerprint(ownerId: String, fingerprint: String) =
         dao.findBySourceFingerprint(ownerId, fingerprint)?.toDomain()
 
-    override suspend fun insertIfAbsent(record: CaptureCandidateRecord): Boolean =
-        dao.insertIfAbsent(record.toEntity()) != -1L
+    override suspend fun insertIfAbsent(record: CaptureCandidateRecord): Boolean = database.withTransaction {
+        val correlation = RoomCaptureCorrelation(database)
+        val target = correlation.attach(record.ownerId, "NOTIFICATION:${record.sourcePackage}",
+            record.sourceEventFingerprint, "capture:${record.id}", record.operationReference)
+        if (target != null) {
+            correlation.completeEmpty(record.ownerId, target, com.kipu.app.feature.capture.domain.CorrelationFacts(
+                "capture:${record.id}", "NOTIFICATION:${record.sourcePackage}", record.operationReference,
+                record.amountMinor, record.currency, record.direction?.let { it == com.kipu.app.feature.capture.domain.CaptureDirection.INCOME },
+                record.merchantSourceText, record.occurredAt))
+            false
+        } else dao.insertIfAbsent(record.toEntity()) != -1L
+    }
 
     override suspend fun updatePending(record: CaptureCandidateRecord): Boolean {
         val e = record.toEntity()

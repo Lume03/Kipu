@@ -187,6 +187,7 @@ private fun ReceiptFlowScreen(
                     state.queue?.let { queue ->
                         ReceiptQueueSegments(queue)
                     }
+                    com.kipu.app.feature.capture.presentation.CaptureMergeSuggestion(candidate.ownerId, "receipt:${candidate.id}", onMerged = viewModel::closeEditor)
                     ReceiptMetadataEditor(candidate, state.busy, onContinue = { edit, type -> reviewedType = type; viewModel.edit(edit) },
                         modifier = Modifier.weight(1f), showNotice = state.message == null,
                         onDiscard = { viewModel.discard(candidate.id); viewModel.closeEditor() })

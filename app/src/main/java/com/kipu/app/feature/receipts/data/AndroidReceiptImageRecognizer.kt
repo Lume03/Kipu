@@ -32,7 +32,7 @@ class AndroidReceiptImageRecognizer @Inject constructor(
     override suspend fun recognize(uri: Uri): RecognizedReceiptText? = withContext(Dispatchers.IO) {
         if (uri.scheme != ContentResolver.SCHEME_CONTENT) return@withContext unreadable("unsupported scheme")
         val mime = context.contentResolver.getType(uri)
-        if (mime != null && mime !in setOf("image/png", "image/jpeg", "image/jpg", "image/webp", "application/octet-stream")) {
+        if (mime !in setOf("image/png", "image/jpeg", "image/jpg", "image/webp")) {
             throw UnsupportedReceiptImageFormat()
         }
         val bytes = readBounded(uri) ?: return@withContext unreadable("image not readable")

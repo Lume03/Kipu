@@ -29,6 +29,7 @@ data class ReceiptCandidateEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @ColumnInfo(name = "is_income") val isIncome: Boolean?,
+    @ColumnInfo(name = "fields_edited", defaultValue = "0") val fieldsEdited: Boolean = false,
 ) {
     fun toDomain() = ReceiptCandidate(candidateId, ownerId, provider, amountMinor, occurredAt, recipient, reference,
         referenceFingerprint, imageFingerprint, ReceiptCandidateStatus.valueOf(status), createdAt, updatedAt, isIncome)

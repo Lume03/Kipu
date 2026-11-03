@@ -8,6 +8,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReceiptCandidateDao {
+    @Query("UPDATE receipt_candidates SET amount_minor=COALESCE(amount_minor,:amount), occurred_at=COALESCE(occurred_at,:time), recipient=COALESCE(recipient,:party), is_income=COALESCE(is_income,:income) WHERE owner_id=:owner AND candidate_id=:id AND status='PENDING' AND fields_edited=0")
+    suspend fun completeEmpty(owner: String, id: String, amount: Long?, time: Long?, party: String?, income: Boolean?)
+
+    @Query("SELECT * FROM receipt_candidates WHERE owner_id=:owner")
+    suspend fun all(owner: String): List<ReceiptCandidateEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(entity: ReceiptCandidateEntity): Long
     @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND status='PENDING' ORDER BY created_at DESC")
     fun observePending(ownerId: String): Flow<List<ReceiptCandidateEntity>>
@@ -19,7 +25,7 @@ interface ReceiptCandidateDao {
     suspend fun findImage(ownerId: String, fingerprint: String): ReceiptCandidateEntity?
     @Query("SELECT * FROM receipt_candidates WHERE owner_id=:ownerId AND reference_fingerprint=:fingerprint LIMIT 1")
     suspend fun findReference(ownerId: String, fingerprint: String): ReceiptCandidateEntity?
-    @Query("UPDATE receipt_candidates SET amount_minor=:amount, occurred_at=:occurred, recipient=:recipient, reference=:reference, reference_fingerprint=:fingerprint, is_income=COALESCE(:isIncome,is_income), updated_at=:now WHERE owner_id=:owner AND candidate_id=:id AND status='PENDING'")
+    @Query("UPDATE receipt_candidates SET fields_edited=1, amount_minor=:amount, occurred_at=:occurred, recipient=:recipient, reference=:reference, reference_fingerprint=:fingerprint, is_income=COALESCE(:isIncome,is_income), updated_at=:now WHERE owner_id=:owner AND candidate_id=:id AND status='PENDING'")
     suspend fun edit(owner: String, id: String, amount: Long?, occurred: Long?, recipient: String?, reference: String?, fingerprint: String?, isIncome: Boolean?, now: Long): Int
     @Query("UPDATE receipt_candidates SET status='CONFIRMED', updated_at=:now WHERE owner_id=:owner AND candidate_id=:id AND status='PENDING'")
     suspend fun confirm(owner: String, id: String, now: Long): Int

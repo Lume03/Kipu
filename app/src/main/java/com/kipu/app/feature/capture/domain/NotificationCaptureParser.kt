@@ -19,6 +19,7 @@ data class ParsedCapture(
     val occurredAtReliable: Boolean,
     val issues: Set<CaptureIssue>,
     val instrumentKind: CaptureInstrumentKind? = null,
+    val operationReference: String? = null,
 )
 
 fun interface NotificationCaptureParser {
@@ -92,6 +93,7 @@ private class PeruNotificationParser : NotificationCaptureParser {
             amountMinor = money?.first, currency = money?.second, direction = direction,
             merchantSourceText = merchant, cardLast4 = last4, occurredAt = occurredAt,
             occurredAtReliable = occurredAt != null, instrumentKind = instrument,
+            operationReference = Regex("(?i)(?:operaci[o\u00f3]n|referencia|c[o\u00f3]digo de operaci[o\u00f3]n)[: #\\s]*([A-Z0-9-]+)").find(content)?.groupValues?.get(1),
             issues = buildSet {
                 if (money == null) add(CaptureIssue.AMOUNT_MISSING)
                 if (distinct.size > 1) add(CaptureIssue.AMOUNT_AMBIGUOUS)

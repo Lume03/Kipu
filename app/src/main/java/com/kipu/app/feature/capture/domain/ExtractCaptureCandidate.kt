@@ -103,6 +103,7 @@ class ExtractCaptureCandidate @Inject constructor(
         if (gate.evaluate(ownerId) !is CaptureAccessDecision.Allowed) return CaptureExtractionResult.AccessDenied
         val record = CaptureCandidateRecord(
             id = UUID.randomUUID().toString(), ownerId = ownerId, sourcePackage = signal.sourcePackage,
+            operationReference = parsed.operationReference,
             provider = signal.provider, sourceEventFingerprint = fingerprint, status = CaptureCandidateStatus.PENDING,
             direction = parsed.direction, amountMinor = parsed.amountMinor, currency = parsed.currency,
             occurredAt = parsed.occurredAt ?: signal.postTimeMillis, occurredAtInferred = !parsed.occurredAtReliable,
@@ -119,7 +120,10 @@ class ExtractCaptureCandidate @Inject constructor(
         val inserted = transactions {
             if (events.find(ownerId, fingerprint) != null) false
             else {
-                check(candidates.insertIfAbsent(record)) { "Capture fingerprint collision" }
+                if (!candidates.insertIfAbsent(record)) {
+                    events.recordIfAbsent(CaptureSourceEvent(ownerId, fingerprint, signal.sourcePackage, now, CaptureSourceOutcome.DUPLICATE))
+                    return@transactions false
+                }
                 check(events.recordIfAbsent(CaptureSourceEvent(ownerId, fingerprint, signal.sourcePackage, now, CaptureSourceOutcome.CANDIDATE_CREATED)))
                 true
             }

@@ -75,6 +75,7 @@ data class CaptureCandidateRecord(
     val followupsPending: Int = 0,
     val rememberMerchantAlias: Boolean = true,
     val rememberMerchantCategory: Boolean = true,
+    val operationReference: String? = null,
 )
 
 data class CaptureSourceEvent(

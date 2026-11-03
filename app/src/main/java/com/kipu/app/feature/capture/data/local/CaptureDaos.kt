@@ -20,6 +20,12 @@ interface CaptureSourceEventDao {
 
 @Dao
 interface CaptureCandidateDao {
+    @Query("SELECT * FROM capture_candidates WHERE owner_id=:owner")
+    suspend fun all(owner: String): List<CaptureCandidateEntity>
+
+    @Query("UPDATE capture_candidates SET amount_minor=COALESCE(amount_minor,:amount), currency=COALESCE(currency,:currency), direction=COALESCE(direction,:direction), occurred_at=COALESCE(occurred_at,:time), merchant_source_text=COALESCE(merchant_source_text,:party) WHERE owner_id=:owner AND id=:id AND status='PENDING' AND user_corrected_fields='[]'")
+    suspend fun completeEmpty(owner: String, id: String, amount: Long?, currency: String?, direction: String?, time: Long?, party: String?)
+
     @Query("SELECT * FROM capture_candidates WHERE owner_id=:ownerId AND followups_pending != 0 ORDER BY created_at")
     suspend fun pendingFollowups(ownerId: String): List<CaptureCandidateEntity>
 
