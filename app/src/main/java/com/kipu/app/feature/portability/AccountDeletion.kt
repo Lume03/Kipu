@@ -107,7 +107,7 @@ class AccountDeletion(
         try {
             if (latest.remote != DeletionRemote.COMPLETED) {
                 latest = latest.copy(remote = gateway.delete(latest))
-                checkedOwner()
+                check(currentOwner() == latest.owner || (currentOwner() == null && latest.remote == DeletionRemote.COMPLETED))
                 store.write(latest)
                 mutableState.value = mutableState.value.copy(request = latest)
             }

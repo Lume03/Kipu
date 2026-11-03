@@ -95,7 +95,7 @@ class RemoteAccountDeletion @Inject constructor(
         val status = response.body<JsonObject>()["status"]?.jsonPrimitive?.content
         return when {
             response.status.value == 200 && status == "completed" -> DeletionRemote.COMPLETED
-            response.status.value == 202 && status == "pending" -> DeletionRemote.PENDING
+            response.status.value == 202 && status in listOf("pending", "in_progress") -> DeletionRemote.PENDING
             else -> DeletionRemote.ERROR
         }
     }
@@ -126,7 +126,22 @@ class DeleteLocalAccountRows @Inject constructor(private val database: KipuDatab
                 val leaves = remaining.filter { parent -> remaining.none { child -> parent in parents.getValue(child) } }
                 check(leaves.isNotEmpty()) { "Unresolved account foreign key cycle" }
                 leaves.forEach { table ->
-                    db.execSQL("DELETE FROM `$table` WHERE `${owners.getValue(table)}` = ?", arrayOf(owner))
+                    val selfKeys = db.query("PRAGMA foreign_key_list(`$table`)").use { c ->
+                        buildList {
+                            while (c.moveToNext()) if (c.getString(c.getColumnIndexOrThrow("table")) == table) {
+                                add(Triple(c.getInt(c.getColumnIndexOrThrow("id")), c.getString(c.getColumnIndexOrThrow("from")), c.getString(c.getColumnIndexOrThrow("to"))))
+                            }
+                        }.groupBy { it.first }
+                    }
+                    val filters = selfKeys.values.joinToString("") { columns ->
+                        " AND NOT EXISTS (SELECT 1 FROM `$table` AS child WHERE " +
+                            columns.joinToString(" AND ") { (_, from, to) -> "child.`$from` = `$table`.`$to`" } + ")"
+                    }
+                    val statement = db.compileStatement("DELETE FROM `$table` WHERE `${owners.getValue(table)}` = ?$filters")
+                    try {
+                        statement.bindString(1, owner)
+                        while (statement.executeUpdateDelete() > 0) { /* remove next layer */ }
+                    } finally { statement.close() }
                     remaining.remove(table)
                 }
             }

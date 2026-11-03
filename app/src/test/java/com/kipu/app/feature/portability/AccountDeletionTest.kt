@@ -127,4 +127,18 @@ class AccountDeletionTest {
         assertEquals(DeletionLocal.CLEARED, f.store.rows["owner"]?.local)
         assertTrue(f.cleanup.finished)
     }
+    @Test fun completionSurvivesSessionClearedWhileRemoteCallReturns() = runTest {
+        var owner: String? = "owner"
+        val store = Store()
+        val cleanup = Cleanup()
+        val gateway = object : AccountDeletionGateway {
+            override suspend fun reauthenticate(owner: String, password: String) {}
+            override fun clearReauthentication() {}
+            override suspend fun delete(request: DeletionRequest): DeletionRemote { owner = null; return DeletionRemote.COMPLETED }
+        }
+        val deletion = AccountDeletion(store,gateway,cleanup,{owner},{0})
+        deletion.load(); deletion.open(); deletion.continueToReauthentication(); deletion.reauthenticate("correct"); deletion.confirm()
+        assertEquals(DeletionRemote.COMPLETED,store.rows["owner"]?.remote)
+        assertEquals(DeletionLocal.CLEARED,store.rows["owner"]?.local)
+    }
 }

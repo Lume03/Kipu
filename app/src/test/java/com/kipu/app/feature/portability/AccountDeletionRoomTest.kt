@@ -26,6 +26,15 @@ class AccountDeletionRoomTest {
             fun snapshot() = listOf("goals" to "user_id", "capture_evidence" to "owner_id", "goal_command_outbox" to "user_id").associate { (t,c) ->
                 t to sql.query("SELECT $c FROM $t ORDER BY $c").use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
             }
+            sql.execSQL("INSERT INTO transactions(id,user_id,type,amount_minor,currency_code,occurred_at,status,revision,sync_status,created_at,updated_at,acknowledged_revision) VALUES('tx','owner','EXPENSE',100,'PEN',1,'ACTIVE',1,'SYNCED',1,1,1)")
+            sql.execSQL("INSERT INTO transaction_revisions(user_id,revision_id,transaction_id,command_id,command_type,base_revision,local_revision,new_payload,provenance,created_at) VALUES('owner','rev','tx','cmd','CREATE',0,1,'{}','LOCAL',1)")
+            for (entry in listOf("entry", "reversal")) sql.execSQL("INSERT INTO ledger_entries(id,user_id,transaction_id,account_id,role,signed_amount_minor,currency_code,created_at) VALUES(?,'owner','tx','cash','SOURCE',100,'PEN',1)", arrayOf(entry))
+            sql.execSQL("INSERT INTO movement_ledger_effects(user_id,command_id,effect_ordinal,transaction_id,revision_id,ledger_entry_id) VALUES('owner','cmd',0,'tx','rev','entry')")
+            sql.execSQL("INSERT INTO movement_ledger_effects(user_id,command_id,effect_ordinal,transaction_id,revision_id,ledger_entry_id,reverses_command_id,reverses_effect_ordinal) VALUES('owner','reverse',0,'tx','rev','reversal','cmd',0)")
+            val proposal = com.kipu.app.feature.movements.data.local.MovementConflictProposalEntity("owner","proposal","tx","cmd",0,"rev","{}","rev",null,"UNRESOLVED",1,1)
+            db.movementDao().insertHydratedConflictProposal(proposal)
+            db.movementDao().insertHydratedConflictProposal(proposal.copy(proposalId="retry"))
+            assertEquals(1,db.movementDao().getConflictProposals("owner","tx").size)
             val before = snapshot()
             val store = object : DeletionRequestStore {
                 override suspend fun read(owner: String): DeletionRequest? = null
