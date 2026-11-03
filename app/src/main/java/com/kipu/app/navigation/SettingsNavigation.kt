@@ -46,7 +46,10 @@ fun NavGraphBuilder.settingsDestinations(
 
     composable("settings/data-privacy") {
         val viewModel: com.kipu.app.feature.portability.PortabilityViewModel = hiltViewModel()
-        com.kipu.app.feature.portability.DataPrivacyScreen(viewModel, onNavigateBack = { navController.popBackStack() })
+        val deletion: com.kipu.app.feature.portability.AccountDeletionViewModel = hiltViewModel()
+        com.kipu.app.feature.portability.DataPrivacyScreen(viewModel, onNavigateBack = { navController.popBackStack() }, accountDeletion = {
+            com.kipu.app.feature.portability.AccountDeletionSection(deletion, onCompleted = onSignOut)
+        })
     }
     composable(PROFILE_SETTINGS_ROUTE) {
         val viewModel: SettingsViewModel = hiltViewModel()

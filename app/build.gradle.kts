@@ -223,6 +223,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.datastore.core.okio)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.mockk.jvm)
     testImplementation(libs.androidx.navigation.testing)

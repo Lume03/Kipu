@@ -2,6 +2,15 @@ package com.kipu.app.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -61,6 +70,9 @@ fun NavGraphBuilder.authDestinations(
     composable(AUTH_LOGIN_ROUTE) {
         val viewModel: AuthViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+        val deletion: com.kipu.app.feature.portability.AccountDeletionViewModel = hiltViewModel()
+        val deletionState by deletion.state.collectAsStateWithLifecycle()
+        var dismissRecovery by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
             viewModel.navigationEvents.collect { event ->
@@ -75,6 +87,13 @@ fun NavGraphBuilder.authDestinations(
         }
 
         Box(Modifier.fillMaxSize()) {
+            if (deletion.recoveryMode && deletionState.request != null && !dismissRecovery) {
+                Column(Modifier.fillMaxSize().systemBarsPadding().padding(24.dp)) {
+                    Text("Hay una solicitud de eliminación guardada en este dispositivo. Puedes consultar su resultado aunque la sesión ya haya terminado.")
+                    com.kipu.app.feature.portability.AccountDeletionSection(deletion, onCompleted = { dismissRecovery = true })
+                    TextButton(onClick = { deletion.cancel(); dismissRecovery = true }) { Text("Ir al acceso") }
+                }
+            } else {
             LoginScreen(
                 uiState = uiState,
                 onEmailChanged = viewModel::onEmailChanged,
@@ -84,6 +103,7 @@ fun NavGraphBuilder.authDestinations(
                 onNavigateToRecovery = { navController.navigate(AUTH_RECOVERY_ROUTE) },
                 onDismissExistingAccountDialog = viewModel::dismissExistingAccountDialog,
             )
+            }
         }
     }
 
