@@ -99,3 +99,47 @@ El sharing inicial por ADB no concedió acceso legible a la URI MediaStore: se s
 ## Estado final confirmado
 
 Sesiones reales intactas en ambos teléfonos, nuevamente en Inicio; mismos propietarios y saldos. Room v37, conteos de transacciones/ledger preservados, ninguna cuenta real borrada o deslogueada. Las seis escalas de animación leen **1.0**. Cuenta desechable borrada de Auth y sin filas propias en las 60 tablas verificadas; segunda llamada idempotente completada. Sin cambios de producción, sin push. Pendientes: QA-S9-01, QA-S9-02, cobertura marcada NO VERIFICADO y el residual histórico inactivo indicado arriba.
+
+
+## Re-verificaci?n de incidencias ? 2026-11-03
+
+Alcance: correcciones QA-S9-01/HU-06 A y QA-S9-02/HU-41 en `main`, sin push ni despliegue remoto por este worker. Este apartado actualiza los dos hallazgos; no convierte los casos NO VERIFICADO anteriores en PASS. Evidencia privada en el mismo directorio externo, prefijo `fix-` o `profile-rpc-`.
+
+### QA-S9-01: causa ra?z y correcci?n preparada
+
+**Estado: cliente corregido y backend corregido/probado localmente; restauraci?n contra remoto todav?a FAIL.** El S24 ten?a una operaci?n de perfil PENDING: `RestoreUserData` evaluaba `pending == 0 && refreshProfile(...)`, devolviendo falso antes de consultar remoto. Quitar solo esa condici?n habr?a sobrescrito el perfil local: `refreshProfile` reemplazaba la cach? completa. Ahora consulta realmente el servidor, verifica sesi?n/propietario y aplica los campos remotos en una transacci?n Room conservando campos incluidos en outboxes sin resolver, revisi?n local, estado local y operaci?n pendiente (incluido CONFLICT). No sube ni elimina la outbox para aparentar ?xito. Los fallos reales se mantienen como fallo reintentable; el RPC de refresco registra errores mediante SecureLog.
+
+Hay adem?s defectos **preexistentes de septiembre**, no una regresi?n de los triggers de eliminaci?n desplegados hoy:
+
+- Logcat S24 previo: `update_profile_preferences` devuelve `42501: permission denied for schema private` (`s24-fix-before-logcat.txt`). El rol `profile_preferences_executor` ten?a permisos sobre receipts pero no USAGE sobre su esquema; el error se reproduce al compilar la declaraci?n de receipt, antes de ejecutar triggers.
+- Logcat A16 con el cliente corregido: `ensure_profile` devuelve `42501: permission denied for schema auth` (`a16-fix-after-logcat.txt`, entradas 12:32:24/12:33:07/12:33:29). Ambos ejecutores de perfil carec?an de USAGE en auth, confirmado por el coordinador tambi?n en remoto. La restauraci?n muestra seis m?dulos completados y Perfil fallido, conservando el error real.
+- Al resolver los permisos localmente aparece `invalid input syntax for type bytea`: el hash de `update_profile_preferences` convierte texto con barras invertidas directamente a bytea. Se cambia a `convert_to(..., 'UTF8')`; mismo protocolo de revisi?n e idempotencia. Tambi?n se reproduce con los guards de eliminaci?n retirados dentro de una transacci?n aislada (`profile-rpc-without-deletion-triggers.txt`).
+
+Migraci?n nueva preparada: `supabase/migrations/20261103172646_profile_preferences_private_usage.sql`. No modifica migraciones desplegadas. No requiere supabase_admin ni grants sobre auth: un helper **privado**, `private.profile_session_uid()`, propiedad de postgres, SECURITY DEFINER y search_path vac?o, devuelve exclusivamente `auth.uid()`. Solo los dos ejecutores pueden llamarlo; los RPC conservan firma/owner/RLS y usan ese helper. USAGE private se concede ?nicamente a esos ejecutores, sin grants de tablas privadas ni membres?a authenticated/service_role. La migraci?n **no fue aplicada al remoto**: el coordinador har? ese paso y la nueva validaci?n real.
+
+`ProfileRestoreRoomTest` cubre hidrataci?n repetida con PENDING/WAITING_FOR_AUTH/IN_FLIGHT/CONFLICT, campos remotos sin edici?n local, outbox intacta, revisi?n preservada y fallo real frente a consulta exitosa. El fixture usa fechas exactas para evitar diferencias de precisi?n de Instant en Room.
+
+### QA-S9-02: defecto de prueba corregido
+
+**PASS en A16 y S24: AnalyticsScreenTest, OK (6 tests) en cada tel?fono.** `PeriodCard` agrupa descendientes mediante `semantics(mergeDescendants = true)`: la prueba buscaba el aviso hijo en el ?rbol combinado. Se usa `useUnmergedTree = true` y `performScrollTo()` antes de verificar aviso y fechas, manteniendo `assertIsDisplayed`. No fue necesario cambiar UI ni texto. Evidencia: `a16-fix-analytics.txt` (9.468 s), `s24-fix-analytics.txt` (7.041 s).
+
+### Matriz de re-verificaci?n
+
+| Comprobaci?n | Resultado | Evidencia / l?mite |
+|---|---|---|
+| Suite Android completa | PASS | 1596 tests, 294 clases, 0 fallos, 0 errores, 3 omitidos; `fix-unit-summary.json`, `fix-build-unit-final.log`: BUILD SUCCESSFUL |
+| assembleDebug + assembleDebugAndroidTest | PASS | mismo log; `fix-gradle-exit.txt` confirma exit 0 con tareas ya al d?a (sin repetir tests verdes) |
+| Instalaci?n conservando datos | PASS ambos | `adb -s SERIAL install -r` devolvi? Success para app y androidTest; se reinstal? app A16 al a?adir diagn?stico del RPC |
+| AnalyticsScreenTest | PASS ambos | runner expl?cito `am instrument -w -e class com.kipu.app.feature.analytics.presentation.AnalyticsScreenTest com.kipu.app.test/androidx.test.runner.AndroidJUnitRunner`, 6/6 cada uno |
+| pgTAP RPC perfil con authenticated | PASS local | 11/11; `profile-rpc-after-final.txt`; clone nuevo `kipu_s9_profile_final_20261103`, migraci?n aplicada como postgres sin grant option de auth y sin USAGE auth para ejecutores |
+| pgTAP esquema de perfil | PASS local | 8/8; `profile-schema-final.txt` |
+| pgTAP eliminaci?n | PASS local | 27/27; `profile-rpc-deletion-final.txt`; tambi?n 27/27 en clone control sin migraci?n nueva |
+| Restaurar dos veces | FAIL A16; pendiente S24 | A16 `a16-fix-restore-first-complete.*`, `a16-fix-restore-second-final.*`: seis m?dulos completados, Perfil fallido por auth/42501; se prob? en A16 por indicaci?n del coordinador al estar S24 en uso humano |
+| S24: pendientes y datos conservados | PASS | outbox 1, hash de outbox y cach? de perfil intactos; 9 transacciones / 5 financial_movements / 9 ledger / 4 cuentas / 2 tarjetas sin cambios |
+| A16: recuperaci?n e integridad | PASS acotado | 7 ? 9 transacciones, 0 ? 3 financial_movements al recuperar registros faltantes; ledger 9, cuentas 4, tarjetas 2; no se afirma convergencia completa con las 5 financial_movements del S24 |
+| Saldos y propietario | PASS ambos | cuatro proyecciones por tel?fono conservan sus saldos, mismos valores entre tel?fonos; owner fingerprint `1a252f6a742b`; `fix-device-summary.json` |
+| Sesi?n real y animaciones | PASS ambos | ninguna desinstalaci?n, pm clear, cierre de sesi?n ni eliminaci?n; acceso real A16 y copias privadas confirman propietario conservado; tres escalas por tel?fono verificadas 1.0 en `fix-device-summary.json`; no se desplaz? la app en uso del S24 al cierre |
+
+La suite de eliminaci?n inicialmente dio 26/27 tanto en el clone corregido como en el control sin migraci?n: el clone conten?a una receipt ajena al fixture y el assert #10 contaba toda la tabla. Se acot? ese assert al request_id de la prueba; ambas variantes pasan 27/27 (`profile-rpc-deletion-control-final.txt`, `profile-rpc-deletion-after-final.txt`). No era una regresi?n de la migraci?n de perfil.
+
+**Pendiente concreto:** aplicar la migraci?n nueva al remoto y repetir dos restauraciones completas en S24 cuando est? disponible, comprobando 7/7 m?dulos, conteos/saldos/idempotencia y conservaci?n de su pendiente. No se certifica ese resultado antes de la ejecuci?n. Las limitaciones de cobertura iniciales siguen vigentes.

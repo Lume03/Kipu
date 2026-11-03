@@ -68,7 +68,7 @@ CREATE TABLE internal.deletion_unmapped_fixture(user_id uuid);
 INSERT INTO internal.deletion_unmapped_fixture VALUES('a0611111-1111-4111-8111-111111111111');
 SELECT throws_ok($$SELECT public.purge_account_data('a0611111-1111-4111-8111-111111111111','a0622222-2222-4222-8222-222222222222',repeat('1',64))$$,'P0001','Unpurged user data in internal.deletion_unmapped_fixture','unknown user table fails closed');
 SELECT is((SELECT count(*)::integer FROM public.transactions WHERE user_id='a0611111-1111-4111-8111-111111111111'),1,'failed purge rolls back financial deletion');
-SELECT is((SELECT count(*)::integer FROM private.account_deletion_requests),0,'failed purge rolls back receipt');
+SELECT is((SELECT count(*)::integer FROM private.account_deletion_requests WHERE request_id='a0622222-2222-4222-8222-222222222222'),0,'failed purge rolls back receipt');
 DROP TABLE internal.deletion_unmapped_fixture;
 
 SET LOCAL ROLE service_role;
