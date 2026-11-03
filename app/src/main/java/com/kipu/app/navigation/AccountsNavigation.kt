@@ -24,7 +24,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
-import com.kipu.app.feature.analysis.presentation.AnalysisScreen
+import com.kipu.app.feature.analytics.presentation.AnalyticsRoute
 import com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreen
 import com.kipu.app.feature.notifications.presentation.NotificationBadgeViewModel
 import com.kipu.app.navigation.navigateToNotifications
@@ -118,7 +118,11 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
                 PlanningRootContent(navController, backStackEntry, active = planningSelected)
             }
             RetainedRootPage(active = selectedTabIndex.value == RootTab.ANALYSIS) {
-                AnalysisScreen()
+                AnalyticsRoute(
+                    onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+                    onNavigateToBasicHistory = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
+                    viewModel = hiltViewModel(backStackEntry),
+                )
             }
         }
     }

@@ -20,8 +20,38 @@ data class AnalyticsExpenseEntity(
     @ColumnInfo(name = "merchant_id") val merchantId: String?,
 )
 
+/** Owner-scoped label for a filter option or a breakdown row. */
+data class AnalyticsOptionRow(val id: String, val name: String)
+
 @Dao
 interface AnalyticsDao {
+    /** Category names come from the owner's presentation; income-only categories are not expense filters. */
+    @Query("""
+        SELECT c.id AS id, p.name AS name FROM categories c
+        JOIN category_presentations p ON p.category_id = c.id AND p.user_id = :owner
+        WHERE (c.user_id = :owner OR c.user_id IS NULL) AND c.category_type != 'INCOME'
+        ORDER BY p.name COLLATE NOCASE ASC
+    """)
+    fun observeCategoryOptions(owner: String): Flow<List<AnalyticsOptionRow>>
+
+    @Query("SELECT id, alias AS name FROM accounts WHERE user_id = :owner ORDER BY is_archived ASC, alias COLLATE NOCASE ASC")
+    fun observeAccountOptions(owner: String): Flow<List<AnalyticsOptionRow>>
+
+    @Query("""
+        SELECT id, COALESCE(NULLIF(TRIM(alias), ''), issuer) || ' •••• ' || last_four_digits AS name
+        FROM cards WHERE user_id = :owner ORDER BY is_archived ASC, name COLLATE NOCASE ASC
+    """)
+    fun observeCardOptions(owner: String): Flow<List<AnalyticsOptionRow>>
+
+    /** Only merchants already used by the owner's expenses, never the whole global catalog. */
+    @Query("""
+        SELECT DISTINCT m.id AS id, m.name AS name FROM transactions t
+        JOIN merchant_catalog_cache m ON m.id = t.merchant_id AND (m.user_id IS NULL OR m.user_id = :owner)
+        WHERE t.user_id = :owner AND t.type = 'EXPENSE'
+        ORDER BY m.name COLLATE NOCASE ASC
+    """)
+    fun observeMerchantOptions(owner: String): Flow<List<AnalyticsOptionRow>>
+
     @Query("""
         SELECT t.type, t.status, t.sync_status, t.operation_kind, t.legacy_kind, t.amount_minor, t.currency_code, t.category_id, t.source_account_id, t.card_id, t.merchant_id,
           COALESCE((SELECT SUM(r.amount_minor) FROM transaction_links l

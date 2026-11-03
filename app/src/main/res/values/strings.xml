@@ -274,4 +274,96 @@
 
 <string name="purchase_success_content_description">Compra verificada correctamente</string>
     <string name="purchase_option_selected_content_description">Plan seleccionado</string>
+
+    <!-- HU-41 Estadísticas y analítica financiera -->
+    <string name="analytics_title">Estadísticas</string>
+    <string name="analytics_back">Volver</string>
+    <string name="analytics_show_amounts">Mostrar importes</string>
+    <string name="analytics_hide_amounts">Ocultar importes</string>
+    <string name="analytics_mode_current">Mes actual</string>
+    <string name="analytics_mode_report">Por periodo</string>
+    <string name="analytics_mode_compare">Comparar</string>
+    <string name="analytics_mode_label">Tipo de análisis</string>
+    <string name="analytics_premium_badge">Premium</string>
+    <string name="analytics_period_label">Periodo</string>
+    <string name="analytics_previous_period_label">Periodo anterior</string>
+    <string name="analytics_current_period_label">Periodo a comparar</string>
+    <string name="analytics_filters">Filtros</string>
+    <string name="analytics_filters_count">Filtros (%1$d)</string>
+    <string name="analytics_filters_title">Filtrar estadísticas</string>
+    <string name="analytics_filters_note">Los filtros se combinan entre sí. Las métricas operativas solo suman gastos: transferencias, pagos de principal y fondeo de metas no se cuentan.</string>
+    <string name="analytics_filter_category">Categoría</string>
+    <string name="analytics_filter_account">Cuenta</string>
+    <string name="analytics_filter_card">Tarjeta</string>
+    <string name="analytics_filter_merchant">Comercio</string>
+    <string name="analytics_filter_type">Tipo de movimiento</string>
+    <string name="analytics_filter_currency">Moneda</string>
+    <string name="analytics_filter_empty">Sin opciones registradas.</string>
+    <string name="analytics_filter_all_currencies">Todas</string>
+    <string name="analytics_filter_clear">Limpiar</string>
+    <string name="analytics_filter_apply">Aplicar filtros</string>
+    <string name="analytics_type_expense">Gasto</string>
+    <string name="analytics_type_income">Ingreso</string>
+    <string name="analytics_type_transfer">Transferencia</string>
+    <string name="analytics_currency_pen">Soles</string>
+    <string name="analytics_currency_usd">Dólares</string>
+    <string name="analytics_period_dates">Del %1$s al %2$s</string>
+    <string name="analytics_period_single_day">%1$s</string>
+    <string name="analytics_partial_chip">Periodo parcial</string>
+    <string name="analytics_closed_chip">Periodo cerrado</string>
+    <string name="analytics_partial_warning">Periodo en curso: incluye datos solo hasta el %1$s y puede cambiar.</string>
+    <string name="analytics_operating_total">Gasto operativo</string>
+    <string name="analytics_operating_note">Excluye transferencias, pagos de principal y montos reembolsados.</string>
+    <string name="analytics_by_category">Gasto por categoría</string>
+    <string name="analytics_uncategorized">Sin categoría</string>
+    <string name="analytics_unknown_category">Categoría no disponible</string>
+    <string name="analytics_category_share">%1$s %%</string>
+    <string name="analytics_category_row_description">%1$s: %2$s, %3$s %% del gasto</string>
+    <string name="analytics_category_chart_description">Gráfico de barras del gasto por categoría en %1$s, %2$d categorías</string>
+    <string name="analytics_masked_amount">monto oculto</string>
+    <string name="analytics_empty_title">Sin gastos operativos</string>
+    <string name="analytics_empty_body">No hay gastos que coincidan con este periodo y filtros.</string>
+    <string name="analytics_comparison_title">Comparación</string>
+    <string name="analytics_comparison_previous">Periodo anterior</string>
+    <string name="analytics_comparison_current">Periodo comparado</string>
+    <string name="analytics_comparison_difference">Diferencia</string>
+    <string name="analytics_comparison_percentage">Variación</string>
+    <string name="analytics_no_base">Sin base de comparación</string>
+    <string name="analytics_no_base_note">El periodo anterior no tuvo gasto en esta moneda, así que no hay porcentaje válido.</string>
+    <string name="analytics_comparison_chart_description">Gráfico comparativo en %1$s: periodo anterior %2$s, periodo comparado %3$s</string>
+    <string name="analytics_comparison_empty">Ninguno de los dos periodos tiene gastos con estos filtros.</string>
+    <string name="analytics_premium_title">Los reportes históricos son Premium</string>
+    <string name="analytics_premium_body">Con Free ves las estadísticas básicas del mes actual. Premium agrega periodos anteriores, filtros combinados y comparación entre dos periodos.</string>
+    <string name="analytics_premium_cta">Ver planes Premium</string>
+    <string name="analytics_premium_current">Ver estadísticas del mes actual</string>
+    <string name="analytics_premium_history">Abrir historial básico</string>
+    <string name="analytics_premium_preview">Así va tu mes actual</string>
+    <string name="analytics_net_worth_title">Patrimonio</string>
+    <string name="analytics_net_worth_assets">Activos reales</string>
+    <string name="analytics_net_worth_receivables">Por cobrar</string>
+    <string name="analytics_net_worth_liabilities">Pasivos pendientes</string>
+    <string name="analytics_net_worth_total">Patrimonio neto</string>
+    <string name="analytics_net_worth_note">Las reservas de metas y la línea de crédito disponible no se suman como activos nuevos.</string>
+    <string name="analytics_net_worth_empty">Sin datos todavía. Registra una cuenta o una deuda para ver tu patrimonio.</string>
+    <string name="analytics_loading">Cargando estadísticas</string>
+    <string name="analytics_error_title">No pudimos cargar tus estadísticas</string>
+    <string name="analytics_retry">Reintentar</string>
+    <string name="analytics_locked_title">Kipu está bloqueado</string>
+    <string name="analytics_locked_body">Desbloquea la app para ver tus estadísticas.</string>
+    <string name="analytics_no_owner_title">Sin sesión activa</string>
+    <string name="analytics_no_owner_body">Inicia sesión para ver tus estadísticas.</string>
+    <string-array name="analytics_month_short">
+        <item>ene</item>
+        <item>feb</item>
+        <item>mar</item>
+        <item>abr</item>
+        <item>may</item>
+        <item>jun</item>
+        <item>jul</item>
+        <item>ago</item>
+        <item>sep</item>
+        <item>oct</item>
+        <item>nov</item>
+        <item>dic</item>
+    </string-array>
 </resources>

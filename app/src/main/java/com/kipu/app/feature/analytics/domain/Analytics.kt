@@ -38,7 +38,11 @@ data class ExpenseRow(
     val categoryId: String?, val accountId: String?, val cardId: String?, val merchantId: String?,
 )
 
-data class PeriodResult(val period: AnalyticsPeriod, val partial: Boolean, val totals: Map<Currency, Money>, val hasRecords: Boolean)
+data class PeriodResult(
+    val period: AnalyticsPeriod, val partial: Boolean, val totals: Map<Currency, Money>, val hasRecords: Boolean,
+    /** Operating expense per category id (null = sin categoría), per currency; never converted. */
+    val byCategory: Map<Currency, Map<String?, Money>> = emptyMap(),
+)
 sealed interface PercentageChange {
     data object SinBaseDeComparacion : PercentageChange
     data class Value(val percent: BigDecimal) : PercentageChange
@@ -56,13 +60,17 @@ object AnalyticsCalculator {
                 (filters.merchantIds.isEmpty() || row.merchantId in filters.merchantIds) &&
                 (filters.currency == null || Currency.fromCode(row.currency) == filters.currency)
         }
-        val totals = matched.groupBy { Currency.fromCode(it.currency) }.mapValues { (currency, entries) ->
-            entries.fold(Money.zero(currency)) { total, row ->
-                total + Money((row.amountMinor - row.refundedMinor.coerceAtMost(row.amountMinor)).coerceAtLeast(0), currency)
-            }
+        fun net(row: ExpenseRow, currency: Currency) = Money((row.amountMinor - row.refundedMinor.coerceAtMost(row.amountMinor)).coerceAtLeast(0), currency)
+        val byCurrency = matched.groupBy { Currency.fromCode(it.currency) }
+        val totals = byCurrency.mapValues { (currency, entries) ->
+            entries.fold(Money.zero(currency)) { total, row -> total + net(row, currency) }
+        }
+        val byCategory = byCurrency.mapValues { (currency, entries) ->
+            entries.groupBy { it.categoryId }.mapValues { (_, rows) -> rows.fold(Money.zero(currency)) { total, row -> total + net(row, currency) } }
+                .filterValues { it.minorUnits > 0L }
         }
         val withSelectedCurrency = if (filters.currency != null && filters.currency !in totals) totals + (filters.currency to Money.zero(filters.currency)) else totals
-        return PeriodResult(period, period.isPartial(today), withSelectedCurrency, matched.isNotEmpty())
+        return PeriodResult(period, period.isPartial(today), withSelectedCurrency, matched.isNotEmpty(), byCategory)
     }
     fun compare(previous: PeriodResult, current: PeriodResult): AnalyticsComparison {
         val currencies = previous.totals.keys + current.totals.keys
@@ -77,3 +85,13 @@ object AnalyticsCalculator {
         })
     }
 }
+
+data class AnalyticsFilterOption(val id: String, val name: String)
+
+/** Selectable values for [AnalyticsFilters]; names are presentation only and never affect totals. */
+data class AnalyticsFilterOptions(
+    val categories: List<AnalyticsFilterOption> = emptyList(),
+    val accounts: List<AnalyticsFilterOption> = emptyList(),
+    val cards: List<AnalyticsFilterOption> = emptyList(),
+    val merchants: List<AnalyticsFilterOption> = emptyList(),
+)

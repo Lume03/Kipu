@@ -54,6 +54,16 @@ class AnalyticsViewModel @Inject constructor(
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsUiState.Loading)
 
+    /** The request the UI is showing, so the selectors reflect it after rotation or tab switches. */
+    val selection: StateFlow<AnalyticsRequest> = request.asStateFlow()
+
+    /** Labels for filters and the category breakdown; an unavailable source just leaves the list empty. */
+    val filterOptions: StateFlow<AnalyticsFilterOptions> = session.localAccess
+        .flatMapLatest { access ->
+            if (access is LocalAccess.Available) repository.observeFilterOptions(access.userId).catch { emit(AnalyticsFilterOptions()) }
+            else flowOf(AnalyticsFilterOptions())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsFilterOptions())
+
     fun showCurrentMonth() { request.value = AnalyticsRequest.CurrentMonth }
     fun showReport(period: AnalyticsPeriod, filters: AnalyticsFilters = AnalyticsFilters()) { request.value = AnalyticsRequest.Report(period, filters) }
     fun compare(previous: AnalyticsPeriod, current: AnalyticsPeriod, filters: AnalyticsFilters = AnalyticsFilters()) { request.value = AnalyticsRequest.Compare(previous, current, filters) }
