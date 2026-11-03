@@ -47,7 +47,7 @@ data class UpdateProfileRpcResult(
 @Serializable
 data class RemoteProfileDto(
     @SerialName("user_id") val userId: String,
-    @SerialName("display_name") val displayName: String = "",
+    @SerialName("display_name") val displayName: String? = null,
     @SerialName("currency_code") val currencyCode: String = "PEN",
     @SerialName("time_zone") val timeZone: String? = null,
     @SerialName("month_start") val monthStart: Int = 1,
@@ -213,23 +213,25 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
             check(importSessionFor(userId)) { "Active session does not match the profile owner" }
             val remote = supabaseClient.postgrest.rpc("ensure_profile").decodeAs<RemoteProfileDto>()
             check(UUID.fromString(remote.userId) == userId) { "Remote profile owner mismatch" }
-            val entity = UserProfileCacheEntity(
-                userId = userId,
-                displayName = remote.displayName,
-                currencyCode = remote.currencyCode,
-                timeZone = remote.timeZone,
-                monthStart = remote.monthStart,
-                hideBalances = remote.hideBalances,
-                themeMode = remote.themeMode,
-                remoteRevision = remote.revision,
-                remoteUpdatedAt = remote.updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: Instant.now(),
-                syncState = SyncState.SYNCED.name,
-                updatedLocallyAt = Instant.now(),
-            )
+            val entity = remote.toCacheEntity()
             Result.success(profileDao.hydrateProfile(entity).toDomain())
         }
     }
 }
+
+internal fun RemoteProfileDto.toCacheEntity(): UserProfileCacheEntity = UserProfileCacheEntity(
+    userId = UUID.fromString(userId),
+    displayName = displayName.orEmpty(),
+    currencyCode = currencyCode,
+    timeZone = timeZone,
+    monthStart = monthStart,
+    hideBalances = hideBalances,
+    themeMode = themeMode,
+    remoteRevision = revision,
+    remoteUpdatedAt = updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: Instant.now(),
+    syncState = SyncState.SYNCED.name,
+    updatedLocallyAt = Instant.now(),
+)
 
 private fun UserProfileCacheEntity.toDomain(): UserProfile {
     return UserProfile(
