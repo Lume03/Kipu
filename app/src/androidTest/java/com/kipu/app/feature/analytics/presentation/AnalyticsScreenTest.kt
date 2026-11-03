@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -56,8 +57,9 @@ class AnalyticsScreenTest {
 
     @Test fun currentMonthShowsTotalCategoryAndPartialDates() {
         show(AnalyticsUiState.Content(result(currentPeriod, 10_000), NetWorthSummary.NoData))
-        compose.onNodeWithTag(ANALYTICS_PARTIAL_TAG).assertIsDisplayed()
-        compose.onNodeWithText("Del 1 nov 2026 al 3 nov 2026").assertIsDisplayed()
+        // PeriodCard merges descendants for accessibility; inspect its child warning explicitly.
+        compose.onNodeWithTag(ANALYTICS_PARTIAL_TAG, useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Del 1 nov 2026 al 3 nov 2026", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("${ANALYTICS_CATEGORY_CHART_TAG}_PEN").assertExists()
     }
 
