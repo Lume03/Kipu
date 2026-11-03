@@ -1,5 +1,7 @@
 # Verificación — OCR Yape compartido, entrega V2
 
+> **2026-11-03 — HU-06 parte B: APPROVED local.** Android: 1.581 casos, 0 fallos, 3 omitidos; ambos APK debug compilados; Deno 142/142; pgTAP 181 aserciones verdes. Despliegue remoto pendiente por `LegacyProjectNotLinkedError`, sin mutación remota ni borrado de usuarios reales. Informe completo: [eliminación de cuenta HU-06 B](specs/001-ep-aps-acceso-perfil-seguridad/account-deletion-verification.md). El informe OCR histórico se conserva debajo.
+
 **Fecha:** 2026-10-21  
 **Veredicto:** APPROVED para el alcance adelantado Share/OCR/revisión/confirmación; no cierra toda HU-49.
 

@@ -378,5 +378,5 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] T094 Implementar purge SQL service-only transaccional, bloqueo de repoblación e idempotencia; Edge diferencia completed/pending/error y borra Auth con Admin.
 - [X] T095 Implementar resumen, cancelación, contraseña actual, confirmación explícita, DataStore durable y recuperación desde acceso.
 - [X] T096 Limpiar solo partición local, preferencias/evidencia, workers y credenciales después de completar remoto, con reintento independiente de limpieza.
-- [ ] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP y registrar evidencia final.
+- [X] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP; 1.581 casos Android sin fallos (3 omitidos), ambos APK, 142 Deno y 181 aserciones pgTAP verdes. Evidencia: `account-deletion-verification.md`.
 - [ ] T098 Aplicar migración, desplegar Edge y verificar 401/función activa; pendiente del coordinador porque CLI no está enlazado (`LegacyProjectNotLinkedError`).
