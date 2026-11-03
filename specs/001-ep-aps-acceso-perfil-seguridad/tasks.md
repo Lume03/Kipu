@@ -370,4 +370,13 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] Restauracion remota idempotente por modulo con resultados reales y reintento.
 - [X] Pantalla Datos y privacidad y nota sobre Google Play.
 - [X] Pruebas de serializacion, privacidad, pendientes, restauracion y builds solicitados.
-- [ ] Parte B: eliminacion de cuenta (fuera de esta asignacion).
+- [X] Parte B: incorporada por autorización explícita del Owner en el incremento siguiente.
+
+## Sprint 9 — HU-06 parte B
+
+- [X] T093 Documentar escenarios 4–6, reautenticación vigente, recibos, fallos y política por tabla en `account-deletion-v1.md`.
+- [X] T094 Implementar purge SQL service-only transaccional, bloqueo de repoblación e idempotencia; Edge diferencia completed/pending/error y borra Auth con Admin.
+- [X] T095 Implementar resumen, cancelación, contraseña actual, confirmación explícita, DataStore durable y recuperación desde acceso.
+- [X] T096 Limpiar solo partición local, preferencias/evidencia, workers y credenciales después de completar remoto, con reintento independiente de limpieza.
+- [ ] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP y registrar evidencia final.
+- [ ] T098 Aplicar migración, desplegar Edge y verificar 401/función activa; pendiente del coordinador porque CLI no está enlazado (`LegacyProjectNotLinkedError`).
