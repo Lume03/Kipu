@@ -728,7 +728,7 @@ private fun FilterSheet(
             OptionGroup(stringResource(R.string.analytics_filter_card), options.cards, draft.cardIds) { draft = draft.copy(cardIds = it) }
             OptionGroup(stringResource(R.string.analytics_filter_merchant), options.merchants, draft.merchantIds) { draft = draft.copy(merchantIds = it) }
             ChipGroup(stringResource(R.string.analytics_filter_type)) {
-                MovementType.entries.forEach { type ->
+                listOf(MovementType.EXPENSE).forEach { type ->
                     KipuFilterChip(
                         selected = type in draft.types,
                         onClick = { draft = draft.copy(types = draft.types.toggle(type)) },
