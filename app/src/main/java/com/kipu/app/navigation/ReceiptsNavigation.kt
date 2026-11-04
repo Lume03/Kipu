@@ -89,13 +89,35 @@ fun NavGraphBuilder.receiptDestinations(navController: NavController) {
         nullable = true
         defaultValue = null
     })) { entry ->
-        ReceiptFlowScreen(
-            sharedUri = entry.arguments?.getString("uri"),
-            onBack = { navController.popBackStack() },
-            onHistory = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
-            onMovement = { navController.navigateToMovementEditor(it) },
-            onNewAccount = { navController.navigateToAccountForm() },
+        ReceiptMovementEditorHost { openMovement ->
+            ReceiptFlowScreen(
+                sharedUri = entry.arguments?.getString("uri"),
+                onBack = { navController.popBackStack() },
+                onHistory = { navController.navigate(MOVEMENTS_HISTORY_ROUTE) },
+                onMovement = openMovement,
+                onNewAccount = { navController.navigateToAccountForm() },
+            )
+        }
+    }
+}
+
+/** The receipt screen stays composed; closing/saving the editor does not change the back stack. */
+@Composable
+internal fun ReceiptMovementEditorHost(
+    editor: @Composable (String, () -> Unit) -> Unit = { id, close ->
+        com.kipu.app.feature.movements.presentation.MovementEditorRoute(
+            transactionId = id,
+            viewModel = hiltViewModel(key = "receipt_movement_editor_$id"),
+            onDismiss = close,
+            onSaved = close,
         )
+    },
+    content: @Composable ((String) -> Unit) -> Unit,
+) {
+    var editingMovementId by rememberSaveable { mutableStateOf<String?>(null) }
+    content { editingMovementId = it }
+    editingMovementId?.let { id ->
+        androidx.compose.runtime.key(id) { editor(id) { editingMovementId = null } }
     }
 }
 
