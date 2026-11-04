@@ -1,0 +1,50 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SET search_path=public,extensions;
+SELECT plan(17);
+INSERT INTO auth.users(id,email) VALUES
+ ('f4000000-0000-0000-0000-000000000001','block4-a@example.test'),
+ ('f4000000-0000-0000-0000-000000000002','block4-b@example.test');
+SELECT public.merchant_search_cache_v1('f4000000-0000-0000-0000-000000000001','miniso-b4',
+ '[{"name":"MINISO B4","domain":"miniso-b4.test"},{"name":"New Brand B4","domain":"new-b4.test"}]');
+SELECT public.merchant_search_cache_v1('f4000000-0000-0000-0000-000000000002','miniso-b4',
+ '[{"name":"MINISO B4","domain":"miniso-b4.test"},{"name":"New Brand B4","domain":"new-b4.test"}]');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f4000000-0000-0000-0000-000000000001',true);
+SELECT lives_ok($$SELECT public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')$$,'provider-backed add succeeds');
+SELECT is((public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'needs_logo_sync')::boolean,true,'pending existing add can recover logo');
+SELECT lives_ok($$SELECT public.create_private_merchant_v1('Private payer B4')$$,'private payer stays private');
+SELECT throws_ok($$UPDATE internal.merchant_discovery_settings SET shared_additions_enabled=false$$,'42501',NULL,'client cannot change operator switch');
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM internal.merchant_discovery_events WHERE user_id='f4000000-0000-0000-0000-000000000001' AND kind='ADD'),1,'retries do not consume new-add quota');
+UPDATE public.merchant_services SET logo_path='logo-dev/miniso-b4.test/v1.webp',logo_dark_path='logo-dev/miniso-b4.test/v1-dark.webp',logo_status='READY' WHERE domain='miniso-b4.test';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f4000000-0000-0000-0000-000000000002',true);
+SELECT is((SELECT count(*)::int FROM public.merchant_services WHERE domain='miniso-b4.test'),1,'second account discovers shared catalog row');
+SELECT is((SELECT count(*)::int FROM public.merchant_services WHERE name='Private payer B4'),0,'second account never sees private payer');
+SELECT is((public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'needs_logo_sync')::boolean,false,'ready logo does not redownload');
+SELECT is(public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'logo_dark_path','logo-dev/miniso-b4.test/v1-dark.webp','ready logo survives duplicate add response');
+RESET ROLE;
+UPDATE internal.merchant_discovery_settings SET shared_additions_enabled=false;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f4000000-0000-0000-0000-000000000002',true);
+SELECT throws_ok($$SELECT public.add_merchant_from_logo_dev_v1('miniso-b4','new-b4.test')$$,'P0001','SHARED_MERCHANT_ADDS_DISABLED','switch blocks new shared publication');
+SELECT lives_ok($$SELECT public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')$$,'existing shared merchant remains selectable when disabled');
+SELECT lives_ok($$SELECT public.create_private_merchant_v1('Another private B4')$$,'private creation remains available when shared adds disabled');
+SELECT is((SELECT count(*)::int FROM public.merchant_services WHERE domain='new-b4.test'),0,'disabled add creates no row');
+SELECT is((SELECT count(*)::int FROM public.merchant_services WHERE domain='miniso-b4.test'),1,'duplicate and switch preserve single shared row');
+RESET ROLE;
+UPDATE public.merchant_services SET logo_status='FAILED',logo_checked_at=now() WHERE domain='miniso-b4.test';
+SET LOCAL ROLE authenticated;
+SELECT is((public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'needs_logo_sync')::boolean,false,'recent failure respects retry cooldown');
+RESET ROLE;
+UPDATE public.merchant_services SET logo_checked_at=now()-interval '6 minutes' WHERE domain='miniso-b4.test';
+SET LOCAL ROLE authenticated;
+SELECT is((public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'needs_logo_sync')::boolean,true,'old failure is retryable without new publication');
+RESET ROLE;
+UPDATE public.merchant_services SET logo_source='MANUAL',logo_status='READY' WHERE domain='miniso-b4.test';
+SET LOCAL ROLE authenticated;
+SELECT is((public.add_merchant_from_logo_dev_v1('miniso-b4','miniso-b4.test')->>'needs_logo_sync')::boolean,false,'manual logo never replaced by discovery');
+RESET ROLE;
+SELECT * FROM finish();
+ROLLBACK;

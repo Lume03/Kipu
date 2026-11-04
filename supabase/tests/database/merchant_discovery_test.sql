@@ -8,7 +8,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','f0000000-0000-0000-0000-000000000001',true);
 SELECT lives_ok($$SELECT public.add_merchant_from_logo_dev_v1('m3','m3.test')$$,'cached candidate can be added');
 SELECT is((SELECT count(*)::int FROM public.merchant_services WHERE domain='m3.test'),1,'global exists');
-SELECT is((public.add_merchant_from_logo_dev_v1('m3','m3.test')->>'needs_logo_sync')::boolean,false,'idempotent add does not download twice');
+SELECT is((public.add_merchant_from_logo_dev_v1('m3','m3.test')->>'needs_logo_sync')::boolean,true,'idempotent pending add remains eligible for logo retry');
 SELECT throws_ok($$SELECT public.add_merchant_from_logo_dev_v1('m3','uncached.test')$$,'P0001','CANDIDATE_NOT_CACHED','forged candidate rejected');
 SELECT throws_ok($$SELECT public.add_merchant_from_logo_dev_v1('m3','tambo.pe')$$,'P0001','DOMAIN_EXCLUDED','rejected Logo.dev domain stays excluded');
 SELECT lives_ok($$SELECT public.create_private_merchant_v1('My M3 Shop')$$,'private created');

@@ -161,3 +161,78 @@ Deno.test("domain and preview validation", () => {
   assert(rows.length === 1 && rows[0].logo_url === null);
   assert(normalizeQuery("\uFF21  B") === "a b");
 });
+
+Deno.test("pending existing merchant retry returns fresh published logo by ID", async () => {
+  let synced = false;
+  const f = fixture({
+    rpc: async () => ({
+      id: "miniso",
+      domain: "miniso.test",
+      needs_logo_sync: true,
+    }),
+    sync: async () => {
+      synced = true;
+    },
+    merchant: async (id) => {
+      assert(synced && id === "miniso");
+      return {
+        id,
+        domain: "miniso.test",
+        logo_path: "logo-dev/miniso.test/v1.webp",
+        logo_status: "READY",
+      };
+    },
+    catalog: async () => {
+      throw new Error("must not scan a paginated catalog");
+    },
+  });
+  const r = await f.request({
+    action: "add",
+    query: "miniso",
+    domain: "miniso.test",
+  });
+  const body = await r.json();
+  assert(
+    r.status === 200 &&
+      body.merchant.logo_path === "logo-dev/miniso.test/v1.webp",
+  );
+});
+Deno.test("logo failure retains merchant ID and domain without inventing a logo", async () => {
+  const f = fixture({
+    rpc: async () => ({
+      id: "miniso",
+      domain: "miniso.test",
+      needs_logo_sync: true,
+    }),
+    sync: async () => {
+      throw new Error("provider unavailable");
+    },
+    merchant: async () => undefined,
+  });
+  const body = await (await f.request({
+    action: "add",
+    query: "miniso",
+    domain: "miniso.test",
+  })).json();
+  assert(
+    body.merchant.id === "miniso" && body.merchant.domain === "miniso.test" &&
+      !body.merchant.logo_path,
+  );
+});
+Deno.test("operator switch error is actionable and does not call provider", async () => {
+  const f = fixture({
+    rpc: async () => {
+      throw new Error("SHARED_MERCHANT_ADDS_DISABLED");
+    },
+  });
+  const r = await f.request({
+    action: "add",
+    query: "miniso",
+    domain: "miniso.test",
+  });
+  assert(
+    r.status === 409 &&
+      (await r.json()).code === "SHARED_MERCHANT_ADDS_DISABLED",
+  );
+  assert(f.fetches === 0 && f.syncs === 0);
+});

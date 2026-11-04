@@ -48,6 +48,10 @@ export type Dependencies = {
     body: Record<string, unknown>,
     token?: string,
   ): Promise<unknown>;
+  merchant?(
+    id: string,
+    token: string,
+  ): Promise<Record<string, unknown> | undefined>;
   catalog(query: string, token: string): Promise<Record<string, unknown>[]>;
   fetchImpl: typeof fetch;
   secret: string;
@@ -104,9 +108,11 @@ export function createMerchantSearchHandler(d: Dependencies) {
           await d.sync(merchant.id as string).catch(() => undefined);
         }
         const refreshed = merchant.needs_logo_sync === true
-          ? (await d.catalog("", token).catch(() => [])).find((m) =>
-            m.id === merchant.id
-          )
+          ? await (d.merchant
+            ? d.merchant(merchant.id as string, token).catch(() => undefined)
+            : d.catalog("", token).then((rows) =>
+              rows.find((m) => m.id === merchant.id)
+            ).catch(() => undefined))
           : undefined;
         return json({ merchant: refreshed ?? merchant });
       }
@@ -157,6 +163,9 @@ export function createMerchantSearchHandler(d: Dependencies) {
       });
     } catch (e) {
       const code = e instanceof Error ? e.message : "";
+      if (code.includes("SHARED_MERCHANT_ADDS_DISABLED")) {
+        return json({ code: "SHARED_MERCHANT_ADDS_DISABLED" }, 409);
+      }
       if (code.includes("MERCHANT_RATE_LIMITED")) {
         return json({ code: "MERCHANT_RATE_LIMITED" }, 429);
       }
@@ -224,10 +233,18 @@ if (import.meta.main) {
           { method: "POST", body: JSON.stringify(body) },
           token,
         ),
+      merchant: async (id, token) => {
+        const params = new URLSearchParams({
+          select: "*",
+          id: `eq.${id}`,
+          limit: "1",
+        });
+        return (await rest(`merchant_services?${params}`, {}, token))[0];
+      },
       catalog: (query, token) => {
         const params = new URLSearchParams({
           select:
-            "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,domain,user_id",
+            "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,domain,user_id,logo_status,catalog_origin",
           is_active: "eq.true",
           deleted_at: "is.null",
         });
