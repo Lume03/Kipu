@@ -380,3 +380,8 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] T096 Limpiar solo partición local, preferencias/evidencia, workers y credenciales después de completar remoto, con reintento independiente de limpieza.
 - [X] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP; 1.581 casos Android sin fallos (3 omitidos), ambos APK, 142 Deno y 181 aserciones pgTAP verdes. Evidencia: `account-deletion-verification.md`.
 - [X] T098 Aplicar migración 20261103152406_delete_account, desplegar Edge Function delete-account y verificar HTTP 401 sin JWT / JWT inválido (completado el 2026-11-03); validación en dispositivo físico pendiente.
+
+
+### Seguimiento HU-06 A ? procedencia financiera (2026-11-03)
+
+- [X] Investigar las dos filas auxiliares DEBT_DISBURSEMENT hist?ricas del dispositivo de origen, contrastando transacciones, eventos, ledger, recibos, outbox y handlers remotos; documentar su equivalencia sin borrar ni fabricar hechos. Sin cambio funcional. Validaci?n y l?mites del dispositivo desconectado en [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).

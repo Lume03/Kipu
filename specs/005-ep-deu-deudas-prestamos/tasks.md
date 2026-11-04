@@ -236,3 +236,8 @@ Both depend on T001–T014; finish both before HU-28 settlement work.
 - No task authorizes applying a migration to production or changing live user data; validate against representative local/dev data first.
 - HU-24 movement allocation, HU-40 calendar, and HU-44 general reminder preferences/deduplication remain outside Sprint 5.
 - Tasks describe implementation and future verification only; no tests were run while preparing this plan.
+
+
+### Seguimiento de aperturas desde Sprint 9 ? 2026-11-03
+
+- [X] Contrastar dos desembolsos hist?ricos locales con servidor y contrato OPEN_DEBT: recibos/outbox SYNCED, transacci?n/evento/ledger ?nicos y equivalentes; copia auxiliar local leg?tima, sin correcci?n de sincronizaci?n necesaria. [Evidencia y l?mites](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).

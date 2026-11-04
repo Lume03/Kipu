@@ -1,5 +1,7 @@
 # Contract: sincronización y duplicados
 
+Nota de procedencia EP-DEU (2026-11-03): los desembolsos de apertura se sincronizan como transacción y asiento, acompañados por su evento de deuda. La copia auxiliar local `financial_movements/DEBT_DISBURSEMENT` del alta usa `insertRaw`; no es un segundo efecto económico. El pull de MOV y la restauración no necesitan reproducir esa copia para recuperar el desembolso. Antes de diagnosticar un pendiente o un huérfano por conteos distintos, contrastar identidad, evento, recibo/outbox, moneda, signo, propietario y ledger. Resultado real acotado: [informe Sprint 9](../../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
+
 ## Tabla de decisión exacta
 
 | Clave | Hash | Resultado | Efectos nuevos |

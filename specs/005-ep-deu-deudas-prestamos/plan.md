@@ -138,3 +138,8 @@ supabase/tests/
 ## Complexity Tracking
 
 No constitution exception is proposed. The feature reuses the existing app/database boundary; its required new complexity is the complete debt domain module and financial sync contract.
+
+
+### Verificaci?n del contrato de apertura ? 2026-11-03
+
+La investigaci?n Sprint 9 confirma que el alta local y la recuperaci?n remota tienen representaciones auxiliares distintas del mismo desembolso. Se conserva el mecanismo de comandos/feed existente: ninguna segunda operaci?n ni modificaci?n del saldo es necesaria. V?anse la nota de [modelo](data-model.md#representaci?n-localremota-observada--2026-11-03) y el [informe](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03); no se cambia el alcance HU-26/HU-27.

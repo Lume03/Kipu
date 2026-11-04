@@ -2,6 +2,8 @@
 
 **Estado**: contrato de planificación para HU-26–HU-29; no implementado.
 
+**Nota de verificación 2026-11-03:** la cabecera anterior corresponde al estado de planificación original. Se contrastaron los handlers de apertura desplegados y dos operaciones reales ya sincronizadas: la representación remota de su desembolso es `transactions` + `debt_events` + `internal.ledger_entries`. El alta local añade una copia auxiliar en `financial_movements` mediante `insertRaw`, sin otro asiento. Esa copia no constituye un comando adicional por enviar, ni su ausencia en una instalación restaurada prueba pérdida del desembolso. Se preserva la historia; no se insertan hechos remotos ni se borran filas para igualar conteos. Alcance, pruebas y límites: [informe](../../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03). Esta comprobación de apertura no certifica los demás comandos.
+
 ## Reglas comunes
 
 - El propietario se deriva de la sesión autenticada del servidor; el cliente no puede elegir ni reemplazar `user_id`.
