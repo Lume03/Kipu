@@ -95,3 +95,45 @@ Deno.test("a concurrent owner request is pending without exposing its capability
   assert(r.status === 202 && (await r.json()).status === "in_progress");
   assert(!f.calls.includes("deleteAuth") && !f.calls.includes("complete"));
 });
+
+Deno.test("fresh capability recovers canonical receipt after Auth failure without exposing credentials", async () => {
+  let completedId = "", completedHash = "";
+  const canonicalHash = "cd".repeat(32);
+  const f = fixture({
+    purge: () => Promise.resolve({ state: "data_deleted", request_id: owner, secret_hash: canonicalHash }),
+    complete: (id, hash) => { completedId = id; completedHash = hash; return Promise.resolve(); },
+  });
+  const response = await f.handler(f.request());
+  const body = await response.text();
+  assert(response.status === 200 && JSON.parse(body).status === "completed");
+  assert(completedId === owner && completedHash === canonicalHash);
+  assert(!body.includes(canonicalHash) && !body.includes(owner));
+  assert(f.calls.join(",") === "deleteAuth");
+});
+
+Deno.test("fresh capability cannot recover with stale reauth even when an owner receipt exists", async () => {
+  let prepared = false;
+  const f = fixture({ purge: () => { prepared = true; return Promise.resolve({ state: "data_deleted" }); } });
+  assert((await f.handler(f.request(jwt([])))).status === 403);
+  assert(!prepared && f.calls.length === 0);
+});
+
+Deno.test("second device alias reconciles completed receipt after Auth disappears", async () => {
+  const f = fixture({ receipt: () => Promise.resolve({ state: "completed", user_id: null }), user: () => Promise.resolve(null) });
+  const response = await f.handler(f.request("receipt-reconciliation"));
+  assert(response.status === 200 && (await response.json()).status === "completed");
+  assert(f.calls.length === 0);
+});
+
+Deno.test("fresh capability recovery Auth failure stays pending then alias retries without preparing again", async () => {
+  let alias: Receipt | null = null;
+  let prepares = 0, attempts = 0;
+  const f = fixture({
+    receipt: () => Promise.resolve(alias),
+    purge: () => { prepares++; alias = { state: "data_deleted", user_id: owner }; return Promise.resolve({ state: "data_deleted", request_id: owner, secret_hash: "cd".repeat(32) }); },
+    deleteUser: () => ++attempts === 1 ? Promise.reject(new Error("Auth unavailable")) : Promise.resolve(),
+  });
+  assert((await f.handler(f.request())).status === 202);
+  assert((await f.handler(f.request(jwt([])))).status === 200);
+  assert(prepares === 1 && attempts === 2);
+});
