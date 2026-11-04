@@ -143,6 +143,75 @@ class QuickMovementViewModelTest {
     }
 
     @Test
+    fun `successful card expense can hand off recurrence without a second account expense`() = runTest {
+        advanceUntilIdle()
+        val event = async { viewModel.events.first() }
+        val card = viewModel.uiState.value.availableCreditCards.first()
+        viewModel.onSourceCardSelected(card.id.value)
+        viewModel.onAmountChanged("25.50")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onMerchantProvisionalText("Servicio")
+        viewModel.onRegisterRecurrenceChanged(true)
+        viewModel.onSave()
+        advanceUntilIdle()
+        val source = (event.await() as QuickMovementUiEvent.TransactionSaved).recurrenceSource
+        assertEquals(1, fakeInstrumentsRepo.confirmedPurchases.size)
+        assertTrue(fakeMovementRepo.registeredCommands.isEmpty())
+        assertEquals(card.id.value, source?.transaction?.cardId)
+        assertEquals(2550L, source?.transaction?.amountMinor)
+    }
+
+    @Test
+    fun `recurrence opt in hands off only the successful saved expense and resets`() = runTest {
+        advanceUntilIdle()
+        val event = async { viewModel.events.first() }
+        viewModel.onAmountChanged("25.50")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onMerchantProvisionalText("Servicio")
+        viewModel.onRegisterRecurrenceChanged(true)
+        viewModel.onSave()
+        viewModel.onSave()
+        advanceUntilIdle()
+        val saved = event.await() as QuickMovementUiEvent.TransactionSaved
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+        assertEquals(2550L, saved.recurrenceSource?.transaction?.amountMinor)
+        assertEquals("Servicio", saved.recurrenceSource?.merchantName)
+        assertEquals(testAccountId.value, saved.recurrenceSource?.transaction?.sourceAccountId)
+        assertEquals(false, viewModel.uiState.value.registerRecurrenceAfterSave)
+    }
+
+    @Test
+    fun `failed expense emits no recurrence handoff and retry uses saved expense result`() = runTest {
+        advanceUntilIdle()
+        val event = async { viewModel.events.first() }
+        viewModel.onAmountChanged("25.50")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onRegisterRecurrenceChanged(true)
+        fakeMovementRepo.registrationFails = true
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(false, event.isCompleted)
+        assertEquals(true, viewModel.uiState.value.registerRecurrenceAfterSave)
+        fakeMovementRepo.registrationFails = false
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertNotNull((event.await() as QuickMovementUiEvent.TransactionSaved).recurrenceSource)
+        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+    }
+
+    @Test
+    fun `recurrence opt in does not affect income`() = runTest {
+        advanceUntilIdle()
+        val event = async { viewModel.events.first() }
+        viewModel.onRegisterRecurrenceChanged(true)
+        viewModel.onTypeSelected(MovementType.INCOME)
+        viewModel.onAmountChanged("25.50")
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertNull((event.await() as QuickMovementUiEvent.TransactionSaved).recurrenceSource)
+    }
+
+    @Test
     fun `transfer to card uses existing payment flow and clears selection on type change`() = runTest {
         advanceUntilIdle()
         val card = viewModel.uiState.value.availableCreditCards.first()
@@ -857,12 +926,14 @@ class QuickMovementViewModelTest {
     private class FakeMovementRepo : MovementRepository {
         val registeredCommands = mutableListOf<RegisterTransactionCommand>()
         var triggerDuplicateWarning = false
+        var registrationFails = false
 
         override fun observeTransactions(userId: String): Flow<List<TransactionItem>> = flowOf(emptyList())
         override fun observeRecentTransactions(userId: String, limit: Int): Flow<List<TransactionItem>> = flowOf(emptyList())
         override suspend fun getTransactionById(userId: String, transactionId: String): Transaction? = null
 
         override suspend fun registerTransaction(command: RegisterTransactionCommand): RegisterTransactionResult {
+            if (registrationFails) return RegisterTransactionResult.Failure("test failure")
             registeredCommands.add(command)
             return RegisterTransactionResult.Success(
                 Transaction(
