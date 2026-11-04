@@ -1,6 +1,6 @@
 # EP-INF — verificación focalizada de Sprint 9
 
-Fecha: 2026-11-03, America/Lima. Base `main` / `a10e7540`; trabajo secuencial autorizado, artefactos editados a mano. **Veredicto: PASS focalizado, aceptación PARCIAL; no APPROVED integral.** T021, T027–T030 y revisión cruzada permanecen pendientes. No hubo cambios de código de producción, base de datos o despliegue remoto.
+Fecha: 2026-11-03, America/Lima. Base `main` / `a10e7540`; trabajo secuencial autorizado, artefactos editados a mano. **Veredicto: PASS focalizado, aceptación PARCIAL; no APPROVED integral.** T021 y T027–T030 permanecen abiertas; la revisión cruzada independiente Opus quedó registrada en `3e5d8d8e` y cierra solo ese componente de T029. No hubo cambios de código de producción, base de datos o despliegue remoto.
 
 Pruebas versionadas en `8da42128` (`test(qa): cover analytics accessibility isolation and Android URI grants`). Sin push, PR ni merge remoto.
 
@@ -50,3 +50,32 @@ Alcance HU-41:
 **Sin defecto bloqueante de código.** Los hallazgos y el alcance transversal (HU-06, HU-49) están en el [informe Sprint 9](../sprint-9-device-validation.md#revisión-cruzada-independiente--2026-11-03).
 
 Límites: esto completa solo el componente de revisión de T029. Siguen abiertos T021 (GATE-ANALYTICS-04 sin aprobación localizada), T027 (TalkBack hablado), T028 (journeys integrados), el A16 en la última tanda y los criterios NO VERIFICADO. Se mantienen las limitaciones de meses completos y de comparación por totales sin categoría. Veredicto: **no APPROVED integral**.
+
+
+## Cierre factible de journeys reales — 2026-11-03 (`closure3`)
+
+Base `main` / `9552a613`; trabajo secuencial, sin ramas, comandos Spec Kit, instalación, builds ni repetición de suites ya verdes. **PASS de recorridos de lectura S24; aceptación PARCIAL.** Este apartado actualiza los límites de T028 de la tanda coverage2: ya hay navegación integrada con la sesión real, pero no errores/reintentos integrados ni cambio de propietario real. La revisión independiente Opus consta en `3e5d8d8e`: el componente de revisión de T029 está cerrado; T029 integral sigue abierta.
+
+Evidencia privada exclusivamente en `C:/Users/Alume/s9-device-validation-20261103/`, prefijo `closure3-`: scripts `device.py`, `journeys.py`, `source.py`, `integrity.py`; resultados `journeys-result.json`, `source-result.json`, `integrity.json`; capturas/XML por paso y copias Room before/after/final. Los nombres anteriores se entienden con el prefijo. Sin datos financieros, credenciales ni capturas en Git.
+
+| Comprobación real S24 | Resultado y frontera |
+| --- | --- |
+| Inicio → historial → regreso | PASS: MainActivity y destinos reales, sesión preexistente, historial accesible y vuelta a Inicio; sin guardar/editar movimientos |
+| Inicio: máscara y restitución | PASS visual/UI; control guarda preferencia global. Desviación de la intención de solo lectura: se pulsó antes de identificar su persistencia, ocasionando dos escrituras de preferencia por el camino normal de la app (activar/restaurar), sin cambios financieros. No se afirma cero escrituras remotas |
+| Inicio → Calendario | PASS: mes actual, mes anterior y vuelta al actual; selección de día con evento previsto, detalle con advertencia de que no descuenta saldo automáticamente, máscara local y restitución |
+| Calendario → origen → regreso | PASS: «Abrir tarjeta» abre detalle de tarjeta existente; volver retorna a Calendario y después a Inicio. No se accionan pagos, edición ni creación. Capturas `calendar-source-sheet`, `calendar-source-card-detail`, `calendar-back-from-card`, `home-final` |
+| Inicio → Análisis → Inicio | PASS: pestaña real, resumen del periodo actual con fechas y aviso de periodo parcial; máscara local, scroll, restitución y retorno a Dinero. Revisión visual de captura enmascarada y árbol UI; no es salida hablada |
+| Propietario/sesión | PASS acotado: los conjuntos de propietario de todas las columnas user_id/owner_id reconocidas conservan sus huellas entre copias; sesión real sigue operativa al terminar, sin logout o sustitución. No prueba cambiar de usuario ni compara tokens cifrados antes/después |
+| Datos y colas | PASS: 67 tablas Room comparadas, 65 idénticas íntegramente; transacciones, hechos, ledger, saldos y las diez outboxes iguales. Perfil `hide_balances=0` tanto al inicio como al final, `SYNCED`, revisión 2→4; outbox de perfil 0→0 sin borrarla por shell |
+| Diferencias de metadatos | Perfil: solo remote_revision, remote_updated_at y updated_locally_at. feature_access_cache: solo offline_anchor_elapsed_ms, offline_grant_payload, offline_grant_signature y verified_at; renovación normal de autorización, sin cambiar plan/capacidades efectivas |
+| Ajustes y estado final | PASS: fuente, tres escalas, accessibility_enabled y enabled_accessibility_services exactamente iguales a baseline; bloque finally repone valores originales si difieren y toma snapshot. Servicio TalkBack no cambiado. Inicio queda con importes visibles, igual al inicio |
+
+**Errores y aislamiento:** no apareció un error de fuente real ni un objeto no disponible durante estos recorridos. No se corrompieron registros, invalidaron sesiones, cambiaron propietarios ni provocaron fallos de red para fabricarlos. La cobertura previa de errores genéricos/retry/cancelación de propietario sigue siendo aislada; **T028 permanece abierta** por esa integración pendiente y T014 no se cierra (sin nueva lectura offline real). No se deduce Free real desde la sesión usada ni se cambió su entitlement.
+
+**T027 / TalkBack: NO VERIFICADO hablado.** Paquetes de TalkBack instalados, pero los tools disponibles permiten shell, XML y capturas visuales; no hay escucha, micrófono o captura de audio accesible segura acreditada. No se abrió una grabación que pudiera contener información financiera privada ni se activó el servicio para producir logs: ni XML, ni logcat, ni servicios habilitados prueban voz, orden de foco o gestos TalkBack. Evidencia `closure3-talkback-capability.json`; ajustes originales preservados. Las pruebas previas de semántica y texto 200 % siguen válidas, sin equivalencia a los tres journeys hablados.
+
+**Eliminación UI aislada: NO VERIFICADO.** Existe emulator-5554 / AVD Pixel_10 y get-state devuelve device, pero pm list users vence a 8 s, sys.boot_completed y service check package vencen cada uno a 6 s. No hay readiness acreditada ni se pudo verificar una sesión aislada utilizable. No se reinició ni creó infraestructura, usuario o cuenta; S24 tiene solo usuario 0 Propietario, sin perfil de prueba existente. A16 ausente en ADB. No se cerró/reemplazó la sesión real de ningún teléfono. Sigue válida la prueba API desechable HU-06 B y recuperación v3; no se repite ni se presenta como UI completa.
+
+No se accedió a datos de la app Yape ni a otras aplicaciones; no se generaron notificaciones/movimientos sintéticos sobre la cuenta real. Compartir Yape real, notificación viva en ambos órdenes y ocho muestras privadas siguen NO VERIFICADO. Sin defecto nuevo de producción detectado ni fix/deploy necesario; no se envían cambios remotos mediante APIs/SQL.
+
+Decisiones de producto aún necesarias: aprobación explícita del catálogo GATE-ANALYTICS-04/T021 (métricas, moneda, corte/zonas, periodos y filtros; meses completos y comparación solo por totales conservados) y reconciliación de **FR-012 de EP-AUT/011**: UNIQUE(owner, referencia, fuente) frente a Room v37 con índice no único y PK(owner, fuente, event_id), en particular evidencias con misma referencia/fuente y hechos incompatibles. D1/opción A y una revisión técnica no aprueban esa cardinalidad. No se cambió ninguno de esos requisitos ni se declaró APPROVED integral.

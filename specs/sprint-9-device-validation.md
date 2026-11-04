@@ -218,7 +218,7 @@ Base `a10e7540`, trabajo secuencial en main. **PASS focalizado, aceptación PARC
 | HU-06 eliminación UI completa desechable | NO VERIFICADO | Sin sustituir sesión real; cobertura API previa conservada |
 | A16 | NO VERIFICADO en esta tanda | Ausente en ADB; se preservan resultados históricos |
 | Conservación S24 | PASS | coverage2-all-tables-comparison.json: 66 tablas iguales antes/después, incluidas colas, saldos y preferencias; coverage2-integrity-comparison.json: settings iguales. Tres escalas 1.0 restauradas en finally; sin cambios de font_scale o servicio accesible; app reabierta al terminar |
-| GATE-ANALYTICS-04 / revisión cruzada | PENDIENTE | Búsqueda documental no localizó aprobación de catálogo; T021 sigue abierta. T029 exige revisión independiente, no autocertificada |
+| GATE-ANALYTICS-04 / revisión cruzada | T021 PENDIENTE; revisión realizada | No se localizó aprobación del catálogo; T021 sigue abierta. Opus revisó independientemente (`3e5d8d8e`); cierra el componente de revisión de T029, no la aceptación integral |
 
 Ejecución final: **S24 16/16 instrumentadas, 6.985 s, runner OK; host 11/11, cero fallos/omisiones; builds finales exit 0**. únicamente APK androidTest reinstalado mediante install -r; sin suite global ni repetición de AnalyticsScreenTest/AnalyticsDaoTest ya verdes. El primer intento instrumentado se interrumpió tras crash del proveedor test (AndroidX ausente en APK test independiente); se corrigió con proveedor/receptor Java Android puro. Compilación intermedia fallida por BOM Java corregida; logs fallidos conservados sin contarlos como PASS. El informe EP-INF detalla evidencia y comandos.
 
@@ -260,3 +260,25 @@ MEDIUM de revisión Opus corregido: migración aditiva `20261104021333_account_d
 Validación: Deno 15/15; pgTAP 100/100 (eliminación 27, concurrencia plan8 8, recuperación 21, perfil 8, compras 36); siete conexiones SQL concurrentes conservaron un recibo y seis aliases; Android focalizado 10/10. API remota con dos usuarios desechables: 403 propietario ajeno y AMR realmente vencido; login reciente/capacidad nueva recuperó y completó; capacidades original/nueva/segundo dispositivo reconciliaron completed sin Auth, incluidos tres reintentos paralelos; Admin 404 y cero filas en 60 tablas. Ambas cuentas de prueba eliminadas, sin tocar cuentas reales ni sesiones de teléfonos. Fallo Auth inyectado en Deno; remoto partió del límite data_deleted/Auth vivo preparado por RPC, sin inducir indisponibilidad del proveedor. Preparación concurrente validada localmente; concurrencia remota verifica reconciliación posterior al cierre.
 
 Evidencia privada: `C:/Users/Alume/s9-device-validation-20261103/deletion-recovery-*`; [detalle de verificación](001-ep-aps-acceso-perfil-seguridad/verification-report.md). MEDIUM y LOW de segundo cliente resueltos para las nuevas solicitudes autorizadas con alias; un 401 legacy sin recibo verificable nunca autoriza borrar caché. LOW documental de plan8 cerrado con 8/8. FR-012 sigue con contradicción específica documentada en EP-AUT: D1/opción A no aprueba explícitamente la cardinalidad física ante hechos incompatibles, por lo que no se modifica el requisito ni Yape. **Aceptación del sprint PARCIAL**; todos los pendientes del párrafo anterior siguen abiertos.
+
+
+## Journeys integrados de lectura y cierre factible — 2026-11-03 (`closure3`)
+
+Base `main` / `9552a613`. **PASS de lectura S24, aceptación PARCIAL**. [Informe completo](009-ep-inf-informacion-financiera/verification-report.md#cierre-factible-de-journeys-reales--2026-11-03-closure3), evidencia privada externa con prefijo `closure3-`. Actualiza el pendiente de navegación real de coverage2; conserva sus pruebas verdes sin repetirlas.
+
+| Criterio | Resultado actual |
+| --- | --- |
+| T028 Inicio/historial/volver | PASS con sesión real, sin editar movimientos |
+| T028 Calendario/mes anterior/actual/evento previsto/detalle de tarjeta/volver | PASS integrado, máscara local y aviso de no cargo automático; sin pagos |
+| T028 Análisis/periodo parcial/máscara/scroll/volver | PASS integrado con sesión real; sin alterar entitlement |
+| T028 errores/reintentos/cambio propietario | Pendiente integrado; pruebas aisladas previas conservadas. No se provocaron fallos ni cambiaron cuentas reales |
+| T027 TalkBack hablado/foco/gestos | NO VERIFICADO: sin herramienta acreditada de escucha/captura segura de audio; no habilitado para deducir voz desde logs |
+| Integridad S24 | PASS: 67 tablas comparadas, 65 idénticas; finanzas y diez outboxes íntegramente iguales, propietarios conservados, ajustes originales exactos y sesión operativa al final |
+| Preferencia máscara Inicio | Restaurada a false/SYNCED, revisión 2→4 y outbox perfil 0→0. Desviación de solo lectura: el toggle persistió dos cambios por UI antes de identificar ese comportamiento; no se afirma cero escrituras remotas. Solo cambian metadatos de perfil y renovación de feature_access_cache |
+| Entorno desechable UI eliminación | NO VERIFICADO: emulator-5554 listado pero pm list users timeout 8 s, boot_completed y servicio package timeout 6 s cada uno; S24 solo usuario Propietario, sin perfil de prueba. No crear infraestructura ni sustituir login real |
+| A16 | Ausente en ADB; resultados históricos preservados |
+| Yape real, notificación viva ambos órdenes, ocho muestras | NO VERIFICADO: sin acceso automático a Yape o datos privados de otra app; sin simulaciones sobre cuenta real |
+| T029 | Componente revisión cerrado por Opus `3e5d8d8e`; aceptación integral pendiente |
+| Decisiones de producto | T021: aprobar catálogo de métricas/monedas/cortes/zonas/periodos/filtros. EP-AUT FR-012: resolver UNIQUE(owner, referencia, fuente) frente al índice no único de Room37 con hechos incompatibles; D1/opción A no aprueba esa cardinalidad |
+
+No hubo nuevos tests de código, builds, instalaciones, despliegues o cambios remotos por API/SQL; no se repiten Deno15/pgTAP100/Android10 ni pruebas API verdes. Solo se recorrió UI y se verificaron las copias privadas con `closure3-integrity.py` (exit 0). Se guardaron snapshots y comparación de ajustes mediante finally, sin activar TalkBack. No se declara APPROVED integral ni se cierran T014/T021/T027–T030 por esta cobertura acotada.

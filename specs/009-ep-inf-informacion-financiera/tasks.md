@@ -103,3 +103,15 @@ Trabajo secuencial autorizado en `main`, desde `a10e7540`, sin comandos Spec Kit
 - **T014 parcial, abierta**: máscara y estados de Inicio cubiertos en componente/JVM; sin prueba nueva de lectura offline real ni cambio de propietario real.
 - **T029 abierta**: la revisión cruzada independiente quedó registrada en verification-report.md; siguen pendientes la verificación funcional aprobada y la aceptación integral.
 - **T030 abierta**: no se modifica alcance de producto ni se presenta este registro como decisión aprobada.
+
+
+## Cierre incremental factible — 2026-11-03 (`closure3`, base `9552a613`)
+
+- **T028 parcial, abierta**: recorridos S24 integrados con sesión real Inicio/historial, Calendario/meses/evento previsto/origen tarjeta/volver, Análisis/periodo parcial/máscara/scroll/volver ejecutados. Ya no falta toda navegación real; faltan errores/reintentos y cambio de propietario integrados. No se fabricaron errores en datos reales.
+- **T027 abierta**: sin escucha/captura segura del audio de accesibilidad disponible; no se activó TalkBack para inferir voz desde logs. Semántica previa no certifica salida hablada, foco ni gestos.
+- **T014 abierta**: sin nueva lectura offline real. **T021 abierta**: sin aprobación nueva de GATE-ANALYTICS-04.
+- **T029 abierta solo en su aceptación integral**: revisión cruzada Opus ya registrada en `3e5d8d8e`; sin revisiones redundantes. **T030 abierta**: las decisiones de producto pendientes no fueron inventadas.
+- Integridad privada `closure3-integrity.json`: 67 tablas, 65 idénticas, todas las outboxes y datos financieros conservados; solo metadatos de perfil (preferencia de máscara restaurada y SYNCED, revisión 2→4) y renovación de caché de acceso. Ajustes originales exactos, sesión real operativa y owner sets iguales. El toggle de Inicio produjo dos escrituras de preferencia por UI antes de identificar su persistencia; no se afirma ejecución sin escrituras remotas.
+- Eliminación UI desechable pendiente: emulador existente sin shell/servicio package operativo; solo perfil propietario en S24 y A16 ausente. No se toca la sesión real para sustituir ese entorno.
+
+Detalle, evidencia y decisiones de producto aún necesarias: [verification-report.md](verification-report.md#cierre-factible-de-journeys-reales--2026-11-03-closure3). Sin repetir suites verdes, comandos Spec Kit, ramas, push, PR, merge o despliegues.
