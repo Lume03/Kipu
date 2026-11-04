@@ -59,7 +59,7 @@ class RecurrencePresentationViewModel @Inject constructor(
 
     fun create(draft: RecurrenceDraft) {
         val userId = activeUserId ?: return
-        if (_state.value.isSaving) return
+        if (_state.value.isSaving || _state.value.savedRule != null) return
         _state.update { it.copy(isSaving = true, errorMessage = null, savedRule = null) }
         viewModelScope.launch {
             try {
@@ -102,7 +102,7 @@ class RecurrencePresentationViewModel @Inject constructor(
 
     fun dismissConfirmation() { _state.update { it.copy(resumePreview = null) } }
 
-    fun clearSavedRule() { _state.update { it.copy(savedRule = null) } }
+    fun clearSavedRule() { _state.update { it.copy(savedRule = null, errorMessage = null) } }
 
     private fun runCommand(fallback: String, command: suspend () -> RecurrenceCommandResult?) {
         if (_state.value.isSaving) return
