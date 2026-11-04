@@ -385,3 +385,8 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 ### Seguimiento HU-06 A — procedencia financiera (2026-11-03)
 
 - [X] Investigar las dos filas auxiliares DEBT_DISBURSEMENT históricas del dispositivo de origen, contrastando transacciones, eventos, ledger, recibos, outbox y handlers remotos; documentar su equivalencia sin borrar ni fabricar hechos. Sin cambio funcional. Validación y límites del dispositivo desconectado en [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
+
+
+### Correcci?n autorizada HU-06 B: recuperaci?n por propietario (2026-11-03)
+
+Revisi?n Opus de 3e5d8d8e: recuperar server-side el mismo recibo data_deleted tras JWT validado y AMR password reciente; serializar preparaci?n y aliases privados de reintento sin repetir purge, nuevos recibos ni exponer capability. Mantener bloqueo de escrituras y limpiar local solo despu?s de completed verificable, incluso para segundo dispositivo. Contrato e invariantes: account-deletion-v1.md. Validaci?n pendiente: pgTAP base/concurrencia/recuperaci?n, Deno, concurrencia real y API desechable; no implica aprobaci?n integral del sprint.

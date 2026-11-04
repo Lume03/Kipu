@@ -178,3 +178,8 @@ Verificar cancelación antes/después, aislamiento, reauth, estados durables/rea
 ### Comprobación HU-06 A / EP-DEU — 2026-11-03
 
 Se mantuvo el plan de restauración por feeds y lecturas complementarias: la copia auxiliar local del desembolso no necesita un nuevo push ni una nueva contabilización al restaurar. La comprobación de equivalencia usa identidad, propietario y efectos económicos, no igualdad física de tablas auxiliares. No se requirió cambio Android, migración ni despliegue. Evidencia: [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
+
+
+### Correcci?n autorizada HU-06 B: recuperaci?n por propietario (2026-11-03)
+
+Revisi?n Opus de 3e5d8d8e: recuperar server-side el mismo recibo data_deleted tras JWT validado y AMR password reciente; serializar preparaci?n y aliases privados de reintento sin repetir purge, nuevos recibos ni exponer capability. Mantener bloqueo de escrituras y limpiar local solo despu?s de completed verificable, incluso para segundo dispositivo. Contrato e invariantes: account-deletion-v1.md. Validaci?n pendiente: pgTAP base/concurrencia/recuperaci?n, Deno, concurrencia real y API desechable; no implica aprobaci?n integral del sprint.

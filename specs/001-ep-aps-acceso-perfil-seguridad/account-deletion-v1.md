@@ -12,6 +12,12 @@ Referencias del proveedor: [claims y AMR](https://supabase.com/docs/guides/auth/
 
 ## Endpoint y recibo
 
+### Corrección autorizada de recuperación (revisión Opus, 2026-11-03)
+
+Ante `data_deleted` con Auth aún vivo, una confirmación del mismo propietario con JWT validado y AMR password <=300 s recupera el recibo existente dentro del servidor. No se repite el purge, no se crea otro recibo ni se rotan sus credenciales. Un alias privado de la capacidad del segundo cliente apunta al mismo recibo, sin identidad adicional, para reconciliar una respuesta perdida incluso después de desaparecer Auth. Solo service_role accede a esos aliases; nunca se devuelven capacidades o hashes en HTTP.
+
+La preparación y registro del alias se serializan bajo el bloqueo transaccional del propietario; el cierre del recibo conserva todos los aliases. Se deniega cualquier colisión de UUID/capacidad con otro propietario y la reautenticación vencida devuelve 403 antes de recuperar. Los reintentos con capacidad ya autorizada conservan el contrato previo. Escritores continúan bloqueados hasta la ausencia de Auth y después de ella. Android conserva Room/caché ante pending, error, 401 o resultado incierto; solo `completed` verificado permite limpiar. No se infiere cuenta eliminada a partir de un 401 sin recibo verificable. Sin red se conservan datos locales y se reintenta.
+
 `POST /functions/v1/delete-account`, `Authorization: Bearer <JWT>`, cuerpo:
 
 ```json
