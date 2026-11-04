@@ -83,3 +83,29 @@ Sin defecto bloqueante.
 | Baja (documental) | `supabase/tests/database/account_deletion_concurrency.test.sql` (plan 8) | Informes de verificación | No consta el resultado de esta suite pgTAP; los informes solo citan 27/27 y 181 aserciones de regresión | Registrar su ejecución en la próxima tanda pgTAP local |
 
 Esta revisión no sustituye la eliminación con la UI completa y una cuenta desechable, que sigue NO VERIFICADA.
+
+
+## Corrección de recuperación HU-06 B — revisión 3e5d8d8e (2026-11-03 Lima)
+
+Alcance: hallazgo MEDIUM y consecuencia del segundo cliente. Migración aditiva `20261104021333_account_deletion_owner_recovery.sql`; no se editaron migraciones ya desplegadas. El RPC service-only `prepare_account_deletion` recupera el recibo canónico del mismo propietario y registra aliases privados de las capacidades ya confirmadas. Edge valida JWT contra Auth y exige AMR password <=300 s antes de incorporar una capacidad nueva; usa las credenciales canónicas solo dentro del servidor. Recuperación no repite purge ni crea otro recibo. Aliases conservan el resultado tras desaparecer Auth, resolviendo el ERROR del segundo cliente que antes solo recibía in_progress. Tabla sin user_id, con RLS y privilegios directos revocados; ningún HTTP incluye hashes o capacidades. El guard de escrituras permanece intacto.
+
+Android no cambia: `RemoteAccountDeletion` ya traduce completed/pending correctamente y `AccountDeletion` limpia solo tras completed durable. 401 sin recibo verificable conserva locales: no se interpreta como prueba de eliminación. Una petición legacy que nunca fue autorizada ni obtuvo alias antes de desaparecer Auth no permite inferir eliminación ni borrar cache; la corrección garantiza reconciliación para los nuevos intentos autorizados.
+
+| Verificación focalizada | Resultado |
+| --- | --- |
+| Deno delete-account | 15/15, exit 0: fallo Auth con capacidad previa/nueva, reintento, propietario ajeno, reauth vencida, aliases, timeout y no exposición de credenciales. |
+| pgTAP local con psql ON_ERROR_STOP y comprobación de TAP | Eliminación 27/27; concurrencia existente plan 8: 8/8; recuperación: 21/21; perfil 8/8; compras 36/36. Total 100 aserciones, cero not ok o errores. |
+| Concurrencia real local | 7 conexiones contra PostgreSQL: una preparación retenía la transacción mientras seis esperaban; un recibo canónico y seis aliases, todos reconciliaron completed. |
+| Prueba de no repetir purge | Trigger temporal rechaza todo DELETE en accounts durante recuperación; preparación y recuperación idempotentes pasan sin ejecutarlo. Se retira antes de simular borrado Auth por sus cascadas. |
+| Android focalizado, sin hardware | `:app:testDebugUnitTest --tests '*AccountDeletionTest' --tests '*AccountDeletionRemoteTest'`: BUILD SUCCESSFUL, 10 casos, cero fallos/errores. Conservación local PENDING/ERROR y limpieza tras completed. |
+| Despliegue remoto MCP kipu | Migración aplicada y versión de historial alineada a 20261104021333; delete-account ACTIVE v3, verify_jwt=false, descarga remota contiene prepare_account_deletion. Privilegios RPC verificados: anon=false, authenticated=false, service_role=true. |
+
+Evidencia privada: `C:/Users/Alume/s9-device-validation-20261103/deletion-recovery-*` (Deno, pgTAP, concurrencia, Android y API). No tokens ni datos de cuentas reales en el repositorio. El primer intento local encontró baseline anterior sin migración de concurrencia; se aplicaron 20261103162347/20261103172646 ya desplegadas y la tanda final pasó. Un trigger de prueba inicialmente interceptó la cascada de Auth; se acotó su duración y el resultado final pasó. pg_prove no estaba instalado; se ejecutó pgTAP mediante psql y se verificaron planes y aserciones.
+
+Advisors remoto: alias privado con RLS sin políticas informado, intencional por acceso exclusivo mediante RPC SECURITY DEFINER con privilegios service-only; sin hallazgo del RPC nuevo. Avisos globales preexistentes quedan fuera de este fix. No se añadieron políticas que expongan aliases.
+
+No hay APPROVED integral de Sprint 9: T021, TalkBack hablado, A16 en última tanda, Yape real/notificación viva en ambos órdenes y ocho muestras, UI completa de eliminación con cuenta desechable y cambio offline nuevo conservan sus límites anteriores. El LOW documental FR-012 sigue con contradicción específica registrada en EP-AUT: D1/opción A no determina la unicidad física de evidencia con hechos incompatibles; no se inventó aprobación de producto ni se cambió Yape.
+
+**Resultado final de la corrección: VALIDADA en backend local y proveedor remoto; aceptación del sprint sigue PARCIAL.** API contra delete-account v3 con dos cuentas desechables nuevas: se preparó mediante RPC el límite exacto `data_deleted` con Auth vivo (Admin 200), se obtuvo 403 `owner_mismatch` con el JWT del otro usuario sin borrarlo y 403 `recent_reauthentication_required` con AMR envejecido realmente >305 s. Tras login reciente, una capacidad nueva recuperó el recibo y respondió 200 completed. Capacidad original, nueva y alias del segundo dispositivo devolvieron 200 completed en tres peticiones paralelas y nuevamente con bearer de reconciliación después de desaparecer Auth. Admin 404; 60 tablas comprobadas, cero filas propias. La segunda cuenta desechable también fue eliminada mediante su propio flujo autorizado. Archivo privado `deletion-recovery-api-result.json`; credenciales temporales retiradas.
+
+Límite de la prueba: el fallo de Admin Auth se inyecta en Deno; en remoto se reproduce su estado persistido con purge RPC y se verifica recuperación real, sin provocar indisponibilidad del proveedor. La concurrencia de preparación se prueba con siete conexiones SQL locales; la tanda paralela remota valida reconciliación e idempotencia tras completarse la recuperación. Ninguna cuenta/sesión real, instalación Android o caché del usuario fue alterada.

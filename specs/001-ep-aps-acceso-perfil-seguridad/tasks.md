@@ -387,6 +387,12 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] Investigar las dos filas auxiliares DEBT_DISBURSEMENT históricas del dispositivo de origen, contrastando transacciones, eventos, ledger, recibos, outbox y handlers remotos; documentar su equivalencia sin borrar ni fabricar hechos. Sin cambio funcional. Validación y límites del dispositivo desconectado en [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
 
 
-### Correcci?n autorizada HU-06 B: recuperaci?n por propietario (2026-11-03)
+### Corrección autorizada HU-06 B: recuperación por propietario (2026-11-03)
 
-Revisi?n Opus de 3e5d8d8e: recuperar server-side el mismo recibo data_deleted tras JWT validado y AMR password reciente; serializar preparaci?n y aliases privados de reintento sin repetir purge, nuevos recibos ni exponer capability. Mantener bloqueo de escrituras y limpiar local solo despu?s de completed verificable, incluso para segundo dispositivo. Contrato e invariantes: account-deletion-v1.md. Validaci?n pendiente: pgTAP base/concurrencia/recuperaci?n, Deno, concurrencia real y API desechable; no implica aprobaci?n integral del sprint.
+Revisión Opus de 3e5d8d8e: recuperar server-side el mismo recibo data_deleted tras JWT validado y AMR password reciente; serializar preparación y aliases privados de reintento sin repetir purge, nuevos recibos ni exponer capability. Mantener bloqueo de escrituras y limpiar local solo después de completed verificable, incluso para segundo dispositivo. Contrato e invariantes: account-deletion-v1.md. Validación pendiente: pgTAP base/concurrencia/recuperación, Deno, concurrencia real y API desechable; no implica aprobación integral del sprint.
+
+- [x] Registrar invariantes antes de implementar y añadir migración aditiva de recuperación service-only.
+- [x] Recuperar recibo del propietario reautenticado sin repetir purge; aliases privados para respuesta perdida del segundo dispositivo.
+- [x] Verificar Deno 15/15, pgTAP 100 aserciones (incluido plan 8) y 7 clientes SQL concurrentes; Android focalizado 10/10.
+- [x] Aplicar migración remota, alinear historial y desplegar/verificar delete-account v3 con verify_jwt=false.
+- [x] Verificar API real con dos cuentas desechables: cross-owner 403, AMR envejecido 403, recuperación con capacidad nueva completed, tres reintentos concurrentes y aliases reconciliables sin Auth, Admin 404 y cero filas propias en 60 tablas. Cuentas de prueba eliminadas; evidencia privada fuera de Git.
