@@ -1,0 +1,35 @@
+BEGIN;
+SET LOCAL search_path=public,extensions;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(21);
+INSERT INTO auth.users(id,email) VALUES
+ ('a0677777-1111-4111-8111-111111111111','recovery-a@kipu.test'),
+ ('a0677777-2222-4222-8222-222222222222','recovery-b@kipu.test');
+SELECT is(public.prepare_account_deletion('a0677777-1111-4111-8111-111111111111','a0677777-3333-4333-8333-333333333333',repeat('a',64))->>'state','data_deleted','first purge');
+CREATE TEMP TABLE canonical AS SELECT * FROM private.account_deletion_requests WHERE user_id='a0677777-1111-4111-8111-111111111111';
+CREATE FUNCTION pg_temp.reject_repeated_purge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Purge repeated'; END $$;
+CREATE TRIGGER reject_repeated_purge BEFORE DELETE ON public.accounts FOR EACH STATEMENT EXECUTE FUNCTION pg_temp.reject_repeated_purge();
+SELECT is(public.prepare_account_deletion('a0677777-1111-4111-8111-111111111111','a0677777-4444-4444-8444-444444444444',repeat('b',64))->>'request_id','a0677777-3333-4333-8333-333333333333','second device recovers same receipt');
+SELECT lives_ok($$SELECT public.prepare_account_deletion('a0677777-1111-4111-8111-111111111111','a0677777-6666-4666-8666-666666666666',repeat('d',64))$$,'recovery does not execute purge DELETE statements');
+SELECT is((SELECT count(*) FROM private.account_deletion_requests WHERE user_id='a0677777-1111-4111-8111-111111111111'),1::bigint,'no new receipt');
+SELECT ok((SELECT r.secret_hash=c.secret_hash AND r.created_at=c.created_at FROM private.account_deletion_requests r JOIN canonical c USING(request_id)),'canonical credentials and creation time unchanged');
+SELECT is(public.account_deletion_status('a0677777-4444-4444-8444-444444444444',repeat('b',64))->>'state','data_deleted','alias status');
+SELECT ok(public.account_deletion_status('a0677777-4444-4444-8444-444444444444',repeat('c',64)) IS NULL,'wrong secret reveals nothing');
+SELECT throws_ok($$SELECT public.prepare_account_deletion('a0677777-2222-4222-8222-222222222222','a0677777-4444-4444-8444-444444444444',repeat('b',64))$$,'P0001','Request mismatch','cross owner alias denied');
+SELECT throws_ok($$SELECT public.prepare_account_deletion('a0677777-2222-4222-8222-222222222222','a0677777-3333-4333-8333-333333333333',repeat('a',64))$$,'P0001','Request mismatch','cross owner canonical denied');
+SELECT throws_ok($$SELECT public.prepare_account_deletion('a0677777-1111-4111-8111-111111111111','a0677777-4444-4444-8444-444444444444',repeat('c',64))$$,'P0001','Request mismatch','alias cannot rotate secret');
+SELECT throws_ok($$INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id) VALUES('a0677777-5555-4555-8555-555555555555','a0677777-1111-4111-8111-111111111111','Blocked','BANK','PEN','GENERIC')$$,'42501','Account deletion in progress or account absent','writes remain blocked');
+SELECT throws_ok($$SELECT public.complete_account_deletion('a0677777-4444-4444-8444-444444444444',repeat('b',64))$$,'P0001','Auth deletion not completed','alias cannot prematurely complete');
+SELECT is(public.prepare_account_deletion('a0677777-1111-4111-8111-111111111111','a0677777-4444-4444-8444-444444444444',repeat('b',64))->>'state','data_deleted','idempotent recovery');
+SELECT is((SELECT count(*) FROM private.account_deletion_aliases WHERE receipt_id='a0677777-3333-4333-8333-333333333333'),2::bigint,'no duplicate aliases');
+SELECT ok(NOT has_function_privilege('authenticated','public.prepare_account_deletion(uuid,uuid,text)','EXECUTE'),'authenticated cannot select arbitrary owner');
+SELECT ok(NOT has_function_privilege('anon','public.prepare_account_deletion(uuid,uuid,text)','EXECUTE'),'anon cannot recover');
+SELECT ok(NOT has_table_privilege('service_role','private.account_deletion_aliases','SELECT'),'aliases private even to direct service reads');
+DROP TRIGGER reject_repeated_purge ON public.accounts;
+DELETE FROM auth.users WHERE id='a0677777-1111-4111-8111-111111111111';
+SELECT lives_ok($$SELECT public.complete_account_deletion('a0677777-4444-4444-8444-444444444444',repeat('b',64))$$,'alias completes after Auth absent');
+SELECT is(public.account_deletion_status('a0677777-4444-4444-8444-444444444444',repeat('b',64)),jsonb_build_object('state','completed','user_id',NULL),'second device confirms completion without owner identity');
+SELECT is(public.account_deletion_status('a0677777-3333-4333-8333-333333333333',repeat('a',64))->>'state','completed','original capability remains valid');
+SELECT lives_ok($$SELECT public.complete_account_deletion('a0677777-4444-4444-8444-444444444444',repeat('b',64))$$,'completion idempotent');
+SELECT * FROM finish();
+ROLLBACK;
