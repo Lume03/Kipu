@@ -533,6 +533,31 @@ class MovementHistoryViewModelTest {
         assertEquals(listOf("two", "one"), viewModel.uiState.value.allTransactions.map { it.transaction.id })
     }
 
+    @Test fun hiddenVoidedRowsStayHiddenAfterReloadButRestoredActiveRowsReturn() = runTest {
+        val removed = item("removed", 2_000).let { it.copy(transaction = it.transaction.copy(
+            status = com.kipu.app.feature.movements.domain.model.TransactionStatus.VOIDED)) }
+        val visible = item("visible", 1_000)
+        val cursor = MovementHistoryCursor(1_000, "visible")
+        val repository = FakeHistoryRepository {
+            MovementHistoryPage(listOf(removed, visible), cursor, true, MovementHistoryAccessDecision.Allowed)
+        }
+        val preferences = mockk<com.kipu.app.feature.movements.data.MovementDisplayPreferences>()
+        every { preferences.observe("user") } returns MutableStateFlow(setOf("removed"))
+        val vm = MovementHistoryViewModel(mockk(relaxed = true), TestSessionCoordinator(),
+            queryMovementHistoryUseCase = QueryMovementHistory(repository), displayPreferences = preferences)
+        advanceUntilIdle()
+        assertEquals(listOf("visible"), vm.uiState.value.allTransactions.map { it.transaction.id })
+        assertEquals(cursor, vm.uiState.value.currentCursor)
+        assertTrue(vm.uiState.value.hasMorePages)
+        repository.invalidations.emit(Unit); advanceUntilIdle()
+        assertEquals(listOf("visible"), vm.uiState.value.allTransactions.map { it.transaction.id })
+        repository.page = { MovementHistoryPage(listOf(removed.copy(transaction = removed.transaction.copy(
+            status = com.kipu.app.feature.movements.domain.model.TransactionStatus.ACTIVE)), visible),
+            null, false, MovementHistoryAccessDecision.Allowed) }
+        repository.invalidations.emit(Unit); advanceUntilIdle()
+        assertEquals(listOf("removed", "visible"), vm.uiState.value.allTransactions.map { it.transaction.id })
+    }
+
     private fun viewModel(
         repository: FakeHistoryRepository,
         access: LocalAccess = LocalAccess.Available("user", RemoteSession.Absent),
