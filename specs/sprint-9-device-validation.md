@@ -1,5 +1,7 @@
 ﻿# Sprint 9 — validación funcional en dispositivos reales
 
+**Lectura del estado:** la matriz inicial es histórica; las re-verificaciones posteriores reemplazan resultados únicamente para el criterio indicado. La última tanda focalizada figura al final; persiste aceptación parcial.
+
 Fecha: 2026-11-03 (America/Lima). Código probado: `main`, `19312794065054a5c1cefc208ab036e9c9ee0c77`.
 
 **Resultado: ejecución completada con fallos y cobertura pendiente; no constituye aprobación integral del sprint.** No se modificó código de producción ni se desplegó/pusheó nada. No se ejecutó `connectedAndroidTest`, desinstalación, `pm clear`, cierre de sesión real ni eliminación de cuenta real.
@@ -199,3 +201,25 @@ Las copias previas de ambos teléfonos acreditan las mismas dos transacciones, e
 Evidencia privada adicional en el directorio externo ya indicado: `debt-facts-investigation-private.json`, `debt-investigation-remote-mcp.json`, `debt-investigation-effect-digests.json`, `debt-investigation-s24/` (Room/WAL y extracción privada), `debt-investigation-device-summary.json`, `debt-investigation-focused-tests.log` y `debt-investigation-focused-exit.txt`. El resumen privado conserva también la comparación estricta que detectó las diferencias de timestamps; esas diferencias se inspeccionaron por columna antes de clasificarlas como metadatos. No se añade ninguna base, payload, captura ni export financiero a Git.
 
 Se actualizaron manualmente los artefactos APS/DEU y el contrato de sync MOV para dejar trazable esta explicación, sin nuevos requisitos de producto. Permanecen abiertos los casos NO VERIFICADO y los demás pendientes del sprint; esta investigación no amplía su cobertura.
+
+## Cobertura focalizada adicional — 2026-11-03
+
+Base `a10e7540`, trabajo secuencial en main. **PASS focalizado, aceptación PARCIAL.** Informe detallado: [EP-INF verification-report](009-ep-inf-informacion-financiera/verification-report.md). Evidencia privada en el directorio externo ya indicado, prefijo nuevo `coverage2-`. Solo pruebas y documentación, sin cambios remotos, datos de producción, sesión ni entitlement.
+
+| Criterio pendiente / dispositivo | Resultado actual | Evidencia y límite |
+|---|---|---|
+| HU-41 T027: semántica y texto 200 %, S24 | PASS parcial | Inicio-patrimonio, Calendario y Análisis con fixtures Compose/densidad 2.0, acciones expandir/abrir/máscara, estado previsto/realizado y destino no disponible. 10 pruebas de componentes en coverage2-s24-final-instrumentation.txt; sin garantía de ausencia de todo truncamiento |
+| T027: TalkBack, tres journeys completos | NO VERIFICADO | Google y Samsung TalkBack instalados, servicio desactivado originalmente (null), conservado. Sin lectura hablada, orden de foco o gestos reales; T027 abierta |
+| T028: navegación y errores/reintentos/propietario | PASS parcial | 5 pruebas instrumentadas del grafo y 11 JVM: entrada directa/volver, argumentos/deep link de historial; retry recupera, error genérico, cambio propietario cancela fuente anterior, bloqueo y NoOwner. Fronteras separadas con fixtures; faltan journeys integrados con sesión real, T028 abierta |
+| HU-41 Free | PASS aislado; real NO VERIFICADO | AnalyticsViewModelTest con plan/sesión de prueba. Previa AnalyticsScreenTest 6/6 por teléfono sigue válida; no se repitió ni se cambió plan real |
+| Compartir imagen, frontera URI Android S24 | PASS aislado | ReceiptShareUriGrantTest: proveedor no exportado en UID emisor, rechazo inicial, concesión revocable desde proceso emisor Android, ACTION_SEND parseado y ContentResolver/ML Kit leen imagen sintética; revocar vuelve a rechazar. Sin MainActivity/selector/candidatos/movimientos: no acredita flujo completo desde Yape |
+| HU-49 notificación real + OCR ambos órdenes / ocho muestras privadas | NO VERIFICADO | Sin notificaciones nuevas; muestras ausentes. El fixture URI no acredita estos criterios |
+| HU-06 crear cambio offline y recuperar remoto | NO VERIFICADO en esta tanda | No se alteró red ni se crearon cambios reales. La recuperación del pendiente histórico sí consta en el cierre postdeploy anterior; no equivale a este escenario nuevo |
+| HU-06 eliminación UI completa desechable | NO VERIFICADO | Sin sustituir sesión real; cobertura API previa conservada |
+| A16 | NO VERIFICADO en esta tanda | Ausente en ADB; se preservan resultados históricos |
+| Conservación S24 | PASS | coverage2-all-tables-comparison.json: 66 tablas iguales antes/después, incluidas colas, saldos y preferencias; coverage2-integrity-comparison.json: settings iguales. Tres escalas 1.0 restauradas en finally; sin cambios de font_scale o servicio accesible; app reabierta al terminar |
+| GATE-ANALYTICS-04 / revisión cruzada | PENDIENTE | Búsqueda documental no localizó aprobación de catálogo; T021 sigue abierta. T029 exige revisión independiente, no autocertificada |
+
+Ejecución final: **S24 16/16 instrumentadas, 6.985 s, runner OK; host 11/11, cero fallos/omisiones; builds finales exit 0**. únicamente APK androidTest reinstalado mediante install -r; sin suite global ni repetición de AnalyticsScreenTest/AnalyticsDaoTest ya verdes. El primer intento instrumentado se interrumpió tras crash del proveedor test (AndroidX ausente en APK test independiente); se corrigió con proveedor/receptor Java Android puro. Compilación intermedia fallida por BOM Java corregida; logs fallidos conservados sin contarlos como PASS. El informe EP-INF detalla evidencia y comandos.
+
+No se encontró defecto nuevo de producción. Siguen abiertas T021/T027–T030 y los criterios NO VERIFICADO; pruebas de semántica, grafo y URI con fixtures en hardware no sustituyen proveedor Yape ni revisión cruzada.

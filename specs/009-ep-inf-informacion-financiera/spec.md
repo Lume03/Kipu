@@ -42,7 +42,7 @@ Implementada en Sprint 9 (2026-11-03): lógica y UI en la pestaña Análisis (`f
 1. **Solo meses completos**: La consulta y agregación operan únicamente por mes calendario completo (sin rangos de fechas personalizados).
 2. **Comparación por totales por moneda**: La comparación entre periodos se realiza sobre los totales globales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
 3. **Tareas abiertas**: T021 (GATE-ANALYTICS-04 formal) y T027–T030 (accesibilidad con TalkBack, integración transversal y cierre formal) permanecen abiertas.
-4. **UI tests compilados sin ejecutar**: Las pruebas instrumentadas de interfaz (`AnalyticsScreenTest` en androidTest) compilan exitosamente en `assembleDebugAndroidTest`, pero no se han ejecutado en hardware/dispositivo físico (validación en dispositivo pendiente).
+4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos en la re-verificación anterior; cobertura focalizada adicional S24 en [verification-report.md](verification-report.md). TalkBack, integración transversal completa y revisión cruzada siguen pendientes.
 
 1. Con gasto S/100 y transferencia S/200, gasto operativo suma S/100.
 2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas.
@@ -107,3 +107,7 @@ Las puntuaciones son esfuerzo relativo. La planificación fuente marca S7 como S
 
 - [Plan técnico](plan.md), [investigación](research.md), [modelo conceptual](data-model.md), [guía de validación futura](quickstart.md), [tareas previstas](tasks.md), [checklist Spec Kit](checklists/requirements.md), [calidad de requisitos](checklists/quality.md).
 - Backlog de producto: `docs/producto/backlog.md`; trazabilidad: `docs/producto/trazabilidad-y-dependencias.md`; control documental: `docs/control-documental.md`.
+
+### Estado de verificación incremental — 2026-11-03
+
+La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md). T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. Solo cambian pruebas y registro de evidencia, sin ampliar capacidades de producto.

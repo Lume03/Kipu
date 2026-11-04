@@ -62,4 +62,8 @@ La guía [quickstart.md](quickstart.md) describe validación de aceptación excl
   1. Solo meses completos (no admite rangos de fechas personalizados).
   2. Comparación limitada a totales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
   3. Tareas T021 (GATE-ANALYTICS-04 formal) y T027–T030 permanecen abiertas.
-  4. Pruebas de UI (`AnalyticsScreenTest`) compiladas en target androidTest pero sin ejecutar en dispositivo físico (validación en dispositivo pendiente).
+  4. `AnalyticsScreenTest` pasó 6/6 en A16 y S24 en la re-verificación anterior; cobertura adicional y límites en [verification-report.md](verification-report.md). TalkBack y aceptación transversal siguen pendientes.
+
+### Estado de verificación incremental — 2026-11-03
+
+La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md). T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. Solo cambian pruebas y registro de evidencia, sin ampliar capacidades de producto.

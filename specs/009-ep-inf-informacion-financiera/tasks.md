@@ -1,9 +1,9 @@
 # Tareas previstas: EP-INF — Inicio e Información Financiera
 
 **Entrada**: `spec.md`, `plan.md`, `research.md`, `data-model.md`.
-**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 y T027–T030 abiertas, UI tests compilados sin ejecutar en dispositivo.
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 y T027–T030 abiertas, AnalyticsScreenTest: 6/6 por teléfono en la re-verificación anterior; cobertura focalizada adicional S24 en verification-report.md, aceptación transversal parcial.
 
-> Nota 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
+> Nota histórica 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
 
 ## Fase 1 — Clarificación y fundamento (bloquea historias)
 
@@ -53,12 +53,12 @@
 
 - [x] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
 - [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
-> Nota HU-41 UI y alcance S9 (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) compila pero no se ejecutó en dispositivo.
+> Nota HU-41 UI y alcance S9 (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) pasó 6/6 en A16 y S24 en la re-verificación documentada del sprint; no se repitió en esta tanda.
 > Limitaciones registradas del incremento S9:
 > 1. Solo meses completos (sin rango de fechas personalizado).
 > 2. Comparación por totales por moneda (sin desglose por categoría).
 > 3. Tareas T021 y T027–T030 permanecen abiertas.
-> 4. UI tests instrumentados compilados sin ejecutar en hardware/dispositivo físico.
+> 4. Ejecución instrumentada y límites: [verification-report.md](verification-report.md); aceptación transversal parcial.
 
 ## Fase 5 — Integración y aceptación
 
@@ -92,3 +92,14 @@ Los paths de código son deliberadamente no fijados cuando falta inspección de 
 | SC-005 | T029, T030 |
 
 Las historias están cubiertas por sus fases HU-39 (T007–T014), HU-40 (T015–T020) y HU-41 (T021–T026). T001–T006 son gates de preparación comunes; T027–T030 son aceptación transversal. Tasks FR-001/SC-001 referencian casos de dominio existentes por inspeccionar; sus rutas concretas no se inventan antes de verificar repositorios.
+
+## Cobertura incremental real — 2026-11-03
+
+Trabajo secuencial autorizado en `main`, desde `a10e7540`, sin comandos Spec Kit ni cambios remotos. [Informe](verification-report.md) y [matriz de dispositivos](../sprint-9-device-validation.md#cobertura-focalizada-adicional--2026-11-03) contienen los resultados y límites.
+
+- **T021 abierta**: búsqueda en `docs/` y `specs/` y lectura de research/spec/plan no localizaron una decisión aprobada que cierre GATE-ANALYTICS-04. Las reglas constitucionales y el comportamiento actual no sustituyen ese catálogo. No se amplían periodos, comparaciones ni filtros.
+- **T027 parcial, abierta**: S24 pasó semántica/acciones de Inicio-patrimonio, Calendario y Análisis y tres casos nuevos con densidad de fuente Compose 2.0; no se cambió font_scale del sistema. Son recorridos de componentes con fixtures. TalkBack está instalado pero desactivado; no se ejecutó lectura hablada, foco secuencial o tres journeys completos con TalkBack. No se certifica ausencia de todo truncamiento por estas aserciones.
+- **T028 parcial, abierta**: 16/16 instrumentadas S24 y 11/11 JVM focalizadas. Navegación del grafo/volver, deep link de historial, evento disponible/no disponible, errores/reintentos, máscara y cancelación al cambiar propietario. Los estados Free, bloqueo y cambio de propietario se prueban aisladamente; falta aceptación integrada con sesión/propietario en los tres journeys. No se cambió sesión o entitlement real.
+- **T014 parcial, abierta**: máscara y estados de Inicio cubiertos en componente/JVM; sin prueba nueva de lectura offline real ni cambio de propietario real.
+- **T029 abierta**: no se certifica revisión cruzada por el autor de estas pruebas; no hay aprobación integral.
+- **T030 abierta**: no se modifica alcance de producto ni se presenta este registro como decisión aprobada.

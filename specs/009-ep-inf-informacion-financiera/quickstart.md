@@ -1,5 +1,7 @@
 # Quickstart de validación futura — EP-INF
 
+**Registro posterior (2026-11-03):** los resultados ejecutados y los criterios aún pendientes se consultan en [verification-report.md](verification-report.md). El texto de preparación siguiente conserva su contexto de planificación; no constituye el resultado de la tanda actual.
+
 **Importante**: guía para la futura implementación/aceptación; en la tarea actual no se ejecutan builds, tests de app, migraciones ni despliegues. Los pasos son casos de verificación requeridos, no evidencia de que ya se hayan corrido.
 
 ## Preparación
