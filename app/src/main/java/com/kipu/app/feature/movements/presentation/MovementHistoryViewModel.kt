@@ -44,6 +44,9 @@ import java.util.UUID
 import javax.inject.Inject
 
 data class MovementHistoryUiState(
+    val selectedTransactionForDelete: TransactionItem? = null,
+    val isDeleting: Boolean = false,
+    val deleteError: String? = null,
     val ownerId: String? = null,
     val isLoading: Boolean = true,
     val searchQuery: String = "",
@@ -153,7 +156,16 @@ class MovementHistoryViewModel @Inject constructor(
     private val refundTransactionUseCase: RegisterRefundTransaction? = null,
     private val refundRepository: MovementRefundRepository? = null,
     private val syncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler? = null,
+    private val displayPreferences: com.kipu.app.feature.movements.data.MovementDisplayPreferences? = null,
 ) : ViewModel() {
+
+    private val deleteState = MutableStateFlow(MovementDeleteState())
+    private data class MovementDeleteState(
+        val item: TransactionItem? = null,
+        val busy: Boolean = false,
+        val error: String? = null,
+        val command: MovementRevisionCommand.Void? = null,
+    )
 
     val remoteSession = sessionCoordinator.remoteSession
 
@@ -206,6 +218,7 @@ class MovementHistoryViewModel @Inject constructor(
                     _refundFlow.value = MovementRefundFlowState()
                     _recovery.value = HistoryAccessRecovery.IDLE
                     _voidState.value = VoidDialogState()
+                    deleteState.value = MovementDeleteState()
                     _advancedFilters.value = AdvancedFiltersState()
                     _searchQuery.value = ""
                     _selectedFilterType.value = null
@@ -381,6 +394,20 @@ class MovementHistoryViewModel @Inject constructor(
             detailRefundRejection = detail.refundRejectionMessage.takeIf { ownsDetail },
             detailRefundRemainingMinor = detail.refundRemainingMinor.takeIf { ownsDetail },
             refundFlow = refund.takeIf { it.purchaseItem?.transaction?.userId == currentOwner } ?: MovementRefundFlowState(),
+        )
+    }.combine(activeUserId.flatMapLatest { owner ->
+        if (owner == null) flowOf(emptySet<String>()) else displayPreferences?.observe(owner) ?: flowOf(emptySet())
+    }) { state, hidden ->
+        // A remote rejection/restoration must make the financial row visible for review again.
+        val visible = state.allTransactions.filterNot {
+            it.transaction.id in hidden && it.transaction.status == com.kipu.app.feature.movements.domain.model.TransactionStatus.VOIDED
+        }
+        state.copy(allTransactions = visible, filteredTransactions = groupTransactionsByDate(visible))
+    }.combine(deleteState) { state, deletion ->
+        state.copy(
+            selectedTransactionForDelete = deletion.item?.takeIf { it.transaction.userId == state.ownerId },
+            isDeleting = deletion.busy,
+            deleteError = deletion.error,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -719,6 +746,64 @@ class MovementHistoryViewModel @Inject constructor(
 
     fun onCloseRegisterSheet() {
         _showRegisterSheet.value = false
+    }
+
+    fun onSelectTransactionForDelete(item: TransactionItem) {
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
+        if (deleteState.value.busy || item.transaction.userId != owner || !canDeleteFromHistory(item)) return
+        deleteState.value = MovementDeleteState(item = item)
+    }
+
+    fun onDismissDelete() {
+        if (!deleteState.value.busy) deleteState.value = MovementDeleteState()
+    }
+
+    fun onConfirmDelete(onCompleted: () -> Unit = {}) {
+        val deletion = deleteState.value
+        val item = deletion.item ?: return
+        if (deletion.busy) return
+        val owner = (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId ?: return
+        if (owner != item.transaction.userId || !canDeleteFromHistory(item)) return
+        deleteState.value = deletion.copy(busy = true, error = null)
+        viewModelScope.launch {
+            try {
+                val preferences = checkNotNull(displayPreferences) { "No se pudo abrir la configuración del historial" }
+                val head = checkNotNull(maintenanceRepository?.getRevisionHead(owner, item.transaction.id)) {
+                    "No se pudo verificar el movimiento. Reintenta."
+                }
+                check(head.userId == owner && head.transactionId == item.transaction.id) { "Movimiento no disponible" }
+                if (head.financialState != MovementFinancialState.VOIDED) {
+                    check(!isSpecializedMovement(item)) { "Anula este movimiento desde su sección de origen" }
+                    val command = deletion.command ?: MovementRevisionCommand.Void(
+                        idempotencyKey = UUID.randomUUID().toString(), transactionId = item.transaction.id,
+                        expectedRevision = head.commandBaseRevision, reason = "Eliminar del historial",
+                    )
+                    deleteState.update { it.copy(command = command) }
+                    when (val result = voidTransactionUseCase?.invoke(owner, command)) {
+                        is MovementMutationResult.Success -> Unit
+                        is MovementMutationResult.Conflict -> {
+                            deleteState.update { it.copy(command = null) }
+                            error("El movimiento cambió. Revisa y reintenta.")
+                        }
+                        is MovementMutationResult.Rejected -> error("No se pudo anular el movimiento (${result.code})")
+                        null -> error("No se pudo anular el movimiento")
+                    }
+                }
+                // If hiding fails after VOID committed, retry reads VOIDED and never compensates twice.
+                preferences.hide(owner, item.transaction.id)
+                _datasetInvalidation.update { it + 1 }
+                if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == owner) {
+                    deleteState.value = MovementDeleteState()
+                    onCompleted()
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId == owner) {
+                    deleteState.update { it.copy(busy = false, error = error.message ?: "No se pudo eliminar. Reintenta.") }
+                }
+            }
+        }
     }
 
     fun onSelectTransactionForVoid(item: TransactionItem) {
