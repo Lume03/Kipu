@@ -150,6 +150,7 @@ fun QuickMovementBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     onNavigateToNewAccount: () -> Unit = {},
     mostUsedAccountId: String? = null,
+    recurrenceViewModel: com.kipu.app.feature.recurrences.presentation.RecurrencePresentationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val merchantPickerState by merchantPickerViewModel.uiState.collectAsStateWithLifecycle()
@@ -157,6 +158,15 @@ fun QuickMovementBottomSheet(
     var showMerchantPicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     val emeraldColors = rememberCalmEmeraldColors()
+    var recurrenceSource by remember { mutableStateOf<com.kipu.app.feature.movements.domain.model.TransactionItem?>(null) }
+    val recurrenceState by recurrenceViewModel.state.collectAsStateWithLifecycle()
+    var completedMovementType by remember { mutableStateOf<MovementType?>(null) }
+    val currentMerchant by androidx.compose.runtime.rememberUpdatedState(merchantPickerState.selectedMerchant)
+    val closeSheet = {
+        completedMovementType?.let { onSaved(it) }
+        completedMovementType = null
+        onDismissRequest()
+    }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {
@@ -172,9 +182,16 @@ fun QuickMovementBottomSheet(
         viewModel.events.collect { event ->
             when (event) {
                 is QuickMovementUiEvent.TransactionSaved -> {
-                    onSaved(event.movementType)
-                    onDismissRequest()
                     onMessage(event.message)
+                    if (event.recurrenceSource != null) {
+                        recurrenceViewModel.clearSavedRule()
+                        completedMovementType = event.movementType
+                        val merchant = currentMerchant?.takeIf { it.id.value == event.recurrenceSource.transaction.merchantId }
+                        recurrenceSource = event.recurrenceSource.copy(
+                            merchantLogoKey = merchant?.logoKey, merchantLogoUrl = merchant?.logoUrl,
+                            merchantLogoDarkUrl = merchant?.logoDarkUrl, merchantBrandColor = merchant?.brandColor,
+                        )
+                    } else { onSaved(event.movementType); onDismissRequest() }
                 }
                 is QuickMovementUiEvent.ShowMessage -> onMessage(event.message)
             }
@@ -183,7 +200,7 @@ fun QuickMovementBottomSheet(
 
     ModalBottomSheet(
         properties = kipuBottomSheetProperties(),
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = closeSheet,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = emeraldColors.surfaceCard,
@@ -200,7 +217,14 @@ fun QuickMovementBottomSheet(
         modifier = modifier.testTag("quick_movement_sheet"),
     ) {
         KipuModalSystemBars()
-        QuickMovementContent(
+        val source = recurrenceSource
+        if (source != null) {
+            com.kipu.app.feature.recurrences.presentation.RecurrenceRegistrationScreen(
+                source = source, onDismiss = closeSheet, onCreate = recurrenceViewModel::create,
+                isSaving = recurrenceState.isSaving, saveError = recurrenceState.errorMessage,
+                savedRule = recurrenceState.savedRule,
+            )
+        } else QuickMovementContent(
             uiState = uiState,
             onTypeSelected = viewModel::onTypeSelected,
             onAmountChanged = viewModel::onAmountChanged,
@@ -218,6 +242,7 @@ fun QuickMovementBottomSheet(
             onNoteChanged = viewModel::onNoteChanged,
             onOpenDatePicker = { showDatePicker = true },
             onToggleMoreDetails = viewModel::onToggleMoreDetails,
+            onRegisterRecurrenceChanged = viewModel::onRegisterRecurrenceChanged,
             onSave = viewModel::onSave,
             onCreditPurchaseDraftChanged = viewModel::onCreditPurchaseDraftChanged,
             onClose = onDismissRequest,
@@ -333,6 +358,7 @@ fun QuickMovementContent(
     onDestinationCardSelected: (String) -> Unit = {},
     onCreditPurchaseDraftChanged: (CreditPurchaseDraft) -> Unit = {},
     onRememberCategoryChanged: (Boolean) -> Unit = {},
+    onRegisterRecurrenceChanged: (Boolean) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -954,6 +980,21 @@ fun QuickMovementContent(
                             onOpenMerchantPicker = onOpenMerchantPicker,
                             onClearMerchant = onClearMerchant,
                         )
+                    }
+                    if (uiState.type == MovementType.EXPENSE) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                                .toggleable(value = uiState.registerRecurrenceAfterSave, role = Role.Switch, onValueChange = onRegisterRecurrenceChanged)
+                                .testTag("quick_register_recurrence"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Gasto recurrente", style = MaterialTheme.typography.bodyLarge, color = emeraldColors.primaryText)
+                                Text("Configurar después de guardar el gasto", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+                            }
+                            androidx.compose.material3.Switch(checked = uiState.registerRecurrenceAfterSave, onCheckedChange = null,
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = emeraldColors.primaryDeep, checkedThumbColor = emeraldColors.onPrimaryDeep))
+                        }
                     }
                     // The note lives in the same optional section; card payments do not take notes.
                     if (uiState.selectedDestinationCardId == null) {
