@@ -40,6 +40,27 @@ class RecurrenceReminderWorkerTest {
         every { observeByRecurrence(any(), any()) } returns kotlinx.coroutines.flow.flowOf(emptyList())
     }
 
+    @org.junit.Before
+    fun grantNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val descriptor = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+                .executeShellCommand("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+        }
+        androidx.core.app.NotificationManagerCompat.from(context).cancel("recurrence-reminder:$OWNER:$RECURRENCE", 0)
+    }
+
+    @Test
+    fun allowedReminderPostsOneSystemNotificationOnRetry() = runTest {
+        every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER)
+        coEvery { recurrenceDao.get(OWNER, RECURRENCE) } returns recurrence()
+        repeat(2) { assertTrue(worker(PermissionChecker(true)).doWork() is ListenableWorker.Result.Success) }
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val posted = manager.activeNotifications.filter { it.tag == "recurrence-reminder:$OWNER:$RECURRENCE" }
+        org.junit.Assert.assertEquals(1, posted.size)
+        org.junit.Assert.assertEquals(DUE_DATE, posted.single().notification.extras.getString(RecurrenceReminderWorker.KEY_DUE_DATE))
+    }
+
     @Test
     fun deniedPostNotificationsPersistsLocalEventWithoutRemoteMutation() = runTest {
         every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER)
