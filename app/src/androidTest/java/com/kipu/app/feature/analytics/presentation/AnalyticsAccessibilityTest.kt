@@ -6,7 +6,6 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
 import com.kipu.app.feature.analytics.domain.*
-import com.kipu.app.feature.home.domain.NetWorthSummary
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.LocalDate
 import java.time.ZoneId
@@ -27,7 +26,7 @@ class AnalyticsAccessibilityTest {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f)) {
                 KipuTheme {
-                    AnalyticsScreen(AnalyticsUiState.Content(result, NetWorthSummary.NoData),
+                    AnalyticsScreen(AnalyticsUiState.Content(result),
                         AnalyticsRequest.CurrentMonth, AnalyticsFilterOptions(categories = listOf(AnalyticsFilterOption("food", "Comida"))),
                         {}, { _, _ -> }, { _, _, _ -> }, {}, {}, {}, today = today, zone = zone)
                 }
@@ -36,7 +35,9 @@ class AnalyticsAccessibilityTest {
         compose.onNodeWithContentDescription("Ocultar importes").assertHasClickAction().performClick()
         compose.onNodeWithContentDescription("Mostrar importes").assertIsDisplayed()
         compose.onNodeWithTag(ANALYTICS_PARTIAL_TAG, useUnmergedTree = true).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag("${ANALYTICS_CATEGORY_CHART_TAG}_PEN").performScrollTo().assertIsDisplayed()
+        // The categories card sits below the ring, flows and weeks, so the lazy list has to bring it in first.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasTestTag("${ANALYTICS_CATEGORY_CHART_TAG}_PEN"))
+        compose.onNodeWithTag("${ANALYTICS_CATEGORY_CHART_TAG}_PEN").assertIsDisplayed()
         compose.onAllNodes(hasText("123.45", substring = true) or hasContentDescription("123.45", substring = true),
             useUnmergedTree = true).assertCountEquals(0)
     }

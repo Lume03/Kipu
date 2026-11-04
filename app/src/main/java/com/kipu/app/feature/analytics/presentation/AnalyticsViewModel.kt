@@ -6,8 +6,6 @@ import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.analytics.data.AnalyticsRepository
 import com.kipu.app.feature.analytics.domain.*
-import com.kipu.app.feature.home.domain.NetWorthSummary
-import com.kipu.app.feature.home.domain.ObserveNetWorthSummary
 import com.kipu.app.feature.plans.domain.VerifiedPlanAccess
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
@@ -25,10 +23,20 @@ sealed interface AnalyticsUiState {
     data object Loading : AnalyticsUiState
     data object Locked : AnalyticsUiState
     data object NoOwner : AnalyticsUiState
-    data class Content(val result: PeriodResult, val netWorth: NetWorthSummary) : AnalyticsUiState
-    data class Comparison(val result: AnalyticsComparison, val netWorth: NetWorthSummary) : AnalyticsUiState
+    /** [previous] is only loaded for Premium; Free sees the month without comparisons. */
+    data class Content(
+        val result: PeriodResult,
+        val overview: AnalyticsOverview = AnalyticsOverview.Empty,
+        val previous: PeriodResult? = null,
+        val premium: Boolean = false,
+    ) : AnalyticsUiState
+    data class Comparison(val result: AnalyticsComparison) : AnalyticsUiState
     /** The UI can show current statistics and navigate to the existing basic movement history. */
-    data class PremiumRequired(val current: PeriodResult, val netWorth: NetWorthSummary, val basicHistoryAvailable: Boolean = true) : AnalyticsUiState
+    data class PremiumRequired(
+        val current: PeriodResult,
+        val basicHistoryAvailable: Boolean = true,
+        val overview: AnalyticsOverview = AnalyticsOverview.Empty,
+    ) : AnalyticsUiState
     data class Error(val message: String) : AnalyticsUiState
 }
 
@@ -38,7 +46,7 @@ class AnalyticsViewModel @Inject constructor(
     private val session: SessionCoordinator,
     private val plan: VerifiedPlanAccess,
     private val repository: AnalyticsRepository,
-    private val netWorth: ObserveNetWorthSummary,
+    private val overview: ObserveAnalyticsOverview,
 ) : ViewModel() {
     private val request = MutableStateFlow<AnalyticsRequest>(AnalyticsRequest.CurrentMonth)
     private val retry = MutableStateFlow(0)
@@ -74,18 +82,30 @@ class AnalyticsViewModel @Inject constructor(
         val today = LocalDate.now(zone)
         val basic = AnalyticsPeriod.currentMonth(today, zone)
         val requiresPremium = selection !is AnalyticsRequest.CurrentMonth
-        if (requiresPremium && !premium) return combine(repository.observe(owner, basic), netWorth(owner)) { rows, worth ->
-            AnalyticsUiState.PremiumRequired(AnalyticsCalculator.calculate(basic, today, AnalyticsFilters(), rows), worth)
-        }
         fun report(period: AnalyticsPeriod, filters: AnalyticsFilters): Flow<PeriodResult> {
             require(period.zone == zone && !period.endInclusive.isAfter(today)) { "Periodo inválido" }
-            return repository.observe(owner, period).map { AnalyticsCalculator.calculate(period, today, filters, it) }
+            return combine(repository.observe(owner, period), repository.observeIncomes(owner, period).catch { emit(emptyList()) }) { rows, incomes ->
+                AnalyticsCalculator.calculate(period, today, filters, rows, incomes)
+            }
+        }
+        // A failing overview source must not hide the movements, so it degrades to an empty overview.
+        fun overviewOf(period: AnalyticsPeriod): Flow<AnalyticsOverview> =
+            overview(owner, period, today).catch { emit(AnalyticsOverview.Empty) }
+        /** Premium also loads the comparable earlier period so cards can show their change. */
+        fun content(period: AnalyticsPeriod, filters: AnalyticsFilters): Flow<AnalyticsUiState> {
+            val previous = if (premium) report(period.previous(), filters).map<PeriodResult, PeriodResult?> { it }.catch { emit(null) } else flowOf(null)
+            return combine(report(period, filters), overviewOf(period), previous) { result, summary, before ->
+                AnalyticsUiState.Content(result, summary, before, premium)
+            }
+        }
+        if (requiresPremium && !premium) return combine(report(basic, AnalyticsFilters()), overviewOf(basic)) { result, summary ->
+            AnalyticsUiState.PremiumRequired(result, overview = summary)
         }
         return when (selection) {
-            AnalyticsRequest.CurrentMonth -> combine(report(basic, AnalyticsFilters()), netWorth(owner)) { result, worth -> AnalyticsUiState.Content(result, worth) }
-            is AnalyticsRequest.Report -> combine(report(selection.period, selection.filters), netWorth(owner)) { result, worth -> AnalyticsUiState.Content(result, worth) }
-            is AnalyticsRequest.Compare -> combine(report(selection.previous, selection.filters), report(selection.current, selection.filters), netWorth(owner)) { previous, current, worth ->
-                AnalyticsUiState.Comparison(AnalyticsCalculator.compare(previous, current), worth)
+            AnalyticsRequest.CurrentMonth -> content(basic, AnalyticsFilters())
+            is AnalyticsRequest.Report -> content(selection.period, selection.filters)
+            is AnalyticsRequest.Compare -> combine(report(selection.previous, selection.filters), report(selection.current, selection.filters)) { previous, current ->
+                AnalyticsUiState.Comparison(AnalyticsCalculator.compare(previous, current))
             }
         }
     }

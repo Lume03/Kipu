@@ -95,6 +95,7 @@ import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.KipuTheme
+import com.kipu.app.ui.theme.ThemeTransition
 import com.kipu.app.ui.theme.LocalStatusBarIconsOverride
 import com.kipu.app.ui.theme.StatusBarIconsOverride
 import dagger.hilt.android.AndroidEntryPoint
@@ -277,6 +278,9 @@ class MainActivity : FragmentActivity() {
                     authCallbackViewModel.consumeNavigation()
                 }
             }
+
+            // A hand-made theme change froze the old screen; now that the new one is composed it can fade away.
+            LaunchedEffect(isDark) { ThemeTransition.onThemeApplied() }
 
             KipuTheme(darkTheme = isDark) {
                 val background = MaterialTheme.colorScheme.background

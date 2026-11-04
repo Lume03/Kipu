@@ -5,11 +5,11 @@ import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.feature.analytics.data.AnalyticsDao
 import com.kipu.app.feature.analytics.data.AnalyticsRepository
+import com.kipu.app.feature.analytics.domain.AnalyticsOverview
 import com.kipu.app.feature.analytics.domain.AnalyticsPeriod
+import com.kipu.app.feature.analytics.domain.ObserveAnalyticsOverview
 import com.kipu.app.feature.analytics.presentation.AnalyticsUiState
 import com.kipu.app.feature.analytics.presentation.AnalyticsViewModel
-import com.kipu.app.feature.home.domain.NetWorthSummary
-import com.kipu.app.feature.home.domain.ObserveNetWorthSummary
 import com.kipu.app.feature.plans.domain.VerifiedPlanAccess
 import com.kipu.app.feature.plans.domain.OfflineEntitlementLeasePolicy
 import com.kipu.app.feature.plans.domain.model.OfflineEntitlementGrantClaims
@@ -60,9 +60,10 @@ class AnalyticsViewModelTest {
                 finally { activeOwners -= owner }
             }
         }
-        val worth = mockk<ObserveNetWorthSummary>()
-        every { worth.invoke(any()) } returns flowOf(NetWorthSummary.NoData)
-        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), worth)
+        every { dao.observeIncomes(any(), any(), any()) } returns flowOf(emptyList())
+        val overview = mockk<ObserveAnalyticsOverview>()
+        every { overview.invoke(any(), any(), any()) } returns flowOf(AnalyticsOverview.Empty)
+        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), overview)
         val collect = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         runCurrent()
         assertEquals(AnalyticsUiState.Error("No se pudieron cargar las estadísticas."), vm.state.value)
@@ -115,9 +116,10 @@ class AnalyticsViewModelTest {
         val plan = LeasePlanAccess()
         val dao = mockk<AnalyticsDao>()
         every { dao.observeExpenses(any(), any(), any()) } returns flowOf(emptyList())
-        val worth = mockk<ObserveNetWorthSummary>()
-        every { worth.invoke(any()) } returns flowOf(NetWorthSummary.NoData)
-        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), worth)
+        every { dao.observeIncomes(any(), any(), any()) } returns flowOf(emptyList())
+        val overview = mockk<ObserveAnalyticsOverview>()
+        every { overview.invoke(any(), any(), any()) } returns flowOf(AnalyticsOverview.Empty)
+        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), overview)
         val collect = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         runCurrent()
         assertTrue(vm.state.value is AnalyticsUiState.Content)

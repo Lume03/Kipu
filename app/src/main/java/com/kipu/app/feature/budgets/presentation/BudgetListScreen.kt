@@ -77,6 +77,7 @@ fun BudgetListScreen(
     embedded: Boolean = false,
     createRequested: Boolean = false,
     onCreateRequestConsumed: () -> Unit = {},
+    onCreateBudgetFromIdea: (String) -> Unit = { onCreateBudget() },
     onEditBudget: (String) -> Unit = onOpenBudget,
     onFinishBudget: (String) -> Unit = onOpenBudget,
     onDeleteBudget: (String) -> Unit = onOpenBudget,
@@ -91,6 +92,9 @@ fun BudgetListScreen(
     }
     val requestCreate = {
         if (quota?.isAtLimit == true) showQuotaDialog = true else onCreateBudget()
+    }
+    val requestIdea = { idea: BudgetIdea ->
+        if (quota?.isAtLimit == true) showQuotaDialog = true else onCreateBudgetFromIdea(idea.key)
     }
     // The root (+) button asks for the same quota-aware flow as the in-list create button.
     LaunchedEffect(createRequested, quota) {
@@ -149,9 +153,12 @@ fun BudgetListScreen(
                 Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { QuotaCard(state.quota) }
-                item { CreateButton(state.quota.isAtLimit, requestCreate) }
+                // Premium has no quota to show; an empty item would still add a gap above the list.
+                if (!state.quota.isPremium) item { QuotaCard(state.quota) }
+                // Inside Planificación the central (+) already creates for the open tab, so no second button here.
+                if (!embedded) item { CreateButton(state.quota.isAtLimit, requestCreate) }
                 item { EmptyBudgets() }
+                item { BudgetIdeasSection(onPick = requestIdea) }
             }
             is BudgetListUiState.Content -> LazyColumn(
                 Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).testTag("budget_items"),
@@ -160,10 +167,12 @@ fun BudgetListScreen(
                 val visible = state.items.filter { it.status == BudgetStatus.ACTIVE }
                 val finished = state.items.filter { it.status == BudgetStatus.FINISHED }
                 item { BudgetTotalsCard(visible) }
-                item { QuotaCard(state.quota) }
+                // Premium has no quota to show; an empty item would still add a gap above the list.
+                if (!state.quota.isPremium) item { QuotaCard(state.quota) }
                 if (visible.isEmpty()) {
-                    if (state.items.isEmpty()) item { CreateButton(state.quota.isAtLimit, requestCreate) }
+                    if (state.items.isEmpty() && !embedded) item { CreateButton(state.quota.isAtLimit, requestCreate) }
                     item { EmptyBudgets() }
+                    if (state.items.isEmpty()) item { BudgetIdeasSection(onPick = requestIdea) }
                 }
                 items(visible, key = { it.id }) { item ->
                     BudgetSummaryCard(item, onOpen = { onOpenBudget(item.id) }, onOptions = { optionsId = item.id })

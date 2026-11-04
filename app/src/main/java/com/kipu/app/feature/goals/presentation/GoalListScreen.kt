@@ -101,6 +101,7 @@ fun GoalListScreen(
     onCreateRequestConsumed: () -> Unit = {},
     onCompleteGoal: (String) -> Unit = onOpenGoal,
     onManageDeleteGoal: ((String) -> Unit)? = null,
+    onCreateGoalFromIdea: (String) -> Unit = { onCreateGoal() },
 ) {
     val colors = rememberPlanningColors()
     val sections = state.displaySections()
@@ -114,6 +115,7 @@ fun GoalListScreen(
     var selectedForOptions by remember { mutableStateOf<GoalListItemState?>(null) }
     var showPlanLimit by rememberSaveable { mutableStateOf(false) }
     val requestCreate = { if (state.freeGoalLimitReached) showPlanLimit = true else onCreateGoal() }
+    val requestIdea = { idea: GoalIdea -> if (state.freeGoalLimitReached) showPlanLimit = true else onCreateGoalFromIdea(idea.key) }
     LaunchedEffect(createRequested, state.isLoading) {
         if (createRequested && !state.isLoading) {
             onCreateRequestConsumed()
@@ -160,7 +162,8 @@ fun GoalListScreen(
                 if (allVisibleGoals.isNotEmpty()) item {
                     GoalTotalsCard(state.activeTotals)
                 }
-                if (allVisibleGoals.isEmpty()) item {
+                // Inside Planificación the central (+) already creates for the open tab, so no second button here.
+                if (allVisibleGoals.isEmpty() && !embedded) item {
                     if (state.freeGoalLimitReached) {
                         Button(
                             onClick = { showPlanLimit = true },
@@ -186,6 +189,7 @@ fun GoalListScreen(
                 }
                 if (allVisibleGoals.isEmpty()) {
                     item { EmptyGoalsCard() }
+                    item { GoalIdeasSection(onPick = requestIdea) }
                 } else {
                     items(visibleGoals, key = { it.goal.id }) { item ->
                         GoalSummaryCard(
@@ -372,7 +376,7 @@ private fun EmptyGoalsCard() {
             }
             Text("Todavía no tienes metas de ahorro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Crea tu primera meta para comenzar a organizar tus ahorros y monitorear tu progreso.",
+                "Crea una meta, fija cuánto necesitas y cuándo, y aparta dinero poco a poco. Verás tu avance y cuánto ahorrar cada mes.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

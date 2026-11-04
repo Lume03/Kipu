@@ -17,7 +17,6 @@ import com.kipu.app.feature.analytics.domain.AnalyticsFilterOptions
 import com.kipu.app.feature.analytics.domain.AnalyticsFilters
 import com.kipu.app.feature.analytics.domain.AnalyticsPeriod
 import com.kipu.app.feature.analytics.domain.ExpenseRow
-import com.kipu.app.feature.home.domain.NetWorthSummary
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.LocalDate
 import java.time.YearMonth
@@ -56,16 +55,16 @@ class AnalyticsScreenTest {
     }
 
     @Test fun currentMonthShowsTotalCategoryAndPartialDates() {
-        show(AnalyticsUiState.Content(result(currentPeriod, 10_000), NetWorthSummary.NoData))
+        show(AnalyticsUiState.Content(result(currentPeriod, 10_000)))
         // PeriodCard merges descendants for accessibility; inspect its child warning explicitly.
         compose.onNodeWithTag(ANALYTICS_PARTIAL_TAG, useUnmergedTree = true).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Del 1 nov 2026 al 3 nov 2026", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Del 1 nov al 3 nov", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("${ANALYTICS_CATEGORY_CHART_TAG}_PEN").assertExists()
     }
 
     @Test fun zeroBaseComparisonShowsSinBase() {
         val comparison = AnalyticsCalculator.compare(result(previousPeriod), result(currentPeriod, 5_000))
-        show(AnalyticsUiState.Comparison(comparison, NetWorthSummary.NoData), AnalyticsRequest.Compare(previousPeriod, currentPeriod))
+        show(AnalyticsUiState.Comparison(comparison), AnalyticsRequest.Compare(previousPeriod, currentPeriod))
         compose.onNode(hasTestTag(ANALYTICS_SCREEN_TAG)).assertExists()
         compose.onAllNodesWithText("Del 1 oct 2026 al 31 oct 2026")[0].assertExists()
         compose.onNodeWithTag("${ANALYTICS_NO_BASE_TAG}_${Currency.PEN.name}", useUnmergedTree = true).assertExists()
@@ -75,7 +74,7 @@ class AnalyticsScreenTest {
     @Test fun freeHistoricalRequestOffersPlansCurrentAndHistory() {
         var plans = 0; var current = 0; var history = 0
         show(
-            AnalyticsUiState.PremiumRequired(result(currentPeriod, 1_000), NetWorthSummary.NoData),
+            AnalyticsUiState.PremiumRequired(result(currentPeriod, 1_000)),
             AnalyticsRequest.Report(previousPeriod),
             onCurrent = { current++ }, onPlans = { plans++ }, onHistory = { history++ },
         )
@@ -98,10 +97,37 @@ class AnalyticsScreenTest {
         compose.onNodeWithTag(ANALYTICS_FILTERS_TAG).assertDoesNotExist()
     }
 
-    @Test fun reportModeRequestsSelectedMonth() {
+    @Test fun premiumPeriodSheetRequestsSelectedMonth() {
         val requested = mutableListOf<AnalyticsPeriod>()
-        show(AnalyticsUiState.Content(result(currentPeriod, 1_000), NetWorthSummary.NoData), onReport = { period, _ -> requested += period })
-        compose.onNodeWithTag(ANALYTICS_MODE_TAG_PREFIX + "report").performClick()
+        show(
+            AnalyticsUiState.Content(result(currentPeriod, 1_000), premium = true),
+            onReport = { period, _ -> requested += period },
+        )
+        compose.onNodeWithTag(ANALYTICS_PERIOD_TAG).performClick()
+        compose.onNodeWithTag("${ANALYTICS_MONTH_TAG_PREFIX}report_2026-10").performClick()
         assertEquals(previousPeriod, requested.single())
+    }
+
+    @Test fun freePeriodSheetKeepsCurrentMonthAndExplainsPremium() {
+        val requested = mutableListOf<AnalyticsPeriod>()
+        show(
+            AnalyticsUiState.Content(result(currentPeriod, 1_000), premium = false),
+            onReport = { period, _ -> requested += period },
+        )
+        compose.onNodeWithTag(ANALYTICS_PERIOD_TAG).performClick()
+        compose.onNodeWithTag("${ANALYTICS_MONTH_TAG_PREFIX}report_2026-10").performClick()
+        compose.onNodeWithTag(ANALYTICS_RESTRICTED_TAG).assertExists()
+        assertEquals(emptyList<AnalyticsPeriod>(), requested)
+    }
+
+    @Test fun filtersSheetListsSelectorRowsInsteadOfOptionChips() {
+        var current = 0
+        show(AnalyticsUiState.Content(result(currentPeriod, 1_000), premium = true), onCurrent = { current++ })
+        compose.onNodeWithTag(ANALYTICS_FILTERS_TAG).performClick()
+        compose.onNodeWithTag("btn_reference_Cuenta o tarjeta").assertExists()
+        compose.onNodeWithTag("btn_reference_Categoría").assertExists()
+        compose.onNodeWithTag("btn_reference_Comercio").assertExists()
+        compose.onNodeWithTag(ANALYTICS_FILTER_APPLY_TAG).performClick()
+        assertEquals(1, current)
     }
 }

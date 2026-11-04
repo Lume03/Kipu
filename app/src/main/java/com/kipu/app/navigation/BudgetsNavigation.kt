@@ -19,6 +19,9 @@ import com.kipu.app.feature.budgets.presentation.BudgetFormUiState
 
 const val BUDGET_CREATE_ROUTE = "budgets/new"
 
+/** Same destination, optionally started from an idea that only prefills the form. */
+const val BUDGET_CREATE_PATTERN = "$BUDGET_CREATE_ROUTE?idea={idea}"
+
 /** Detalle por id. Lo abre tambien el centro de avisos (aviso BUDGET_ALERT, referencia BUDGET). */
 const val BUDGET_DETAIL_ROUTE = "budgets/{budgetId}?action={action}"
 const val BUDGET_EDIT_ROUTE = "budgets/{budgetId}/edit"
@@ -29,7 +32,10 @@ fun NavController.navigateToBudgets() = navigateToPlanning(PlanningTab.BUDGETS)
 fun NavController.navigateToBudget(budgetId: String) = navigate("budgets/$budgetId")
 
 fun NavGraphBuilder.budgetDestinations(navController: NavController) {
-    composable(BUDGET_CREATE_ROUTE) {
+    composable(
+        route = BUDGET_CREATE_PATTERN,
+        arguments = listOf(navArgument("idea") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) {
         BudgetFormDestination(navController)
     }
 
@@ -81,7 +87,7 @@ private fun BudgetFormDestination(navController: NavController) {
                     navController.popBackStack()
                 } else {
                     navController.navigate("budgets/${event.budgetId}?action=created") {
-                        popUpTo(BUDGET_CREATE_ROUTE) { inclusive = true }
+                        popUpTo(BUDGET_CREATE_PATTERN) { inclusive = true }
                     }
                 }
             }

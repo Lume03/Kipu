@@ -83,6 +83,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.feature.auth.presentation.SignOutDialog
 import com.kipu.app.feature.settings.domain.model.SyncState
 import com.kipu.app.feature.settings.domain.model.ThemeMode
+import com.kipu.app.ui.theme.ThemeTransition
+import com.kipu.app.ui.theme.LocalKipuDarkTheme
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.ui.theme.KipuThemePreviews
 import com.kipu.app.BuildConfig
@@ -296,6 +301,24 @@ fun ProfileSettingsScreen(
                     }
                 }
 
+                // The look changes under a frozen picture of the screen that fades out, so the switch is soft.
+                val themeContext = LocalContext.current
+                val reducedMotion = rememberReducedMotionEnabled()
+                val currentlyDark = LocalKipuDarkTheme.current
+                val systemDark = isSystemInDarkTheme()
+                val selectTheme: (ThemeMode) -> Unit = { mode ->
+                    val targetDark = when (mode) {
+                        ThemeMode.DARK -> true
+                        ThemeMode.SYSTEM -> systemDark
+                        else -> false
+                    }
+                    val apply = {
+                        viewModel.onThemeModeChanged(mode)
+                        viewModel.savePreferences()
+                    }
+                    if (targetDark == currentlyDark) apply() else ThemeTransition.run(themeContext, reducedMotion, apply)
+                }
+
                 // 3. Tema de la aplicación
                 SettingsCard(
                     icon = Icons.Default.Palette,
@@ -314,10 +337,7 @@ fun ProfileSettingsScreen(
                         ) {
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.LIGHT,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.LIGHT)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.LIGHT) },
                                 icon = Icons.Default.LightMode,
                                 label = "Claro",
                                 isLargeFont = true,
@@ -328,10 +348,7 @@ fun ProfileSettingsScreen(
 
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.DARK,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.DARK)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.DARK) },
                                 icon = Icons.Default.DarkMode,
                                 label = "Oscuro",
                                 isLargeFont = true,
@@ -342,10 +359,7 @@ fun ProfileSettingsScreen(
 
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.SYSTEM,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.SYSTEM)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.SYSTEM) },
                                 icon = Icons.Default.Smartphone,
                                 label = "Sistema",
                                 isLargeFont = true,
@@ -363,10 +377,7 @@ fun ProfileSettingsScreen(
                         ) {
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.LIGHT,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.LIGHT)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.LIGHT) },
                                 icon = Icons.Default.LightMode,
                                 label = "Claro",
                                 isLargeFont = false,
@@ -377,10 +388,7 @@ fun ProfileSettingsScreen(
 
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.DARK,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.DARK)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.DARK) },
                                 icon = Icons.Default.DarkMode,
                                 label = "Oscuro",
                                 isLargeFont = false,
@@ -391,10 +399,7 @@ fun ProfileSettingsScreen(
 
                             ThemeOptionChip(
                                 selected = state.themeMode == ThemeMode.SYSTEM,
-                                onClick = {
-                                    viewModel.onThemeModeChanged(ThemeMode.SYSTEM)
-                                    viewModel.savePreferences()
-                                },
+                                onClick = { selectTheme(ThemeMode.SYSTEM) },
                                 icon = Icons.Default.Smartphone,
                                 label = "Sistema",
                                 isLargeFont = false,

@@ -24,6 +24,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
+import com.kipu.app.feature.analytics.presentation.AnalyticsNavigation
 import com.kipu.app.feature.analytics.presentation.AnalyticsRoute
 import com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreen
 import com.kipu.app.feature.notifications.presentation.NotificationBadgeViewModel
@@ -121,6 +122,16 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
                 AnalyticsRoute(
                     onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
                     onNavigateToBasicHistory = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
+                    navigation = AnalyticsNavigation(
+                        onOpenAccount = navController::navigateToAccountDetail,
+                        onOpenCard = { navController.navigateToCardDetail(it) },
+                        onOpenAccounts = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MONEY },
+                        onOpenGoals = navController::navigateToGoals,
+                        onOpenDues = navController::navigateToUpcomingDues,
+                        onOpenDebts = { navController.navigateToPlanning(PlanningTab.DEBTS) },
+                        onAddAccount = navController::navigateToAccountForm,
+                        onOpenMovements = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
+                    ),
                     viewModel = hiltViewModel(backStackEntry),
                 )
             }

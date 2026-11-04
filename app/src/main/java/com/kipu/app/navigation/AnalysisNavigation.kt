@@ -3,6 +3,7 @@ package com.kipu.app.navigation
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.kipu.app.feature.analytics.presentation.AnalyticsNavigation
 import com.kipu.app.feature.analytics.presentation.AnalyticsRoute
 
 /** Bottom-bar identifier of Análisis, a page of the dashboard destination ([RootTab.ANALYSIS]). */
@@ -24,6 +25,16 @@ fun NavGraphBuilder.analyticsDestinations(navController: NavController) {
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
             onNavigateToBasicHistory = navController::openBasicHistoryFromAnalytics,
             onNavigateBack = { navController.popBackStack() },
+            navigation = AnalyticsNavigation(
+                onOpenAccount = navController::navigateToAccountDetail,
+                onOpenCard = { navController.navigateToCardDetail(it) },
+                onOpenAccounts = { navController.selectRootTab(RootTab.MONEY) },
+                onOpenGoals = navController::navigateToGoals,
+                onOpenDues = navController::navigateToUpcomingDues,
+                onOpenDebts = { navController.navigateToPlanning(PlanningTab.DEBTS) },
+                onAddAccount = navController::navigateToAccountForm,
+                onOpenMovements = { navController.selectRootTab(RootTab.MOVEMENTS) },
+            ),
         )
     }
 }

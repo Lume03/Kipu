@@ -16,6 +16,7 @@ import com.kipu.app.feature.goals.presentation.GoalContributionViewModel
 import com.kipu.app.feature.goals.presentation.GoalDetailScreen
 import com.kipu.app.feature.goals.presentation.GoalDetailViewModel
 import com.kipu.app.feature.goals.presentation.GoalFormScreen
+import com.kipu.app.feature.goals.presentation.GoalIdea
 import com.kipu.app.feature.goals.presentation.GoalListEvent
 import com.kipu.app.feature.goals.presentation.GoalListViewModel
 
@@ -29,7 +30,11 @@ fun NavController.navigateToGoals() = navigateToPlanning(PlanningTab.GOALS)
 fun NavController.navigateToGoal(goalId: String) = navigate("goals/$goalId")
 
 fun NavGraphBuilder.goalDestinations(navController: NavController) {
-    composable(GOAL_CREATE_ROUTE) { backStackEntry ->
+    composable(
+        route = "$GOAL_CREATE_ROUTE?idea={idea}",
+        arguments = listOf(navArgument("idea") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) { backStackEntry ->
+        val idea = GoalIdea.fromKey(backStackEntry.arguments?.getString("idea"))
         val ownerEntry = remember(backStackEntry) { navController.getBackStackEntry(ACCOUNTS_DASHBOARD_ROUTE) }
         val viewModel: GoalListViewModel = hiltViewModel(ownerEntry)
         val state by viewModel.state.collectAsStateWithLifecycle()
@@ -40,6 +45,8 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         }
         GoalFormScreen(
             existingGoal = null,
+            initialName = idea?.goalName.orEmpty(),
+            initialIconKey = idea?.iconKey,
             accounts = state.backingAccounts,
                 accountOptions = state.accountOptions,
             isSaving = state.isSaving,

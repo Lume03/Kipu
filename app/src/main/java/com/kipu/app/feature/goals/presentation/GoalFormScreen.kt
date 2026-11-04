@@ -97,11 +97,14 @@ fun GoalFormScreen(
     currentReserved: Money? = null,
     hasPremiumAccess: Boolean = false,
     accountOptions: List<com.kipu.app.feature.accounts.domain.model.Account> = emptyList(),
+    /** Prefill for a new goal started from an idea; ignored when editing. */
+    initialName: String = "",
+    initialIconKey: String? = null,
     onSave: (goalId: String?, name: String, target: Money, targetDate: LocalDate?, linkedAccountId: String?, replacementGoalId: String?, iconKey: String) -> Unit,
 ) {
-    var iconKey by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.iconKey ?: "savings") }
+    var iconKey by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.iconKey ?: initialIconKey ?: "savings") }
     var iconSheetVisible by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.name.orEmpty()) }
+    var name by rememberSaveable(existingGoal?.id) { mutableStateOf(existingGoal?.name ?: initialName) }
     var amount by rememberSaveable(existingGoal?.id) {
         mutableStateOf(existingGoal?.target?.minorUnits?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty())
     }

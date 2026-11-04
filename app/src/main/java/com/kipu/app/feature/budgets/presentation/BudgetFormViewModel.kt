@@ -63,7 +63,7 @@ sealed interface BudgetFormEvent {
 
 @HiltViewModel
 class BudgetFormViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val session: SessionCoordinator,
     private val repository: BudgetRepository,
     private val createBudget: CreateBudget,
@@ -98,8 +98,9 @@ class BudgetFormViewModel @Inject constructor(
                 }
                 val options = categories.observe(owner).first()
                 if (editingId == null) {
+                    val idea = BudgetIdea.fromKey(savedStateHandle.get<String>(ARG_IDEA))
                     _state.value = BudgetFormUiState.Content(
-                        BudgetFormState(isEdit = false, input = BudgetFormInput(), original = null, categories = options),
+                        BudgetFormState(isEdit = false, input = idea?.toInput(options) ?: BudgetFormInput(), original = null, categories = options),
                     )
                     return@launch
                 }
@@ -218,5 +219,6 @@ class BudgetFormViewModel @Inject constructor(
 
     companion object {
         const val ARG_BUDGET_ID = "budgetId"
+        internal const val ARG_IDEA = "idea"
     }
 }
