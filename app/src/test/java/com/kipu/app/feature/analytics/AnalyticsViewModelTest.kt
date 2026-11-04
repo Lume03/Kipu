@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -40,6 +41,49 @@ import org.junit.Test
 class AnalyticsViewModelTest {
     @Before fun setup() = Dispatchers.setMain(UnconfinedTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
+
+    @Test fun retryRecoversAndOwnerSwitchCancelsOldSourceWithoutLeakingErrors() = runTest {
+        val session = mockk<SessionCoordinator>()
+        val access = MutableStateFlow<LocalAccess>(LocalAccess.Available("owner-a", RemoteSession.Absent))
+        every { session.localAccess } returns access
+        val plan = mockk<VerifiedPlanAccess>()
+        every { plan.observePremiumVerified() } returns flowOf(false)
+        val dao = mockk<AnalyticsDao>()
+        var fail = true
+        val activeOwners = mutableSetOf<String>()
+        every { dao.observeExpenses(any(), any(), any()) } answers {
+            val owner = firstArg<String>()
+            flow {
+                if (fail) error("private synthetic details must never reach UI")
+                activeOwners += owner
+                try { emit(emptyList()); kotlinx.coroutines.awaitCancellation() }
+                finally { activeOwners -= owner }
+            }
+        }
+        val worth = mockk<ObserveNetWorthSummary>()
+        every { worth.invoke(any()) } returns flowOf(NetWorthSummary.NoData)
+        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), worth)
+        val collect = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        runCurrent()
+        assertEquals(AnalyticsUiState.Error("No se pudieron cargar las estadísticas."), vm.state.value)
+        fail = false
+        vm.retry()
+        runCurrent()
+        assertTrue(vm.state.value is AnalyticsUiState.Content)
+        assertEquals(setOf("owner-a"), activeOwners)
+        access.value = LocalAccess.Available("owner-b", RemoteSession.Absent)
+        runCurrent()
+        assertTrue(vm.state.value is AnalyticsUiState.Content)
+        assertEquals(setOf("owner-b"), activeOwners)
+        access.value = LocalAccess.Protected("owner-b", "test")
+        runCurrent()
+        assertEquals(AnalyticsUiState.Locked, vm.state.value)
+        assertTrue(activeOwners.isEmpty())
+        access.value = LocalAccess.NoOwner
+        runCurrent()
+        assertEquals(AnalyticsUiState.NoOwner, vm.state.value)
+        collect.cancel()
+    }
 
     private class LeasePlanAccess : VerifiedPlanAccess {
         private val policy = OfflineEntitlementLeasePolicy()

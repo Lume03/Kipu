@@ -1,6 +1,10 @@
 package com.kipu.app.feature.calendar.presentation
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -137,6 +141,38 @@ class CalendarAndHomeAccessibilityTest {
 
         compose.onNodeWithTag("home_net_worth_card").assertExists()
         assertTrue(compose.onAllNodesWithTextCount("900.00") == 0)
+    }
+
+    @Test
+    fun largeTextCalendarRetainsEventAndSourceAction() {
+        var opened = false
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f)) {
+                KipuTheme {
+                    CalendarScreen(state = loaded(event("large", CalendarEventStatus.PLANNED)),
+                        onPreviousMonth = {}, onNextMonth = {}, onToday = {}, onRetry = {},
+                        onEventClick = { opened = true }, onNavigateBack = {})
+                }
+            }
+        }
+        compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "large").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithTag(CALENDAR_OPEN_SOURCE_TAG).assertIsDisplayed().performClick()
+        assertTrue(opened)
+    }
+
+    @Test
+    fun largeTextHomeRetainsExpandActionAndMaskedBreakdown() {
+        val money = { units: Long -> Money(units * 100, Currency.PEN) }
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f), LocalBalanceMasked provides true) {
+                KipuTheme { NetWorthCard(NetWorthUiState.Content(listOf(CurrencyNetWorth(Currency.PEN, money(1000), money(200), money(300)))), {}) }
+            }
+        }
+        compose.onNodeWithText("Ver detalle").performClick()
+        compose.onNodeWithText("Ocultar").assertIsDisplayed()
+        compose.onNodeWithText("Por cobrar", useUnmergedTree = true).assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithTextCount("900.00"))
+        assertEquals(0, compose.onAllNodesWithTextCount("200.00"))
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.onAllNodesWithTextCount(text: String): Int =

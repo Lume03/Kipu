@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <provider android:name="com.kipu.app.navigation.SecureShareFixtureProvider"
+            android:authorities="${applicationId}.secure-share-fixture"
+            android:exported="false" android:grantUriPermissions="true" />
+        <receiver android:name="com.kipu.app.navigation.SyntheticShareGrantReceiver" android:exported="true" />
         <!-- Test-only provider serves synthetic, non-personal receipts; never packaged in the app. -->
         <provider android:name="com.kipu.app.feature.movements.data.local.YapeFixtureProvider"
             android:authorities="${applicationId}.yape-fixture"
