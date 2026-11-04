@@ -205,6 +205,13 @@ fun MovementHistoryRoute(
         }
     }
 
+    // Hidden rows can consume an entire keyset page. Continue until a visible page or the end.
+    LaunchedEffect(uiState.filteredTransactions.isEmpty(), uiState.hasMorePages,
+        uiState.isLoadingNextPage, uiState.currentCursor) {
+        if (uiState.filteredTransactions.isEmpty() && uiState.hasMorePages &&
+            !uiState.isLoadingNextPage && uiState.loadMoreError == null) viewModel.onLoadMore()
+    }
+
     LaunchedEffect(savedMessage) {
         if (savedMessage) {
             onSavedMessageConsumed()
@@ -519,11 +526,14 @@ fun MovementHistoryRoute(
                             key = { item -> "movement_${item.transaction.id}" },
                             contentType = { "movement" },
                         ) { item ->
-                            TransactionRow(
+                            DeletableTransactionRow(
                                 item = item,
+                                onDelete = { viewModel.onSelectTransactionForDelete(item) },
+                                enabled = !uiState.isDeleting,
                                 offline = offline || needsReauthentication,
                                 onClick = { viewModel.onOpenDetail(item) },
                                 modifier = Modifier
+                                    .animateItem()
                                     .fillMaxWidth()
                                     .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
                             )
@@ -664,8 +674,14 @@ fun MovementHistoryRoute(
 
     recurrenceViewModel?.let { recurrenceVm ->
     recurrenceSource?.let { source ->
-        Dialog(onDismissRequest = { recurrenceSource = null; recurrenceVm.clearSavedRule() }) {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { recurrenceSource = null; recurrenceVm.clearSavedRule() },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = com.kipu.app.ui.theme.rememberCalmEmeraldColors().surfaceCard,
+            properties = com.kipu.app.ui.theme.kipuBottomSheetProperties(),
+        ) {
+            com.kipu.app.ui.theme.KipuModalSystemBars()
+            androidx.compose.runtime.key(source.transaction.id) {
                 RecurrenceRegistrationScreen(
                     source = source,
                     onDismiss = { recurrenceSource = null; recurrenceVm.clearSavedRule() },
@@ -699,6 +715,14 @@ fun MovementHistoryRoute(
             }
         }
     }
+    }
+
+    uiState.selectedTransactionForDelete?.let { item ->
+        DeleteMovementDialog(
+            item = item, busy = uiState.isDeleting, error = uiState.deleteError,
+            onCancel = viewModel::onDismissDelete,
+            onConfirm = { viewModel.onConfirmDelete { scope.launch { snackbarHostState.showSnackbar("Movimiento eliminado del historial") } } },
+        )
     }
 
     if (uiState.selectedTransactionForVoid != null) {
