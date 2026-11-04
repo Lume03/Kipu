@@ -78,8 +78,15 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
         val command = outbox(userId, operationId, recurrenceId, "CREATE_RECURRENCE", null, envelope, now)
         transactionRunner { recurrenceDao.insert(entity); outboxDao.insert(command) }
         scheduleSync(userId)
-        reconcileReminder(userId, recurrenceId)
-        generateExpected?.invoke(entity.toDomain())
+        // The rule and its command are durable now. A reminder/expected-payment failure
+        // must not report CREATE as failed and invite a second rule on retry.
+        try {
+            reconcileReminder(userId, recurrenceId)
+            generateExpected?.invoke(entity.toDomain())
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            SecureLog.w("OfflineFirstRecurrenceRepository", "Recurrence saved; auxiliary reconciliation will be retried on sync")
+        }
         RecurrenceCommandResult.Pending(entity.toDomain(), operationId)
     } catch (exception: IllegalArgumentException) {
         RecurrenceCommandResult.Rejected("VALIDATION_FAILED", exception.message ?: "Invalid recurrence")
