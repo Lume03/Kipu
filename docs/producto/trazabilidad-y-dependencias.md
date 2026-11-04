@@ -180,7 +180,7 @@
 | **HU-40 Calendario financiero** | S7 | 5 | HU-09, HU-29, HU-33 | Ninguna | HU-44 | Ninguna |
 | **HU-41 Estadísticas y analítica financiera** | S9 | 8 | HU-39, HU-36, HU-09, HU-26, HU-30, HU-58 | HU-22 | HU-25 | Ninguna |
 
-> **Estado Sprint 9 (2026-11-03):** HU-41 implementada (lógica y UI en pestaña Análisis; limitaciones: meses completos y totales agregados por moneda); validación en hardware completada para AnalyticsScreenTest (6/6 en A16 y S24, QA-S9-02 resuelto) y cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM, aceptación parcial sobre Room actual v37); T021 (GATE-ANALYTICS-04), T027 (TalkBack hablado), T028 (integración con sesión real) y T029 (revisión cruzada) permanecen abiertas.
+> **Estado Sprint 9 (2026-11-03 [2026-11-04 UTC]):** HU-41 implementada (lógica y UI en pestaña Análisis; limitaciones: meses completos y totales agregados por moneda); validación en hardware completada para AnalyticsScreenTest (6/6 en A16 y S24, QA-S9-02 resuelto) y cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM, aceptación parcial sobre Room actual v37); T021 (GATE-ANALYTICS-04) CUMPLIDA tras la aprobación explícita del alcance incremental por el Product Owner ([decisiones del Owner](../../specs/sprint-9-owner-decisions.md)); T027 (TalkBack hablado), T028 (integración con sesión real de errores/reintentos/propietario) y T029 (verificación funcional y aceptación integral; componente de revisión cerrado por Opus `3e5d8d8e`) permanecen abiertas.
 
 ---
 
@@ -210,7 +210,7 @@
 | **HU-50 Aprendizaje desde correcciones** | S8 | 8 | HU-16, HU-17, HU-46, HU-51 | Ninguna | HU-47, HU-49 | Ninguna |
 | **HU-51 Bandeja y evidencia mínima** | S8 | 5 | HU-46 | Ninguna | HU-47, HU-43, HU-50 | HU-34, HU-43, HU-50 |
 
-> **Estado Sprint 9 (2026-11-03):** HU-49 implementada (Yape híbrido, OCR local Free y Room actual v37 con capture_evidence y fields_edited); validación en hardware ejecutada para migración 33→37 (A16 y S24), OCR sintético local en A16 (candidato DISCARDED, saldo intacto) y frontera de permisos URI Android en S24 (ReceiptShareUriGrantTest aislado); sharing real desde Yape, notificación viva en ambos órdenes y ocho muestras privadas ausentes permanecen como NO VERIFICADO.
+> **Estado Sprint 9 (2026-11-03 [2026-11-04 UTC]):** HU-49 implementada (Yape híbrido, OCR local Free y Room actual v37 con capture_evidence y fields_edited); FR-012 reconciliado formalmente con Room v37 (PK compuesta, índice no único; eventos incompatibles conservados para revisión sin fusión automática ni duplicación contable) tras decisión explícita del Product Owner ([decisiones del Owner](../../specs/sprint-9-owner-decisions.md)); validación en hardware ejecutada para migración 33→37 (A16 y S24), OCR sintético local en A16 (candidato DISCARDED, saldo intacto) y frontera de permisos URI Android en S24 (ReceiptShareUriGrantTest aislado); sharing real desde Yape, notificación viva en ambos órdenes y ocho muestras privadas ausentes permanecen como NO VERIFICADO.
 
 ---
 

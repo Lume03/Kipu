@@ -1,8 +1,8 @@
 # Plan HU-49 - S9
 
-Autoridad: spec.md, D1/D2 del Owner, 2026-11-03; checkout main por mandato del coordinador.
+Autoridad: spec.md, D1/D2/D3 del Owner, 2026-11-03 [2026-11-04 UTC] ([decisiones del Owner](../sprint-9-owner-decisions.md)); checkout main por mandato del coordinador.
 
-Crear evidencia Room local por owner/fuente/identidad con índice único owner + referencia normalizada + fuente, nunca importe. La raíz apunta al candidato original capture/receipt; la confirmación financiera sigue en los casos existentes. Serializar evidencia e inserción en una misma transacción Room. La segunda fuente conserva la primera extracción y completa campos vacíos sin sobrescribir ediciones. Las raíces confirmadas siguen siendo destinos de evidencia.
+Crear evidencia Room local por owner/fuente/identidad bajo Room v37 con clave primaria compuesta `(owner_id, source, event_id)`, índice no único `(owner_id, reference, source)` (reconciliado con decisión del Owner: conservar eventos incompatibles para revisión sin fusión automática ni duplicación contable) e índice por raíz `(owner_id, root)`, nunca importe. La raíz apunta al candidato original capture/receipt; la confirmación financiera sigue en los casos existentes. Serializar evidencia e inserción en una misma transacción Room. La segunda fuente conserva la primera extracción y completa campos vacíos sin sobrescribir ediciones. Las raíces confirmadas siguen siendo destinos de evidencia.
 
 La similitud sin referencia solo propone unión explícita; revalidar al aceptar. Mantener separado persiste la elección. Descartar el borrador redundante nunca escribe ledger. Mostrar controles en ambas revisiones conservando el contenido Compose sin estado. Mantener OCR Free con consentimiento y gates Premium de captura.
 

@@ -1,4 +1,4 @@
-﻿# Sprint 9 — validación funcional en dispositivos reales
+# Sprint 9 — validación funcional en dispositivos reales
 
 **Lectura del estado:** la matriz inicial es histórica; las re-verificaciones posteriores reemplazan resultados únicamente para el criterio indicado. La última tanda focalizada figura al final; persiste aceptación parcial.
 
@@ -279,6 +279,23 @@ Base `main` / `9552a613`. **PASS de lectura S24, aceptación PARCIAL**. [Informe
 | A16 | Ausente en ADB; resultados históricos preservados |
 | Yape real, notificación viva ambos órdenes, ocho muestras | NO VERIFICADO: sin acceso automático a Yape o datos privados de otra app; sin simulaciones sobre cuenta real |
 | T029 | Componente revisión cerrado por Opus `3e5d8d8e`; aceptación integral pendiente |
-| Decisiones de producto | T021: aprobar catálogo de métricas/monedas/cortes/zonas/periodos/filtros. EP-AUT FR-012: resolver UNIQUE(owner, referencia, fuente) frente al índice no único de Room37 con hechos incompatibles; D1/opción A no aprueba esa cardinalidad |
+| Decisiones de producto | RESUELTAS por el Owner: T021 GATE-ANALYTICS-04 aprobada para alcance incremental; EP-AUT FR-012 reconciliado con Room v37 (PK owner+fuente+event_id, índice no único; eventos incompatibles conservados para revisión sin fusión automática ni duplicación contable). Ver [decisiones del Owner](sprint-9-owner-decisions.md) |
 
-No hubo nuevos tests de código, builds, instalaciones, despliegues o cambios remotos por API/SQL; no se repiten Deno15/pgTAP100/Android10 ni pruebas API verdes. Solo se recorrió UI y se verificaron las copias privadas con `closure3-integrity.py` (exit 0). Se guardaron snapshots y comparación de ajustes mediante finally, sin activar TalkBack. No se declara APPROVED integral ni se cierran T014/T021/T027–T030 por esta cobertura acotada.
+No hubo nuevos tests de código, builds, instalaciones, despliegues o cambios remotos por API/SQL; no se repiten Deno15/pgTAP100/Android10 ni pruebas API verdes. Solo se recorrió UI y se verificaron las copias privadas con `closure3-integrity.py` (exit 0). Se guardaron snapshots y comparación de ajustes mediante finally, sin activar TalkBack. T021 queda CUMPLIDA tras la decisión del Owner; no se declara APPROVED integral ni se cierran T014/T027–T030 por esta cobertura acotada.
+
+## Formalización de decisiones del Product Owner — 2026-11-03 [2026-11-04 UTC]
+
+Documento oficial de decisiones: [specs/sprint-9-owner-decisions.md](sprint-9-owner-decisions.md). El Product Owner emitió dos decisiones explícitas en el chat de Sprint 9 de Kipu:
+1. **HU-41 / T021 (GATE-ANALYTICS-04):** Aprobación del alcance incremental implementado en la pestaña Análisis (gasto operativo neto de reembolsos, desglose por categoría y patrimonio, monedas separadas sin conversión, zona horaria del teléfono, selección de meses con mes actual hasta hoy parcial, comparación de totales con «Sin base de comparación» si base cero, Free mes actual y Premium históricos/comparación/filtros; excluyendo rangos personalizados, comparación por categoría y otros indicadores específicos de crédito/deuda/metas). Se marca T021 como **CUMPLIDA**. Aceptación formal de este alcance incremental, sin constituir prueba de todo el backlog ni completitud de pruebas del sprint.
+2. **HU-49 / EP-AUT (FR-012):** Aprobación explícita de «Conservar eventos incompatibles para revision». Reconcilia FR-012, la entidad `capture_evidence`, `plan.md` y `tasks.md` con Room v37 (PK `(owner_id, source, event_id)`, índice no único `(owner_id, reference, source)` e índice `(owner_id, root)`). Misma referencia solo fusiona compatibles según los invariantes vigentes; incompatibles se conservan separados para revisión del usuario sin fusión automática ni duplicación de efectos contables en el ledger.
+
+**Estado resultante de pendientes del Sprint 9:**
+- **T021 (GATE-ANALYTICS-04):** CUMPLIDA para alcance incremental.
+- **FR-012 (discrepancia documental con Room v37):** RECONCILIADA y RETIRADA de la lista de pendientes.
+- **T027 (TalkBack):** ABIERTA (sin herramienta segura de escucha/captura de audio accesible).
+- **T028 (Integración sesión real):** ABIERTA (recorridos de lectura completados en S24; pendientes flujos integrados de errores, reintentos y cambio de propietario).
+- **T029 (Aceptación integral):** ABIERTA (componente de revisión cruzada completado por Opus `3e5d8d8e`; verificación funcional y aceptación integral pendientes).
+- **T014 (Offline Inicio):** ABIERTA (sin nueva prueba offline real en hardware).
+- **Criterios de hardware NO VERIFICADO:** Dispositivo A16 ausente en última tanda; sharing UI real desde aplicación Yape; notificación viva de Yape en ambos órdenes; 8 muestras privadas ausentes; nuevo cambio offline con recuperación remota; eliminación UI completa con cuenta desechable.
+- **Backend recovery v3:** Validado (15 Deno, 100 pgTAP, 10 Android API QA) en reportes existentes; no se repiten pruebas.
+- **Veredicto general de Sprint 9:** **Aceptación PARCIAL; NO se declara APPROVED integral.**

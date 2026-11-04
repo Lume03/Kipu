@@ -61,9 +61,9 @@ La guía [quickstart.md](quickstart.md) describe validación de aceptación excl
 - **Limitaciones registradas**:
   1. Solo meses completos (no admite rangos de fechas personalizados).
   2. Comparación limitada a totales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
-  3. Tareas T021 (GATE-ANALYTICS-04 formal) y T027–T030 permanecen abiertas.
+  3. T021 (GATE-ANALYTICS-04) CUMPLIDA para alcance incremental ([decisiones del Owner](../sprint-9-owner-decisions.md)); T027–T030 permanecen abiertas.
   4. `AnalyticsScreenTest` pasó 6/6 en A16 y S24 (QA-S9-02 resuelto mediante árbol semántico descombinado y scroll); cobertura adicional S24 (16/16 instrumentadas, 11/11 JVM) y límites en [verification-report.md](verification-report.md). TalkBack y aceptación transversal siguen pendientes.
 
 ### Estado de verificación incremental — 2026-11-03
 
-La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md) sobre Room actual v37. T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. A16 desconectado en última tanda; aceptación parcial.
+La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md) sobre Room actual v37. T021 CUMPLIDA para el alcance incremental aprobado por el Owner ([decisiones](../sprint-9-owner-decisions.md)); T027–T030 permanecen abiertas. A16 desconectado en última tanda; aceptación parcial.
