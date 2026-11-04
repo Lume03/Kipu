@@ -1,7 +1,7 @@
 # Especificación: EP-INF — Inicio e Información Financiera
 
 **Rama**: `009-ep-inf-informacion-financiera`
-**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código; validación en dispositivo físico y tareas de integración pendientes
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código; validación en hardware completada para AnalyticsScreenTest (6/6 en A16 y S24, QA-S9-02 resuelto) y cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM, aceptación parcial sobre Room v37); T021 (GATE-ANALYTICS-04), T027 (TalkBack hablado), T028 (integración con sesión real) y T029 (revisión cruzada) permanecen abiertas.
 **Fecha**: 2026-10-24 (actualizado para Sprint 9: 2026-11-03)
 **Fuente de alcance**: `docs/producto/backlog.md` HU-39–HU-41, `docs/producto/trazabilidad-y-dependencias.md`, planificación base del cronograma.
 
@@ -42,7 +42,7 @@ Implementada en Sprint 9 (2026-11-03): lógica y UI en la pestaña Análisis (`f
 1. **Solo meses completos**: La consulta y agregación operan únicamente por mes calendario completo (sin rangos de fechas personalizados).
 2. **Comparación por totales por moneda**: La comparación entre periodos se realiza sobre los totales globales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
 3. **Tareas abiertas**: T021 (GATE-ANALYTICS-04 formal) y T027–T030 (accesibilidad con TalkBack, integración transversal y cierre formal) permanecen abiertas.
-4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos en la re-verificación anterior; cobertura focalizada adicional S24 en [verification-report.md](verification-report.md). TalkBack, integración transversal completa y revisión cruzada siguen pendientes.
+4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos (QA-S9-02 resuelto con árbol descombinado y scroll); cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM) en [verification-report.md](verification-report.md) sobre Room v37. T021 sin aprobación de catálogo, T027 sin TalkBack hablado, T028 parcial, T029 sin revisión cruzada, A16 desconectado en última tanda; aceptación PARCIAL, no aprobación integral.
 
 1. Con gasto S/100 y transferencia S/200, gasto operativo suma S/100.
 2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas.

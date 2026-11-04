@@ -379,9 +379,9 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] T095 Implementar resumen, cancelación, contraseña actual, confirmación explícita, DataStore durable y recuperación desde acceso.
 - [X] T096 Limpiar solo partición local, preferencias/evidencia, workers y credenciales después de completar remoto, con reintento independiente de limpieza.
 - [X] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP; 1.581 casos Android sin fallos (3 omitidos), ambos APK, 142 Deno y 181 aserciones pgTAP verdes. Evidencia: `account-deletion-verification.md`.
-- [X] T098 Aplicar migración 20261103152406_delete_account, desplegar Edge Function delete-account y verificar HTTP 401 sin JWT / JWT inválido (completado el 2026-11-03); validación en dispositivo físico pendiente.
+- [X] T098 Aplicar migraciones remotas (20261103152406_delete_account, 20261103162347_account_deletion_concurrency_fix, 20261103172646_profile_preferences_private_usage), desplegar Edge Function delete-account v2 (verify_jwt=false); validar API con cuenta desechable (403 sin password reciente, 200 completed, 200 idempotente, Auth 404, 60 tablas con 0 filas); resolver QA-S9-01 (cliente outbox preservada, RemoteProfileDto.displayName nullable, restauración 7/7 dos veces en A16 y S24 con sincronización limpia de outbox); validar resumen/cancelación en hardware con sesión real; Room actual v37.
 
 
-### Seguimiento HU-06 A ? procedencia financiera (2026-11-03)
+### Seguimiento HU-06 A — procedencia financiera (2026-11-03)
 
-- [X] Investigar las dos filas auxiliares DEBT_DISBURSEMENT hist?ricas del dispositivo de origen, contrastando transacciones, eventos, ledger, recibos, outbox y handlers remotos; documentar su equivalencia sin borrar ni fabricar hechos. Sin cambio funcional. Validaci?n y l?mites del dispositivo desconectado en [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
+- [X] Investigar las dos filas auxiliares DEBT_DISBURSEMENT históricas del dispositivo de origen, contrastando transacciones, eventos, ledger, recibos, outbox y handlers remotos; documentar su equivalencia sin borrar ni fabricar hechos. Sin cambio funcional. Validación y límites del dispositivo desconectado en [informe Sprint 9](../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).

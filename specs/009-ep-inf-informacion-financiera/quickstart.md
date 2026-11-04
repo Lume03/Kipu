@@ -1,6 +1,6 @@
 # Quickstart de validación futura — EP-INF
 
-**Registro posterior (2026-11-03):** los resultados ejecutados y los criterios aún pendientes se consultan en [verification-report.md](verification-report.md). El texto de preparación siguiente conserva su contexto de planificación; no constituye el resultado de la tanda actual.
+**Registro posterior (2026-11-03):** los resultados ejecutados y los criterios aún pendientes se consultan en [verification-report.md](verification-report.md). Pruebas en hardware verificadas sobre Room actual v37: AnalyticsDaoTest (PASS ambos teléfonos), AnalyticsScreenTest (PASS 6/6 ambos teléfonos, QA-S9-02 resuelto) y cobertura focalizada S24 (PASS 16/16 instrumentadas, 11/11 JVM). Permanecen abiertas T021 (sin aprobación de catálogo de métricas), T027 (sin TalkBack hablado) y T028/T029. El texto de preparación siguiente conserva su contexto de planificación; no constituye el resultado de la tanda actual.
 
 **Importante**: guía para la futura implementación/aceptación; en la tarea actual no se ejecutan builds, tests de app, migraciones ni despliegues. Los pasos son casos de verificación requeridos, no evidencia de que ya se hayan corrido.
 

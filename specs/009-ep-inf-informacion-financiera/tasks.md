@@ -1,7 +1,7 @@
 # Tareas previstas: EP-INF — Inicio e Información Financiera
 
 **Entrada**: `spec.md`, `plan.md`, `research.md`, `data-model.md`.
-**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 y T027–T030 abiertas, AnalyticsScreenTest: 6/6 por teléfono en la re-verificación anterior; cobertura focalizada adicional S24 en verification-report.md, aceptación transversal parcial.
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 y T027–T030 abiertas, AnalyticsScreenTest: 6/6 por teléfono en la re-verificación (QA-S9-02 resuelto); cobertura focalizada adicional S24 (16/16 instrumentadas, 11/11 JVM sobre Room actual v37) en verification-report.md, aceptación transversal parcial.
 
 > Nota histórica 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
 
@@ -49,7 +49,7 @@
 - [x] T022 [P] [US3] Resolver acceso Premium efectivo/Free y filtros con HU-58/EP-PLA, incluyendo expiración/offline.
 - [x] T023 [US3] Añadir pruebas de dominio para excluir transferencias, principal, reservas y anulaciones y para tratar reembolsos según contrato.
 - [x] T024 [US3] Implementar resumen básico Free del periodo actual y estados base cero/desconocido/periodo parcial.
-> Nota HU-41: T022–T024 cubren lógica y pruebas JVM; la interfaz Compose y su integración quedan para el siguiente paso. La consulta Room se compiló con su prueba instrumentada, pendiente de ejecución en dispositivo.
+> Nota HU-41: T022–T024 cubren lógica y pruebas JVM; la interfaz Compose y su integración quedan cubiertas en la pestaña Análisis. La consulta Room se validó en hardware con `AnalyticsDaoTest` pasando en ambos teléfonos (A16 y S24) sobre Room actual v37.
 
 - [x] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
 - [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.

@@ -24,7 +24,7 @@ Credentials, recovery secrets and sessions remain provider-owned and are not cop
 | Field | Type | Rules |
 |-------|------|-------|
 | `user_id` | UUID PK/FK | References `auth.users(id)` with cascade delete. |
-| `display_name` | text | Presentation only; not an authorization claim. |
+| `display_name` | text nullable | Presentation only; not an authorization claim. Nullable in remote schema and OpenAPI contract; RemoteProfileDto normalizes with orEmpty() for local cache. |
 | `currency_code` | char(3) | ISO-style uppercase code; default `PEN`. |
 | `time_zone` | text | Valid IANA identifier when present. |
 | `month_start` | smallint | 1 through 28 to remain valid every month. |
@@ -44,11 +44,11 @@ Credentials, recovery secrets and sessions remain provider-owned and are not cop
 |-----------|------------------|---------------------|-----------------------------|
 | `anon` | None on profiles/receipts | None on profile functions | No policy. |
 | `authenticated` | SELECT on `profiles` only | EXECUTE `update_profile_preferences` and `ensure_profile` | SELECT where `(select auth.uid()) = user_id`. |
-| `profile_preferences_executor` | SELECT/UPDATE `profiles`; SELECT/INSERT `profile_preference_receipts` | Owns update RPC; no login/inheritance to clients | Policies on both tables require non-null `(select auth.uid()) = user_id`. |
-| `profile_bootstrap_executor` | INSERT plus owner-scoped SELECT on `profiles` | Owns trigger/ensure functions; no login/inheritance to clients | INSERT policy permits the role; SELECT policy requires non-null `(select auth.uid()) = user_id`; functions accept no target user argument and derive identity only from `NEW.id` or `auth.uid()`. |
+| `profile_preferences_executor` | SELECT/UPDATE `profiles`; SELECT/INSERT `profile_preference_receipts`; USAGE on schema `private` | Owns update RPC; no login/inheritance to clients | Policies on both tables require non-null `(select auth.uid()) = user_id`. Helper `private.profile_session_uid()` provides `auth.uid()`. |
+| `profile_bootstrap_executor` | INSERT plus owner-scoped SELECT on `profiles`; USAGE on schema `private` | Owns trigger/ensure functions; no login/inheritance to clients | INSERT policy permits the role; SELECT policy requires non-null `(select auth.uid()) = user_id`; functions accept no target user argument and derive identity only from `NEW.id` or `auth.uid()`. Helper `private.profile_session_uid()` provides `auth.uid()`. |
 | `PUBLIC` | None | EXECUTE explicitly revoked from all profile functions | No policy. |
 
-All three functions are `SECURITY DEFINER SET search_path = ''` with fully qualified objects. `update_profile_preferences` accepts no `user_id`; it locks and mutates only the row for `auth.uid()`. `ensure_profile` accepts no arguments, requires non-null `auth.uid()`, performs `INSERT ... ON CONFLICT DO NOTHING`, then selects only that owner row. The Auth trigger function uses `NEW.id` and is not directly executable by `anon` or `authenticated`.
+All profile RPC functions are `SECURITY DEFINER SET search_path = ''` with fully qualified objects. Helper `private.profile_session_uid()` owned by `postgres` returns `auth.uid()` without requiring client grants on `auth`. USAGE on schema `private` is granted exclusively to the executor roles (migration `20261103172646_profile_preferences_private_usage.sql`). `update_profile_preferences` accepts no `user_id`; it locks and mutates only the row for `auth.uid()`. `ensure_profile` accepts no arguments, requires non-null `auth.uid()`, performs `INSERT ... ON CONFLICT DO NOTHING`, then selects only that owner row. The Auth trigger function uses `NEW.id` and is not directly executable by `anon` or `authenticated`.
 
 ### Registration Rate Bucket (`private.registration_rate_buckets`)
 
@@ -75,7 +75,7 @@ Only a narrowly granted server function can consume a bucket. No Data API role c
 
 The primary key is `(user_id, operation_id)`. Repeating the same ID/hash returns `DUPLICATE` plus the stored original status/snapshot without another update. Repeating an ID with another hash returns an operation collision and changes nothing. Conflict results are returned as committed data, not raised exceptions, so their receipts survive. The table is not Data API-readable. A dedicated `NOLOGIN`, non-superuser, non-`BYPASSRLS` function owner has only the required privileges; `PUBLIC` and client roles have no table access.
 
-## Local Entities (Room v2)
+## Local Entities (Room v2, versión de aplicación Room actual v37)
 
 ### UserProfileCache (`user_profiles`)
 

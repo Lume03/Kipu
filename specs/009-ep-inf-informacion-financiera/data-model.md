@@ -1,6 +1,6 @@
 # Modelo conceptual de datos — EP-INF
 
-Este documento define conceptos para consultas/presentación, no esquema de persistencia ni migración. La forma física debe reutilizar entidades/repositorios existentes; confirmar con sus propietarios antes de implementar. Modelo global V4.2 y refinamientos por épica son referencias versionadas, no estado remoto desplegado verificado (DOC-02 de `docs/control-documental.md`).
+Este documento define conceptos para consultas/presentación, no esquema de persistencia ni migración. Las consultas locales operan sobre Room actual v37. La forma física debe reutilizar entidades/repositorios existentes; confirmar con sus propietarios antes de implementar. Modelo global V4.2 y refinamientos por épica son referencias versionadas, no estado remoto desplegado verificado (DOC-02 de `docs/control-documental.md`).
 
 ## Conceptos
 

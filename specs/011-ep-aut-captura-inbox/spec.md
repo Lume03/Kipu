@@ -2,7 +2,7 @@
 
 **Feature Branch**: `011-ep-aut-captura-inbox`
 **Created**: 2026-10-28
-**Status**: Incrementos S8 y S9 documentados; HU-49 implementada con tests locales (builds y unit tests verdes); validación en dispositivo pendiente.
+**Status**: Incrementos S8 y S9 documentados; HU-49 implementada en Room v37 (migración 35→36 y 36→37 validadas en esquema y hardware, user_version 37 verificado en ambos dispositivos). Pruebas en hardware realizadas: OCR sintético local en A16 (PASS) y frontera URI Android en S24 (PASS aislado). Casos NO VERIFICADO permanecen abiertos (sharing UI real desde Yape, notificación viva en ambos órdenes y ocho muestras privadas ausentes).
 
 ## Scope & Traceability
 
@@ -18,7 +18,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 4. Specs/011 y actualizaciones 007/010 se documentan manualmente para este sprint.
 5. Decisiones del Product Owner para HU-49 (2026-11-03):
    - **(D1)**: Misma referencia de operación normalizada vincula automáticamente las evidencias (notificación y OCR) a un único movimiento/candidato raíz en ambos órdenes de llegada. Sin referencia, si coinciden importe + moneda + dirección + contraparte normalizada + hora dentro de ±10 minutos y existe exactamente un candidato compatible que aún no posea esa fuente, se propone la unión explícita al usuario para su confirmación; referencias distintas o múltiples candidatos nunca se fusionan automáticamente. Las ediciones previas del usuario se preservan.
-   - **(D2)**: OCR local Yape permitido en plan Free con consentimiento y revisión (refinamiento 2026-10-21); el escenario 7 del backlog (Free sin OCR) queda superado. Sin consentimiento no se extrae la imagen. Captura y evidencia operan exclusivamente en Room v36 (sin sincronización remota).
+   - **(D2)**: OCR local Yape permitido en plan Free con consentimiento y revisión (refinamiento 2026-10-21); el escenario 7 del backlog (Free sin OCR) queda superado. Sin consentimiento no se extrae la imagen. Captura y evidencia operan exclusivamente en Room v37 (esquema v36 histórico con capture_evidence y fields_edited, actualizado a v37 en Sprint 9 con HybridYapeMigrationTest sin sincronización remota).
 
 ## Dependencies
 
@@ -28,7 +28,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 | HU-46 | HU-45 bloqueante; HU-15/HU-16 parciales | Pipeline y parsers reportados en T1/T2; no prueba compatibilidad real de proveedores. |
 | HU-47 | HU-46, HU-18, HU-23 bloqueantes; HU-51 parcial | Scorer/autorregistro reportados en T3; pruebas no ejecutadas. |
 | HU-48 | HU-46, HU-08, HU-13 bloqueantes | Confirmación reutiliza registro financiero; validar en dispositivo. |
-| HU-49 | HU-45, HU-46, HU-23, HU-58, HU-59 bloqueantes; HU-51, HU-16 parciales; HU-34, HU-50 relacionadas | Correlación híbrida Yape (notificación + OCR/Share) implementada en S9 en Room v36 (capture_evidence); validación en dispositivo pendiente. |
+| HU-49 | HU-45, HU-46, HU-23, HU-58, HU-59 bloqueantes; HU-51, HU-16 parciales; HU-34, HU-50 relacionadas | Correlación híbrida Yape (notificación + OCR/Share) implementada en S9 en Room v37 (capture_evidence, fields_edited); validación en hardware ejecutada para OCR sintético y frontera URI Android; sharing real Yape, notificación viva y ocho muestras privadas permanecen NO VERIFICADO. |
 | HU-50 | HU-16, HU-17, HU-46, HU-51 bloqueantes | Aprendizaje posterior a confirmación y selector canónico reportados en T5/T5b. |
 | HU-51 | HU-46 bloqueante; HU-47/HU-43/HU-50 relacionadas | Bandeja/revisión reportadas en T4; pruebas no ejecutadas. |
 
@@ -79,7 +79,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 4. **Preservación de campos editados**: Al asociar una segunda evidencia, los campos previamente modificados por el usuario (`fields_edited`) se preservan intactos sin sobrescritura.
 5. **OCR local Yape en Free**: Permitido con consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria (decisión 2026-10-21; escenario 7 del backlog superado). Sin consentimiento no se extrae la imagen.
 6. **Reembolsos e importes iguales**: Operaciones con distinta dirección o historia (ej. reembolsos) no se fusionan por simple coincidencia de importe.
-7. **Persistencia local**: Candidatos y evidencia viven estrictamente en Room v36 (`capture_evidence`), sin outbox ni sincronización a Supabase.
+7. **Persistencia local**: Candidatos y evidencia viven estrictamente en Room v37 (`capture_evidence`, `fields_edited`; esquema histórico v36 preservado), sin outbox ni sincronización a Supabase.
 
 ## Functional Requirements
 
@@ -94,9 +94,9 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 - **FR-009 (HU-46/HU-51, Constitución III)**: No registrar en logs títulos, textos, importes ni comercios. No leer extras antes de validar catálogo y gate. Evidencia mínima, máximo 280 caracteres, sin PAN completo, expira a siete días y se borra al resolver/expirar.
 - **FR-010 (HU-49/D1 Deduplicación simétrica)**: Correlación entre notificación y Share/OCR en ambos órdenes. Misma referencia normalizada vincula la evidencia al candidato/movimiento raíz existente sin segundo movimiento en ledger. Sin referencia, si coinciden importe + moneda + dirección + contraparte normalizada + hora dentro de ±10 minutos con exactamente un candidato compatible sin esa fuente, proponer unión al usuario; prohibida la fusión automática si hay múltiples candidatos o referencias distintas. Preservar campos editados por el usuario.
 - **FR-011 (HU-49/D2 OCR local en Free)**: Permitir extracción OCR local de comprobantes Yape a usuarios del plan Free mediando consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria; supera el escenario 7 del backlog. Archivos no imagen o inválidos se rechazan antes de procesar bytes.
-- **FR-012 (HU-49/Room v36 Persistencia local)**: Persistir evidencia local en tabla Room `capture_evidence` con índice único por (owner, referencia_normalizada, fuente) e índice por root_candidate_id. Captura y evidencia son estrictamente locales en Room (sin outbox ni sincronización remota).
+- **FR-012 (HU-49/Room v37 Persistencia local)**: Persistir evidencia local en tabla Room `capture_evidence` con índice único por (owner, referencia_normalizada, fuente) e índice por root_candidate_id, bajo esquema Room v37 (actualizado desde v36 conservando compatibilidad). Captura y evidencia son estrictamente locales en Room (sin outbox ni sincronización remota).
 
-## Key Entities — Room v36
+## Key Entities — Room v37 (historial v36 preservado)
 
 - `capture_source_events`: owner, huella SHA-256 de paquete/clave/postTime/texto normalizado (sin texto persistido), paquete, hora y resultado; PK owner+huella.
 - `capture_candidates`: UUID, owner, proveedor, estado (`PENDING|CONFIRMED|AUTO_REGISTERED|DISCARDED`), campos extraídos/corregidos, instrumento, confianza/motivos, crédito/cuotas, idempotencia y evidencia temporal; único por owner+huella fuente.
@@ -114,7 +114,7 @@ El gate usa sesión/owner, permiso vigente, consentimiento y entitlement verific
 - **SC-002**: Cada candidato produce como máximo un movimiento; incertidumbre y crédito no cambian saldo antes de confirmar.
 - **SC-003**: Verificar aislamiento por owner, ausencia de sincronización de candidatos y ausencia de contenido sensible en logs; evidencia se limpia al resolver/expirar.
 - **SC-004**: Demo en debug con permiso de listener, consentimiento y Premium/lease: `adb shell cmd notification post -S bigtext -t "Yape" cap-yape "Yapeaste S/ 25.50 a Juan P."`; crédito: `adb shell cmd notification post -S bigtext -t "BCP" cap-bcp "Consumo de S/ 120.00 en PLAZA VEA con tu tarjeta de credito terminada en 1234"`; incertidumbre: `adb shell cmd notification post -S bigtext -t "Yape" cap-sin-monto "Yapeaste a Ana"`. Revocar con `adb shell cmd notification disallow_listener com.kipu.app/com.kipu.app.feature.capture.data.listener.KipuNotificationListenerService`. Comandos de simulación de `impl-T2.md`; repost puede cambiar `postTime`, así que no simula replay idéntico.
-- **SC-005**: Correlación híbrida Yape verificada con 1543 pruebas unitarias y de migración Room 35→36 con Robolectric (exit 0); validación en dispositivo físico y con comprobantes reales pendiente.
+- **SC-005**: Correlación híbrida Yape verificada con pruebas unitarias, migración Room 35→36 y 36→37 (HybridYapeMigrationTest, exit 0); validación en hardware comprobó migración 33→37 en A16 y S24, OCR sintético local en A16 y frontera de permisos URI Android en S24. Notificación viva de Yape en ambos órdenes, sharing desde app Yape real y ocho muestras privadas ausentes permanecen como NO VERIFICADO.
 
 ## F1 — Correcciones incorporadas tras revisión (2026-10-28)
 

@@ -51,7 +51,7 @@
 - **Sprint 6:** HU-24, HU-30, HU-31, HU-32, HU-33, HU-35, HU-44
 - **Sprint 7:** HU-25, HU-36, HU-37, HU-38, HU-39, HU-40
 - **Sprint 8:** HU-34, HU-43, HU-45, HU-46, HU-47, HU-48, HU-50, HU-51
-- **Sprint 9:** HU-06, HU-41, HU-49 *(implementadas en S9 a nivel lógico/pruebas locales; validación en dispositivo pendiente)*
+- **Sprint 9:** HU-06, HU-41, HU-49 *(implementadas; validación focalizada en hardware ejecutada sobre Room actual v37 con aceptación parcial; casos de Yape real/notificaciones vivas y revisión cruzada permanecen pendientes)*
 - **Sprint 10:** HU-60
 
 ---
@@ -71,7 +71,7 @@
 | **HU-05 Permisos y fuentes de automatización** | S1 | 3 | HU-01 | HU-52, HU-58 | HU-45 | HU-45 |
 | **HU-06 Portabilidad, eliminación de cuenta y restauración** | S9 | 8 | HU-01, HU-07, HU-18 | HU-19, HU-55 | HU-59 | Ninguna |
 
-> **Estado Sprint 9 (2026-11-03):** HU-06 implementada en S9 (partes A y B; migración `20261103152406_delete_account` y Edge Function `delete-account` desplegadas en remoto con smoke test 401 confirmado); validación en dispositivo físico pendiente.
+> **Estado Sprint 9 (2026-11-03):** HU-06 implementada (partes A y B; migraciones remotas `20261103152406_delete_account`, `20261103162347_account_deletion_concurrency_fix` y `20261103172646_profile_preferences_private_usage` aplicadas; Edge Function `delete-account` v2 con `verify_jwt=false`; QA-S9-01 resuelto con restauración 7/7 dos veces en ambos teléfonos A16 y S24; eliminación verificada por API con cuenta desechable y resumen/cancelación en hardware; Room actual v37).
 
 ---
 
@@ -180,7 +180,7 @@
 | **HU-40 Calendario financiero** | S7 | 5 | HU-09, HU-29, HU-33 | Ninguna | HU-44 | Ninguna |
 | **HU-41 Estadísticas y analítica financiera** | S9 | 8 | HU-39, HU-36, HU-09, HU-26, HU-30, HU-58 | HU-22 | HU-25 | Ninguna |
 
-> **Estado Sprint 9 (2026-11-03):** HU-41 implementada en S9 (lógica y UI en pestaña Análisis; meses completos y totales por moneda); validación en dispositivo físico pendiente.
+> **Estado Sprint 9 (2026-11-03):** HU-41 implementada (lógica y UI en pestaña Análisis; limitaciones: meses completos y totales agregados por moneda); validación en hardware completada para AnalyticsScreenTest (6/6 en A16 y S24, QA-S9-02 resuelto) y cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM, aceptación parcial sobre Room actual v37); T021 (GATE-ANALYTICS-04), T027 (TalkBack hablado), T028 (integración con sesión real) y T029 (revisión cruzada) permanecen abiertas.
 
 ---
 
@@ -210,7 +210,7 @@
 | **HU-50 Aprendizaje desde correcciones** | S8 | 8 | HU-16, HU-17, HU-46, HU-51 | Ninguna | HU-47, HU-49 | Ninguna |
 | **HU-51 Bandeja y evidencia mínima** | S8 | 5 | HU-46 | Ninguna | HU-47, HU-43, HU-50 | HU-34, HU-43, HU-50 |
 
-> **Estado Sprint 9 (2026-11-03):** HU-49 implementada en S9 (Yape híbrido, OCR local Free y Room v36 `capture_evidence`); validación en dispositivo físico pendiente.
+> **Estado Sprint 9 (2026-11-03):** HU-49 implementada (Yape híbrido, OCR local Free y Room actual v37 con capture_evidence y fields_edited); validación en hardware ejecutada para migración 33→37 (A16 y S24), OCR sintético local en A16 (candidato DISCARDED, saldo intacto) y frontera de permisos URI Android en S24 (ReceiptShareUriGrantTest aislado); sharing real desde Yape, notificación viva en ambos órdenes y ocho muestras privadas ausentes permanecen como NO VERIFICADO.
 
 ---
 

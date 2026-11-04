@@ -59,7 +59,7 @@ No se establece una retención legal nueva ni se simula cancelación de Google P
 
 ## Estado y limpieza Android
 
-Se conserva Room **36**, sin migración ni esquema nuevo. DataStore guarda una solicitud por propietario con estado remoto `PENDING/ERROR/COMPLETED` y local `RETAINED/PENDING/SESSION_PENDING/CLEARED`. El bearer temporal y la contraseña nunca se guardan. El diario se excluye de backup por ubicación; al confirmar limpieza de datos se borra su capacidad y solo queda un marcador mínimo de resultado.
+El diseño original de eliminación operó sobre Room v36; la versión actual de Room en la aplicación es **v37** (tras la migración v36→v37 incorporada en Sprint 9 para evidencia de captura), y la eliminación no requiere migraciones adicionales de esquema Room, manteniendo compatibilidad plena con el esquema vigente (verificado `user_version 37` en ambos dispositivos reales). DataStore guarda una solicitud por propietario con estado remoto `PENDING/ERROR/COMPLETED` y local `RETAINED/PENDING/SESSION_PENDING/CLEARED`. El bearer temporal y la contraseña nunca se guardan. El diario se excluye de backup por ubicación; al confirmar limpieza de datos se borra su capacidad y solo queda un marcador mínimo de resultado.
 
 Timeout, offline o error del servidor conservan los datos locales, incluidos los no sincronizados. Al confirmar remoto `COMPLETED`, se guarda ese resultado antes de limpiar; un fallo local conserva el estado remoto completado y permite reintentar solo la limpieza. Antes de borrar Room se cancelan trabajos propios de sincronización/entitlement/recordatorios y se revoca el propietario activo, de modo que respuestas tardías fallen sus guards. Todas las tablas Room con `user_id` o `owner_id` se borran en orden topológico de FK, dentro de una transacción. Se conservan permisos de instalación y catálogos globales.
 
@@ -69,11 +69,16 @@ Desde el acceso se puede consultar una solicitud inconclusa del dispositivo aunq
 
 ## Despliegue y verificación
 
-La migración `20261103152406_delete_account.sql` y la Edge Function `delete-account` fueron **DESPLEGADAS en remoto el 2026-11-03**.
+La migración `20261103152406_delete_account.sql` y la Edge Function `delete-account` fueron **DESPLEGADAS en remoto el 2026-11-03**. Posteriormente, se desplegó la migración `20261103162347_account_deletion_concurrency_fix.sql` para reconciliar bloqueos y solicitudes concurrentes, y la Edge Function `delete-account` se actualizó a la versión **v2** con `verify_jwt = false` (la validación del token JWT del usuario y la comprobación de AMR password reciente <= 300 s se ejecutan internamente en el handler de la función).
 
 Comprobaciones ejecutadas por el coordinador:
-- `npx supabase db push`: migración `20261103152406_delete_account.sql` aplicada en Supabase remoto (`https://tnvapmertsncbslafoug.supabase.co`).
-- `npx supabase functions deploy delete-account`: función `delete-account` desplegada y activa.
-- Smoke test: llamada `POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account` con cuerpo JSON sin JWT / con JWT inválido devolvió HTTP 401 (`{"code":401,"error":"missing_authorization"}`), confirmando endpoint activo y debidamente protegido sin JWT.
-
-No se ejecutaron eliminaciones contra cuentas de usuarios reales durante la verificación. La validación end-to-end en dispositivo físico permanece pendiente.
+- `npx supabase db push` / MCP `kipu.apply_migration`: migraciones `20261103152406_delete_account.sql` y `20261103162347_account_deletion_concurrency_fix.sql` aplicadas en Supabase remoto (`https://tnvapmertsncbslafoug.supabase.co`).
+- `npx supabase functions deploy delete-account`: función `delete-account` v2 desplegada y activa con `verify_jwt = false`.
+- Smoke test inicial: llamada `POST https://tnvapmertsncbslafoug.supabase.co/functions/v1/delete-account` con cuerpo JSON sin JWT / con JWT inválido devolvió HTTP 401 (`{"code":401,"error":"missing_authorization"}`), verificando función activa y debidamente protegida.
+- **Validación API con cuenta desechable de prueba**:
+  1. JWT envejecido (321 s): devolvió HTTP 403 `recent_reauthentication_required`, confirmando la barrera de reautenticación por contraseña reciente.
+  2. Reautenticación con contraseña completó la llamada: HTTP 200 `completed`.
+  3. Repetición de la solicitud con la misma capacidad: HTTP 200 `completed` idempotente sin duplicar escrituras ni generar estados inconsistentes.
+  4. Verificación en Supabase Auth Admin API (`GET /admin/users/{id}`): HTTP 404, confirmando eliminación completa del usuario en Auth.
+  5. Inspección de base de datos remota: se verificaron 60 tablas que contienen `user_id uuid` y se confirmó **0 filas** remanentes para dicho usuario.
+- **Validación en dispositivos reales (A16 y S24)**: se probó el diálogo de resumen y el botón Cancelar con la sesión real activa; se confirmó la advertencia de pérdida de datos, Google Play y cambios pendientes, cancelando sin avanzar a confirmación ni ejecutar borrados sobre la cuenta real. La UI de eliminación completa no se ejecutó contra la sesión real para proteger los datos reales del usuario.

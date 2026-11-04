@@ -56,14 +56,14 @@ La guía [quickstart.md](quickstart.md) describe validación de aceptación excl
 
 ## Implementación S9 — HU-41 (2026-11-03)
 
-- **Lógica de analítica**: Implementada en `feature/analytics/` (`CalculateFinancialAnalyticsUseCase`). Excluye transferencias, principal de deudas/tarjetas y reservas; maneja periodos parciales, base cero con «Sin base de comparación» y comparaciones por moneda. Pruebas unitarias de dominio y persistencia Room ejecutadas en verde (`AnalyticsOperatingRulesTest`, `AnalyticsEntitlementTest`, etc.).
+- **Lógica de analítica**: Implementada en `feature/analytics/` (`CalculateFinancialAnalyticsUseCase`). Excluye transferencias, principal de deudas/tarjetas y reservas; maneja periodos parciales, base cero con «Sin base de comparación» y comparaciones por moneda. Pruebas unitarias de dominio y persistencia Room (actual v37) ejecutadas en verde (`AnalyticsOperatingRulesTest`, `AnalyticsEntitlementTest`, y `AnalyticsDaoTest` verificado en hardware en A16 y S24).
 - **Interfaz de usuario**: Implementada en `feature/analytics/presentation/` (`AnalyticsScreen`, `AnalyticsViewModel`, estados y mapeo visual) e integrada en la navegación (`AnalyticsNavigation.kt`, pestaña Análisis). En Free expone estadísticas del mes actual y aviso/gating hacia Premium; usuarios Premium acceden a selector de periodos y comparaciones.
 - **Limitaciones registradas**:
   1. Solo meses completos (no admite rangos de fechas personalizados).
   2. Comparación limitada a totales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
   3. Tareas T021 (GATE-ANALYTICS-04 formal) y T027–T030 permanecen abiertas.
-  4. `AnalyticsScreenTest` pasó 6/6 en A16 y S24 en la re-verificación anterior; cobertura adicional y límites en [verification-report.md](verification-report.md). TalkBack y aceptación transversal siguen pendientes.
+  4. `AnalyticsScreenTest` pasó 6/6 en A16 y S24 (QA-S9-02 resuelto mediante árbol semántico descombinado y scroll); cobertura adicional S24 (16/16 instrumentadas, 11/11 JVM) y límites en [verification-report.md](verification-report.md). TalkBack y aceptación transversal siguen pendientes.
 
 ### Estado de verificación incremental — 2026-11-03
 
-La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md). T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. Solo cambian pruebas y registro de evidencia, sin ampliar capacidades de producto.
+La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md) sobre Room actual v37. T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. A16 desconectado en última tanda; aceptación parcial.

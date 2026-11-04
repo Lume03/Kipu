@@ -22,7 +22,7 @@ No database schema, SQL, or remote deployment changes are included in this incre
 
 ## Sprint 9 — HU-06 partes A y B (2026-11-03)
 
-**Verdict: APPROVED — validación local de partes A y B; despliegue backend verificado; validación en dispositivo físico pendiente.** Trabajo en `main` autorizado por el Product Owner para Sprint 9; partes A y B completadas e integradas.
+**Verdict: APPROVED — validación local de partes A y B; despliegue backend verificado; validación en hardware/dispositivos completada (restauración 7/7 dos veces en ambos teléfonos, resumen/cancelación de eliminación; validación API de eliminación con cuenta desechable).** Trabajo en `main` autorizado por el Product Owner para Sprint 9; partes A y B completadas e integradas.
 
 ### Parte A — Portabilidad y restauración
 
@@ -47,6 +47,21 @@ Validación Parte B:
 - 27/27 aserciones pgTAP para `account_deletion.test.sql` y 181 aserciones totales de regresión pgTAP (todas verdes).
 - Detalle y evidencias en `account-deletion-verification.md` y contrato en `account-deletion-v1.md`.
 
-### Despliegue remoto y límites
-- **Despliegue remoto verificado el 2026-11-03**: Migración `20261103152406_delete_account.sql` aplicada mediante `npx supabase db push` y Edge Function `delete-account` desplegada con `npx supabase functions deploy delete-account`. Smoke test HTTP `POST /functions/v1/delete-account` devolvió 401 sin JWT / con JWT inválido, confirmando endpoint activo y debidamente protegido.
-- **Pendiente**: Validación visual y end-to-end en hardware / dispositivo físico, y prueba de integración de SAF con apps de terceros. No se ejecutaron borrados contra cuentas de usuarios reales. Room permanece en versión 36 (sin migraciones de Room para esta historia). El informe histórico de Sprint 8 anterior conserva su alcance independiente.
+### Despliegue remoto, re-verificación y estado en hardware
+- **Despliegue remoto verificado el 2026-11-03**:
+  - Migración `20261103152406_delete_account.sql` y migración de concurrencia `20261103162347_account_deletion_concurrency_fix.sql` aplicadas en Supabase remoto.
+  - Migración de perfil `20261103172646_profile_preferences_private_usage.sql` aplicada en remoto: helper `private.profile_session_uid()`, USAGE sobre esquema `private` exclusivo para roles ejecutores y fix UTF-8 bytea.
+  - Edge Function `delete-account` en versión v2 (`verify_jwt = false`, con validación interna de JWT y AMR password reciente <= 300 s en el handler).
+- **Resolución de incidencia QA-S9-01 (Restauración de Perfil)**:
+  - Causa identificada: cliente borraba outbox en refresh y condicionaba la llamada a pendientes=0; ejecutores de perfil carecían de permisos USAGE en private/auth en remoto; y `RemoteProfileDto.displayName` era no-nulo cuando el servidor devolvía `null`.
+  - Fix implementado: cliente (`RestoreUserData`) consulta servidor y actualiza Room preservando outbox pendiente y revisión; migración `20261103172646` aplicada; y DTO actualizado a `displayName: String?` con normalización `orEmpty()`.
+  - Validación en dispositivos: restauración 7/7 módulos completada dos veces en ambos teléfonos (A16 y S24), saldos idénticos, transacciones 9, ledger 9; outbox pendiente en S24 sincronizada exitosamente (1 -> 0, revisión 1/PENDING -> 2/SYNCED) sin pérdida de datos.
+- **Validación de eliminación de cuenta**:
+  - Validación API exitosa con cuenta desechable: HTTP 403 con JWT envejecido, HTTP 200 completado tras reautenticación, HTTP 200 idempotente en repetición, Auth 404 en Admin API y 0 filas remanentes en las 60 tablas con `user_id uuid`.
+  - En hardware (A16 y S24): resumen y cancelación validados con la sesión real activa sin alterar datos ni ejecutar borrados contra cuentas reales.
+- **Procedencia de desembolsos locales (Pendiente 1 resuelto)**:
+  - La diferencia histórica de dos filas auxiliares `DEBT_DISBURSEMENT/POSTED` en S24 proviene de `DebtLocalDataSource.openDebt` (`insertRaw`). El servidor remoto cuenta con las dos transacciones y asientos de ledger correspondientes. `SupplementaryHydration.financialFacts` lee todas las filas existentes en el servidor; no hay defecto de restauración ni obligación de forzar convergencia física de tablas auxiliares.
+- **Categoría temporal de prueba**:
+  - `QA-S9-TEMP-20261103` eliminada de remoto expresamente autorizada por el usuario tras verificar cero referencias y ausencia en caché de S24.
+- **Room actual**:
+  - Versión **v37** en ambos teléfonos (verificado `user_version 37` en hardware tras la migración 33→37 de captura en Sprint 9); la historia HU-06 no requirió migraciones de esquema Room adicionales, manteniendo compatibilidad con Room v36 histórico y v37 actual.
