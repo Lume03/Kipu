@@ -112,6 +112,7 @@ data class QuickMovementUiState(
     val isDateManuallySelected: Boolean = false,
     val note: String = "",
     val isMoreDetailsExpanded: Boolean = false,
+    val registerRecurrenceAfterSave: Boolean = false,
     val isSaving: Boolean = false,
     val availableAccounts: List<Account> = emptyList(),
     val availableCreditCards: List<CreditCard> = emptyList(),
@@ -157,6 +158,7 @@ sealed interface QuickMovementUiEvent {
     data class TransactionSaved(
         val message: String,
         val movementType: MovementType = MovementType.EXPENSE,
+        val recurrenceSource: com.kipu.app.feature.movements.domain.model.TransactionItem? = null,
     ) : QuickMovementUiEvent
     data class ShowMessage(val message: String) : QuickMovementUiEvent
 }
@@ -526,6 +528,7 @@ class QuickMovementViewModel @Inject constructor(
             isDateManuallySelected = savedStateHandle["movement.manualDate"] ?: false,
             note = savedStateHandle["movement.note"] ?: "",
             isMoreDetailsExpanded = savedStateHandle["movement.moreDetails"] ?: false,
+            registerRecurrenceAfterSave = savedStateHandle["movement.recurrence"] ?: false,
             creditPurchaseDraft = draft,
             creditPurchaseValidation = validateCreditPurchaseDraft(draft),
         )
@@ -547,6 +550,7 @@ class QuickMovementViewModel @Inject constructor(
         savedStateHandle["movement.manualDate"] = state.isDateManuallySelected
         savedStateHandle["movement.note"] = state.note
         savedStateHandle["movement.moreDetails"] = state.isMoreDetailsExpanded
+        savedStateHandle["movement.recurrence"] = state.registerRecurrenceAfterSave
     }
 
     private fun restoreCreditPurchaseDraft() = CreditPurchaseDraft(
@@ -812,6 +816,20 @@ class QuickMovementViewModel @Inject constructor(
         }
     }
 
+    fun onRegisterRecurrenceChanged(enabled: Boolean) {
+        _uiState.update { it.copy(registerRecurrenceAfterSave = enabled) }
+    }
+
+    private fun recurrenceSource(state: QuickMovementUiState, transaction: com.kipu.app.feature.movements.domain.model.Transaction): com.kipu.app.feature.movements.domain.model.TransactionItem? =
+        if (state.registerRecurrenceAfterSave && transaction.type == MovementType.EXPENSE && transaction.userId == getUserId()) {
+            com.kipu.app.feature.movements.domain.model.TransactionItem(
+                transaction = transaction,
+                merchantName = state.merchantName.takeIf(String::isNotBlank),
+                categoryName = state.selectedCategoryName,
+                categoryIcon = state.selectedCategoryIcon,
+            )
+        } else null
+
     fun onSave() {
         if (_uiState.value.isSaving) return
         if (merchantPreferenceJob?.isActive == true) {
@@ -964,6 +982,7 @@ class QuickMovementViewModel @Inject constructor(
             _uiState.update { it.copy(isSaving = false, generalError = "La moneda de la compra debe coincidir con la moneda de la tarjeta (${card.currency.name}).") }
             return
         }
+        val confirmedOperationId = com.kipu.app.core.finance.domain.model.OperationId.generate()
         val merchant = state.merchantProvisionalText
             ?: state.merchantName.takeIf(String::isNotBlank)
             ?: "Compra con tarjeta"
@@ -971,6 +990,7 @@ class QuickMovementViewModel @Inject constructor(
             _uiState.update { it.copy(isSaving = true, generalError = null) }
             confirmCreditPurchaseUseCase(
                 cardId = card.id,
+                operationId = confirmedOperationId,
                 amount = Money(amountMinor, card.currency),
                 merchant = merchant,
                 effectiveAt = Instant.ofEpochMilli(state.occurredAt),
@@ -987,7 +1007,13 @@ class QuickMovementViewModel @Inject constructor(
                         learnRememberedCategory(UserId(owner), option, categoriesRepository, setMerchantCategoryPreference)
                     }
                     _uiState.update { it.copy(isSaving = false) }
-                    _events.send(QuickMovementUiEvent.TransactionSaved("Compra con tarjeta registrada y pendiente de sincronización"))
+                    _events.send(QuickMovementUiEvent.TransactionSaved("Compra con tarjeta registrada y pendiente de sincronización", recurrenceSource = recurrenceSource(state,
+                        com.kipu.app.feature.movements.domain.model.Transaction(
+                            id = confirmedOperationId.value, userId = purchaseOwner.orEmpty(), type = MovementType.EXPENSE,
+                            amountMinor = amountMinor, currency = state.currency, categoryId = state.selectedCategoryId,
+                            merchantId = state.selectedMerchantId, merchantProvisionalText = state.merchantProvisionalText,
+                            occurredAt = state.occurredAt, cardId = card.id.value, operationKind = "CARD_PURCHASE", installmentCount = terms.installmentsCount,
+                        ))))
                     resetForm()
                 },
                 onFailure = {
@@ -1040,7 +1066,7 @@ class QuickMovementViewModel @Inject constructor(
                         MovementSyncStatus.PENDING, MovementSyncStatus.IN_FLIGHT ->
                             "Guardado en este dispositivo · Pendiente de sincronización"
                     }
-                    _events.send(QuickMovementUiEvent.TransactionSaved(message, command.type))
+                    _events.send(QuickMovementUiEvent.TransactionSaved(message, command.type, recurrenceSource(state, result.transaction)))
                     resetForm()
                 }
                 is RegisterTransactionResult.SimilarTransactionWarning -> {
