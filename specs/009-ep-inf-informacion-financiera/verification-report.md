@@ -31,8 +31,22 @@ El primer APK test usaba FileProvider de AndroidX en su proceso independiente: C
 - **T021**: no se encontró aprobación registrada de GATE-ANALYTICS-04 en la documentación consultada/búsqueda `docs/` y `specs/`. Se conserva abierto; sin cambios de catálogo, zonas, filtros, periodos ni comparación.
 - **T027**: TalkBack de Google y Samsung están instalados, servicio habilitado originalmente `null`; se mantuvo desactivado. No se ejecutaron lectura hablada, orden de foco, gestos ni tres journeys completos con TalkBack. Las pruebas de componentes y texto 200 % aportan cobertura parcial, no equivalencia a ese criterio.
 - **T028**: navegación y errores/sesiones se verifican en fronteras separadas (grafo/Compose/JVM); faltan recorridos integrados completos con sesión/propietario. No se certifica nueva operación offline/recuperación remota.
-- **T029**: falta revisión cruzada independiente; este informe no certifica su propia revisión ni aprueba el sprint.
+- **T029**: revisión cruzada independiente registrada al final de este informe; la verificación funcional aprobada y la aceptación integral siguen pendientes.
 - Compartir: PASS del acceso URI Android real con fixture aislado; **NO VERIFICADO** el envío desde Yape o selector de compartir hasta UI de revisión, notificación Yape real en ambos órdenes y ocho muestras privadas ausentes. El fixture no demuestra origen Yape ni cambia esos resultados.
 - Free se cubre con fixtures; no se cambió entitlement real. Eliminación completa UI con otra sesión y creación offline de cambios reales permanecen fuera de la cobertura autorizada.
 
 No se encontró un defecto nuevo de producción en esta tanda. La matriz de [dispositivos](../sprint-9-device-validation.md) mantiene la historia previa y agrega estos resultados sin convertir límites en aprobaciones.
+
+## Revisión cruzada independiente Sprint 9 — 2026-11-03
+
+Revisor: Opus, independiente de los workers implementadores y de las pruebas. Revisión directa del rango `35858567..e7702012`, sin ejecutar suites nuevas ni cambiar código de producción.
+
+Alcance HU-41:
+- Consulta Room acotada al propietario, incluidos los filtros de categorías, cuentas, tarjetas y comercios usados.
+- No cuentan como gasto las transferencias, aperturas, principal de deudas, reservas ni reembolsos.
+- El reembolso neto se limita al importe del gasto y nunca da negativo; se excluyen los estados CONFLICT/FAILED_PERMANENT.
+- Free/Premium y el cambio de propietario solo tienen la cobertura aislada ya registrada.
+
+**Sin defecto bloqueante de código.** Los hallazgos y el alcance transversal (HU-06, HU-49) están en el [informe Sprint 9](../sprint-9-device-validation.md#revisión-cruzada-independiente--2026-11-03).
+
+Límites: esto completa solo el componente de revisión de T029. Siguen abiertos T021 (GATE-ANALYTICS-04 sin aprobación localizada), T027 (TalkBack hablado), T028 (journeys integrados), el A16 en la última tanda y los criterios NO VERIFICADO. Se mantienen las limitaciones de meses completos y de comparación por totales sin categoría. Veredicto: **no APPROVED integral**.

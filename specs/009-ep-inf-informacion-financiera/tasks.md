@@ -64,7 +64,7 @@
 
 - [ ] T027 [P] Pruebas de accesibilidad (TalkBack, contenido/agrupación semántica, escala de texto) para tres journeys.
 - [ ] T028 Pruebas de integración navegación y errores/reintentos con sesión/propietario.
-- [ ] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada.
+- [ ] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada. *(2026-11-03: componente de revisión cruzada independiente registrado en [verification-report.md](verification-report.md#revisión-cruzada-independiente-sprint-9--2026-11-03); sigue abierta porque faltan la verificación funcional y la aceptación.)*
 - [ ] T030 Actualizar trazabilidad/documents si una decisión modifica requisitos, modelo o política, con autorización y alcance correspondiente.
 
 ## Dependencias y orden (DAG)
@@ -101,5 +101,5 @@ Trabajo secuencial autorizado en `main`, desde `a10e7540`, sin comandos Spec Kit
 - **T027 parcial, abierta**: S24 pasó semántica/acciones de Inicio-patrimonio, Calendario y Análisis y tres casos nuevos con densidad de fuente Compose 2.0; no se cambió font_scale del sistema. Son recorridos de componentes con fixtures. TalkBack está instalado pero desactivado; no se ejecutó lectura hablada, foco secuencial o tres journeys completos con TalkBack. No se certifica ausencia de todo truncamiento por estas aserciones.
 - **T028 parcial, abierta**: 16/16 instrumentadas S24 y 11/11 JVM focalizadas. Navegación del grafo/volver, deep link de historial, evento disponible/no disponible, errores/reintentos, máscara y cancelación al cambiar propietario. Los estados Free, bloqueo y cambio de propietario se prueban aisladamente; falta aceptación integrada con sesión/propietario en los tres journeys. No se cambió sesión o entitlement real.
 - **T014 parcial, abierta**: máscara y estados de Inicio cubiertos en componente/JVM; sin prueba nueva de lectura offline real ni cambio de propietario real.
-- **T029 abierta**: no se certifica revisión cruzada por el autor de estas pruebas; no hay aprobación integral.
+- **T029 abierta**: la revisión cruzada independiente quedó registrada en verification-report.md; siguen pendientes la verificación funcional aprobada y la aceptación integral.
 - **T030 abierta**: no se modifica alcance de producto ni se presenta este registro como decisión aprobada.

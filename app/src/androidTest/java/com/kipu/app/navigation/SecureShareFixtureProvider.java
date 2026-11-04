@@ -41,4 +41,3 @@ public final class SecureShareFixtureProvider extends ContentProvider {
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
     }
 }
-

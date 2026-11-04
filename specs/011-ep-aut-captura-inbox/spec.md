@@ -100,7 +100,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 
 - `capture_source_events`: owner, huella SHA-256 de paquete/clave/postTime/texto normalizado (sin texto persistido), paquete, hora y resultado; PK owner+huella.
 - `capture_candidates`: UUID, owner, proveedor, estado (`PENDING|CONFIRMED|AUTO_REGISTERED|DISCARDED`), campos extraídos/corregidos, instrumento, confianza/motivos, crédito/cuotas, idempotencia y evidencia temporal; único por owner+huella fuente.
-- `capture_evidence` (Room 35→36): owner, referencia normalizada, fuente (`NOTIFICATION|OCR`), root_candidate_id, timestamp; índice único por owner + referencia normalizada + fuente, e índice sobre root_candidate_id.
+- `capture_evidence` (Room 35→36; nota de revisión 2026-11-03: en Room v37 el índice owner+referencia+fuente es **no único** y la clave primaria es owner+fuente+event_id; falta reconciliar este texto y FR-012 con el Product Owner): owner, referencia normalizada, fuente (`NOTIFICATION|OCR`), root_candidate_id, timestamp; índice único por owner + referencia normalizada + fuente, e índice sobre root_candidate_id.
 - `receipt_candidates`: campo `fields_edited` para registrar campos modificados por el usuario y protegerlos de sobrescritura al correlacionar nuevas fuentes.
 - Importes en unidades menores enteras (`Long`). Captura y evidencia son exclusivamente locales en Room sin outbox ni sincronización.
 

@@ -223,3 +223,32 @@ Base `a10e7540`, trabajo secuencial en main. **PASS focalizado, aceptación PARC
 Ejecución final: **S24 16/16 instrumentadas, 6.985 s, runner OK; host 11/11, cero fallos/omisiones; builds finales exit 0**. únicamente APK androidTest reinstalado mediante install -r; sin suite global ni repetición de AnalyticsScreenTest/AnalyticsDaoTest ya verdes. El primer intento instrumentado se interrumpió tras crash del proveedor test (AndroidX ausente en APK test independiente); se corrigió con proveedor/receptor Java Android puro. Compilación intermedia fallida por BOM Java corregida; logs fallidos conservados sin contarlos como PASS. El informe EP-INF detalla evidencia y comandos.
 
 No se encontró defecto nuevo de producción. Siguen abiertas T021/T027–T030 y los criterios NO VERIFICADO; pruebas de semántica, grafo y URI con fixtures en hardware no sustituyen proveedor Yape ni revisión cruzada.
+
+## Revisión cruzada independiente — 2026-11-03
+
+Revisor: Opus, independiente de los workers implementadores. Revisión directa de `35858567..e7702012` (31 commits) y de la exactitud documental de `e7702012`, sin repetir suites, sin cambios remotos ni en dispositivos.
+
+**Veredicto técnico acotado: sin defectos bloqueantes de código; aceptación PARCIAL; no APPROVED integral.**
+
+Revisado sin hallazgos:
+- Restauración 7/7 con guardas de propietario, e hidratación de perfil que preserva la outbox y su revisión; DTO `display_name` nullable.
+- Analítica: invariantes, reembolsos, exclusiones y propietario.
+- Correlación Yape por referencia validada por hechos en ambos órdenes, y sugerencia única sin referencia; migración Room 36→37.
+- Serialización de los escritores frente al purge y aislamiento del receipt.
+
+La diferencia de `financial_movements` (dos proyecciones auxiliares OPEN_DEBT locales) y la eliminación autorizada de la categoría de prueba quedan explicadas, sin acción.
+
+| Severidad | Archivo / línea | Trigger | Efecto | Corrección recomendada |
+|---|---|---|---|---|
+| Media | `20261103162347_account_deletion_concurrency_fix.sql:22-24`, `delete-account/index.ts:66-67` | Receipt `data_deleted` con fallo en Auth, y capacidad local perdida o uso desde otro dispositivo | 202 `in_progress` permanente; Auth persiste con las escrituras bloqueadas y sin autoservicio | Completar desde el servidor el receipt existente del mismo propietario reautenticado, o un runbook (worker implementador) |
+| Baja | `index.ts:51-58`, `AccountDeletion.kt:129-134` | Segundo dispositivo después de que el primero completa | ERROR con los datos locales conservados | Estado "cuenta eliminada" con limpieza local guiada |
+| Baja (doc) | `specs/011.../spec.md` FR-012 y Key Entities | Room v37 | El texto dice índice único; en v37 es no único y la PK es owner+fuente+event_id | Reconciliar el requisito con el Product Owner; se añadió una nota y FR-012 no se modificó |
+| Baja (doc) | `account_deletion_concurrency.test.sql` | Informes | No consta el resultado de la suite pgTAP de concurrencia (plan 8) | Registrar su ejecución en la próxima tanda local |
+| Trivial | `SecureShareFixtureProvider.java:44` | `git diff --check` | Línea en blanco al final del archivo | Corregido en este commit; sin rerun porque es solo whitespace |
+
+Correcciones documentales de esta revisión:
+- El veredicto de EP-APS distingue ahora la restauración en hardware de la eliminación verificada solo por API.
+- El informe EP-AUT describe el índice real de v37.
+- La nota raíz de `verification-report.md` marca como superado el "despliegue pendiente".
+
+Siguen pendientes: T021 GATE-ANALYTICS-04, TalkBack hablado, el A16 en la última tanda, la UI de compartir desde Yape real, la notificación viva en ambos órdenes, las ocho muestras privadas, la eliminación con la UI completa y una cuenta desechable, y un cambio offline nuevo.

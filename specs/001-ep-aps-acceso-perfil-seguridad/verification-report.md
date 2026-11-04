@@ -22,7 +22,7 @@ No database schema, SQL, or remote deployment changes are included in this incre
 
 ## Sprint 9 — HU-06 partes A y B (2026-11-03)
 
-**Verdict: APPROVED — validación local de partes A y B; despliegue backend verificado; validación en hardware/dispositivos completada (restauración 7/7 dos veces en ambos teléfonos, resumen/cancelación de eliminación; validación API de eliminación con cuenta desechable).** Trabajo en `main` autorizado por el Product Owner para Sprint 9; partes A y B completadas e integradas.
+**Verdict: APPROVED — validación local de partes A y B; despliegue backend verificado; validación en hardware completada para la restauración 7/7 dos veces en ambos teléfonos, y limitada a resumen/cancelación en la eliminación; la eliminación se verificó por API con cuenta desechable, no con la UI completa en dispositivo.** Trabajo en `main` autorizado por el Product Owner para Sprint 9; partes A y B completadas e integradas.
 
 ### Parte A — Portabilidad y restauración
 
@@ -65,3 +65,21 @@ Validación Parte B:
   - `QA-S9-TEMP-20261103` eliminada de remoto expresamente autorizada por el usuario tras verificar cero referencias y ausencia en caché de S24.
 - **Room actual**:
   - Versión **v37** en ambos teléfonos (verificado `user_version 37` en hardware tras la migración 33→37 de captura en Sprint 9); la historia HU-06 no requirió migraciones de esquema Room adicionales, manteniendo compatibilidad con Room v36 histórico y v37 actual.
+
+## Revisión cruzada independiente Sprint 9 — 2026-11-03
+
+Revisión directa (Opus) del rango `35858567..e7702012`; no se repitieron suites. Alcance revisado:
+- Restauración por módulo con guardas de propietario antes y después.
+- Hidratación de perfil que conserva la outbox no resuelta y su revisión; DTO `display_name` nullable.
+- Edge `delete-account`: reautenticación AMR password <= 300 s tras `GET /user`, capacidad hasheada solo para reconciliar, propietario e idempotencia.
+- Purge SQL: bloqueo exclusivo del purge frente al bloqueo compartido de los escritores, receipt previo e inventario fail-closed.
+
+Sin defecto bloqueante.
+
+| Severidad | Archivo / línea | Trigger | Efecto | Corrección recomendada |
+|---|---|---|---|---|
+| Media | `supabase/migrations/20261103162347_account_deletion_concurrency_fix.sql:22-24`; `supabase/functions/delete-account/index.ts:66-67`; `AccountDeletionAdapters.kt:98` | La solicitud A llega a `data_deleted`, falla el borrado en Auth y se pierde su capacidad local (reinstalación o borrado de datos; el DataStore es no-backup), o se reintenta desde otro dispositivo con un `request_id` nuevo | Toda solicitud nueva recibe 202 `in_progress` y el cliente queda en PENDING indefinidamente. La cuenta Auth sigue existiendo con las escrituras bloqueadas por el guard, el receipt de A conserva `user_id` y no hay autoservicio para completarla | Si el propietario se reautenticó y existe un receipt `data_deleted` de ese mismo usuario, continuar con `deleteUser` y completar ese receipt desde el servidor (RPC solo service_role); o bien devolver un estado distinto y documentar un runbook operativo |
+| Baja | `index.ts:51-58`; `AccountDeletion.kt:129-134` | Un segundo dispositivo tiene una solicitud `in_progress` cuando el primero completa | Su reintento recibe 401 y el estado queda en ERROR; esa instalación conserva sus datos locales sin una ruta guiada de limpieza | Mostrar un estado de cuenta ya eliminada y ofrecer limpieza local tras confirmar Auth 404 |
+| Baja (documental) | `supabase/tests/database/account_deletion_concurrency.test.sql` (plan 8) | Informes de verificación | No consta el resultado de esta suite pgTAP; los informes solo citan 27/27 y 181 aserciones de regresión | Registrar su ejecución en la próxima tanda pgTAP local |
+
+Esta revisión no sustituye la eliminación con la UI completa y una cuenta desechable, que sigue NO VERIFICADA.
