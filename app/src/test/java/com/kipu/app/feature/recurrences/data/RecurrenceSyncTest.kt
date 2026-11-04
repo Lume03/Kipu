@@ -71,6 +71,13 @@ class RecurrenceSyncTest {
         assertEquals("PENDING", db.recurrenceDao().get(OWNER, created.recurrence.id)?.syncState)
     }
 
+    @Test fun reminderFailureAfterCommitStillReportsSavedRule() = runTest {
+        every { reminders.cancel(any(), any()) } throws IllegalStateException("notification service unavailable")
+        val created = create()
+        assertEquals("PENDING", db.recurrenceOutboxDao().get(OWNER, created.operationId)?.state)
+        assertEquals(created.recurrence.id, db.recurrenceDao().observeAll(OWNER).first().single().id)
+    }
+
     @Test fun workerCancellationLeavesLeaseForIdempotentRecovery() = runTest {
         val created = create()
         coEvery { api.execute(OWNER, any(), any()) } throws kotlinx.coroutines.CancellationException("stop")
