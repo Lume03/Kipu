@@ -99,8 +99,6 @@ import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.ui.theme.rememberKipuColors
-import java.text.Normalizer
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -993,21 +991,7 @@ private data class CategoryRootAppearance(
 )
 
 private fun categoryRootAppearance(item: CategoryItem): CategoryRootAppearance {
-    val storedTint = parseHexColor(item.color)
-    val usesPlaceholderPresentation = item.category.isSystem &&
-        item.icon.equals("category", ignoreCase = true) &&
-        item.color.equals("#757575", ignoreCase = true)
-    if (!usesPlaceholderPresentation) return CategoryRootAppearance(item.icon, storedTint)
-
-    val normalizedName = Normalizer.normalize(item.displayName, Normalizer.Form.NFD)
-        .replace("\\p{M}+".toRegex(), "")
-        .lowercase(Locale.ROOT)
-    return when (normalizedName) {
-        "alimentacion" -> CategoryRootAppearance("restaurant", Color(0xFFD97706))
-        "transporte" -> CategoryRootAppearance("directions_car", Color(0xFF0284C7))
-        "servicios" -> CategoryRootAppearance("receipt", Color(0xFF7C3AED))
-        else -> CategoryRootAppearance(item.icon, storedTint)
-    }
+    return CategoryRootAppearance(item.icon, parseHexColor(item.color))
 }
 
 

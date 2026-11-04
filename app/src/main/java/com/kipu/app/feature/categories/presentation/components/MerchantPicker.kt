@@ -10,8 +10,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +33,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -67,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import com.kipu.app.ui.theme.rememberKipuColors
@@ -79,6 +77,9 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kipu.app.feature.categories.domain.CategoryRules
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
+import com.kipu.app.ui.component.FilterOption
+import com.kipu.app.ui.component.OptionFilterButton
+import com.kipu.app.ui.component.OptionFilterSheet
 
 // TAXONOMÍA DE INTERFAZ (UI TAXONOMY)
 // Documentado en EP-CCO: Agrupación visual coherente para facilitar la búsqueda
@@ -377,6 +378,7 @@ fun MerchantPicker(
     discovery: MerchantDiscoveryUi? = null,
 ) {
     var selectedUiGroup by remember { mutableStateOf<UiMerchantGroup?>(null) }
+    var showGroupFilter by remember { mutableStateOf(false) }
     val typedName = state.query.trim()
 
     // Internet search follows the picker text but never runs per keystroke: only on the explicit row.
@@ -415,6 +417,21 @@ fun MerchantPicker(
         if (selectedUiGroup != null && selectedUiGroup !in availableGroups) {
             selectedUiGroup = null
         }
+    }
+
+    val filterColor = MaterialTheme.colorScheme.primary
+    val groupOptions = listOf(FilterOption<UiMerchantGroup?>(null, "Todos", Icons.Default.FilterList, filterColor, "merchant-filter-all")) +
+        availableGroups.map { group ->
+            FilterOption<UiMerchantGroup?>(group, group.label, Icons.Default.Storefront, filterColor, "merchant-filter-${group.name.lowercase()}")
+        }
+    if (showGroupFilter) {
+        OptionFilterSheet(
+            title = "Filtrar comercios",
+            options = groupOptions,
+            selected = selectedUiGroup,
+            onSelect = { selectedUiGroup = it; showGroupFilter = false },
+            onDismiss = { showGroupFilter = false },
+        )
     }
 
     // Una vez obtenida la lista de coincidencias correcta, aplicamos el filtro de taxonomía UI canónico.
@@ -472,29 +489,13 @@ fun MerchantPicker(
                 .testTag("merchant_search_input"),
         )
 
-        // Chips de filtro UI (Taxonomía Visual)
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            item {
-                MerchantGroupPill(
-                    label = "Todos",
-                    selected = selectedUiGroup == null,
-                    onClick = { selectedUiGroup = null },
-                )
-            }
-
-            items(availableGroups, key = { it.name }) { group ->
-                MerchantGroupPill(
-                    label = group.label,
-                    selected = selectedUiGroup == group,
-                    onClick = {
-                        selectedUiGroup = if (selectedUiGroup == group) null else group
-                    },
-                )
-            }
-        }
+        OptionFilterButton(
+            label = selectedUiGroup?.label ?: "Todos",
+            active = selectedUiGroup != null,
+            description = "Filtrar comercios: ${selectedUiGroup?.label ?: "Todos"}",
+            onClick = { showGroupFilter = true },
+            modifier = Modifier.testTag("merchant-filter-button"),
+        )
 
         // Banner de estado de catálogo
         if (state.catalogStatus != CatalogStatus.AVAILABLE) {
@@ -941,34 +942,5 @@ fun CatalogStatusBanner(
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
-    }
-}
-
-/** Merchant group filter pill, same shape and 48dp target as the account selector pills. */
-@Composable
-private fun MerchantGroupPill(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val kipuColors = rememberKipuColors()
-    val shape = RoundedCornerShape(24.dp)
-    Box(
-        modifier = Modifier
-            .clip(shape)
-            .then(if (selected) Modifier else Modifier.border(BorderStroke(1.5.dp, kipuColors.border), shape))
-            .background(if (selected) kipuColors.primary else kipuColors.surface)
-            .selectable(selected = selected, onClick = onClick, role = Role.Tab)
-            .defaultMinSize(minHeight = 48.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = if (selected) kipuColors.onPrimary else kipuColors.inkSecondary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            maxLines = 1,
-        )
     }
 }

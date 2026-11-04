@@ -93,4 +93,21 @@ class MovementEditorRememberTest {
         assertTrue(vm.uiState.value.isSuccess)
         coVerify(exactly = 0) { repo.saveMerchantCategoryPreference(any(), any()) }
     }
+    @Test fun `income editor excludes expense choices but preserves its historical expense association`() = runTest(dispatcher) {
+        val incomeCategory = category.copy(id = CategoryId("salary"), categoryType = CategoryType.INCOME)
+        val shared = category.copy(id = CategoryId("shared"), categoryType = CategoryType.GENERAL)
+        every { repo.observeCategories(owner) } returns flowOf(listOf(category, oldCategory, incomeCategory, shared))
+        coEvery { maintenance.getRevisionHead(owner.value, "tx") } returns head.copy(payload = payload.copy(type = MovementType.INCOME))
+        coEvery { movements.getTransactionById(owner.value, "tx") } returns Transaction(
+            id = "tx", userId = owner.value, type = MovementType.INCOME, amountMinor = 100,
+            currency = "PEN", sourceAccountId = "account", categoryId = "old", occurredAt = 100)
+        val vm = create(); advanceUntilIdle()
+        assertEquals(setOf("salary", "shared"), vm.uiState.value.selectableCategories.map { it.id }.toSet())
+        assertEquals("old", vm.uiState.value.selectedCategoryId)
+        vm.onCategorySelected(vm.uiState.value.availableCategories.first { it.id == "new" })
+        assertEquals("old", vm.uiState.value.selectedCategoryId)
+        vm.onCategorySelected(vm.uiState.value.selectableCategories.first { it.id == "salary" })
+        assertEquals("salary", vm.uiState.value.selectedCategoryId)
+    }
+
 }

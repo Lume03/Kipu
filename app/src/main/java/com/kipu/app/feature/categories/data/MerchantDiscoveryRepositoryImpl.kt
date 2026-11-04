@@ -46,6 +46,7 @@ class MerchantDiscoveryRepositoryImpl @Inject constructor(
             if (response.status.value !in 200..299) {
                 val code = response.body<DiscoveryError>().code
                 error(when (code) {
+                    "SHARED_MERCHANT_ADDS_DISABLED" -> "Las altas compartidas est\u00e1n desactivadas. Puedes crear un comercio privado"
                     "MERCHANT_RATE_LIMITED" -> "Alcanzaste el l\u00edmite de b\u00fasquedas o altas. Int\u00e9ntalo m\u00e1s tarde"
                     "PROVIDER_RATE_LIMITED" -> "El buscador est\u00e1 ocupado. Int\u00e9ntalo m\u00e1s tarde"
                     "CANDIDATE_NOT_CACHED" -> "Vuelve a buscar el comercio antes de agregarlo"
@@ -78,7 +79,7 @@ class MerchantDiscoveryRepositoryImpl @Inject constructor(
             isActive = dto.isActive, version = 0, lastSyncedAt = System.currentTimeMillis(),
             defaultCategoryId = dto.defaultCategoryId, priority = dto.priority, logoKey = dto.logoKey,
             brandColor = dto.brandColor, logoPath = dto.logoPath, logoDarkPath = dto.logoDarkPath,
-            logoSource = dto.logoSource, userId = dto.userId,
+            logoSource = dto.logoSource, domain = dto.domain, logoStatus = dto.logoStatus, catalogOrigin = dto.catalogOrigin, userId = dto.userId,
         )))
         return MerchantCatalogEntry(MerchantId(dto.id), dto.name, CategoryRules.normalizeText(dto.normalizedName),
             dto.isActive, dto.defaultCategoryId?.let(::CategoryId), dto.priority, dto.logoKey, dto.brandColor,

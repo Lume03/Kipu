@@ -2527,7 +2527,8 @@ private fun CreditCardMovementRow(
     val avatarPresentation = movementAvatarPresentation(
         merchantAvatarAllowed = movement.kind == MovementKind.CREDIT_PURCHASE,
         merchantName = display.merchantName,
-        hasUsableMerchantLogo = merchantDrawableId != 0 || remoteMerchantLogoUrl != null,
+        hasUsableMerchantLogo = merchantDrawableId != 0 || remoteMerchantLogoUrl != null || display.merchantLogoDarkUrl != null,
+        hasLinkedMerchant = display.merchantId != null,
         categoryIcon = categoryIcon,
     )
     val showMerchantAvatar = avatarPresentation == MovementAvatarPresentation.MERCHANT_AVATAR ||
@@ -2570,18 +2571,6 @@ private fun CreditCardMovementRow(
                             display.merchantBrandColor,
                         ),
                         size = 42.dp,
-                        fallbackContent = categoryIcon?.let { iconKey ->
-                            {
-                                MovementCategoryIconAvatar(
-                                    iconKey = iconKey,
-                                    background = boxBg,
-                                    tint = iconTint,
-                                    shape = RoundedCornerShape(12.dp),
-                                    size = 42.dp,
-                                    iconSize = 22.dp,
-                                )
-                            }
-                        },
                     )
                     MovementAvatarPresentation.MERCHANT_INITIALS -> MerchantAvatar(
                         drawableId = 0,

@@ -14,8 +14,10 @@ internal fun movementAvatarPresentation(
     hasUsableMerchantLogo: Boolean,
     categoryIcon: String?,
     paidWithWallet: Boolean = false,
+    hasLinkedMerchant: Boolean = false,
 ): MovementAvatarPresentation = when {
     merchantAvatarAllowed && hasUsableMerchantLogo -> MovementAvatarPresentation.MERCHANT_AVATAR
+    merchantAvatarAllowed && hasLinkedMerchant && !merchantName.isNullOrBlank() -> MovementAvatarPresentation.MERCHANT_INITIALS
     // A Yape/Plin payment is recognized by its wallet before its category or the payee's initials.
     merchantAvatarAllowed && paidWithWallet -> MovementAvatarPresentation.WALLET_LOGO
     !categoryIcon.isNullOrBlank() -> MovementAvatarPresentation.CATEGORY_ICON

@@ -1100,16 +1100,7 @@ class QuickMovementViewModel @Inject constructor(
         return MoneyInputParser.parseMinorUnits(amountText)
     }
 
-    private fun categoriesFor(type: MovementType): List<CategoryOption> {
-        val expectedType = when (type) {
-            MovementType.EXPENSE -> CategoryType.EXPENSE
-            MovementType.INCOME -> CategoryType.INCOME
-            MovementType.TRANSFER -> return emptyList()
-        }
-        return allCategoryOptions.filter {
-            it.categoryType == expectedType || it.categoryType == CategoryType.GENERAL
-        }
-    }
+    private fun categoriesFor(type: MovementType): List<CategoryOption> = allCategoryOptions.forMovementType(type)
 
     private fun getUserId(): String? {
         return sessionCoordinator.currentOwner?.verifiedUserId

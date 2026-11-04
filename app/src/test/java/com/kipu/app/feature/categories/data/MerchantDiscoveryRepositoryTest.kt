@@ -14,6 +14,8 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [28], application = android.app.Application::class)
 class MerchantDiscoveryRepositoryTest {
     private val owner = UUID.fromString("f0000000-0000-0000-0000-000000000001")
     private val sessions = object : AuthenticatedSessionProvider {
@@ -63,6 +65,31 @@ class MerchantDiscoveryRepositoryTest {
         val dao=FakeMerchantCatalogDao()
         val repo=repository(MockEngine { respond("""{"merchant":{"id":"merchant","name":"Shop","normalized_name":"shop","user_id":"other"}}""",HttpStatusCode.OK,headersOf(HttpHeaders.ContentType,"application/json")) },dao)
         assertTrue(runCatching { repo.createPrivate("Shop") }.isFailure)
+        assertTrue(dao.merchants.isEmpty())
+    }
+    @Test fun `provider add keeps published logo and discovery metadata for hydration`() = runTest {
+        val dao = FakeMerchantCatalogDao()
+        val repo = repository(MockEngine {
+            respond("""{"merchant":{"id":"miniso","name":"MINISO","normalized_name":"miniso","domain":"miniso.test","logo_status":"READY","catalog_origin":"USER_ADDED","logo_source":"LOGO_DEV","logo_path":"logo-dev/miniso.test/v1.webp","logo_dark_path":"logo-dev/miniso.test/v1-dark.webp"}}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType,"application/json"))
+        }, dao)
+        val result = repo.add(MerchantSearchCandidate("MINISO", "miniso.test", null, false, null, "miniso"))
+        val saved = dao.merchants.getValue("miniso")
+        assertEquals("miniso", result.id.value)
+        assertEquals("miniso.test", saved.domain)
+        assertEquals("READY", saved.logoStatus)
+        assertEquals("USER_ADDED", saved.catalogOrigin)
+        assertEquals("logo-dev/miniso.test/v1.webp", saved.logoPath)
+        assertEquals("logo-dev/miniso.test/v1-dark.webp", saved.logoDarkPath)
+        assertNull(saved.userId)
+        assertEquals(0L, saved.version)
+    }
+    @Test fun `disabled shared additions offers private creation and caches nothing`() = runTest {
+        val dao = FakeMerchantCatalogDao()
+        val repo = repository(MockEngine {
+            respond("""{"code":"SHARED_MERCHANT_ADDS_DISABLED"}""", HttpStatusCode.Conflict, headersOf(HttpHeaders.ContentType,"application/json"))
+        }, dao)
+        val failure = runCatching { repo.add(MerchantSearchCandidate("MINISO", "miniso.test", null, false, null, "miniso")) }.exceptionOrNull()
+        assertTrue(failure!!.message!!.contains("privado"))
         assertTrue(dao.merchants.isEmpty())
     }
 }

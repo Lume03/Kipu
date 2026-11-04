@@ -1,5 +1,16 @@
 package com.kipu.app.feature.categories.presentation
 
+import androidx.compose.material.icons.filled.DeliveryDining
+import androidx.compose.material.icons.filled.Toll
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -105,7 +116,18 @@ val CATEGORY_ICON_SECTIONS = listOf(
 )
 
 fun resolveCategoryIcon(iconId: String): ImageVector {
-    return when (iconId.lowercase()) {
+    return when (iconId.trim().lowercase()) {
+        "delivery_dining" -> Icons.Default.DeliveryDining
+        "toll" -> Icons.Default.Toll
+        "local_fire_department" -> Icons.Default.LocalFireDepartment
+        "cloud" -> Icons.Default.Cloud
+        "smart_toy" -> Icons.Default.SmartToy
+        "terminal" -> Icons.Default.Terminal
+        "shopping_bag" -> Icons.Default.ShoppingBag
+        "confirmation_number" -> Icons.Default.ConfirmationNumber
+        "hotel" -> Icons.Default.Hotel
+        "security" -> Icons.Default.Security
+        "assignment" -> Icons.Default.Assignment
         "tv", "streaming", "video" -> Icons.Default.Tv
         "music_note", "musica", "música", "audio" -> Icons.Default.MusicNote
         "directions_car", "car", "auto", "transporte", "transport" -> Icons.Default.DirectionsCar

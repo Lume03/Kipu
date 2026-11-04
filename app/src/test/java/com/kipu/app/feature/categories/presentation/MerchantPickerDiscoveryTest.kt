@@ -54,6 +54,24 @@ class MerchantPickerDiscoveryTest {
         }
     }
 
+    @Test fun groupFilterPreservesSearchAndCanReturnToAll() {
+        val kfc = MerchantCatalogEntry(MerchantId("kfc"), "KFC", "kfc")
+        val netflix = MerchantCatalogEntry(MerchantId("netflix"), "Netflix", "netflix")
+        show(listOf(kfc, netflix))
+        compose.onNodeWithTag("merchant-filter-button").performClick()
+        compose.onNodeWithTag("merchant-filter-restaurants").performClick()
+        compose.onNodeWithText("KFC").assertExists()
+        compose.onNodeWithText("Netflix").assertDoesNotExist()
+        compose.onNodeWithTag("merchant_search_input").performTextInput("KFC")
+        compose.onNodeWithTag("merchant_item_kfc").assertExists()
+        compose.onNodeWithTag("merchant-filter-button").performClick()
+        compose.onNodeWithTag("merchant-filter-all").performClick()
+        compose.onNodeWithContentDescription("Limpiar búsqueda").performClick()
+        compose.onNodeWithText("Netflix").assertExists()
+        compose.onNodeWithText("Netflix").performClick()
+        assertEquals(netflix, selected)
+    }
+
     @Test fun searchRowFindsCandidatesAndAddingOneSelectsIt() {
         val candidate = MerchantSearchCandidate("Shop Perú", "shop.pe", "https://img.logo.dev/shop.pe", query = "shop")
         val added = MerchantCatalogEntry(MerchantId("new"), "Shop Perú", "shop peru")

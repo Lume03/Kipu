@@ -81,14 +81,8 @@ class OfflineFirstCategoriesRepository @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : CategoriesRepository {
 
-    private data class InitialSystemCategory(
-        val id: String,
-        val name: String,
-    )
-
     private companion object {
-        val initialSystemCategories = com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.entries
-            .map { InitialSystemCategory(it.id, it.name) }
+        val initialSystemCategories = com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.allEntries
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -111,9 +105,9 @@ class OfflineFirstCategoriesRepository @Inject constructor(
                 CategoryEntity(
                     id = category.id,
                     userId = null,
-                    parentId = null,
+                    parentId = category.parentId,
                     origin = "SYSTEM",
-                    categoryType = CategoryType.GENERAL.name,
+                    categoryType = category.type.name,
                     isActive = true,
                     remoteRevision = 1L,
                     createdAt = now,
@@ -125,8 +119,8 @@ class OfflineFirstCategoriesRepository @Inject constructor(
                     categoryId = category.id,
                     userId = userId.value,
                     name = category.name,
-                    icon = "category",
-                    color = "#757575",
+                    icon = category.iconKey,
+                    color = category.color,
                     remoteRevision = 1L,
                     updatedAt = now,
                 )

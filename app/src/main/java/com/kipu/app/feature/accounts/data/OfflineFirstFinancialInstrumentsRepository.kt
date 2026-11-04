@@ -1936,7 +1936,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                             combine(
                                 movementDao.observeByCard(access.userId, cardId.value),
                                 database.categoryDao().observePresentationsForUser(access.userId),
-                                database.merchantCatalogDao().observeMerchants(),
+                                database.merchantCatalogDao().observeMerchants(access.userId),
                             ) { list, presentations, merchants ->
                                 val presentationsById = presentations.associateBy { it.categoryId }
                                 val merchantsById = merchants.associateBy { it.id }
@@ -1964,6 +1964,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                                             merchantName = merchantName,
                                         ),
                                         merchantName = merchantName,
+                                        merchantId = entity.merchantId,
                                         merchantLogoKey = merchant?.logoKey,
                                         merchantLogoUrl = merchant?.logoPath?.let {
                                             com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(

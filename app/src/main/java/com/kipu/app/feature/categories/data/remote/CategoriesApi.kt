@@ -70,7 +70,7 @@ class CategoriesApi @Inject constructor(
 
     suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
-        fetchPages("merchant_services", "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id", "id", auth, sinceVersion)
+        fetchPages("merchant_services", "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id,domain,logo_status,catalog_origin", "id", auth, sinceVersion)
     }
 
     suspend fun fetchCategories(): CategoryApiResponse<List<CategoryCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {

@@ -7,6 +7,7 @@ import com.kipu.app.feature.categories.data.local.CategoryEntity
 import com.kipu.app.feature.categories.data.local.CategoryPresentationEntity
 import com.kipu.app.feature.categories.data.local.MerchantCatalogDao
 import com.kipu.app.feature.categories.data.local.MerchantCatalogEntity
+import com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog
 import com.kipu.app.feature.categories.data.remote.CategoriesApi
 import com.kipu.app.feature.categories.data.remote.CategoryApiResponse
 import java.time.Instant
@@ -20,6 +21,12 @@ class CategoryHydration @javax.inject.Inject constructor(
     private val api: CategoriesApi,
 ) {
     private fun parseRemoteInstant(value: String): Instant = OffsetDateTime.parse(value).toInstant()
+
+    private fun isGeneratedPlaceholder(presentation: CategoryPresentationEntity): Boolean {
+        val defaults = InitialCategoryCatalog.find(presentation.categoryId) ?: return false
+        return presentation.name == defaults.name && presentation.color.equals("#757575", ignoreCase = true) &&
+            (presentation.icon == "category" || presentation.icon == defaults.iconKey)
+    }
     suspend fun hydrateFully(userId: String): Boolean {
         hydrateCategories(userId)
         hydrateMerchantCatalog(full = true)
@@ -40,7 +47,8 @@ class CategoryHydration @javax.inject.Inject constructor(
                             userId = dto.userId,
                             parentId = dto.parentId,
                             origin = dto.origin,
-                            categoryType = dto.categoryType,
+                            categoryType = InitialCategoryCatalog.resolvedType(
+                                dto.id, dto.parentId, dto.origin, dto.categoryType),
                             isActive = dto.isActive,
                             remoteRevision = dto.remoteRevision,
                             createdAt = parseRemoteInstant(dto.createdAt).toEpochMilli(),
@@ -60,9 +68,11 @@ class CategoryHydration @javax.inject.Inject constructor(
                 }
             }
 
+            val remotePresentationIds = mutableSetOf<String>()
             when (val response = api.fetchCategoryPresentations()) {
                 is CategoryApiResponse.Success -> {
                     val userPresentations = response.data.filter { it.userId == userId }
+                    remotePresentationIds += userPresentations.map { it.categoryId }
                     for (dto in userPresentations) {
                         val existing = categoryDao.getPresentation(userId, dto.categoryId)
                         val entity = CategoryPresentationEntity(
@@ -76,7 +86,8 @@ class CategoryHydration @javax.inject.Inject constructor(
                         )
                         if (existing == null) {
                             categoryDao.insertPresentation(entity)
-                        } else if (dto.categoryId !in pendingCategoryIds && dto.remoteRevision >= existing.remoteRevision) {
+                        } else if (dto.categoryId !in pendingCategoryIds &&
+                            (dto.remoteRevision >= existing.remoteRevision || isGeneratedPlaceholder(existing))) {
                             categoryDao.insertPresentation(entity)
                         }
                     }
@@ -84,15 +95,24 @@ class CategoryHydration @javax.inject.Inject constructor(
                 else -> throw java.io.IOException("CATEGORY_PRESENTATIONS_FETCH_FAILED")
             }
 
-            // System categories have a server name but no user presentation until customized.
-            categoryDao.insertPresentationsIfAbsent(categories.filter { it.origin == "SYSTEM" }.map { dto ->
-                CategoryPresentationEntity(
-                    categoryId = dto.id, userId = userId, name = dto.name,
-                    icon = dto.iconKey ?: "category", color = "#757575",
-                    remoteRevision = dto.remoteRevision,
-                    updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
-                )
-            })
+            // The server returns personal presentations separately. Repair generated cache
+            // placeholders only when no remote customization or pending local command exists.
+            for (dto in categories.filter { it.origin == "SYSTEM" }) {
+                val defaults = InitialCategoryCatalog.find(dto.id)
+                val existing = categoryDao.getPresentation(userId, dto.id)
+                val generatedPlaceholder = existing?.let(::isGeneratedPlaceholder) == true
+                if (dto.id !in remotePresentationIds && dto.id !in pendingCategoryIds &&
+                    (existing == null || generatedPlaceholder)) {
+                    categoryDao.insertPresentation(CategoryPresentationEntity(
+                        categoryId = dto.id, userId = userId, name = dto.name,
+                        icon = dto.iconKey ?: defaults?.iconKey ?: "category",
+                        color = defaults?.color ?: "#757575",
+                        remoteRevision = dto.remoteRevision,
+                        updatedAt = parseRemoteInstant(dto.updatedAt).toEpochMilli(),
+                    ))
+                }
+            }
+
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -121,7 +141,7 @@ class CategoryHydration @javax.inject.Inject constructor(
                             brandColor = dto.brandColor,
                             logoPath = dto.logoPath,
                             logoDarkPath = dto.logoDarkPath,
-                            logoSource = dto.logoSource,
+                            logoSource = dto.logoSource, domain = dto.domain, logoStatus = dto.logoStatus, catalogOrigin = dto.catalogOrigin,
                         )
                     }
                     if (entities.isNotEmpty()) {

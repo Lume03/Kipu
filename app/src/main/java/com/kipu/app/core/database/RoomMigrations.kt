@@ -1566,3 +1566,26 @@ val MIGRATION_36_37 = object : Migration(36, 37) {
         }
     }
 }
+
+
+/** Repair only the known system expense branches; preserve historical links and custom roots. */
+val MIGRATION_37_38 = object : Migration(37, 38) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val roots = "'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000008','00000000-0000-0000-0000-000000000009','00000000-0000-0000-0000-000000000010','00000000-0000-0000-0000-000000000011','00000000-0000-0000-0000-000000000012'"
+        db.execSQL("""
+            UPDATE categories SET category_type = 'EXPENSE'
+            WHERE (origin = 'SYSTEM' AND user_id IS NULL AND parent_id IS NULL AND id IN ($roots))
+               OR parent_id IN (SELECT id FROM categories WHERE origin = 'SYSTEM'
+                   AND user_id IS NULL AND parent_id IS NULL AND id IN ($roots))
+        """.trimIndent())
+    }
+}
+
+/** Discovery metadata survives process death; logo paths and merchant IDs are preserved. */
+val MIGRATION_38_39 = object : Migration(38, 39) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN domain TEXT")
+        db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN logo_status TEXT")
+        db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN catalog_origin TEXT NOT NULL DEFAULT 'CURATED'")
+    }
+}

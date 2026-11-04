@@ -13,9 +13,17 @@ data class CategoryItem(
     val presentation: CategoryPresentation?,
     val subcategories: List<CategoryItem> = emptyList(),
 ) {
-    val displayName: String get() = presentation?.name ?: "Sin nombre"
-    val icon: String get() = presentation?.icon ?: "category"
-    val color: String get() = presentation?.color ?: "#757575"
+    private val systemDefault get() = if (category.isSystem)
+        com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.find(category.id.value) else null
+    // Only the exact unedited v1 placeholders are repaired; custom names/icons/colors survive.
+    private val usesLegacyDefault get() = systemDefault?.let { entry ->
+        presentation == null || (presentation.revision == 1L && presentation.name == entry.name &&
+            presentation.color.equals("#757575", ignoreCase = true) &&
+            (presentation.icon == "category" || presentation.icon == entry.iconKey))
+    } ?: false
+    val displayName: String get() = presentation?.name ?: systemDefault?.name ?: "Sin nombre"
+    val icon: String get() = if (usesLegacyDefault) systemDefault!!.iconKey else presentation?.icon ?: "category"
+    val color: String get() = if (usesLegacyDefault) systemDefault!!.color else presentation?.color ?: "#757575"
 }
 
 class ObserveCategories @Inject constructor(

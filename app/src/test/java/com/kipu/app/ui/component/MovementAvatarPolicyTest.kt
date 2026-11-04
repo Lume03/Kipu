@@ -27,4 +27,10 @@ class MovementAvatarPolicyTest {
             movementAvatarPresentation(true, "Wong", true, "restaurant", paidWithWallet = true),
         )
     }
+    @Test fun linkedMerchantKeepsPickerInitialsInsteadOfGenericCategory() {
+        assertEquals(MovementAvatarPresentation.MERCHANT_INITIALS,
+            movementAvatarPresentation(true, "MINISO", false, "shopping_bag", hasLinkedMerchant = true))
+        assertEquals(MovementAvatarPresentation.CATEGORY_ICON,
+            movementAvatarPresentation(false, "MINISO", false, "shopping_bag", hasLinkedMerchant = true))
+    }
 }

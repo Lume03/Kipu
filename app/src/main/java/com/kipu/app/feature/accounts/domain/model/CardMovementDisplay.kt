@@ -10,4 +10,5 @@ data class CardMovementDisplay(
     val merchantLogoDarkUrl: String? = null,
     val merchantBrandColor: String? = null,
     val categoryIcon: String? = null,
+    val merchantId: String? = null,
 )

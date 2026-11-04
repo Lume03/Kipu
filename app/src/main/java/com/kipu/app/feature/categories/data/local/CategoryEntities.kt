@@ -100,6 +100,9 @@ data class MerchantCatalogEntity(
     @ColumnInfo(name = "logo_source", defaultValue = "'BUNDLED'")
     val logoSource: String = "BUNDLED",
     @ColumnInfo(name = "user_id") val userId: String? = null,
+    @ColumnInfo(name = "domain") val domain: String? = null,
+    @ColumnInfo(name = "logo_status") val logoStatus: String? = null,
+    @ColumnInfo(name = "catalog_origin", defaultValue = "'CURATED'") val catalogOrigin: String = "CURATED",
 )
 
 @Entity(

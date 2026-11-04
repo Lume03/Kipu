@@ -93,6 +93,8 @@ data class MovementEditorUiState(
     val conflictProposedSourceAccountId: String? = null,
     val isOfficialVoided: Boolean = false,
 ) {
+    val selectableCategories: List<CategoryOption> get() = availableCategories.forMovementType(movementType)
+
     val hasUnsavedChanges: Boolean
         get() {
             if (isSpecialized) return false
@@ -293,6 +295,7 @@ class MovementEditorViewModel @Inject constructor(
     }
 
     fun onCategorySelected(category: CategoryOption) {
+        if (category !in _uiState.value.selectableCategories) return
         _uiState.update {
             it.copy(
                 selectedCategoryId = category.id,

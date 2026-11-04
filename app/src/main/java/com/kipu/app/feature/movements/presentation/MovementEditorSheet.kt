@@ -677,7 +677,7 @@ fun MovementEditorContent(
             onDismiss = { picker = null },
         )
         EditorPicker.CATEGORY -> CategoryPickerSheet(
-            categories = uiState.availableCategories,
+            categories = uiState.selectableCategories,
             selectedId = uiState.selectedCategoryId,
             isIncome = uiState.movementType == MovementType.INCOME,
             onSelect = { onCategorySelected(it); picker = null },

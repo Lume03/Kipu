@@ -27,7 +27,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.LightMode
@@ -469,13 +473,13 @@ fun ProfileSettingsScreen(
 
                 if (!state.planCard.clickable) {
                     SettingsCard(
-                        icon = Icons.Default.Payments,
+                        icon = Icons.Default.WorkspacePremium,
                         title = stringResource(state.planCard.titleRes),
                         subtitle = stringResource(state.planCard.subtitleRes, state.planCard.formattedExpiry),
                     )
                 } else {
                     SettingsActionCard(
-                        icon = Icons.Default.Payments,
+                        icon = Icons.Default.WorkspacePremium,
                         title = stringResource(state.planCard.titleRes),
                         subtitle = stringResource(state.planCard.subtitleRes, state.planCard.formattedExpiry),
                         onClick = { showPlanSummary = true },
@@ -551,7 +555,7 @@ fun ProfileSettingsScreen(
 
                 onNavigateToReceipts?.let {
                     SettingsActionCard(
-                        icon = Icons.Default.Payments,
+                        icon = Icons.Default.FileDownload,
                         title = "Importar movimientos",
                         subtitle = "Comprobantes de Yape y estados de cuenta de tarjeta",
                         onClick = it,
@@ -560,7 +564,7 @@ fun ProfileSettingsScreen(
 
                 onNavigateToCaptureInbox?.let {
                     SettingsActionCard(
-                        icon = Icons.Default.Chat,
+                        icon = Icons.Default.Inbox,
                         title = "Capturas por revisar",
                         subtitle = "Movimientos detectados en notificaciones de bancos y billeteras",
                         onClick = it,
@@ -568,12 +572,12 @@ fun ProfileSettingsScreen(
                 }
 
                 onNavigateToDataPrivacy?.let {
-                    SettingsActionCard(icon = Icons.Default.Fingerprint, title = "Datos y privacidad", subtitle = "Exporta o restaura tus datos", onClick = it)
+                    SettingsActionCard(icon = Icons.Default.Security, title = "Datos y privacidad", subtitle = "Exporta o restaura tus datos", onClick = it)
                 }
 
                 // 7. Configurar Captura / Permisos
                 SettingsActionCard(
-                    icon = Icons.Default.Chat,
+                    icon = Icons.Default.Settings,
                     title = "Configurar Captura",
                     subtitle = "Lectura de notificaciones y SMS bancarios",
                     onClick = { onNavigateToPermissions?.invoke() },

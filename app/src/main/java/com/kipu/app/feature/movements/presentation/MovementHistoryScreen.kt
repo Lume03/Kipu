@@ -1084,7 +1084,8 @@ fun TransactionIconAvatar(
     val avatarPresentation = movementAvatarPresentation(
         merchantAvatarAllowed = !isVoided && tx.type != MovementType.TRANSFER,
         merchantName = item.merchantName,
-        hasUsableMerchantLogo = drawableId != 0 || remoteLogoUrl != null,
+        hasUsableMerchantLogo = drawableId != 0 || remoteLogoUrl != null || item.merchantLogoDarkUrl != null,
+        hasLinkedMerchant = tx.merchantId != null,
         categoryIcon = categoryIcon.takeIf { tx.type != MovementType.TRANSFER },
         paidWithWallet = walletBrand != null,
     )
@@ -1100,18 +1101,6 @@ fun TransactionIconAvatar(
             ),
             size = 44.dp,
             modifier = modifier,
-            fallbackContent = categoryIcon?.let { iconKey ->
-                {
-                    MovementCategoryIconAvatar(
-                        iconKey = iconKey,
-                        background = iconBg,
-                        tint = iconTint,
-                        shape = movementAvatarShape,
-                        size = 44.dp,
-                        iconSize = 22.dp,
-                    )
-                }
-            },
         )
         MovementAvatarPresentation.WALLET_LOGO -> BrandLogo(
             brand = walletBrand,
