@@ -18,9 +18,12 @@ fun NavController.navigateToNotifications() {
     navigate(NOTIFICATION_CENTER_ROUTE) { launchSingleTop = true }
 }
 
-fun NavGraphBuilder.notificationDestinations(navController: NavController) {
+fun NavGraphBuilder.notificationDestinations(
+    navController: NavController,
+    viewModelProvider: @androidx.compose.runtime.Composable () -> NotificationsViewModel = { hiltViewModel() },
+) {
     composable(NOTIFICATION_CENTER_ROUTE) {
-        val viewModel: NotificationsViewModel = hiltViewModel()
+        val viewModel = viewModelProvider()
         val state by viewModel.state.collectAsState()
         val unreadCount by viewModel.unreadCount.collectAsState()
         val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
@@ -31,6 +34,8 @@ fun NavGraphBuilder.notificationDestinations(navController: NavController) {
                     is NotificationsUiEvent.OpenCard -> navController.navigateToCardDetail(event.cardId)
                     is NotificationsUiEvent.OpenCapture -> navController.navigateToCaptureCandidate(event.candidateId)
                     is NotificationsUiEvent.OpenBudget -> navController.navigateToBudget(event.budgetId)
+                    is NotificationsUiEvent.OpenDebt -> navController.navigateToDebtDetail(event.debtId)
+                    is NotificationsUiEvent.OpenGoal -> navController.navigateToGoal(event.goalId)
                     is NotificationsUiEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
                 }
             }
