@@ -32,6 +32,7 @@ class GoalDetailViewModel @Inject constructor(
     private val featureAccessCacheDao: com.kipu.app.feature.plans.data.local.FeatureAccessCacheDao,
     private val entitlementEvaluator: com.kipu.app.feature.plans.data.entitlement.EffectiveEntitlementEvaluator,
     private val displayPreferences: com.kipu.app.feature.goals.data.GoalDisplayPreferences? = null,
+    private val conflictResolver: com.kipu.app.feature.goals.data.sync.GoalConflictResolver? = null,
 ) : ViewModel() {
     private val goalId = savedStateHandle.get<String>(ARG_GOAL_ID).orEmpty()
     private val _state = MutableStateFlow(GoalDetailUiState())
@@ -46,13 +47,16 @@ class GoalDetailViewModel @Inject constructor(
                     if (userId == null || goalId.isBlank()) {
                         kotlinx.coroutines.flow.flowOf(GoalDetailUiState(userId = userId, isLoading = false))
                     } else {
-                        val hasPremiumAccess = hasVerifiedPremium(userId)
                         combine(
                             repository.observeGoal(userId, goalId),
                             repository.observeEvents(userId, goalId),
                             repository.observeBackingAccounts(userId),
                             repository.observeGoals(userId),
-                        ) { goal, events, accounts, goals ->
+                            observePremium(userId),
+                        ) { goal, events, accounts, goals, hasPremiumAccess ->
+                            if (hasPremiumAccess && goals.any { it.status == com.kipu.app.feature.goals.domain.model.GoalStatus.LOCKED_BY_PLAN && it.syncState == com.kipu.app.feature.goals.domain.model.GoalSyncState.SYNCED }) {
+                                repository.restorePlanLockedGoals(userId)
+                            }
                             GoalDetailUiState(
                                 userId = userId,
                                 goal = goal,
@@ -74,6 +78,7 @@ class GoalDetailViewModel @Inject constructor(
                         message = _state.value.message,
                         errorMessage = _state.value.errorMessage,
                         isDeleted = _state.value.isDeleted,
+                        openConflictEditor = _state.value.openConflictEditor,
                     )
                 }
         }
@@ -164,6 +169,48 @@ class GoalDetailViewModel @Inject constructor(
         _state.value = _state.value.copy(errorMessage = null, message = null)
     }
 
+    fun discardConflict(adjust: Boolean = false) {
+        val current = _state.value
+        val owner = current.userId ?: return
+        val goal = current.goal ?: return
+        if (current.isSaving) return
+        _state.value = current.copy(isSaving = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val result = conflictResolver?.discard(owner, goal.id, goal.revision)
+                if (_state.value.userId != owner) return@launch
+                _state.value = _state.value.copy(isSaving = false,
+                    openConflictEditor = adjust && result is com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult.Applied,
+                    errorMessage = if (result is com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult.Applied) null
+                    else if ((result as? com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult.Rejected)?.code == "FINANCIAL_CONFLICT_REVIEW_REQUIRED")
+                        "Hay reservas u operaciones financieras pendientes. Conservamos su historial; revisa los aportes y reintenta la sincronización antes de liberar o reasignar."
+                    else "Conéctate para recuperar la versión actual. Tus cambios se conservan.")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (_state.value.userId == owner) _state.value = _state.value.copy(isSaving = false, errorMessage = "No se pudo recuperar la meta. Tus cambios se conservan.")
+            }
+        }
+    }
+
+    fun consumeConflictEditor() { _state.value = _state.value.copy(openConflictEditor = false) }
+
+    fun retryConflict() {
+        val current = _state.value
+        val owner = current.userId ?: return
+        val goal = current.goal ?: return
+        viewModelScope.launch {
+            try {
+                conflictResolver?.retry(owner, goal.id)
+                if (_state.value.userId == owner) _state.value = _state.value.copy(message = "Reintentaremos la operación original sin duplicar aportes. Si persiste el conflicto, conserva el historial para revisarlo.")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (_state.value.userId == owner) _state.value = _state.value.copy(errorMessage = "No se pudo reintentar. Tus cambios se conservan.")
+            }
+        }
+    }
+
     private fun mutate(deleting: Boolean = false, command: suspend (String, com.kipu.app.feature.goals.domain.model.Goal) -> GoalCommandResult) {
         val current = _state.value
         val userId = current.userId
@@ -208,6 +255,7 @@ class GoalDetailViewModel @Inject constructor(
         "GOAL_NOT_ACTIVE" -> "Solo puedes aportar a una meta activa."
         "HISTORY_PRESERVED", "GOAL_NOT_EMPTY" -> "Esta meta tiene historial u operaciones pendientes. Usa Mejor archivarla para conservarlos."
         "BACKING_RECONCILIATION_REQUIRED" -> "Hay una reserva antigua sin cuenta identificada. Revisa el respaldo antes de eliminar esta meta."
+        "GOAL_CONFLICT_REVIEW_REQUIRED" -> "Resuelve el conflicto de sincronización antes de liberar, reasignar o modificar la meta."
         else -> "No se pudo completar la operación ($code)."
     }
 
@@ -217,6 +265,12 @@ class GoalDetailViewModel @Inject constructor(
         if (!cache.effectiveTier.equals("PREMIUM", ignoreCase = true)) return false
         return entitlementEvaluator.evaluate(userId, cache) is
             com.kipu.app.feature.plans.domain.model.OfflineEntitlementLeaseDecision.Allowed
+    }
+
+    private fun observePremium(userId: String): kotlinx.coroutines.flow.Flow<Boolean> {
+        val owner = runCatching { java.util.UUID.fromString(userId) }.getOrNull()
+            ?: return kotlinx.coroutines.flow.flowOf(false)
+        return featureAccessCacheDao.observe(owner).map { hasVerifiedPremium(userId) }
     }
 
     companion object {
