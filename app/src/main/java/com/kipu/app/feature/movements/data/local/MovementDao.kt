@@ -334,6 +334,9 @@ interface MovementDao {
         toExclusive: Long,
     ): List<TransactionEntity>
 
+    @Query("UPDATE transactions SET capture_source = :source WHERE user_id = :owner AND id = :id AND capture_source = 'MANUAL'")
+    suspend fun setCaptureSource(owner: String, id: String, source: String)
+
     @RawQuery
     suspend fun queryTransactions(query: SupportSQLiteQuery): List<TransactionEntity>
 
