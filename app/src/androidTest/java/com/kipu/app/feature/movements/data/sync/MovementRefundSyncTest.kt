@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.data.sync
 
+import com.kipu.app.feature.debts.data.sync.NoOpDebtSyncScheduler
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -58,7 +59,9 @@ class MovementRefundSyncTest {
         accountDao = database.accountDao()
         every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to userId)
         every { session.currentOwner } returns LocalOwner(userId)
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(emptyList(), 0L, false),
         )
     }
@@ -69,7 +72,7 @@ class MovementRefundSyncTest {
     @Test
     fun serverRejectsExcessWithoutHidingRefundAndLeavesPurchaseAndLinkRecoverable() = runTest {
         val fixture = committedRefund()
-        coEvery { movementApi.registerRefund(any()) } returns MovementApiResponse.Success(
+        coEvery { movementApi.registerRefund(any(), userId) } returns MovementApiResponse.Success(
             RefundTransactionResponseDto(
                 status = "REJECTED",
                 error = RemoteErrorDto(code = "REFUND_EXCEEDS_REMAINDER", retryable = false),
@@ -86,14 +89,14 @@ class MovementRefundSyncTest {
         assertEquals("FAILED_PERMANENT", movementDao.getRefundOutboxForTransaction(userId, fixture.refundId)?.state)
         assertEquals("REFUND_EXCEEDS_REMAINDER", movementDao.getRefundOutboxForTransaction(userId, fixture.refundId)?.lastErrorCode)
         assertEquals("REJECTED", movementDao.getReceipt(userId, fixture.idempotencyKey)?.status)
-        coVerify(exactly = 1) { movementApi.registerRefund(match { it.idempotencyKey == fixture.idempotencyKey }) }
+        coVerify(exactly = 1) { movementApi.registerRefund(match { it.idempotencyKey == fixture.idempotencyKey }, userId) }
     }
 
     @Test
     fun uncertainNetworkRetryReusesImmutableCommandAndServerDuplicateDoesNotDuplicateLink() = runTest {
         val fixture = committedRefund()
         val originalOutbox = movementDao.getRefundOutboxForTransaction(userId, fixture.refundId)!!
-        coEvery { movementApi.registerRefund(any()) } returns MovementApiResponse.NetworkFailure(IOException("timeout after request"))
+        coEvery { movementApi.registerRefund(any(), userId) } returns MovementApiResponse.NetworkFailure(IOException("timeout after request"))
 
         val firstResult = worker().doWork()
         val afterFailure = movementDao.getRefundOutboxForTransaction(userId, fixture.refundId)!!
@@ -104,7 +107,7 @@ class MovementRefundSyncTest {
         assertEquals(originalOutbox.idempotencyKey, afterFailure.idempotencyKey)
 
         movementDao.updateOutboxResult(userId, afterFailure.id, "PENDING", null, null)
-        coEvery { movementApi.registerRefund(any()) } returns MovementApiResponse.Success(
+        coEvery { movementApi.registerRefund(any(), userId) } returns MovementApiResponse.Success(
             RefundTransactionResponseDto(status = "DUPLICATE", transactionId = fixture.refundId),
         )
 
@@ -118,7 +121,7 @@ class MovementRefundSyncTest {
         assertEquals("SYNCED", movementDao.getTransactionById(userId, fixture.purchaseId)?.syncStatus)
         assertEquals("CONFIRMED", movementDao.getTransactionById(userId, fixture.purchaseId)?.status)
         assertEquals(10_000L, movementDao.getTransactionById(userId, fixture.purchaseId)?.amountMinor)
-        coVerify(exactly = 2) { movementApi.registerRefund(match { it.idempotencyKey == fixture.idempotencyKey }) }
+        coVerify(exactly = 2) { movementApi.registerRefund(match { it.idempotencyKey == fixture.idempotencyKey }, userId) }
     }
 
     private suspend fun committedRefund(): RefundFixture {
@@ -184,6 +187,7 @@ class MovementRefundSyncTest {
         cardDao = database.cardDao(),
         database = database,
         sessionCoordinator = session,
+        debtSyncScheduler = NoOpDebtSyncScheduler,
     )
 
     private data class RefundFixture(val purchaseId: String, val refundId: String, val idempotencyKey: String)
