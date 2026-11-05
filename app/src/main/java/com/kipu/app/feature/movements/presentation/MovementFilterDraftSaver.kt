@@ -11,6 +11,7 @@ internal val MovementFilterDraftSaver = mapSaver(
     save = { draft -> mapOf(
         "accounts" to draft.accountIds.toList(), "categories" to draft.categoryIds.toList(),
         "cards" to draft.cardIds.toList(), "merchants" to draft.merchantIds.toList(),
+        "sources" to draft.sources.map { it.name },
         "paymentChannels" to draft.paymentChannels.map { it.name },
         "financial" to draft.financialStates.map { it.name }, "sync" to draft.syncStatuses.map { it.name },
         "min" to draft.minAmount, "max" to draft.maxAmount, "currency" to draft.currency.orEmpty(),
@@ -22,6 +23,7 @@ internal val MovementFilterDraftSaver = mapSaver(
         fun names(key: String) = (values[key] as? List<*>)?.filterIsInstance<String>().orEmpty().toSet()
         MovementFilterDraft(accountIds = names("accounts"), categoryIds = names("categories"),
             cardIds = names("cards"), merchantIds = names("merchants"),
+            sources = com.kipu.app.feature.movements.domain.model.MovementSource.entries.filter { it.name in names("sources") }.toSet(),
             paymentChannels = WalletPaymentChannel.entries.filter { it.name in names("paymentChannels") }.toSet(),
             financialStates = MovementFinancialState.entries.filter { it.name in names("financial") }.toSet(),
             syncStatuses = MovementSyncStatus.entries.filter { it.name in names("sync") }.toSet(),
