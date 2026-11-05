@@ -44,6 +44,7 @@ class GoalListViewModel @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
     private val instruments: com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository? = null,
     private val displayPreferences: com.kipu.app.feature.goals.data.GoalDisplayPreferences? = null,
+    private val conflictResolver: com.kipu.app.feature.goals.data.sync.GoalConflictResolver? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(GoalManagementUiState())
     val state = _state.asStateFlow()
@@ -69,9 +70,12 @@ class GoalListViewModel @Inject constructor(
                 val display = displayPreferences?.snapshot(userId)
                 _state.value = GoalManagementUiState(userId = userId, isLoading = true,
                     pausedGoalIds = display?.paused.orEmpty(), removedGoalIds = display?.removed.orEmpty())
-                val premium = hasVerifiedPremium(userId)
                 combine(repository.observeGoals(userId), repository.observeBackingAccounts(userId),
-                    instruments?.observeAccounts(activeOnly = true) ?: flowOf(emptyList())) { goals, accounts, visuals ->
+                    instruments?.observeAccounts(activeOnly = true) ?: flowOf(emptyList()),
+                    observePremium(userId)) { goals, accounts, visuals, premium ->
+                    if (premium && goals.any { it.status == com.kipu.app.feature.goals.domain.model.GoalStatus.LOCKED_BY_PLAN && it.syncState == com.kipu.app.feature.goals.domain.model.GoalSyncState.SYNCED }) {
+                        repository.restorePlanLockedGoals(userId)
+                    }
                     Triple(goals, accounts, visuals)
                 }.flatMapLatest { (goals, accounts, visuals) ->
                     if (goals.isEmpty()) {
@@ -95,7 +99,7 @@ class GoalListViewModel @Inject constructor(
                         goals = entries,
                         backingAccounts = accounts,
                         isLoading = false,
-                        hasPremiumAccess = premium,
+                        hasPremiumAccess = hasVerifiedPremium(userId),
                         accountOptions = visuals,
                         pausedGoalIds = _state.value.pausedGoalIds,
                         removedGoalIds = _state.value.removedGoalIds,
@@ -107,11 +111,38 @@ class GoalListViewModel @Inject constructor(
 
     fun clearFeedback() = _state.updateError(null, clearMessage = true)
 
+    fun discardConflict(goalId: String) {
+        val current = _state.value
+        val owner = current.userId ?: return
+        val goal = current.goals.firstOrNull { it.goal.id == goalId }?.goal ?: return
+        if (current.isSaving) return
+        _state.value = current.copy(isSaving = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val result = conflictResolver?.discard(owner, goalId, goal.revision)
+                if (_state.value.userId != owner) return@launch
+                when (result) {
+                    is com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult.Applied -> _state.update { it.copy(isSaving = false) }
+                    is com.kipu.app.feature.goals.data.sync.GoalChangeApplyResult.Rejected -> _state.updateError(
+                        if (result.code == "FINANCIAL_CONFLICT_REVIEW_REQUIRED") "Este conflicto contiene reservas u operaciones financieras. Abre Resolver para revisar el historial y ajustar explícitamente la reserva."
+                        else "Conéctate y vuelve a intentar. Tus cambios se conservan (${result.code})."
+                    )
+                    else -> _state.updateError("No se pudo recuperar la meta. Tus cambios se conservan.")
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (_state.value.userId == owner) _state.updateError("No se pudo recuperar la meta. Tus cambios se conservan.")
+            }
+        }
+    }
+
     /** Revalidate the entitlement on return without discarding goals or showing a new loader. */
     fun refreshPlanAccess() {
         val owner = _state.value.userId ?: return
         viewModelScope.launch {
             val premium = hasVerifiedPremium(owner)
+            if (premium) repository.restorePlanLockedGoals(owner)
             _state.update { if (it.userId == owner) it.copy(hasPremiumAccess = premium) else it }
         }
     }
@@ -194,6 +225,11 @@ class GoalListViewModel @Inject constructor(
         return entitlementEvaluator.evaluate(userId, cache) is OfflineEntitlementLeaseDecision.Allowed
     }
 
+    private fun observePremium(userId: String): kotlinx.coroutines.flow.Flow<Boolean> {
+        val owner = runCatching { UUID.fromString(userId) }.getOrNull() ?: return flowOf(false)
+        return featureAccessCacheDao.observe(owner).map { hasVerifiedPremium(userId) }
+    }
+
     private suspend fun handleResult(result: GoalCommandResult, isDelete: Boolean = false) {
         when (result) {
             is GoalCommandResult.Applied, is GoalCommandResult.Duplicate -> {
@@ -217,6 +253,7 @@ class GoalListViewModel @Inject constructor(
         "NAME_REQUIRED" -> "Escribe un nombre para la meta."
         "TARGET_MUST_BE_POSITIVE" -> "El objetivo debe ser mayor que cero."
         "CURRENCY_MISMATCH" -> "La cuenta vinculada debe usar la misma moneda."
+        "GOAL_CONFLICT_REVIEW_REQUIRED" -> "Resuelve el conflicto de sincronización antes de guardar nuevos cambios."
         else -> "No se pudo guardar la meta ($code)."
     }
 
