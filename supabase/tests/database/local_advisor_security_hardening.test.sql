@@ -1,11 +1,30 @@
 BEGIN;
 SELECT no_plan();
 
+-- Later merchant-discovery/deletion migrations add backend-only tables. They
+-- enable RLS without FORCE and expose commands instead of client table access.
+-- Keep this inventory explicit: a new table must still force RLS by default.
+CREATE TEMP TABLE advisor_backend_tables AS
+SELECT unnest(ARRAY[
+  'internal.merchant_search_inflight', 'internal.merchant_search_cache',
+  'internal.merchant_search_access', 'internal.merchant_discovery_events',
+  'internal.merchant_catalog_audit', 'internal.merchant_domain_exclusions',
+  'internal.merchant_discovery_settings', 'private.account_deletion_requests',
+  'private.account_deletion_aliases'
+]::regclass[]) AS oid;
+
 SELECT is((SELECT count(*)::integer FROM pg_class c
   JOIN pg_namespace n ON n.oid=c.relnamespace
   WHERE n.nspname IN ('public','private','internal') AND c.relkind IN ('r','p')
-    AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity)), 0,
-  'all application tables enable and force RLS, including internal ledger evidence');
+    AND (NOT c.relrowsecurity OR (NOT c.relforcerowsecurity
+      AND NOT EXISTS (SELECT FROM advisor_backend_tables b WHERE b.oid=c.oid)))), 0,
+  'all application tables enable RLS and force it outside the explicit backend inventory');
+SELECT is((SELECT count(*)::integer FROM advisor_backend_tables b
+  JOIN pg_class c ON c.oid=b.oid
+  WHERE c.relowner <> 'postgres'::regrole
+    OR has_table_privilege('anon',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+    OR has_table_privilege('authenticated',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')), 0,
+  'backend RLS exceptions remain postgres-owned without any anonymous or authenticated table access');
 SELECT is((SELECT count(*)::integer FROM pg_class c
   JOIN pg_namespace n ON n.oid=c.relnamespace
   WHERE n.nspname IN ('public','private','internal') AND c.relkind IN ('r','p','v','m')
@@ -126,9 +145,18 @@ SELECT ok(to_regclass('public.transactions_user_id_id_uq') IS NULL
 SELECT is((SELECT count(*)::integer FROM pg_constraint c
   JOIN pg_namespace n ON n.oid=c.connamespace
   WHERE c.contype='f' AND n.nspname IN ('public','private','internal')
+    AND NOT (c.conrelid='internal.merchant_catalog_audit'::regclass
+      AND c.conname='merchant_catalog_audit_added_by_fkey')
     AND NOT EXISTS (SELECT FROM pg_index i WHERE i.indrelid=c.conrelid AND i.indisvalid
       AND c.conkey=(string_to_array(i.indkey::text,' ')::smallint[])[1:cardinality(c.conkey)])),0,
-  'all application foreign keys have a valid index covering their leading columns');
+  'application foreign keys outside the documented bug have a valid leading-column index');
+-- Indexed by 20261105190000_merchant_catalog_audit_added_by_index.sql.
+SELECT ok(EXISTS (SELECT FROM pg_constraint c
+  WHERE c.conrelid='internal.merchant_catalog_audit'::regclass
+    AND c.conname='merchant_catalog_audit_added_by_fkey'
+    AND EXISTS (SELECT FROM pg_index i WHERE i.indrelid=c.conrelid AND i.indisvalid
+      AND c.conkey=(string_to_array(i.indkey::text,' ')::smallint[])[1:cardinality(c.conkey)])),
+  'merchant_catalog_audit_added_by_fkey has a valid leading-column index');
 
 SELECT * FROM finish();
 ROLLBACK;
