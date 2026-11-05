@@ -113,7 +113,12 @@ class DebtSettlementSyncTest {
     }
 
     @Test
-    fun voidingEitherSettlementTransactionReversesPrincipalAndInterestTogether() = runBlocking {
+    fun voidingInterestReversesPrincipalAndInterestTogether() = runBlocking { assertSettlementVoid(selectInterest = true) }
+
+    @Test
+    fun voidingPrincipalReversesPrincipalAndInterestTogether() = runBlocking { assertSettlementVoid(selectInterest = false) }
+
+    private suspend fun assertSettlementVoid(selectInterest: Boolean) {
         database.accountDao().insert(account())
         database.categoryDao().insertCategory(
             CategoryEntity(
@@ -149,7 +154,7 @@ class DebtSettlementSyncTest {
         )
         val voidCommand = MovementRevisionCommand.Void(
             idempotencyKey = "87000000-0000-4000-8000-000000000099",
-            transactionId = interestTransactionId,
+            transactionId = if (selectInterest) interestTransactionId else OPERATION_ID,
             expectedRevision = 1L,
             reason = "correction",
         )
@@ -164,6 +169,91 @@ class DebtSettlementSyncTest {
         assertEquals(true, activity.isVoided)
         assertEquals(0L, database.financialMovementDao().getAccountBalance(OWNER_ID, ACCOUNT_ID))
         assertEquals(10_000L, repository.observeDebt(OWNER_ID, DEBT_ID).first()?.remainingPrincipalMinor)
+        assertEquals(4L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM ledger_entries"))
+        val replay = movementDataSource.commitVoidAtomic(OWNER_ID, voidCommand, "void-group-hash") as MovementMutationResult.Success
+        assertTrue(replay.isDuplicate)
+        assertEquals(4L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM ledger_entries"))
+        assertEquals(1L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM movement_outbox WHERE command_type='VOID_TRANSACTION'"))
+    }
+
+    @Test
+    fun voidPrincipalReopensSettledDebtRecalculatesInstallmentAndReplayAddsNothing() = runBlocking {
+        database.accountDao().insert(account())
+        assertTrue(repository.openDebt(OWNER_ID, openCommand(), true) is DebtCommandResult.Applied)
+        val installmentId = "87000000-0000-4000-8000-000000000088"
+        database.debtDao().insertInstallments(listOf(com.kipu.app.feature.debts.data.local.DebtInstallmentEntity(
+            id = installmentId, userId = OWNER_ID, debtId = DEBT_ID, installmentNumber = 1,
+            dueDate = "2026-11-10", amountMinor = 10000L, status = "PENDING")))
+        assertTrue(repository.settleDebt(OWNER_ID, SettleDebtCommand(
+            identity = DebtCommandIdentity(OPERATION_ID, DebtCommandHasher.sha256("full-payment")), debtId = DEBT_ID,
+            expectedRevision = 1L, accountId = ACCOUNT_ID, principalMinor = 10000L,
+            installmentId = installmentId, occurredAt = 1791000000000L)) is DebtCommandResult.Applied)
+        assertEquals("SETTLED", database.debtDao().getDebt(OWNER_ID, DEBT_ID)?.status)
+        assertEquals("PAID", database.debtDao().getInstallment(OWNER_ID, DEBT_ID, installmentId)?.status)
+        val local = MovementLocalDataSource(database, database.movementDao(), BalanceProjectionStore(database.movementDao()))
+        val command = MovementRevisionCommand.Void("87000000-0000-4000-8000-000000000089", OPERATION_ID, 1L)
+        assertTrue(local.commitVoidAtomic(OWNER_ID, command, "void-full") is MovementMutationResult.Success)
+        assertEquals("ACTIVE", database.debtDao().getDebt(OWNER_ID, DEBT_ID)?.status)
+        assertEquals(10000L, repository.observeDebt(OWNER_ID, DEBT_ID).first()?.remainingPrincipalMinor)
+        assertEquals("PENDING", database.debtDao().getInstallment(OWNER_ID, DEBT_ID, installmentId)?.status)
+        assertEquals(10000L, database.debtDao().getInstallmentRemaining(OWNER_ID, DEBT_ID, installmentId))
+        assertEquals(0L, database.movementDao().getBalanceProjection(OWNER_ID, ACCOUNT_ID)?.balanceMinor)
+        val before = database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM ledger_entries")
+        val replay = local.commitVoidAtomic(OWNER_ID, command, "void-full") as MovementMutationResult.Success
+        assertTrue(replay.isDuplicate)
+        assertEquals(before, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM ledger_entries"))
+        assertEquals(1L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM movement_outbox WHERE command_type='VOID_TRANSACTION'"))
+    }
+
+    @Test
+    fun alreadyVoidedInterestRejectsPrincipalVoidBeforeAnyPartialWrite() = runBlocking {
+        database.accountDao().insert(account())
+        database.categoryDao().insertCategory(CategoryEntity(CATEGORY_ID, OWNER_ID, null, "CUSTOM",
+            categoryType = "EXPENSE", createdAt = 1L, updatedAt = 1L))
+        assertTrue(repository.openDebt(OWNER_ID, openCommand(), true) is DebtCommandResult.Applied)
+        assertTrue(repository.settleDebt(OWNER_ID, SettleDebtCommand(
+            identity = DebtCommandIdentity(OPERATION_ID, DebtCommandHasher.sha256("partial-group")), debtId = DEBT_ID, expectedRevision = 1L,
+            accountId = ACCOUNT_ID, principalMinor = 2000L, interestMinor = 100L, interestCategoryId = CATEGORY_ID,
+            occurredAt = 1791000000000L)) is DebtCommandResult.Applied)
+        val sql = database.openHelper.writableDatabase
+        sql.execSQL("UPDATE transactions SET status='VOIDED' WHERE operation_kind='DEBT_AMORTIZATION'")
+        val ledgerCount = sql.scalarLong("SELECT COUNT(*) FROM ledger_entries")
+        val receipts = sql.scalarLong("SELECT COUNT(*) FROM local_command_receipts")
+        val local = MovementLocalDataSource(database, database.movementDao(), BalanceProjectionStore(database.movementDao()))
+        val result = local.commitVoidAtomic(OWNER_ID,
+            MovementRevisionCommand.Void("87000000-0000-4000-8000-000000000090", OPERATION_ID, 1L), "invalid-group")
+        assertEquals(MovementMutationResult.Rejected("SETTLEMENT_NOT_ACTIVE"), result)
+        assertEquals("ACTIVE", database.movementDao().getTransactionById(OWNER_ID, OPERATION_ID)?.status)
+        assertEquals(ledgerCount, sql.scalarLong("SELECT COUNT(*) FROM ledger_entries"))
+        assertEquals(receipts, sql.scalarLong("SELECT COUNT(*) FROM local_command_receipts"))
+        assertEquals(0L, sql.scalarLong("SELECT COUNT(*) FROM transaction_revisions"))
+        assertEquals(0L, sql.scalarLong("SELECT COUNT(*) FROM movement_outbox"))
+        assertEquals(-2100L, database.movementDao().getBalanceProjection(OWNER_ID, ACCOUNT_ID)?.balanceMinor)
+        assertEquals(8000L, repository.observeDebt(OWNER_ID, DEBT_ID).first()?.remainingPrincipalMinor)
+    }
+
+    @Test fun payablePrincipalReducesCashAndDebtWithoutOperatingExpense() = runBlocking {
+        assertPrincipalAccounting(DebtObligationType.PAYABLE, 3000L, -3000L, 7000L)
+    }
+
+    @Test fun receivablePrincipalIncreasesCashAndReducesLoanWithoutOperatingIncome() = runBlocking {
+        assertPrincipalAccounting(DebtObligationType.RECEIVABLE, 2000L, 2000L, 8000L)
+    }
+
+    private suspend fun assertPrincipalAccounting(type: DebtObligationType, amount: Long, cash: Long, remaining: Long) {
+        database.accountDao().insert(account())
+        assertTrue(repository.openDebt(OWNER_ID, openCommand().copy(obligationType = type), true) is DebtCommandResult.Applied)
+        val command = SettleDebtCommand(DebtCommandIdentity(OPERATION_ID, DebtCommandHasher.sha256("principal-$type")), DEBT_ID, 1L,
+            ACCOUNT_ID, amount, occurredAt = 1791000000000L)
+        assertTrue(repository.settleDebt(OWNER_ID, command) is DebtCommandResult.Applied)
+        assertEquals(remaining, repository.observeDebt(OWNER_ID, DEBT_ID).first()?.remainingPrincipalMinor)
+        assertEquals(cash, database.financialMovementDao().getAccountBalance(OWNER_ID, ACCOUNT_ID))
+        assertEquals(cash, database.movementDao().getBalanceProjection(OWNER_ID, ACCOUNT_ID)?.balanceMinor)
+        val net = database.movementDao().queryHistoryNetFlows(com.kipu.app.feature.movements.data.local.MovementQuerySqlBuilder.buildNetFlow(
+            OWNER_ID, com.kipu.app.feature.movements.domain.model.MovementHistoryQuery()))
+        assertTrue("Principal must not enter operating net income or expense", net.isEmpty())
+        assertEquals(1L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM transactions"))
+        assertEquals(1L, database.openHelper.readableDatabase.scalarLong("SELECT COUNT(*) FROM ledger_entries"))
     }
 
     private fun openCommand() = OpenDebtCommand(
