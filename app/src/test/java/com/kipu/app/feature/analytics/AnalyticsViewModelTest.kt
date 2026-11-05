@@ -141,4 +141,62 @@ class AnalyticsViewModelTest {
         assertEquals(AnalyticsUiState.NoOwner, vm.state.value)
         collect.cancel()
     }
+    /** HU-41 E2: one conjunction of filters must constrain BOTH periods. */
+    @Test fun combinedFiltersApplyToBothPeriodsAndFreeFallsBackToUnfilteredCurrentMonth() = runTest {
+        val session = mockk<SessionCoordinator>()
+        every { session.localAccess } returns MutableStateFlow<LocalAccess>(LocalAccess.Available("owner", RemoteSession.Absent))
+        val premium = MutableStateFlow(true)
+        val plan = mockk<VerifiedPlanAccess>()
+        every { plan.observePremiumVerified() } returns premium
+        val dao = mockk<AnalyticsDao>()
+        val today = LocalDate.now()
+        val zone = ZoneId.systemDefault()
+        val current = AnalyticsPeriod.currentMonth(today, zone)
+        val previous = current.previous()
+        fun row(amount: Long, at: Long) = com.kipu.app.feature.analytics.data.AnalyticsExpenseEntity(
+            "EXPENSE", "ACTIVE", "SYNCED", null, null, amount, 0L, "PEN", "food", "bank", "card", "shop", at)
+        every { dao.observeExpenses(any(), any(), any()) } answers {
+            val from = secondArg<Long>()
+            val matched = row(if (from == previous.fromMillis) 1000L else 1500L, from)
+            flowOf(listOf(matched,
+                matched.copy(categoryId = "other", amountMinor = 9000),
+                matched.copy(accountId = "other", amountMinor = 9000),
+                matched.copy(cardId = "other", amountMinor = 9000),
+                matched.copy(merchantId = "other", amountMinor = 9000),
+                matched.copy(currency = "USD", amountMinor = 9000)))
+        }
+        every { dao.observeIncomes(any(), any(), any()) } returns flowOf(emptyList())
+        val overview = mockk<ObserveAnalyticsOverview>()
+        every { overview.invoke(any(), any(), any()) } returns flowOf(AnalyticsOverview.Empty)
+        val vm = AnalyticsViewModel(session, plan, AnalyticsRepository(dao), overview)
+        val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
+        val filters = com.kipu.app.feature.analytics.domain.AnalyticsFilters(
+            categoryIds = setOf("food"), accountIds = setOf("bank"), cardIds = setOf("card"), merchantIds = setOf("shop"),
+            types = setOf(com.kipu.app.feature.movements.domain.model.MovementType.EXPENSE),
+            currency = com.kipu.app.core.finance.domain.model.Currency.PEN)
+        vm.compare(previous, current, filters)
+        runCurrent()
+        val result = (vm.state.value as AnalyticsUiState.Comparison).result
+        val pen = com.kipu.app.core.finance.domain.model.Currency.PEN
+        assertEquals(setOf(pen), result.byCurrency.keys)
+        assertEquals(1000L, result.byCurrency.getValue(pen).previous.minorUnits)
+        assertEquals(1500L, result.byCurrency.getValue(pen).current.minorUnits)
+        assertEquals(500L, result.byCurrency.getValue(pen).difference.minorUnits)
+        assertEquals(com.kipu.app.feature.analytics.domain.PercentageChange.Value(java.math.BigDecimal("50.00")), result.byCurrency.getValue(pen).percentage)
+        premium.value = false
+        runCurrent()
+        val free = vm.state.value as AnalyticsUiState.PremiumRequired
+        assertTrue(free.basicHistoryAvailable)
+        assertEquals(current, free.current.period)
+        assertEquals(37500L, free.current.totals.getValue(pen).minorUnits)
+        assertEquals(9000L, free.current.totals.getValue(com.kipu.app.core.finance.domain.model.Currency.USD).minorUnits)
+        vm.showCurrentMonth()
+        runCurrent()
+        val basic = vm.state.value as AnalyticsUiState.Content
+        assertFalse(basic.premium)
+        assertNull(basic.previous)
+        assertEquals(free.current.totals, basic.result.totals)
+        job.cancel()
+    }
+
 }
