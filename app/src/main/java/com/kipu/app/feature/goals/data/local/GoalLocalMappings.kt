@@ -79,14 +79,17 @@ fun GoalEvent.toEntity(): GoalEventEntity = GoalEventEntity(
 
 fun GoalBackingAccountRow.toDomain(): GoalBackingAccount {
     val currency = Currency.fromCode(currencyCode)
+    val position = com.kipu.app.feature.goals.domain.GoalBackingCalculator.positionFromReserved(
+        accountId, Money(confirmedBalanceMinor, currency), Money(reservedMinor, currency),
+    )
     return GoalBackingAccount(
         id = accountId,
         name = accountName,
         currency = currency,
         confirmedBalance = Money(confirmedBalanceMinor, currency),
         reserved = Money(reservedMinor, currency),
-        available = Money(availableMinor, currency),
-        shortfall = Money(shortfallMinor, currency),
+        available = position.available,
+        shortfall = position.shortfall,
         accountType = AccountType.valueOf(accountType),
         preset = AccountPreset.fromId(presetId),
     )
