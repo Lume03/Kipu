@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,9 +45,12 @@ class BiometricSettingsViewModelTest {
 
     private class FakeGateway(var canAuth: Boolean = true) : LocalAuthenticatorGateway {
         var authSuccess: Boolean = true
+        var biometrics = true
+        var pendingResult: ((Boolean, String?) -> Unit)? = null
+        var deferResult = false
 
         override fun getCapability(): LocalAuthenticatorCapability = LocalAuthenticatorCapability(
-            hasBiometrics = true,
+            hasBiometrics = biometrics,
             hasDeviceCredential = true,
             canAuthenticate = canAuth,
         )
@@ -57,8 +61,64 @@ class BiometricSettingsViewModelTest {
             subtitle: String,
             onResult: (Boolean, String?) -> Unit,
         ) {
-            onResult(authSuccess, if (authSuccess) null else "Error de autenticación")
+            pendingResult = onResult
+            if (!deferResult) onResult(authSuccess, if (authSuccess) null else "Error de autenticación")
         }
+    }
+
+    @Test
+    fun `activation persists only after successful authentication and survives reopening`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            val dao = FakeDeviceDao()
+            val gateway = FakeGateway().apply { deferResult = true }
+            val session = FakeCoordinator(LocalOwner(userId.toString(), false))
+            val lock = LocalLockCoordinator(dao, session, { 0L }, backgroundScope)
+            val vm = BiometricSettingsViewModel(dao, lock, gateway, session)
+            advanceUntilIdle()
+            vm.toggleLocalUnlock(mockk<FragmentActivity>())
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.isLocalUnlockEnabled)
+            assertTrue(dao.entity?.localUnlockEnabled != true)
+
+            gateway.pendingResult!!(false, "Autenticación cancelada")
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.isLocalUnlockEnabled)
+            assertTrue(dao.entity?.localUnlockEnabled != true)
+            assertNotNull(vm.uiState.value.errorMessage)
+
+            vm.toggleLocalUnlock(mockk<FragmentActivity>())
+            gateway.pendingResult!!(true, null)
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isLocalUnlockEnabled)
+            assertTrue(dao.findSettings(userId)?.localUnlockEnabled == true)
+            val reopened = BiometricSettingsViewModel(dao, lock, gateway, session)
+            advanceUntilIdle()
+            assertTrue(reopened.uiState.value.isLocalUnlockEnabled)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test
+    fun `device credential enables local protection when biometrics are unavailable`() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        try {
+            val dao = FakeDeviceDao()
+            val gateway = FakeGateway().apply { biometrics = false; deferResult = true }
+            val session = FakeCoordinator(LocalOwner(userId.toString(), false))
+            val lock = LocalLockCoordinator(dao, session, { 0L }, backgroundScope)
+            val vm = BiometricSettingsViewModel(dao, lock, gateway, session)
+            advanceUntilIdle()
+            assertFalse(vm.uiState.value.hasBiometrics)
+            assertTrue(vm.uiState.value.hasDeviceCredential)
+            assertTrue(vm.uiState.value.canAuthenticate)
+            vm.toggleLocalUnlock(mockk<FragmentActivity>())
+            assertNotNull(gateway.pendingResult)
+            assertTrue(dao.entity?.localUnlockEnabled != true)
+            gateway.pendingResult!!(true, null)
+            advanceUntilIdle()
+            assertTrue(dao.findSettings(userId)?.localUnlockEnabled == true)
+            assertTrue(vm.uiState.value.isLocalUnlockEnabled)
+        } finally { Dispatchers.resetMain() }
     }
 
     private class FakeCoordinator(override val currentOwner: LocalOwner?) : SessionCoordinator {
