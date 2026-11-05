@@ -15,6 +15,7 @@ data class RegisterTransactionCommand(
     val note: String? = null,
     val ignoreSimilarityWarning: Boolean = false,
     val paymentChannel: String? = null,
+    val captureSource: MovementSource = MovementSource.MANUAL,
 )
 
 sealed interface RegisterTransactionResult {
