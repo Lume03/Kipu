@@ -20,18 +20,18 @@ Como usuario quiero ver mi situación y navegar mis movimientos para comprender 
 2. Cuenta nueva muestra estado vacío del historial y acción de registro.
 3. Free consulta y corrige movimientos de meses anteriores.
 4. La máscara de privacidad oculta importes sin alterar estructura ni cálculos.
-5. Tras un reembolso, las métricas reflejan el ajuste y fechas definidas por la regla del dominio.
+5. Tras un reembolso, las métricas reflejan el ajuste y fechas definidas por la regla del dominio (verificado con `MovementRefundBudgetIntegrationTest::returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates` ejecutado PASS A16 2026-11-05).
 
 Dependencias: bloqueantes HU-07, HU-18, HU-19; parcial HU-22; relacionada HU-41. HU-39 desbloquea HU-41.
 
 ### US2 / HU-40 — Calendario financiero (P1, Alta, 5 pts, S7)
-Como usuario quiero consultar fechas de movimientos y obligaciones para anticipar vencimientos en una vista. Debe distinguir eventos realizados de previstos y dirigir cada evento a su objeto de origen; no ejecutar cobros automáticos.
+Como usuario quiero consultar fechas de movimientos y obligaciones para anticipar vencimientos en una vista. Debe distinguir eventos realizados de previstos y dirigir cada evento a su objeto de origen; no ejecutar cobros automáticos. *(Decisión Owner 2026-11-05: los eventos de recurrencia del calendario abren el detalle de su objeto; si ya no existe, fallback «no disponible»).*
 
 1. Cierres y vencimientos de tarjeta aparecen con fechas e identidad/tipo distinguibles.
 2. Seleccionar una cuota abre la deuda correcta.
 3. Free consulta meses pasados sin paywall de historial.
 4. Dos obligaciones en el mismo día aparecen ambas, no se sobrescriben.
-5. Eventos coincidentes se presentan como conjunto y permiten escoger el objeto correcto; orden y representación visual quedan sujetos al gate de diseño indicado abajo.
+5. Eventos coincidentes se presentan como conjunto y permiten escoger el objeto correcto; orden y representación visual quedan sujetos al gate de diseño indicado abajo. Los eventos de recurrencia abren su detalle registrado (`Abrir recurrencia`) o fallback no disponible si ya no existen (F1.2, verificado con `CalendarNavigationTest` y `ObjectSourceNavigationTest` ejecutado PASS A16 2026-11-05).
 
 Dependencias: bloqueantes HU-09, HU-29, HU-33; relacionada HU-44.
 
@@ -45,7 +45,7 @@ Implementada en Sprint 9 (2026-11-03): lógica y UI en la pestaña Análisis (`f
 4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos (QA-S9-02 resuelto con árbol descombinado y scroll); cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM) en [verification-report.md](verification-report.md) sobre Room v37. T021 cuenta con aprobación formal del catálogo incremental por el Owner, T027 sin TalkBack hablado, T028 parcial, T029 con revisión cruzada Opus registrada y aceptación integral pendiente, A16 desconectado en última tanda; aceptación PARCIAL del incremento, no prueba de todo el backlog ni aprobación integral.
 
 1. Con gasto S/100 y transferencia S/200, gasto operativo suma S/100.
-2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas.
+2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas (verificado con `AnalyticsDaoTest::repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` ejecutado PASS A16 2026-11-05 y `AnalyticsViewModelTest::combinedFiltersApplyToBothPeriodsAndFreeFallsBackToUnfilteredCurrentMonth` PASS unitarios 2026-11-05).
 3. Periodo anterior sin gasto se marca «Sin base de comparación», nunca infinito.
 4. En Free, estadística básica del mes actual; históricos agregados/filtros premium informan la restricción y conservan acceso al historial básico.
 5. Reservas y línea de crédito no se agregan como activos; por cobrar sí integra patrimonio según fórmula.
@@ -60,7 +60,7 @@ Dependencias: bloqueantes HU-39, HU-36, HU-09, HU-26, HU-30, HU-58; parcial HU-2
 - **FR-003** El historial permite navegar todos los periodos y consultar movimientos propios en Free, sujeto a los casos de uso y política de acceso existentes.
 - **FR-004** Inicio e historial exponen estados de carga, contenido, vacío, error/reintento y datos no disponibles sin confundirlos con cero confirmado.
 - **FR-005** La preferencia de privacidad oculta importes en vistas y elementos asociados sin cambiar datos, filtros ni cálculos.
-- **FR-006** El calendario muestra eventos ocurridos y previstos con distinción semántica, fecha, tipo, origen y navegación a la entidad correspondiente; no ejecuta pagos ni crea movimientos.
+- **FR-006** El calendario muestra eventos ocurridos y previstos con distinción semántica, fecha, tipo, origen y navegación a la entidad correspondiente; no ejecuta pagos ni crea movimientos. *(Decisión Owner 2026-11-05: los eventos de recurrencia del calendario abren el detalle de su objeto; si ya no existe, fallback «no disponible»).*
 - **FR-007** Eventos múltiples en la misma fecha se conservan como elementos independientes y accesibles.
 - **FR-008** El calendario permite consultar periodos pasados en Free.
 - **FR-009** Las métricas excluyen transferencias, reservas y principal de pagos/cobros de ingreso/gasto operativo, y respetan anulaciones y reembolsos según reglas financieras existentes.
