@@ -54,6 +54,19 @@ import com.kipu.app.feature.movements.domain.model.MovementSyncStatus
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionResult
+import com.kipu.app.feature.debts.domain.DebtRepository
+import com.kipu.app.feature.debts.domain.DebtCommandHasher
+import com.kipu.app.feature.debts.domain.model.DebtSummary
+import com.kipu.app.feature.debts.domain.model.DebtObligationType
+import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
+import com.kipu.app.feature.debts.domain.model.DebtCommandIdentity
+import com.kipu.app.feature.debts.domain.model.DebtCommandResult
+import com.kipu.app.feature.debts.domain.model.SettleDebtCommand
+import com.kipu.app.feature.goals.domain.GoalRepository
+import com.kipu.app.feature.goals.domain.model.Goal
+import com.kipu.app.feature.goals.domain.model.GoalStatus
+import com.kipu.app.feature.goals.domain.model.GoalCommandResult
+import com.kipu.app.feature.goals.domain.usecase.GoalTransferIntent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -93,6 +106,9 @@ internal fun CategoryItem.toCategoryOption(parent: CategoryItem? = null): Catego
 )
 
 data class QuickMovementUiState(
+    val availableDebts: List<DebtSummary> = emptyList(),
+    val availableGoals: List<Goal> = emptyList(),
+    val selectedApplicationId: String? = null,
     val type: MovementType = MovementType.EXPENSE,
     val amountText: String = "",
     val currency: String = "PEN",
@@ -184,6 +200,8 @@ class QuickMovementViewModel @Inject constructor(
     private val simulateInstallments: SimulateInstallments = SimulateInstallments(),
     private val categoriesRepository: com.kipu.app.feature.categories.domain.CategoriesRepository? = null,
     private val setMerchantCategoryPreference: com.kipu.app.feature.categories.domain.usecase.SetMerchantCategoryPreference? = null,
+    private val debtRepository: DebtRepository? = null,
+    private val goalRepository: GoalRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreForm())
@@ -268,6 +286,28 @@ class QuickMovementViewModel @Inject constructor(
         }
         val ownerId = getUserId()
         if (ownerId != null) {
+            debtRepository?.let { repository ->
+                viewModelScope.launch {
+                    repository.observeDebts(ownerId).catch {
+                        _uiState.update { it.copy(generalError = "No se pudieron cargar las deudas y préstamos.") }
+                    }.collect { debts ->
+                        _uiState.update { it.copy(availableDebts = debts.filter { debt ->
+                            debt.userId == ownerId && debt.status == DebtLifecycleStatus.ACTIVE && debt.remainingPrincipalMinor > 0L
+                        }) }
+                    }
+                }
+            }
+            goalRepository?.let { repository ->
+                viewModelScope.launch {
+                    repository.observeGoals(ownerId).catch {
+                        _uiState.update { it.copy(generalError = "No se pudieron cargar las metas.") }
+                    }.collect { goals ->
+                        _uiState.update { it.copy(availableGoals = goals.filter { goal ->
+                            goal.userId == ownerId && goal.status in setOf(GoalStatus.ACTIVE, GoalStatus.LOCKED_BY_PLAN)
+                        }) }
+                    }
+                }
+            }
             categoriesRepository?.let { repository ->
                 viewModelScope.launch {
                     val inputs = _uiState.map { RememberCategoryInput(it.selectedMerchantId, it.merchantName,
@@ -285,13 +325,13 @@ class QuickMovementViewModel @Inject constructor(
             viewModelScope.launch {
                 combine(
                     budgetRepository.observeBudgets(ownerId).catch { emit(emptyList()) },
-                    _uiState.map { listOf(it.type, it.currency, it.selectedCategoryId, it.amountText, it.occurredAt) }
+                    _uiState.map { listOf(it.type, it.currency, it.selectedCategoryId, it.amountText, it.occurredAt, it.selectedApplicationId) }
                         .distinctUntilChanged(),
                 ) { budgets, _ -> budgets }.collectLatest { budgets ->
                     val state = _uiState.value
                     val amount = parseAmountMinor(state.amountText)
                     _uiState.update { it.copy(budgetImpacts = emptyList()) }
-                    if (state.type != MovementType.EXPENSE || amount == null || amount <= 0L) return@collectLatest
+                    if (state.selectedApplicationId != null || state.type != MovementType.EXPENSE || amount == null || amount <= 0L) return@collectLatest
                     val zone = ZoneId.systemDefault()
                     val date = Instant.ofEpochMilli(state.occurredAt).atZone(zone).toLocalDate()
                     val impacts = try {
@@ -410,6 +450,7 @@ class QuickMovementViewModel @Inject constructor(
                 null
             }
             current.copy(
+                selectedApplicationId = if (typeChanged) null else current.selectedApplicationId,
                 type = type,
                 availableCategories = options,
                 selectedCategoryId = selection?.id,
@@ -438,6 +479,21 @@ class QuickMovementViewModel @Inject constructor(
                 } else current.currency,
             )
         }
+    }
+
+    fun onApplicationSelected(id: String?) {
+        if (_uiState.value.isSaving) return
+        _uiState.update { current -> current.copy(
+            selectedApplicationId = id,
+            selectedSourceCardId = if (id != null) null else current.selectedSourceCardId,
+            selectedDestinationCardId = if (id != null) null else current.selectedDestinationCardId,
+            selectedSourceAccountId = current.selectedSourceAccountId ?: current.availableAccounts.firstOrNull()?.id?.value,
+            currency = current.availableAccounts.firstOrNull { it.id.value == current.selectedSourceAccountId }?.currency?.name
+                ?: current.availableAccounts.firstOrNull()?.currency?.name ?: current.currency,
+            selectedCategoryId = null, selectedCategoryName = null, selectedCategoryIcon = null,
+            categoryError = null, generalError = null, registerRecurrenceAfterSave = false,
+            budgetImpacts = emptyList(),
+        ) }
     }
 
     fun onAmountChanged(amount: String) {
@@ -520,6 +576,7 @@ class QuickMovementViewModel @Inject constructor(
             selectedSourceCardId = savedStateHandle["movement.sourceCard"],
             selectedDestinationAccountId = savedStateHandle["movement.destinationAccount"],
             selectedDestinationCardId = savedStateHandle["movement.destinationCard"],
+            selectedApplicationId = savedStateHandle["movement.application"],
             selectedCategoryId = savedStateHandle["movement.category"],
             merchantName = savedStateHandle["movement.merchant"] ?: "",
             selectedMerchantId = savedStateHandle["movement.merchantId"],
@@ -535,6 +592,7 @@ class QuickMovementViewModel @Inject constructor(
     }
 
     private fun persistForm(state: QuickMovementUiState) {
+        savedStateHandle["movement.application"] = state.selectedApplicationId
         savedStateHandle["movement.type"] = state.type.name
         savedStateHandle["movement.amount"] = state.amountText
         savedStateHandle["movement.currency"] = state.currency
@@ -876,6 +934,11 @@ class QuickMovementViewModel @Inject constructor(
             return
         }
 
+        if (state.selectedApplicationId != null) {
+            saveApplication(state, amountMinor)
+            return
+        }
+
         if (state.type == MovementType.EXPENSE && state.selectedCategoryId == null) {
             _uiState.update { it.copy(categoryError = "Selecciona una categoría") }
             return
@@ -969,6 +1032,97 @@ class QuickMovementViewModel @Inject constructor(
         )
 
         executeRegister(command)
+    }
+
+    /** Only delegates financial effects to the same offline-first commands as object details. */
+    private fun saveApplication(state: QuickMovementUiState, amountMinor: Long) {
+        fun error(message: String) { _uiState.update { it.copy(isSaving = false, generalError = message) } }
+        val userId = getUserId() ?: run {
+            error("Inicia sesión para aplicar el movimiento.")
+            return
+        }
+        if (receiptDraftId != null) {
+            error("Confirma el comprobante como movimiento antes de aplicar un pago o aporte.")
+            return
+        }
+        val source = state.availableAccounts.firstOrNull { it.id.value == state.selectedSourceAccountId }
+        if (source == null || state.selectedSourceCardId != null) {
+            error("Elige una cuenta activa para aplicar el movimiento.")
+            return
+        }
+        val currency = source.currency
+        val debt = state.availableDebts.firstOrNull { it.debtId == state.selectedApplicationId }
+        val goal = state.availableGoals.firstOrNull { it.id == state.selectedApplicationId }
+        if (state.type == MovementType.TRANSFER) {
+            if (goal?.status == GoalStatus.LOCKED_BY_PLAN) {
+                error("Esta meta no tiene cupo activo en Free. En Metas, selecciona su cupo o sustituye una meta activa antes de aportar. No se guardó ningún movimiento.")
+                return
+            }
+            if (goal == null || goal.status != GoalStatus.ACTIVE || goal.currency != currency) {
+                error("Elige una meta activa de la misma moneda que la cuenta.")
+                return
+            }
+            val destination = state.availableAccounts.firstOrNull { it.id.value == state.selectedDestinationAccountId }
+            if (destination == null || destination.currency != currency || state.selectedDestinationCardId != null || destination.id == source.id) {
+                error("Elige una cuenta destino distinta y de la misma moneda para el traslado y la reserva.")
+                return
+            }
+        } else {
+            val expectedType = if (state.type == MovementType.EXPENSE) DebtObligationType.PAYABLE else DebtObligationType.RECEIVABLE
+            if (debt == null || debt.obligationType != expectedType || debt.currencyCode != currency.name) {
+                error("Elige una obligación activa de la misma moneda que la cuenta.")
+                return
+            }
+            if (amountMinor > debt.remainingPrincipalMinor) {
+                error("El principal supera el saldo pendiente.")
+                return
+            }
+        }
+        _uiState.update { it.copy(isSaving = true, generalError = null) }
+        viewModelScope.launch {
+            try {
+                val message = if (state.type == MovementType.TRANSFER) {
+                    val repository = goalRepository ?: run { error("Metas no disponibles."); return@launch }
+                    when (val result = repository.reserveGoalFunds(userId, requireNotNull(goal).id,
+                        Money(amountMinor, currency), state.selectedDestinationAccountId,
+                        GoalTransferIntent(source.id.value, requireNotNull(state.selectedDestinationAccountId), currency))) {
+                        is GoalCommandResult.Applied, is GoalCommandResult.Duplicate -> null
+                        is GoalCommandResult.Conflict -> "La meta cambió. Revisa sus datos antes de reintentar."
+                        is GoalCommandResult.Retryable -> "La reserva está pendiente de sincronización. Revisa la meta antes de reintentar."
+                        is GoalCommandResult.Rejected -> when (result.code) {
+                            "GOAL_NOT_ACTIVE", "PLAN_QUOTA_EXCEEDED", "GOAL_PLAN_LOCKED" -> "Selecciona un cupo activo para esta meta en Metas o sustituye otra meta antes de aportar."
+                            "INSUFFICIENT_BACKING", "INSUFFICIENT_TRANSFER_SOURCE" -> "Saldo libre insuficiente para el traslado y la reserva."
+                            else -> "No se pudo aplicar el aporte (${result.code})."
+                        }
+                    }
+                } else {
+                    val repository = debtRepository ?: run { error("Deudas no disponibles."); return@launch }
+                    val selected = requireNotNull(debt)
+                    val canonical = listOf("SETTLE_DEBT_V1", userId, selected.debtId, selected.revision.toString(),
+                        source.id.value, amountMinor.toString(), "0", "", "", state.occurredAt.toString()).joinToString("|")
+                    val command = SettleDebtCommand(
+                        identity = DebtCommandIdentity(UUID.randomUUID().toString(), DebtCommandHasher.sha256(canonical)),
+                        debtId = selected.debtId, expectedRevision = selected.revision, accountId = source.id.value,
+                        principalMinor = amountMinor, occurredAt = state.occurredAt,
+                    )
+                    when (val result = repository.settleDebt(userId, command)) {
+                        is DebtCommandResult.Applied, is DebtCommandResult.Duplicate -> null
+                        is DebtCommandResult.Conflict -> "La deuda cambió. Revisa el saldo pendiente antes de reintentar."
+                        is DebtCommandResult.Retryable -> "El pago o cobro está pendiente de sincronización. Revisa la deuda antes de reintentar."
+                        is DebtCommandResult.Rejected -> when (result.code) {
+                            "PRINCIPAL_EXCEEDS_REMAINING" -> "El principal supera el saldo pendiente."
+                            "INSUFFICIENT_FUNDS" -> "Saldo insuficiente en la cuenta de origen."
+                            else -> "No se pudo aplicar el principal (${result.code})."
+                        }
+                    }
+                }
+                if (message != null) error(message) else {
+                    _events.send(QuickMovementUiEvent.TransactionSaved("Movimiento aplicado · Pendiente de sincronización", state.type))
+                    resetForm()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { error("No se pudo aplicar el movimiento. Revisa los datos e inténtalo de nuevo.") }
+        }
     }
 
     private fun executeCreditPurchase(state: QuickMovementUiState, amountMinor: Long, terms: PurchaseTerms) {
@@ -1109,6 +1263,8 @@ class QuickMovementViewModel @Inject constructor(
         _uiState.update { current ->
             QuickMovementUiState(
                 type = MovementType.EXPENSE,
+                availableDebts = current.availableDebts,
+                availableGoals = current.availableGoals,
                 availableAccounts = current.availableAccounts,
                 availableCreditCards = current.availableCreditCards,
                 balancesLoaded = current.balancesLoaded,
