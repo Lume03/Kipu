@@ -141,4 +141,26 @@ class AccountDeletionTest {
         assertEquals(DeletionRemote.COMPLETED,store.rows["owner"]?.remote)
         assertEquals(DeletionLocal.CLEARED,store.rows["owner"]?.local)
     }
+    /** HU-06: offline deletion retains all local facts and exposes a durable retry status. */
+    @Test fun offlineDeletionRetainsEveryOwnerAndRecoversWithOriginalRequestAfterRestart() = runTest {
+        val f = Fixture()
+        val before = f.cleanup.locals.toMap()
+        f.gateway.fails = true
+        f.confirmed()
+        assertEquals(before, f.cleanup.locals)
+        assertEquals(DeletionRemote.ERROR, f.deletion.state.value.request!!.remote)
+        assertEquals(DeletionLocal.RETAINED, f.deletion.state.value.request!!.local)
+        assertFalse(f.cleanup.finished)
+        val requestId = f.store.rows.getValue("owner").requestId
+        val restarted = f.controller()
+        restarted.load()
+        assertEquals(DeletionStep.STATUS, restarted.state.value.step)
+        f.gateway.fails = false
+        restarted.retry()
+        assertEquals(listOf(requestId, requestId), f.gateway.ids)
+        assertEquals(DeletionLocal.CLEARED, restarted.state.value.request!!.local)
+        assertEquals(mapOf("other" to before.getValue("other")), f.cleanup.locals)
+        assertTrue(f.cleanup.finished)
+    }
+
 }
