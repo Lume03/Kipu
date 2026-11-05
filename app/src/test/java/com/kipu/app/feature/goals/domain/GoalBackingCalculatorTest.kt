@@ -12,6 +12,35 @@ import org.junit.Test
 
 class GoalBackingCalculatorTest {
     @Test
+    fun oneGoalAggregatesSuccessiveReservationsFromTwoAccounts() {
+        val goal = com.kipu.app.feature.goals.domain.model.Goal(
+            id = "goal-1", userId = "user-1", name = "Viaje", target = Money(100_000, Currency.PEN),
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+        )
+        val events = listOf(event("a", goal.id, "account-a", 20_000), event("b", goal.id, "account-b", 30_000))
+        val progress = GoalProgressCalculator.calculate(goal, events)
+        assertEquals(50_000L, progress.reserved.minorUnits)
+        assertEquals(0, progress.progressPercent.compareTo(java.math.BigDecimal("50")))
+        assertEquals(20_000L, GoalBackingCalculator.position("account-a", Money(80_000, Currency.PEN), events).reserved.minorUnits)
+        assertEquals(30_000L, GoalBackingCalculator.position("account-b", Money(90_000, Currency.PEN), events).reserved.minorUnits)
+    }
+
+    @Test
+    fun laterExpenseCreatesSharedDeficitAndBlocksNewReservesWithoutReducingEitherGoal() {
+        val events = listOf(event("a", "goal-1", "account-a", 20_000), event("b", "goal-2", "account-a", 30_000))
+        val before = events.toList()
+        val funded = GoalBackingCalculator.position("account-a", Money(60_000, Currency.PEN), events)
+        val afterExpense = GoalBackingCalculator.position("account-a", Money(40_000, Currency.PEN), events)
+        assertEquals(0L, funded.shortfall.minorUnits)
+        assertEquals(10_000L, afterExpense.shortfall.minorUnits)
+        assertEquals(50_000L, afterExpense.reserved.minorUnits)
+        assertEquals(-10_000L, afterExpense.available.minorUnits)
+        assertEquals(ReservationValidation.InsufficientBacking,
+            GoalBackingCalculator.validateReservation(Money(1, Currency.PEN), afterExpense.available, Currency.PEN))
+        assertEquals(before, events)
+    }
+
+    @Test
     fun sharedBackingSubtractsReservationsAcrossGoalsOnlyOncePerAccount() {
         val events = listOf(
             event("e1", "goal-1", "account-a", 20_000),
