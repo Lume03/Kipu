@@ -93,6 +93,10 @@ fun GoalDetailScreen(
     onDelete: (() -> Unit)? = null,
     onPause: ((Boolean) -> Unit)? = null,
     onDeleteWithReplacement: ((String?) -> Unit)? = null,
+    onDeposit: ((String) -> Unit)? = null,
+    onDiscardConflict: (() -> Unit)? = null,
+    onAdjustConflict: (() -> Unit)? = null,
+    onRetryConflict: (() -> Unit)? = null,
 ) {
     val colors = rememberPlanningColors()
     var optionsExpanded by remember { mutableStateOf(false) }
@@ -106,6 +110,8 @@ fun GoalDetailScreen(
         else -> null
     }) }
     var showHistory by rememberSaveable { mutableStateOf(initialAction == "history") }
+    var showConflict by rememberSaveable { mutableStateOf(initialAction == "conflict") }
+    var confirmDiscardConflict by remember { mutableStateOf(false) }
     var completionRequested by rememberSaveable(goal?.id) { mutableStateOf(false) }
     var showCelebration by rememberSaveable(goal?.id) { mutableStateOf(initialAction == "celebrate") }
     androidx.compose.runtime.LaunchedEffect(goal?.status) {
@@ -113,6 +119,7 @@ fun GoalDetailScreen(
     }
     var amountText by rememberSaveable(goal?.id) { mutableStateOf("") }
     var destinationGoalId by rememberSaveable(goal?.id) { mutableStateOf("") }
+    var deficitAccountId by rememberSaveable(goal?.id) { mutableStateOf<String?>(null) }
     var accountMenuExpanded by remember { mutableStateOf(false) }
     var destinationMenuExpanded by remember { mutableStateOf(false) }
     val goalReservedAccounts = remember(state.events) {
@@ -143,6 +150,7 @@ fun GoalDetailScreen(
             onNavigateBack = { openDialog = null },
             onReserve = onReserve ?: { _, _, _, _ -> onContribute() },
             withdrawalState = state, onRelease = onRelease, initialWithdrawal = true,
+            initialBackingAccountId = deficitAccountId,
         )
         return
     }
@@ -194,6 +202,14 @@ fun GoalDetailScreen(
             ) {
                 state.errorMessage?.let { PlanningNotice("No se pudo completar la acción", it, isError = true) }
                 state.message?.let { PlanningNotice("Cambios guardados", it) }
+                if (goal.syncState == com.kipu.app.feature.goals.domain.model.GoalSyncState.CONFLICT) {
+                    PlanningNotice("Conflicto de sincronización", "Los cambios locales y los de otro dispositivo necesitan revisión. Tu reserva e historial se conservan.", isError = true)
+                    Row {
+                        TextButton(onClick = { confirmDiscardConflict = true }, enabled = !state.isSaving) { Text("Descartar") }
+                        TextButton(onClick = { showConflict = true }, enabled = !state.isSaving) { Text("Ajustar") }
+                        TextButton(onClick = { showConflict = true }, enabled = !state.isSaving) { Text("Resolver") }
+                    }
+                }
                 if (state.isPaused) PlanningNotice("Meta pausada", "Tu dinero sigue reservado. Reanuda la meta desde el menú para volver a aportar.")
                 KipuCard(shape = RoundedCornerShape(24.dp), containerColor = colors.surfaceCard, borderColor = null, elevation = 1.dp) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -217,12 +233,46 @@ fun GoalDetailScreen(
                     Text("Meta pausada · historial conservado.",
                         style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("goal_archived_explanation"))
                 }
+                GoalBackingStatus(
+                    accounts = state.backingAccounts.filter { (goalReservedAccounts[it.id] ?: 0L) > 0L },
+                    onDeposit = onDeposit,
+                    onRelease = if (releasableAccounts.isNotEmpty()) { accountId ->
+                        deficitAccountId = accountId
+                        openDialog = GoalDetailDialog.RELEASE
+                    } else null,
+                    onReassign = if (releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty()) { accountId ->
+                        deficitAccountId = accountId
+                        openDialog = GoalDetailDialog.REASSIGN
+                    } else null,
+                )
                 GoalMonthlyContributions(state.events, goal, progress.reserved.minorUnits)
                 GoalEventHistory(state.events)
                 Spacer(Modifier.height(20.dp))
             }
         }
     }
+
+    if (confirmDiscardConflict) AlertDialog(
+        onDismissRequest = { confirmDiscardConflict = false },
+        title = { Text("Descartar cambios locales") },
+        text = { Text("Se recuperará la versión del servidor. Los cambios financieros conservan su historial y requieren revisión.") },
+        confirmButton = { TextButton(onClick = { confirmDiscardConflict = false; onDiscardConflict?.invoke() }) { Text("Descartar") } },
+        dismissButton = { TextButton(onClick = { confirmDiscardConflict = false }) { Text("Cancelar") } },
+    )
+    if (showConflict && goal != null) AlertDialog(
+        onDismissRequest = { showConflict = false },
+        title = { Text("Resolver conflicto de ${goal.name}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Revisión local ${goal.revision}. Revisa el historial antes de elegir cómo continuar. No se modificará ninguna reserva automáticamente.")
+                TextButton(onClick = { showConflict = false; showHistory = true }) { Text("Ver historial") }
+                TextButton(onClick = { showConflict = false; onAdjustConflict?.invoke() }, enabled = !state.isSaving) { Text("Ajustar desde la versión actual") }
+                TextButton(onClick = { showConflict = false; confirmDiscardConflict = true }, enabled = !state.isSaving) { Text("Descartar cambios locales") }
+            }
+        },
+        confirmButton = { TextButton(onClick = { showConflict = false; onRetryConflict?.invoke() }, enabled = !state.isSaving) { Text("Reintentar sincronización") } },
+        dismissButton = { TextButton(onClick = { showConflict = false }) { Text("Volver") } },
+    )
 
     if (optionsExpanded && goal != null && progress != null) {
         com.kipu.app.ui.component.PlanningActionsSheet(goal.name, { optionsExpanded = false }, buildList {
@@ -262,7 +312,7 @@ fun GoalDetailScreen(
             onDeleteWithReplacement = onDeleteWithReplacement, errorMessage = state.errorMessage)
         GoalDetailDialog.RELEASE -> Unit // The shared funds screen above owns withdrawal.
         GoalDetailDialog.REASSIGN -> {
-            var selectedAccount by rememberSaveable(goal?.id) { mutableStateOf(releasableAccounts.firstOrNull()?.id.orEmpty()) }
+            var selectedAccount by rememberSaveable(goal?.id, deficitAccountId) { mutableStateOf(deficitAccountId ?: releasableAccounts.firstOrNull()?.id.orEmpty()) }
             val account = releasableAccounts.firstOrNull { it.id == selectedAccount }
             val reassignAmount = account?.let { parseAmount(amountText, it.currency) }
             val maxReassign = account?.let { goalReservedAccounts[it.id] } ?: 0L
