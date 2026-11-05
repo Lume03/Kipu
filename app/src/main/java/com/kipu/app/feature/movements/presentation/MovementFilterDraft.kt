@@ -24,6 +24,7 @@ data class MovementFilterDraft(
     val toDate: String = "",
     val movementType: MovementType? = null,
     val comparePreviousMonth: Boolean = false,
+    val sources: Set<com.kipu.app.feature.movements.domain.model.MovementSource> = emptySet(),
 ) {
     fun validate(zone: ZoneId = ZoneId.systemDefault()): FilterDraftValidation {
         val errors = mutableMapOf<String, FilterDraftError>()
@@ -43,6 +44,7 @@ data class MovementFilterDraft(
         if (errors.isNotEmpty()) return FilterDraftValidation(null, errors)
         return FilterDraftValidation(AdvancedFiltersState(
             accountIds = accountIds, categoryIds = categoryIds, cardIds = cardIds, merchantIds = merchantIds,
+            sources = sources,
             paymentChannels = paymentChannels,
             financialStates = financialStates, syncStatuses = syncStatuses, minAmountMinor = min, maxAmountMinor = max,
             currency = currency.takeIf { min != null || max != null },
@@ -60,6 +62,7 @@ data class MovementFilterDraft(
         ) = MovementFilterDraft(
             accountIds = filters.accountIds, categoryIds = filters.categoryIds,
             cardIds = filters.cardIds, merchantIds = filters.merchantIds,
+            sources = filters.sources,
             paymentChannels = filters.paymentChannels,
             financialStates = filters.financialStates, syncStatuses = filters.syncStatuses,
             minAmount = filters.minAmountMinor?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty(),
