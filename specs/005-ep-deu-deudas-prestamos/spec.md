@@ -62,7 +62,7 @@ Como persona usuaria, quiero registrar una amortización o cobranza con principa
 3. **Given** a user pays S/50 of principal and S/5 of real interest on a PAYABLE debt, **When** the user confirms the settlement, **Then** cash decreases by S/55, the liability decreases by S/50, and only S/5 is recognized as operating expense.
 4. **Given** a user collects S/50 of principal and S/5 of real interest on a RECEIVABLE loan, **When** the user confirms the collection, **Then** cash increases by S/55, the receivable decreases by S/50, and only S/5 is recognized as operating income.
 5. **Given** the outstanding principal is S/30, **When** the user tries to pay or collect S/40 of principal, **Then** the operation is rejected without changing cash, principal, or history.
-6. **Given** a confirmed settlement is later voided or corrected, **When** the correction is applied, **Then** the principal and lifecycle state are recalculated from valid events and the correction remains auditable.
+6. **Given** a confirmed settlement is later voided or corrected, **When** the correction is applied, **Then** the principal and lifecycle state are recalculated from valid events and the correction remains auditable. *(Decisión Owner 2026-11-05: BUG-003 — anular pago de deuda desde el detalle de la deuda Y desde el movimiento vinculado, misma RPC; reabre la deuda si estaba cerrada)*.
 7. **Given** an identical settlement is retried after a connectivity failure, **When** the system receives the retry, **Then** it returns the prior result and does not create a second financial effect.
 
 ---
@@ -82,7 +82,7 @@ Como persona usuaria, quiero planificar cuotas y vencimientos sin que se interpr
 3. **Given** an obligation has zero outstanding principal, **When** the user confirms closure, **Then** it becomes settled and no longer consumes an active-obligation slot.
 4. **Given** an obligation still has S/20 outstanding, **When** the user tries to mark it settled, **Then** closure is rejected unless the user records an explicit, auditable adjustment or forgiveness.
 5. **Given** a user cancels an obligation with an outstanding balance, **When** cancellation is confirmed, **Then** cancellation is not treated as payment and the remaining balance and history remain visible.
-6. **Given** a closed obligation's payment is voided and a balance returns, **When** the balance is recalculated, **Then** the obligation becomes active again and the restored balance is shown.
+6. **Given** a closed obligation's payment is voided and a balance returns, **When** the balance is recalculated, **Then** the obligation becomes active again and the restored balance is shown. *(Decisión Owner 2026-11-05: BUG-003 — anular liquidación reabre la deuda de SETTLED a ACTIVE)*.
 7. **Given** the due date changes or an installment is cancelled, **When** the schedule is updated, **Then** obsolete pending reminders are replaced or cancelled and a retry does not create duplicates.
 
 ### Edge Cases
