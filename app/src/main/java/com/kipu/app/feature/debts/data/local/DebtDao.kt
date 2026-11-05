@@ -16,6 +16,7 @@ data class DebtSettlementActivityRow(
     val eventType: String,
     val principalDeltaMinor: Long?,
     val transactionId: String? = null,
+    val syncStatus: String? = null,
 )
 
 data class DebtDueBalanceRow(
@@ -172,7 +173,7 @@ interface DebtDao {
                COALESCE(i.amount_minor, 0) AS interestMinor, e.occurred_at AS occurredAt,
                CASE WHEN p.status = 'VOIDED' THEN 1 ELSE 0 END AS isVoided,
                e.event_type AS eventType, e.principal_delta_minor AS principalDeltaMinor,
-               e.transaction_id AS transactionId
+               e.transaction_id AS transactionId, p.sync_status AS syncStatus
         FROM debt_events e
         LEFT JOIN transactions p ON p.user_id = e.user_id AND p.id = e.transaction_id
         LEFT JOIN transactions i ON i.user_id = e.user_id AND i.id = e.interest_transaction_id
