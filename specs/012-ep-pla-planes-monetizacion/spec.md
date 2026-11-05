@@ -98,8 +98,8 @@ Como usuario de Kipu, quiero elegir Free o conocer la prueba Premium voluntaria,
 **Acceptance Scenarios**:
 
 1. **Escenario 1 - Free (oficial HU-52)**: **Dado que** el usuario no desea suscripción de pago, **Cuando** elige continuar con Kipu Free en la Pantalla 1B, **Entonces** ingresa a la aplicación sin solicitar método de pago ni datos bancarios.
-2. **Escenario 2 - Información del Trial (oficial HU-52)**: **Dado que** consulta la oferta en la Pantalla 1B, **Cuando** revisa la tarjeta Trial estática y las modalidades Premium, **Entonces** observa antes de confirmar la duración de 7 días, el precio posterior, la frecuencia de renovación y las condiciones de cancelación, sin que el copy visual dependa de la elegibilidad.
-3. **Escenario 3 - No elegible (oficial HU-52)**: **Dado que** ya consumió previamente su periodo de prueba de 7 días, **Cuando** consulta la tarjeta Trial estática y confirma una modalidad Premium, **Entonces** conserva el copy informativo de la pantalla, se registra `PREMIUM_INTENT` y no se activa Trial, cobro ni derecho Premium.
+2. **Escenario 2 - Información del Trial solo si elegible (oficial HU-52)**: **Dado que** el usuario es elegible a Trial y consulta la oferta en la Pantalla 1B, **Cuando** revisa la tarjeta Trial y las modalidades Premium, **Entonces** observa antes de confirmar la duración de 7 días, el precio posterior, la frecuencia de renovación y las condiciones de cancelación *(Decisión Owner 2026-11-05: el texto informativo del Trial se muestra SOLO si el usuario es elegible, comportamiento actual del código)*.
+3. **Escenario 3 - No elegible (oficial HU-52)**: **Dado que** ya consumió previamente su periodo de prueba de 7 días (o no es elegible), **Cuando** consulta la oferta y confirma una modalidad Premium, **Entonces** no se muestra el copy informativo de Trial gratuito (se ofrece suscripción directa sin promesa de prueba), se registra igualmente `PREMIUM_INTENT` y no se activa Trial, cobro ni derecho Premium *(Decisión Owner 2026-11-05: copy Trial solo si elegible; intención registrada igual)*.
 4. **Escenario 4 - Abandonar Onboarding (oficial HU-52)**: **Dado que** no ha confirmado ninguna compra en Play Store, **Cuando** sale de la pantalla de selección de plan, **Entonces** no se activa ni cobra ninguna suscripción.
 
 **Acceptance Scenarios complementarios de la especificación**:
@@ -120,9 +120,9 @@ Como usuario de Kipu, quiero elegir Free o conocer la prueba Premium voluntaria,
 
 ### Edge Cases
 
-- ~~Si la elegibilidad para Trial no puede comprobarse, la oferta no promete una prueba y cualquier selección Premium se registra únicamente como `PREMIUM_INTENT`.~~ *(Sustituido: la tarjeta Trial es informativa y estática; `UNKNOWN` conserva el mapping a `PREMIUM_INTENT`.)*
-- ~~Si una persona ya consumió el Trial, puede consultar las alternativas Premium, pero no vuelve a ver la promesa de 7 días gratuitos.~~ *(Sustituido: el copy Trial permanece visible; no se activa Trial y la confirmación genera `PREMIUM_INTENT`.)*
-- La tarjeta Trial se muestra siempre; `ELIGIBLE`, `INELIGIBLE` y `UNKNOWN` solo determinan la intención persistida al confirmar Mensual o Anual.
+- Si la elegibilidad para Trial no puede comprobarse (`UNKNOWN`) o el usuario es inelegible (`INELIGIBLE`), la oferta no promete prueba gratuita ni muestra el copy informativo del Trial; cualquier selección Premium registra `PREMIUM_INTENT` (Decisión Owner 2026-11-05).
+- Si una persona ya consumió el Trial, puede consultar las alternativas Premium, pero no ve la promesa ni la tarjeta de 7 días gratuitos; al confirmar se registra `PREMIUM_INTENT` sin activar Trial (Decisión Owner 2026-11-05).
+- El texto informativo del Trial se muestra SOLO si el usuario es elegible (`ELIGIBLE`); si no lo es, el copy se oculta y la intención registrada persiste igualmente `PREMIUM_INTENT` (Decisión Owner 2026-11-05).
 - Si se elige Lifetime, se informa que es un pago único de S/ 49.99, sin renovación y sin asociarlo al Trial de 7 días.
 - Si no hay conectividad al confirmar, la preferencia queda guardada localmente y el onboarding continúa sin esperar la sincronización.
 - Si la sincronización se reintenta, una misma operación no crea selecciones duplicadas ni altera los derechos de acceso.
@@ -411,6 +411,7 @@ Este addendum amplía EP-PLA para el Sprint 2 sin cambiar el alcance comercial d
 
 - Límites Free: 4 instrumentos computables, 5 raíces personalizadas de gastos y 5 raíces personalizadas de ingresos (raíces GENERAL consumen un cupo en ambos límites; subcategorías y categorías SYSTEM exentas), 2 deudas, 2 metas y 2 presupuestos activos.
 - Efectivo, cuenta virtual de metas y cuenta interna de pasivo de crédito no consumen un cupo de instrumento adicional.
+- **Regla de 4 cupos con débito compartido**: la tarjeta de débito COMPARTE el cupo Free de su banco/cuenta vinculada (no consume un cupo independiente; Decisión Owner 2026-11-05, corrección aprobada 2026-10-21, migración `20261021191708_shared_bank_instrument_quota.sql`). Un usuario con 2 cuentas bancarias (cada una con su tarjeta de débito vinculada) y 2 tarjetas de crédito computa exactamente 4 instrumentos en uso; si tiene 1 cuenta con débito y 2 créditos, computa 3 instrumentos ocupados y mantiene 1 cupo disponible.
 - Una selección es una **instantánea completa por usuario y grupo**. Cada revisión representa el estado local vigente y puede saltar revisiones intermedias coalescidas offline; el servidor solo acepta revisiones estrictamente mayores que la cabecera aceptada. Reintentar la misma identidad/payload devuelve el recibo previo; revisiones iguales o anteriores se reconcilian como `STALE`.
 - La aceptación, el downgrade y los conflictos nunca eliminan ni alteran movimientos, historial, categorías, instrumentos o saldos. Solo cambia qué recursos pueden usarse para nuevas operaciones bajo Free.
 - Premium retira `LOCKED_BY_PLAN` únicamente con entitlement verificado por una autoridad confiable; una intención del cliente nunca concede acceso.
@@ -424,6 +425,7 @@ Este addendum amplía EP-PLA para el Sprint 2 sin cambiar el alcance comercial d
 4. `STALE`/`CONFLICT` conservan la instantánea local vigente, avanzan a una revisión válida con backoff y no marcan el trabajo como sincronizado por error.
 5. El worker comprueba que el token corresponde al propietario de la cola antes de enviar y no incluye propietario en el payload confiado por el servidor.
 6. Pruebas SQL cubren revisiones omitidas, stale, duplicate, conflicto de idempotency key, propiedad, tipo de recurso y conservación de datos.
+7. **Regla de 4 cupos con débito compartido (HU-57 escenario 3)**: el cómputo de los 4 instrumentos computables Free agrupa la tarjeta de débito con la cuenta bancaria a la que está vinculada (ocupando un solo cupo conjunto). Alcanzar 4 instrumentos computables (p. ej., 2 bancos con débitos vinculados y 2 tarjetas de crédito) restringe un quinto instrumento computable sin bloquear los instrumentos activos en uso ni requerir selección adicional para el plástico de débito (Decisión Owner 2026-11-05).
 
 ### Gate de integración remota
 
@@ -656,8 +658,8 @@ Como persona usuaria de Kipu, quiero que cada capacidad respete mi derecho efect
 **Criterios de aceptación**
 
 1. La operación manual, el registro local, la sincronización y las consultas básicas de historial siguen disponibles en Free.
-2. La automatización de captura/categorización, el análisis histórico y los filtros avanzados solo se autorizan con un entitlement Premium efectivo y verificado. Excepción: el OCR local de comprobantes Yape está disponible en Free con autorización explícita, sin subir ni conservar la imagen, y exige revisar los datos antes de registrar.
-3. Para historial, búsqueda por texto, rango de fechas y tipo (Gasto, Ingreso o Transferencia) es básica; los criterios por cuenta, tarjeta, categoría, comercio, monto, fuente o estado son avanzados. Una consulta con cualquier criterio avanzado requiere Premium.
+2. La automatización de captura/categorización, el análisis histórico y los filtros avanzados solo se autorizan con un entitlement Premium efectivo y verificado. Excepción: el OCR local de comprobantes Yape está permitido en Free con autorización explícita, sin subir ni conservar la imagen, y exige revisar los datos antes de registrar (excepción FR-011 EP-AUT; Decisión Owner 2026-11-05: se corrige cualquier criterio de "OCR denegado en Free", manteniendo la protección Premium para el resto de la captura automática).
+3. Para historial, búsqueda por texto, rango de fechas y tipo (Gasto, Ingreso o Transferencia) es básica; los criterios por cuenta, tarjeta, categoría, comercio, monto, fuente o estado son avanzados. Se IMPLEMENTA el filtro por fuente (Manual / Notificación / OCR) como filtro avanzado Premium; los movimientos históricos sin procedencia registrada se clasifican como "Manual", salvo aquellos vinculados a candidatos de captura (Decisión Owner 2026-11-05). Una consulta con cualquier criterio avanzado requiere Premium.
 4. La decisión se aplica en dominio antes de acceder a datos o ejecutar una operación protegida; la UI no es autoridad de acceso.
 5. Una consulta avanzada sin permiso conserva los criterios básicos compatibles, ofrece el resultado básico y comunica que Premium requiere verificación o reconexión según corresponda. No pierde ni oculta movimientos.
 6. Preferencias comerciales, callback de compra, estado pendiente o cache no autenticado no conceden capacidades Premium.
@@ -680,7 +682,7 @@ Como persona usuaria con Premium verificado, quiero seguir usando capacidades Pr
 
 ### Requisitos funcionales
 
-- **FR-048**: La política de dominio distingue capacidades Free, Free limitadas y Premium-only. HU-58 mantiene en Free operación manual, registro local, sincronización, filtros básicos y OCR local de comprobantes Yape sujeto a autorización y revisión; protege las demás capacidades avanzadas definidas en sus criterios.
+- **FR-048**: La política de dominio distingue capacidades Free, Free limitadas y Premium-only. HU-58 mantiene en Free operación manual, registro local, sincronización, filtros básicos y OCR local de comprobantes Yape sujeto a autorización y revisión (excepción FR-011 EP-AUT; Decisión Owner 2026-11-05); protege las demás capacidades avanzadas definidas en sus criterios, implementando el filtro por 'fuente' (Manual / Notificación / OCR) como filtro avanzado Premium, clasificando los movimientos históricos sin procedencia como "Manual" (salvo los vinculados a candidatos de captura; Decisión Owner 2026-11-05).
 - **FR-049**: El entitlement efectivo se deriva de compras verificadas y vigentes según HU-54/HU-56. Intenciones de plan, respuesta local de Billing, estado `PENDING` y cache sin concesión válida no autorizan Premium.
 - **FR-050**: Tras verificación autenticada satisfactoria, el backend puede emitir una concesión firmada que contiene usuario, huella de clave de instalación, política, `serverVerifiedAt`, `knownEntitlementEnd` nullable, `notAfter`, identificador de concesión y `keyId`; `notAfter` usa el mínimo de 72 horas y el fin comercial conocido.
 - **FR-051**: Android valida la firma y las claims, compara el usuario con la sesión actual y la huella con una clave no exportable de Android Keystore. Un grant ausente, alterado, de otra cuenta/instalación, de política incompatible o con firma desconocida se trata como Free y requiere reconexión para restaurar Premium.
@@ -691,7 +693,7 @@ Como persona usuaria con Premium verificado, quiero seguir usando capacidades Pr
 
 ### Criterios de éxito
 
-- **SC-020**: Pruebas de política demuestran que las capacidades básicas/manuales y el OCR local de comprobantes Yape permanecen permitidos en Free, mientras las demás capacidades avanzadas requieren entitlement efectivo verificable.
+- **SC-020**: Pruebas de política demuestran que las capacidades básicas/manuales y el OCR local de comprobantes Yape permanecen permitidos en Free (con autorización y revisión; Decisión Owner 2026-11-05), mientras el filtro por fuente y las demás capacidades avanzadas requieren entitlement efectivo verificable.
 - **SC-021**: Vectores de firma válidos verifican; firma o claims alteradas, propietario distinto, clave de instalación distinta, versión/política incompatible y key ID desconocido deniegan Premium.
 - **SC-022**: Con tiempo monotónico controlado, se permite justo antes de `notAfter` y se exige reconexión exactamente en `notAfter`; cambios hacia adelante/atrás del reloj civil no cambian el resultado.
 - **SC-023**: La concesión se limita a 72 horas desde el instante firmado por servidor, y una suscripción con fin anterior se limita a ese fin; Lifetime también vence la concesión a las 72 horas.
