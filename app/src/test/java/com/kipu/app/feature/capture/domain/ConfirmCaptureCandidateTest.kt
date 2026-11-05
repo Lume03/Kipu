@@ -62,6 +62,16 @@ class ConfirmCaptureCandidateTest {
         store.rows.value = mapOf((record.ownerId to record.id) to record)
     }
 
+    @Test fun notificationSourceIsSentForReviewedAndAutomaticConfirmation() = runTest {
+        confirm(command())
+        assertEquals(com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION, registered.single().captureSource)
+        // A fresh unresolved candidate exercises automatic registration independently.
+        useOnly(candidate)
+        confirm(command(), CaptureConfirmationMode.AUTOMATIC)
+        assertEquals(2, registered.size)
+        assertTrue(registered.all { it.captureSource == com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION })
+    }
+
     @Test fun `debit confirmation registers through RegisterTransaction with the deterministic key`() = runTest {
         val result = confirm(command()) as CaptureConfirmationResult.Registered
         assertEquals(1, registered.size)
