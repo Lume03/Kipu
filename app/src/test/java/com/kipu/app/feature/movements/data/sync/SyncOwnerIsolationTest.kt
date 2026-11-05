@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.data.sync
 
+import com.kipu.app.feature.debts.data.sync.NoOpDebtSyncScheduler
 import android.app.Application
 import androidx.room.Room
 import androidx.work.WorkerParameters
@@ -43,7 +44,7 @@ class SyncOwnerIsolationTest {
                     nextSequence = requests.toLong(), hasMore = true))
             }
             val worker = SyncMovementsWorker(context, params, db.movementDao(), mockk<MovementApi>(), api,
-                db.accountDao(), db.cardDao(), db, coordinator)
+                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler)
             val failure = runCatching { worker.doWork() }.exceptionOrNull()
             if (failure !is CancellationException) throw AssertionError("Expected owner cancellation, got $failure", failure)
             assertEquals(2, requests)
@@ -73,7 +74,7 @@ class SyncOwnerIsolationTest {
             val params = mockk<WorkerParameters>(relaxed = true)
             every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to "A")
             val worker = SyncMovementsWorker(context, params, dao, mockk<MovementApi>(), api,
-                db.accountDao(), db.cardDao(), db, coordinator)
+                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler)
             val failure = runCatching { worker.doWork() }.exceptionOrNull()
             if (failure !is CancellationException) throw AssertionError("Expected owner cancellation, got $failure", failure)
             assertNull(db.movementDao().getSyncCheckpoint("A"))
