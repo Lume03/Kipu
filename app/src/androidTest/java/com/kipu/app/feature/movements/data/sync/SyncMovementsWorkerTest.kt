@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.data.sync
 
+import com.kipu.app.feature.debts.data.sync.NoOpDebtSyncScheduler
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -67,6 +68,8 @@ class SyncMovementsWorkerTest {
         accountDao = database.accountDao()
         every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to userId)
         every { session.currentOwner } returns LocalOwner(userId)
+        every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
     }
 
     @After
@@ -89,13 +92,13 @@ class SyncMovementsWorkerTest {
                 """{"id":"$transactionId","type":"EXPENSE","operation_kind":"DEBT_PAYMENT","amount_minor":$amount,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-25T17:00:00Z","status":"$status","ledger_entries":${if (status == "VOIDED") "[]" else """[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":${-amount},"currency_code":"PEN"}]"""}}"""
             )),
         ), sequence, false)
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(1,1))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(page(1,1))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals(-100L, movementDao.calculateLedgerSumForAccount(userId, accountId))
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(2,2,amount = 80))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(page(2,2,amount = 80))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals(-80L, movementDao.calculateLedgerSumForAccount(userId, accountId))
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(page(3,3,status = "VOIDED",amount = 80))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(page(3,3,status = "VOIDED",amount = 80))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals(0L, movementDao.calculateLedgerSumForAccount(userId, accountId))
         assertTrue(movementDao.getLedgerEntriesForTransaction(userId, transactionId).any { it.id == "offline-entry" && it.signedAmountMinor == -100L })
@@ -123,7 +126,7 @@ class SyncMovementsWorkerTest {
         val accountId = UUID.randomUUID().toString()
         val transactionId = UUID.randomUUID().toString()
         insertStandardExpense(transactionId, accountId, syncStatus = "PENDING")
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(standardExpenseChange(transactionId, accountId))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(standardExpenseChange(transactionId, accountId))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals(-100L, movementDao.calculateLedgerSumForAccount(userId, accountId))
     }
@@ -136,9 +139,9 @@ class SyncMovementsWorkerTest {
         movementDao.insertPulledLedgerEntries(listOf(LedgerEntryEntity(id = "server-entry", userId = userId, transactionId = transactionId,
             accountId = accountId, role = "PRIMARY", signedAmountMinor = -100, currencyCode = "PEN", createdAt = 2)))
         movementDao.saveSyncCheckpoint(MovementSyncCheckpointEntity(userId, 1))
-        coEvery { financialApi.pullChanges(match { it.afterSequence == 0L }) } returns
+        coEvery { financialApi.pullChanges(match { it.afterSequence == 0L }, userId) } returns
             FinancialApiResponse.Success(standardExpenseChange(transactionId, accountId))
-        coEvery { financialApi.pullChanges(match { it.afterSequence == 1L }) } returns
+        coEvery { financialApi.pullChanges(match { it.afterSequence == 1L }, userId) } returns
             FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 1, false))
         assertEquals(-200L, movementDao.calculateLedgerSumForAccount(userId, accountId))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
@@ -163,7 +166,7 @@ class SyncMovementsWorkerTest {
                 """{"id":"$transactionId","type":"EXPENSE","amount_minor":50,"currency_code":"PEN","source_account_id":"$accountId","category_id":null,"merchant_id":null,"merchant_provisional_text":"Bodega","occurred_at":"2026-09-23T11:00:00Z","status":"ACTIVE","ledger_entries":[{"id":"$entryId","account_id":"$accountId","role":"SOURCE","signed_amount_minor":-50,"currency_code":"PEN","created_at":"2026-09-23T11:00:00Z"}]}"""
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returnsMany listOf(
+        coEvery { financialApi.pullChanges(any(), userId) } returnsMany listOf(
             FinancialApiResponse.Success(PullChangesResponseDto(listOf(accountChange, transactionChange), 2, true)),
             FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 2, false)),
         )
@@ -195,7 +198,7 @@ class SyncMovementsWorkerTest {
                 """{"id":"$transactionId","type":"EXPENSE","operation_kind":"CARD_PURCHASE","card_id":"$cardId","installment_count":1,"amount_minor":12500,"currency_code":"PEN","category_id":"food","occurred_at":"2026-09-23T11:00:00Z","status":"ACTIVE","ledger_entries":[{"id":"liability-$transactionId","account_id":"$liabilityAccountId","role":"LIABILITY","signed_amount_minor":-12500,"currency_code":"PEN"}],"installments":[{"id":"$installmentId","installment_number":1,"due_date":"2026-10-05","principal_minor":12500,"interest_minor":0}]}""",
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returnsMany listOf(
+        coEvery { financialApi.pullChanges(any(), userId) } returnsMany listOf(
             FinancialApiResponse.Success(PullChangesResponseDto(listOf(cardChange, purchaseChange), 2, true)),
             FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 2, false)),
         )
@@ -229,7 +232,7 @@ class SyncMovementsWorkerTest {
             sequence = 2, entityType = "CARD", entityId = cardId, revision = 2,
             operation = "ARCHIVE", payload = creationChange.payload,
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(listOf(creationChange, archiveChange), 2, false),
         )
 
@@ -355,7 +358,7 @@ class SyncMovementsWorkerTest {
                 """{"id":"$paymentId","type":"TRANSFER","operation_kind":"CARD_PAYMENT","card_id":"$cardId","amount_minor":4000,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-09-23T12:00:00Z","status":"ACTIVE","ledger_entries":[{"id":"cash-$paymentId","account_id":"$accountId","role":"SOURCE","signed_amount_minor":-4000,"currency_code":"PEN"},{"id":"liability-$paymentId","account_id":"$liabilityAccountId","role":"LIABILITY","signed_amount_minor":4000,"currency_code":"PEN"}],"allocations":[{"installment_id":"$installmentId","amount_minor":4000}]}""",
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(listOf(paymentChange), 1, false),
         )
 
@@ -384,7 +387,7 @@ class SyncMovementsWorkerTest {
             sequence = 2, entityType = "FUTURE_ENTITY", entityId = "entity", revision = 1,
             operation = "UPSERT", payload = Json.parseToJsonElement("{}"),
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(listOf(accountChange, unsupported), 2, false),
         )
 
@@ -463,7 +466,7 @@ class SyncMovementsWorkerTest {
                 ),
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(changes, nextSequence = 64, hasMore = false),
         )
 
@@ -504,7 +507,7 @@ class SyncMovementsWorkerTest {
                    "ledger_effects":[{"reverses":["${UUID.randomUUID()}","0"],"effect_ordinal":0,"ledger_entry_id":"${UUID.randomUUID()}"}]}""",
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returnsMany listOf(
+        coEvery { financialApi.pullChanges(any(), userId) } returnsMany listOf(
             FinancialApiResponse.Success(PullChangesResponseDto(listOf(account, expense, void(248)), 248, false)),
             FinancialApiResponse.Success(PullChangesResponseDto(listOf(void(249)), 249, false)),
         )
@@ -536,10 +539,10 @@ class SyncMovementsWorkerTest {
         ), "original-hash") as RegisterTransactionResult.Success
         val outbox = movementDao.findClaimableOutbox(userId, System.currentTimeMillis(), 10).single()
         // The remote receipt survived; the process died before recording its response locally.
-        coEvery { movementApi.registerTransaction(any()) } returns MovementApiResponse.Success(
+        coEvery { movementApi.registerTransaction(any(), userId) } returns MovementApiResponse.Success(
             RegisterTransactionResponseDto(status = "DUPLICATE", transactionId = result.transaction.id),
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(emptyList(), 0, false),
         )
         repeat(2) {
@@ -553,13 +556,13 @@ class SyncMovementsWorkerTest {
         coVerify(exactly = 2) { movementApi.registerTransaction(match {
             it.idempotencyKey == key && it.requestHash == "original-hash" &&
                 it.transaction.id == result.transaction.id
-        }) }
+        }, userId) }
     }
 
     @Test
     fun cancellationLeavesClaimRecoverableWithoutFalseRetryOrPull() = runTest {
         val outbox = seedPendingIncome()
-        coEvery { movementApi.registerTransaction(any()) } throws CancellationException("cancelled")
+        coEvery { movementApi.registerTransaction(any(), userId) } throws CancellationException("cancelled")
         var cancelled = false
         try { worker().doWork() } catch (_: CancellationException) { cancelled = true }
         assertTrue(cancelled)
@@ -568,7 +571,7 @@ class SyncMovementsWorkerTest {
         assertEquals(0, stored.attemptCount)
         assertEquals(null, stored.lastErrorCode)
         assertEquals("PENDING", movementDao.getTransactionById(userId, outbox.aggregateId)?.syncStatus)
-        coVerify(exactly = 0) { financialApi.pullChanges(any()) }
+        coVerify(exactly = 0) { financialApi.pullChanges(any(), userId) }
         assertEquals(outbox.payload, movementDao.claimPendingOutbox(userId, requireNotNull(stored.leaseUntil)).single().payload)
     }
 
@@ -629,14 +632,14 @@ class SyncMovementsWorkerTest {
         val revisionResult = local.commitRevisionAtomic(userId, reviseCmd, "revise-hash")
         assertTrue(revisionResult.toString(), revisionResult is com.kipu.app.feature.movements.domain.model.MovementMutationResult.Success)
 
-        coEvery { movementApi.reviseOrVoidTransaction(any()) } returns MovementApiResponse.Success(
+        coEvery { movementApi.reviseOrVoidTransaction(any(), userId) } returns MovementApiResponse.Success(
             com.kipu.app.feature.movements.data.remote.ReviseOrVoidTransactionResponseDto(
                 status = "CONFLICT",
                 currentRevision = 3L,
             )
         )
 
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0, false))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0, false))
         val result = worker().doWork()
         assertEquals(androidx.work.ListenableWorker.Result.retry(), result)
         assertEquals(androidx.work.ListenableWorker.Result.success(), worker().doWork())
@@ -723,9 +726,9 @@ class SyncMovementsWorkerTest {
         movementDao.updateOutboxResult(userId, command.id, "RETRY", System.currentTimeMillis() + 300_000L, "HTTP_401")
         every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
             com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
-        coEvery { movementApi.registerTransaction(any()) } returns MovementApiResponse.Success(
+        coEvery { movementApi.registerTransaction(any(), userId) } returns MovementApiResponse.Success(
             RegisterTransactionResponseDto(status = "APPLIED"))
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
         assertEquals("SYNCED", movementDao.getOutboxById(userId, command.id)?.state)
         assertEquals("SYNCED", movementDao.getTransactionById(userId, command.aggregateId)?.syncStatus)
@@ -738,10 +741,10 @@ class SyncMovementsWorkerTest {
         movementDao.updateOutboxResult(userId, command.id, "RETRY", retryAt, "NETWORK_ERROR")
         every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
             com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
         assertTrue(worker().doWork().javaClass.simpleName.contains("Retry"))
         assertEquals(retryAt, movementDao.getOutboxById(userId, command.id)?.nextAttemptAt)
-        coVerify(exactly = 0) { movementApi.registerTransaction(any()) }
+        coVerify(exactly = 0) { movementApi.registerTransaction(any(), userId) }
     }
 
     @Test
@@ -782,7 +785,7 @@ class SyncMovementsWorkerTest {
                 """{"id":"$accountId","alias":"Efectivo","type":"CASH","currency":"PEN","initial_balance_minor_units":500,"opened_at":"2026-09-23T10:00:00Z"}""",
             ),
         )
-        coEvery { financialApi.pullChanges(any()) } returns FinancialApiResponse.Success(
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(
             PullChangesResponseDto(listOfNotNull(opening, secondChange), nextSequence, false),
         )
 
@@ -791,6 +794,84 @@ class SyncMovementsWorkerTest {
         assertEquals(null, movementDao.calculateLedgerSumForAccount(userId, accountId))
         assertEquals(null, movementDao.getBalanceProjection(userId, accountId))
         assertEquals(null, movementDao.getSyncCheckpoint(userId))
+    }
+
+    private suspend fun seedVoidedSettlement(openingState: String): Pair<String, String> {
+        val accountId = UUID.randomUUID().toString()
+        val debtId = UUID.randomUUID().toString()
+        val settlementId = UUID.randomUUID().toString()
+        val categoryId = UUID.randomUUID().toString()
+        database.categoryDao().insertCategory(com.kipu.app.feature.categories.data.local.CategoryEntity(
+            categoryId, userId, null, "CUSTOM", categoryType = "EXPENSE", createdAt = 1L, updatedAt = 1L))
+        accountDao.insert(AccountEntity(id = accountId, userId = userId, creationOperationId = UUID.randomUUID().toString(),
+            alias = "Cash", type = "CASH", currency = "PEN", presetId = null, color = null, icon = null,
+            initialBalanceMinorUnits = 0L, openedAt = 1L, createdAt = 1L, updatedAt = 1L))
+        val debt = com.kipu.app.feature.debts.data.local.DebtLocalDataSource(database, database.debtDao(),
+            database.debtOutboxDao(), movementDao, accountDao, database.financialMovementDao(), database.categoryDao())
+        val open = com.kipu.app.feature.debts.domain.model.OpenDebtCommand(
+            com.kipu.app.feature.debts.domain.model.DebtCommandIdentity(UUID.randomUUID().toString(), com.kipu.app.feature.debts.domain.DebtCommandHasher.sha256("open")), debtId,
+            com.kipu.app.feature.debts.domain.model.DebtObligationType.PAYABLE, "Person", 1000L, "PEN",
+            LocalDate.parse("2026-10-01"), com.kipu.app.feature.debts.domain.model.DebtOpeningMode.HISTORICAL)
+        assertTrue(debt.openDebt(userId, open, true) is com.kipu.app.feature.debts.domain.model.DebtCommandResult.Applied)
+        assertTrue(debt.settleDebt(userId, com.kipu.app.feature.debts.domain.model.SettleDebtCommand(
+            com.kipu.app.feature.debts.domain.model.DebtCommandIdentity(settlementId, com.kipu.app.feature.debts.domain.DebtCommandHasher.sha256("settle")), debtId, 1L, accountId,
+            100L, interestMinor = 10L, interestCategoryId = categoryId, occurredAt = 1791000000000L)) is com.kipu.app.feature.debts.domain.model.DebtCommandResult.Applied)
+        database.openHelper.writableDatabase.execSQL("UPDATE debt_command_outbox SET state=? WHERE operation_id=?", arrayOf(openingState, settlementId))
+        val local = MovementLocalDataSource(database, movementDao, BalanceProjectionStore(movementDao))
+        assertTrue(local.commitVoidAtomic(userId, com.kipu.app.feature.movements.domain.model.MovementRevisionCommand.Void(
+            UUID.randomUUID().toString(), settlementId, 1L), "void") is MovementMutationResult.Success)
+        every { session.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        return settlementId to debtId
+    }
+
+    @Test fun settlementVoidWaitsForDebtOutboxBeforeCallingRpc() = runTest {
+        val (transactionId, _) = seedVoidedSettlement("PENDING")
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Retry"))
+        val cmd = movementDao.getPendingOutboxForTransaction(userId, transactionId).single()
+        assertEquals("WAITING_DEBT_SETTLEMENT", cmd.lastErrorCode)
+        coVerify(exactly = 0) { movementApi.reviseOrVoidTransaction(any(), any()) }
+        assertEquals(0L, movementDao.calculateLedgerSumForAccount(userId,
+            movementDao.getTransactionById(userId, transactionId)!!.sourceAccountId!!))
+    }
+
+    @Test fun failedSettlementDependencyMarksVoidAndDebtConflictWithoutRpc() = runTest {
+        val (transactionId, debtId) = seedVoidedSettlement("FAILED_PERMANENT")
+        worker().doWork()
+        val cmd = database.openHelper.readableDatabase.query("SELECT state,last_error_code FROM movement_outbox WHERE aggregate_id=?", arrayOf(transactionId))
+        cmd.use { it.moveToFirst(); assertEquals("CONFLICT", it.getString(0)); assertEquals("DEBT_SETTLEMENT_DEPENDENCY_FAILED", it.getString(1)) }
+        assertSettlementMemberSyncState(transactionId, "CONFLICT")
+        assertEquals("CONFLICT", database.debtDao().getDebt(userId, debtId)?.syncState)
+        coVerify(exactly = 0) { movementApi.reviseOrVoidTransaction(any(), any()) }
+    }
+
+    @Test fun voidRpcConflictMarksDependentSettlementConflict() = runTest {
+        val (transactionId, debtId) = seedVoidedSettlement("SYNCED")
+        coEvery { movementApi.reviseOrVoidTransaction(any(), any()) } returns MovementApiResponse.Success(
+            com.kipu.app.feature.movements.data.remote.ReviseOrVoidTransactionResponseDto(status = "CONFLICT", currentRevision = 2L))
+        worker().doWork()
+        assertSettlementMemberSyncState(transactionId, "CONFLICT")
+        assertEquals("CONFLICT", database.debtDao().getDebt(userId, debtId)?.syncState)
+        assertEquals("VOIDED", movementDao.getTransactionById(userId, transactionId)?.status)
+        coVerify(exactly = 1) { movementApi.reviseOrVoidTransaction(any(), any()) }
+    }
+
+    @Test fun permanentVoidRpcRejectionMarksDependentSettlementFailedWithoutUndoingLocalVoid() = runTest {
+        val (transactionId, debtId) = seedVoidedSettlement("SYNCED")
+        coEvery { movementApi.reviseOrVoidTransaction(any(), any()) } returns MovementApiResponse.Error(422, "invalid")
+        worker().doWork()
+        assertSettlementMemberSyncState(transactionId, "FAILED_PERMANENT")
+        assertEquals("FAILED", database.debtDao().getDebt(userId, debtId)?.syncState)
+        assertEquals("VOIDED", movementDao.getTransactionById(userId, transactionId)?.status)
+        coVerify(exactly = 1) { movementApi.reviseOrVoidTransaction(any(), any()) }
+    }
+
+    private suspend fun assertSettlementMemberSyncState(transactionId: String, expected: String) {
+        val event = database.debtDao().getSettlementEventForTransaction(userId, transactionId)!!
+        val interestId = requireNotNull(event.interestTransactionId)
+        assertEquals(expected, movementDao.getTransactionById(userId, transactionId)?.syncStatus)
+        assertEquals(expected, movementDao.getTransactionById(userId, interestId)?.syncStatus)
     }
 
     private fun worker() = SyncMovementsWorker(
@@ -803,5 +884,6 @@ class SyncMovementsWorkerTest {
         cardDao = database.cardDao(),
         database = database,
         sessionCoordinator = session,
+        debtSyncScheduler = NoOpDebtSyncScheduler,
     )
 }
