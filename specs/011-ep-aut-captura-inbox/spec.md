@@ -27,11 +27,11 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 | --- | --- | --- |
 | HU-45 | HU-05, HU-58, HU-59 bloqueantes; HU-46/HU-49 relacionadas | Gate reportado valida sesión, permiso vivo, consentimiento y entitlement; HU-49 implementada en S9. Requiere verificación real en dispositivo. |
 | HU-46 | HU-45 bloqueante; HU-15/HU-16 parciales | Pipeline y parsers reportados en T1/T2; no prueba compatibilidad real de proveedores. |
-| HU-47 | HU-46, HU-18, HU-23 bloqueantes; HU-51 parcial | Scorer/autorregistro reportados en T3; pruebas no ejecutadas. |
+| HU-47 | HU-46, HU-18, HU-23 bloqueantes; HU-51 parcial | Scorer determinista y autorregistro implementados y verificados en unitarias y pruebas instrumentadas Room (`CaptureAtomicResolutionTest` en A16, S8); pendientes expiración Premium real antes de guardar y replay exacto E2E. |
 | HU-48 | HU-46, HU-08, HU-13 bloqueantes | Confirmación reutiliza registro financiero; validar en dispositivo. |
 | HU-49 | HU-45, HU-46, HU-23, HU-58, HU-59 bloqueantes; HU-51, HU-16 parciales; HU-34, HU-50 relacionadas | Correlación híbrida Yape (notificación + OCR/Share) implementada en S9 en Room v37 (capture_evidence, fields_edited); validación en hardware ejecutada para OCR sintético y frontera URI Android; sharing real Yape, notificación viva y ocho muestras privadas permanecen NO VERIFICADO. |
 | HU-50 | HU-16, HU-17, HU-46, HU-51 bloqueantes | Aprendizaje posterior a confirmación y selector canónico reportados en T5/T5b. |
-| HU-51 | HU-46 bloqueante; HU-47/HU-43/HU-50 relacionadas | Bandeja/revisión reportadas en T4; pruebas no ejecutadas. |
+| HU-51 | HU-46 bloqueante; HU-47/HU-43/HU-50 relacionadas | Bandeja y revisión implementadas y verificadas en unitarias, Compose y resolución Room atómica (`CaptureAtomicResolutionTest` en A16, S8); pendientes replay exacto E2E y matriz física de purga. |
 
 ## User Scenarios & Acceptance Criteria
 
@@ -39,7 +39,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 1. Premium y permiso activos + notificación compatible autorizada → se entrega al flujo de candidato.
 2. Fuente excluida → se ignora sin persistir contenido.
 3. Permiso revocado → callback no procesa señal.
-4. Premium vencido → no inicia captura; registro manual sigue disponible.
+4. Premium vencido → no inicia captura; registro manual sigue disponible (verificado con `CaptureAtomicResolutionTest` y `CaptureSignedExpiryAcceptanceTest` ejecutado PASS 2026-11-05).
 
 ### HU-46 — Extracción y candidato
 1. Señal con importe, fecha y tarjeta única → candidato prellenado con origen.
@@ -48,11 +48,11 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 4. Parser sin importe → no crea movimiento confirmado y explica incertidumbre.
 
 ### HU-47 — Confianza y autorregistro
-1. Campos requeridos válidos, sin conflicto → autorregistro único si es débito elegible.
+1. Campos requeridos válidos, sin conflicto → autorregistro único si es débito elegible (replay exacto verificado con `CaptureAtomicResolutionTest::exactEventReplayAfterAutomaticRegistrationDoesNotCreateAnotherMovement` ejecutado PASS A16 2026-11-05).
 2. Categoría dudosa → revisión sin alterar saldo.
 3. Varias carencias → motivos visibles y opción corregir/descartar.
 4. Crédito fiable → sigue pendiente de confirmación.
-5. Premium vence antes de guardar → revalida y no autorregistra.
+5. Premium vence antes de guardar → revalida y no autorregistra (verificado con `CaptureAtomicResolutionTest` y `CaptureSignedExpiryAcceptanceTest` ejecutado PASS 2026-11-05).
 
 ### HU-48 — Confirmación de crédito
 1. Directo confirmado → principal registrado una vez.
@@ -69,16 +69,16 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 ### HU-51 — Bandeja y evidencia mínima
 1. Completar y confirmar → un movimiento y candidato resuelto.
 2. Descartar → sin efecto en saldo.
-3. Reconfirmar → devuelve movimiento existente.
-4. Premium vencido: convertir explícitamente a manual sin extracción nueva y preservar dedupe.
-5. Limpiar evidencia temporal; no incluir contenido sensible en logs.
+3. Reconfirmar → devuelve movimiento existente (replay exacto verificado con `CaptureAtomicResolutionTest::manualConversionAfterPremiumExpiryAndReconfirmationReturnExistingMovement` ejecutado PASS A16 2026-11-05).
+4. Premium vencido: convertir explícitamente a manual sin extracción nueva y preservar dedupe (verificado con `CaptureAtomicResolutionTest` ejecutado PASS A16 2026-11-05).
+5. Limpiar evidencia temporal; no incluir contenido sensible en logs (purga y privacidad verificadas con `CaptureAtomicResolutionTest` y `EvidencePurgeWorkerTest` ejecutado PASS 2026-11-05).
 
 ### HU-49 — Yape híbrido, OCR y deduplicación
 1. **Misma referencia (ambos órdenes)**: Al recibir notificación y Share/OCR de la misma operación en cualquier orden (notificación primero u OCR primero), la misma referencia normalizada vincula la segunda fuente como evidencia al candidato/movimiento raíz existente, sin duplicar en ledger ni crear un segundo movimiento. Raíces ya confirmadas siguen siendo destinos válidos.
 2. **Sin referencia y coincidencia única**: Si una fuente carece de referencia pero coinciden importe, moneda, dirección, contraparte normalizada y hora dentro de ±10 minutos, y hay exactamente una raíz compatible sin esa fuente, se propone la unión y el usuario confirma si une o mantiene separado.
 3. **Múltiples candidatos o referencias distintas**: Si existen múltiples candidatos compatibles o las referencias de operación difieren, nunca se realiza fusión automática; se conservan como candidatos independientes.
 4. **Preservación de campos editados**: Al asociar una segunda evidencia, los campos previamente modificados por el usuario (`fields_edited`) se preservan intactos sin sobrescritura.
-5. **OCR local Yape en Free**: Permitido con consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria (decisión 2026-10-21; escenario 7 del backlog superado). Sin consentimiento no se extrae la imagen.
+5. **OCR local Yape en Free**: Permitido con consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria (decisiones 2026-10-21 y 2026-11-05; escenario 7 del backlog superado). Sin consentimiento no se extrae la imagen.
 6. **Reembolsos e importes iguales**: Operaciones con distinta dirección o historia (ej. reembolsos) no se fusionan por simple coincidencia de importe.
 7. **Persistencia local**: Candidatos y evidencia viven estrictamente en Room v37 (`capture_evidence`, `fields_edited`; esquema histórico v36 preservado), sin outbox ni sincronización a Supabase.
 
@@ -94,7 +94,7 @@ Las fuentes aprobadas por el Owner el 2026-10-28 son Yape, Plin dentro de apps b
 - **FR-008 (decisión Owner 2026-10-28)**: Persistir eventos, candidatos y evidencia solo en Room con consultas filtradas por owner; excluir DB del backup; no sincronizar filas de captura.
 - **FR-009 (HU-46/HU-51, Constitución III)**: No registrar en logs títulos, textos, importes ni comercios. No leer extras antes de validar catálogo y gate. Evidencia mínima, máximo 280 caracteres, sin PAN completo, expira a siete días y se borra al resolver/expirar.
 - **FR-010 (HU-49/D1 Deduplicación simétrica)**: Correlación entre notificación y Share/OCR en ambos órdenes. Misma referencia normalizada vincula la evidencia al candidato/movimiento raíz existente sin segundo movimiento en ledger. Sin referencia, si coinciden importe + moneda + dirección + contraparte normalizada + hora dentro de ±10 minutos con exactamente un candidato compatible sin esa fuente, proponer unión al usuario; prohibida la fusión automática si hay múltiples candidatos o referencias distintas. Preservar campos editados por el usuario.
-- **FR-011 (HU-49/D2 OCR local en Free)**: Permitir extracción OCR local de comprobantes Yape a usuarios del plan Free mediando consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria; supera el escenario 7 del backlog. Archivos no imagen o inválidos se rechazan antes de procesar bytes.
+- **FR-011 (HU-49/D2 OCR local en Free)**: Permitir extracción OCR local de comprobantes Yape a usuarios del plan Free mediando consentimiento explícito `OTHER_APP_NOTIFICATION_CONTENT=GRANTED` y revisión obligatoria; supera el escenario 7 del backlog (Decisión Owner 2026-11-05: OCR local de comprobantes Yape PERMITIDO en Free con consentimiento y revisión, corrigiendo el backlog «OCR denegado en Free» y conservando la protección Premium del resto de la captura). Archivos no imagen o inválidos se rechazan antes de procesar bytes.
 - **FR-012 (HU-49/Room v37 Persistencia local y eventos incompatibles)**: Persistir evidencia local en tabla Room `capture_evidence` bajo esquema Room v37 con clave primaria compuesta `(owner_id, source, event_id)`, índice no único sobre `(owner_id, reference, source)` e índice sobre `(owner_id, root)`. Cuando existan eventos con la misma referencia normalizada pero datos incompatibles, se conservan separados para revisión del usuario sin fusión automática ni duplicación de efectos contables en el ledger (decisión del Owner 2026-11-03 [2026-11-04 UTC], [decisiones del Owner](../sprint-9-owner-decisions.md)). Misma referencia solo fusiona eventos compatibles según los invariantes vigentes. Captura y evidencia son estrictamente locales en Room (sin outbox ni sincronización remota).
 
 ## Key Entities — Room v37 (historial v36 preservado)
