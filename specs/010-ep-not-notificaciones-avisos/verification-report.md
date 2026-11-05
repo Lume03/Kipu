@@ -72,3 +72,28 @@ Este incremento permite que una notificación local de revisión navegue a una c
 - `git diff --check origin/main...HEAD` — **PASS**.
 
 Las evidencias históricas de HU-44 arriba corresponden a la entrega de 2026-10-19; no se repitieron en este incremento. No se agregan cambios SQL ni migraciones remotas.
+
+## Ronda de corrección 2026-11-05
+
+- **Fecha:** 2026-11-05
+- **Alcance:** HU-42 (Centro de notificaciones y avisos) y HU-44 (Recordatorios y deduplicación).
+- **Evidencia automatizada:**
+  - **Unitarios JVM:** 1.678 totales (1.675 PASS, 0 FAIL, 3 omitidos) en suite `:app:testDebugUnitTest`. Incluye:
+    - `com.kipu.app.feature.notifications.domain.NotificationDestinationResolverTest`: PASS (`debt and goal resolve only through owner scoped lookups and perform no writes`).
+    - `com.kipu.app.feature.notifications.presentation.NotificationsViewModelTest`: PASS (`opening debt emits OpenDebt and marks only the notification read`, `opening goal emits OpenGoal and marks only the notification read`).
+    - `com.kipu.app.feature.recurrences.data.RecurrenceDatesAndRemindersTest`: PASS (`freeCaptureGateDoesNotSuppressExpectedPaymentOrReminder`).
+  - **Instrumentados en Galaxy A16 (`SM-A165M`):** 142 PASS, 0 FAIL en 22 clases focalizadas:
+    - `com.kipu.app.navigation.ObjectSourceNavigationTest`: 4 PASS (ejecutado PASS A16 2026-11-05), con `notificationOpenDebtRoutesToDebtDetailWithSourceId` y `notificationOpenGoalRoutesToGoalDetailWithSourceId` validando enrutamiento real a detalle de deuda y meta con id fuente.
+    - `com.kipu.app.feature.notifications.data.local.ReminderFinancialIsolationTest`: 1 PASS (ejecutado PASS A16 2026-11-05), con `receivingReadingAndResolvingReminderPreservesPaymentsMovementsAndBalances` validando que recibir, reintentar, resolver y leer avisos de recurrencias y deudas no altera pagos, movimientos ni saldos del ledger contable.
+  - **Base de datos pgTAP local:** 74 archivos / 1422 tests PASS (exit code 0). Migraciones sincronizadas remoto = local = 114.
+- **Evidencia QA previa:** Informes de HU-44 de 2026-10-19 (17/17 pgTAP, 22/22 instrumentadas en A16) y Sprint 8 de 2026-10-29.
+- **Cambios de esta ronda:**
+  - F1.2: Navegación de avisos hacia DEBT (`DebtDetail`) y GOAL (`GoalDetail`) con emisión de `OpenDebt` y `OpenGoal`, y fallback no disponible si la entidad no existe o es ajena, sin mutaciones financieras.
+  - F3.3: Pruebas unitarias de resolución de destino y eventos de ViewModel; pruebas instrumentadas en `ObjectSourceNavigationTest` y `ReminderFinancialIsolationTest` en hardware Galaxy A16.
+- **Pendientes y bloqueos:**
+  - T033: Navegación DEBT/GOAL verificada en A16; badge de avisos no leídos, accesibilidad y movimiento reducido en hardware quedan pendientes de ejecución focalizada en dispositivo.
+  - T062: Verificación de alertas de presupuesto y crédito en el centro y en la bandeja del sistema Android en hardware abierta.
+  - S24 no ejecutado en esta ronda por firma incompatible (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+- **Veredicto por HU:**
+  - **HU-42:** PARCIAL (navegación resiliente a objetos relacionados incluyendo DEBT y GOAL implementada y validada en hardware A16; badge/a11y/movimiento reducido en hardware pendientes de suite focalizada en dispositivo).
+  - **HU-44:** CUMPLIDO (programación local, anticipación y deduplicación aprobadas previamente por el Owner; aislamiento contable reconfirmado con `ReminderFinancialIsolationTest` PASS A16 2026-11-05).
