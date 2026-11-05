@@ -14,6 +14,8 @@
 
 **Refined**: 2026-10-19 — HU-24/S6: se aclara que la transferencia explícita a una meta conserva la identidad cliente de la operación como identidad de transacción para reconciliar el ledger local previo a sync; los escenarios y alcance de FR-020–022 no cambian.
 
+**Refined**: 2026-11-05 — HU-24/S6: implementación de registro rápido 'Aplicar a…' (Fase 1.4, Decisión Owner 2026-11-05); la reserva de meta utiliza la fecha actual del sistema (reloj del sistema) ocultando el selector de fecha manual en UI. HU-22/S4: implementación de filtro por fuente (Manual / Notificación / OCR) como filtro avanzado Premium.
+
 **Refined**: 2026-10-21 — Sprint 7/HU-25: se explicita el alcance aprobado del reembolso y la frontera con EP-PRE, conservando los criterios existentes de HU-25 y FR-023–025. No se añaden reglas de producto; las decisiones técnicas y de experiencia aún no especificadas quedan como gates previos a implementación en plan.md/tasks.md.
 
 **Input**: Especificar funcionalmente EP-MOV completa, con HU-18 a HU-25; Sprint 2 entrega registro manual, saldos atómicos y detección de duplicados, y los sprints 4, 6 y 7 amplían correcciones, consulta, obligaciones, metas y reembolsos sin crear una segunda verdad financiera.
@@ -233,18 +235,18 @@ Como usuario de Kipu, quiero buscar y filtrar movimientos para revisar mi histor
 
 ### User Story 7 - HU-24 Aplicar movimientos a obligaciones y metas (Priority: P3)
 
-Como usuario de Kipu, quiero vincular pagos, cobros y transferencias con mis obligaciones y metas para reflejar el hecho económico sin duplicar gasto, ingreso o patrimonio.
+Como usuario de Kipu, quiero vincular pagos, cobros y transferencias desde el registro rápido ('Aplicar a…') con mis obligaciones y metas para reflejar el hecho económico sin duplicar gasto, ingreso o patrimonio.
 
 **Why this priority**: Amplía el ledger único a planificación y obligaciones después de que sus módulos base estén disponibles.
 
-**Independent Test**: Aplicar un pago a deuda, un cobro a préstamo y un aporte a meta, verificando saldos y clasificaciones.
+**Independent Test**: Aplicar un pago a deuda, un cobro a préstamo y un aporte a meta desde el registro rápido ('Aplicar a…'), verificando saldos y clasificaciones.
 
 **Acceptance Scenarios**:
 
-1. **Given** una deuda con S/100 de principal pendiente, **When** se aplican S/30 desde Gasto al principal, **Then** quedan S/70 sin aumentar el gasto operativo.
-2. **Given** S/100 por cobrar, **When** se aplican S/20 desde Ingreso al préstamo, **Then** la cuenta aumenta S/20 y lo pendiente baja a S/80 sin aumentar el ingreso operativo.
-3. **Given** una meta y S/200 libres, **When** se transfieren S/50 hacia Cuenta Metas y se elige el objetivo, **Then** se reservan S/50 sin crear gasto ni un activo adicional.
-4. **Given** una meta sin cupo activo, **When** se intenta aportar, **Then** se explica cómo seleccionar cupo y no se guarda ningún efecto parcial.
+1. **Given** una deuda con S/100 de principal pendiente, **When** se aplican S/30 desde Gasto al principal mediante la opción 'Aplicar a…' en el registro rápido con la fecha elegida, **Then** quedan S/70 de principal pendiente sin aumentar el gasto operativo ni requerir categoría, comercio o recurrencia. *(Decisión Owner 2026-11-05: implementación de registro rápido 'Aplicar a…')*.
+2. **Given** S/100 por cobrar, **When** se aplican S/20 desde Ingreso al préstamo mediante la opción 'Aplicar a…' en el registro rápido con la fecha elegida, **Then** la cuenta aumenta S/20 y lo pendiente baja a S/80 sin aumentar el ingreso operativo ni requerir categoría.
+3. **Given** una meta y S/200 libres, **When** se transfieren S/50 hacia Cuenta Metas y se elige la meta objetivo en 'Aplicar a…' desde el registro rápido, **Then** se reservan S/50 utilizando la fecha actual del sistema (el contrato existente de reserva de meta usa el reloj actual y no acepta fecha del formulario, por lo que el control de fecha se oculta en UI informando al usuario) sin crear gasto ni un activo adicional. *(Decisión Owner 2026-11-05: la reserva de meta usa la fecha actual)*.
+4. **Given** una meta sin cupo activo, **When** se intenta aportar desde el registro rápido ('Aplicar a…'), **Then** se muestra la etiqueta 'Sin cupo activo', se explica cómo seleccionar o sustituir cupo desde Metas y no se ejecuta ninguna llamada de repositorio ni se guarda ningún efecto parcial.
 
 ---
 
@@ -320,11 +322,11 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 - **FR-014**: Kipu MUST anular lógicamente un movimiento y revertir juntos todos sus efectos relacionados.
 - **FR-015**: Kipu MUST impedir que una actualización atrasada reactive silenciosamente un movimiento anulado.
 - **FR-016**: Kipu MUST ofrecer a todas las personas historial completo, búsqueda textual, rango de fechas y filtro por Gasto/Ingreso/Transferencia.
-- **FR-017**: Kipu MUST limitar la combinación avanzada de cuenta, tarjeta, categoría, comercio, monto, fuente y estado a una autorización Premium verificada.
+- **FR-017**: Kipu MUST limitar la combinación avanzada de cuenta, tarjeta, categoría, comercio, monto, fuente (Manual / Notificación / OCR) y estado a una autorización Premium verificada. Los movimientos históricos sin procedencia se clasifican como 'Manual', salvo los vinculados a candidatos de captura. *(Decisión Owner 2026-11-05: se implementa filtro por fuente como filtro avanzado Premium)*.
 - **FR-018**: Kipu MUST volver a evaluar el acceso al abrir consultas o enlaces directos con filtros avanzados.
 - **FR-019**: Kipu MUST mantener la protección de integridad y deduplicación en Free y Premium.
-- **FR-020**: Kipu MUST vincular pagos de principal, cobros y aportes con su obligación o meta dentro de la misma confirmación financiera.
-- **FR-021**: Kipu MUST representar un aporte a meta mediante Transferencia hacia la reserva seleccionada, sin crear un cuarto tipo principal ni duplicar activos. En una transferencia explícita offline, el ID de transacción MUST ser la identidad cliente estable del comando para reconciliar la reserva/evento con el ledger local tras sync sin efectos duplicados.
+- **FR-020**: Kipu MUST vincular pagos de principal, cobros y aportes con su obligación o meta dentro de la misma confirmación financiera desde el selector opcional 'Aplicar a…' del registro rápido (Gasto aplica a deuda, Ingreso a préstamo, Transferencia a meta), delegando directamente a las rutas contables de deuda (`DebtRepository.settleDebt`) y meta (`GoalRepository.reserveGoalFunds`) sin registrar un movimiento estándar ni proyectar consumo de presupuesto para el principal. *(Decisión Owner 2026-11-05: registro rápido 'Aplicar a…')*.
+- **FR-021**: Kipu MUST representar un aporte a meta mediante Transferencia hacia la reserva seleccionada, sin crear un cuarto tipo principal ni duplicar activos. En una transferencia explícita offline, el ID de transacción MUST ser la identidad cliente estable del comando para reconciliar la reserva/evento con el ledger local tras sync sin efectos duplicados. La reserva de meta utiliza la fecha actual del sistema (reloj actual), ocultando la selección manual de fecha en el formulario. *(Decisión Owner 2026-11-05: la reserva de meta usa la fecha actual)*.
 - **FR-022**: Kipu MUST impedir nuevas aplicaciones sobre un objeto sin cupo activo, conservando sus relaciones históricas y sus efectos existentes.
 - **FR-023**: Kipu MUST permitir reembolsos parciales y totales únicamente contra una compra propia confirmada.
 - **FR-024**: Kipu MUST calcular el saldo reembolsable descontando todas las devoluciones válidas previas.
@@ -376,7 +378,7 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 - **Detectar similitud**: La ventana de cinco minutos y las dimensiones usuario, cuenta origen, tipo, monto y moneda quedan fijadas para Sprint 2. Una coincidencia sólo advierte; no identifica ni rechaza definitivamente una operación.
 - **Corregir movimiento**: Requiere la revisión conocida y produce una nueva revisión con efectos compensatorios completos o un conflicto explícito.
 - **Anular movimiento**: Conserva la operación original, registra su reversión y excluye sus efectos de cálculos posteriores sin permitir una segunda anulación efectiva.
-- **Aplicar a obligación o meta**: Confirma conjuntamente el movimiento, su enlace y el cambio de principal, por cobrar o reserva.
+- **Aplicar a obligación o meta**: Confirma conjuntamente el movimiento, su enlace y el cambio de principal, por cobrar o reserva desde el registro rápido ('Aplicar a…'). La fecha elegida se conserva para amortización de deuda y cobro de préstamo; la reserva de meta usa la fecha actual del sistema. *(Decisión Owner 2026-11-05)*.
 - **Registrar reembolso**: Requiere el origen, valida el remanente reembolsable y produce el cambio de caja y la corrección histórica como una sola decisión financiera.
 
 ### Riesgos y Decisiones Abiertas
