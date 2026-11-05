@@ -91,6 +91,7 @@ data class Transaction(
     val operationKind: String? = null,
     val installmentCount: Int? = null,
     val paymentChannel: String? = null,
+    val captureSource: MovementSource = MovementSource.MANUAL,
 ) {
     init {
         require(amountMinor > 0) { "Amount must be strictly positive: $amountMinor" }
