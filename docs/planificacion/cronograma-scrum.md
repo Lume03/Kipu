@@ -323,7 +323,7 @@ Cada integrante descompone sus 12 h de desarrollo en implementación, pruebas de
 
 **Riesgo y tratamiento:** Conflictos financieros y reloj local: revisión explícita; no aplicar última escritura ni extender concesión por fecha manipulada.
 
-**Qué se demuestra:** Corregir gasto, anular transferencia y registrar devolución parcial con fecha distinta. Mostrar filtros básicos Free y rechazo de avanzada no autorizada. Simular concesión caducada y registrar manualmente; reconectar sin duplicados.
+**Qué se demuestra:** Corregir gasto (edición con recálculo de saldos) y anular una transferencia o gasto erróneo mediante borrado lógico y reversión atómica (sin incluir devolución parcial, que corresponde a HU-25 en S7). Mostrar búsqueda y filtros básicos Free y rechazo de filtros avanzados no autorizados (política Premium). Simular concesión caducada y registrar manualmente; reconectar sin duplicados.
 
 ### Sprint 4 | Trabajo de los nueve integrantes
 
