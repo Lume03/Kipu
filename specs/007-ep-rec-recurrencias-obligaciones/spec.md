@@ -24,6 +24,8 @@
 
 **Refined**: 2026-10-19 — T025 `t_d3d157a6` preparó Compose v3; T026 `t_9640404b` completó re-review hash-bound con dictamen **BLOCKING / NO-GO**. Archive SHA-256 `0a4658a1e933a84c75ecb6394e1bbfcc71f1b4ee670a5d8bfe26a13e0f7fc6b6` (44,842 bytes); Compose SHA-256 `f95fef8536d75da0b421f6eff17f9e2ae5af49590333757ec89e705590f08bfb`. SEC-CAND-004 se resolvió solo estáticamente; SEC-CAND-001 acredita completitud estática, no ACL efectiva ni provenance Git; SEC-CAND-002 fue **NOT ACCEPTED** y bloquea; SEC-CAND-003 sigue abierto para QA runtime autorizada. El review no habilita operaciones. T030/T031 son el follow-up estático v4 y su re-review; `t_52d47cb0` permanece bloqueado.
 
+**Refined**: 2026-11-05 — Decisión del Owner: en HU-33.4 la próxima fecha se preselecciona con HOY (el escenario 'sin fecha' ya no aplica al inicializarse siempre con una fecha válida de Lima); incorporación formal del escenario 4 de HU-34 (recordatorio en Free).
+
 **Architectural Review**: T003 (`t_a0fdee9b`) aprobó el contrato/modelo documental el 2026-10-18. La paridad ejecutada Kotlin/PostgreSQL y las suites de implementación siguen pendientes; esta aprobación no habilita migraciones hosted.
 
 **Input**: HU-33 Registro de recurrencias y HU-35 Estados de recurrencias, Sprint S6. Alcance confirmado para esta entrega: solo HU-33 y HU-35; HU-34 queda fuera por corresponder a S8 y depender de HU-46/HU-51.
@@ -52,7 +54,7 @@ Como usuario de Kipu, quiero marcar un movimiento como pago recurrente y definir
 1. **Given** un movimiento que la persona desea repetir, **When** activa Pago recurrente en Detalles y guarda una regla válida, **Then** queda registrada con su próxima fecha y configuración.
 2. **Given** una obligación cuyo importe puede variar, **When** la persona indica importe aproximado, **Then** Kipu lo identifica como estimado y no como pago real.
 3. **Given** una regla mensual o anual cuyo día no existe en el periodo siguiente, **When** Kipu calcula la fecha, **Then** propone una fecha válida de calendario y no duplica el periodo.
-4. **Given** que falta la próxima fecha, **When** la persona intenta guardar, **Then** Kipu solicita completarla y no crea una regla incompleta.
+4. **Given** el formulario de registro de recurrencia, **When** la persona lo abre, **Then** la próxima fecha se preselecciona automáticamente con HOY en zona horaria America/Lima (Decisión Owner 2026-11-05: la próxima fecha se preselecciona con HOY; el escenario previo 'sin fecha' ya no aplica al inicializarse siempre con una fecha válida).
 5. **Given** que la regla tiene importe fijo, **When** se guarda, **Then** la modalidad fija y el importe esperado quedan diferenciados de cualquier transacción real.
 
 ---
@@ -90,7 +92,7 @@ Como usuario de Kipu, quiero pausar, reanudar o cancelar una recurrencia, para c
 - **FR-001 (HU-33)**: Kipu MUST permitir iniciar el registro recurrente desde los detalles de un movimiento y conservar ese movimiento como hecho histórico sin volverlo a registrar.
 - **FR-002 (HU-33)**: La persona MUST poder definir frecuencia semanal, quincenal, mensual, anual o personalizada, importe fijo o aproximado, próxima fecha y anticipación del aviso en días (default 2; entero requerido no nulo, rango inclusivo 0–30, DP-REC-05). El cliente MUST resolver el default 2 antes de calcular el hash del comando; un comando con el campo omitido o `null` MUST rechazarse. Este requisito configura la preferencia; no asigna a EP-REC la entrega del aviso.
 - **FR-003 (HU-33)**: Kipu MUST identificar visualmente el importe aproximado como estimado, y ninguna regla recurrente ni estimación MUST presentarse como pago realizado.
-- **FR-004 (HU-33)**: Kipu MUST rechazar la creación si falta la próxima fecha requerida o si la configuración temporal es inválida, sin persistir una regla incompleta. Las fechas del contrato MUST ser fechas gregorianas válidas entre `0001-01-01` y `9999-12-31`.
+- **FR-004 (HU-33)**: La próxima fecha se preselecciona automáticamente con HOY en el formulario (Decisión Owner 2026-11-05; el escenario 'sin fecha' ya no aplica). Kipu MUST validar la configuración temporal y rechazar reglas con fechas gregorianas inválidas o fuera del rango `0001-01-01` a `9999-12-31`.
 - **FR-005 (HU-33)**: El cálculo de fechas MUST respetar el calendario para periodos mensuales/anuales, producir fechas válidas al llegar al fin de mes y evitar periodos duplicados. La secuencia MUST derivarse del `start_date` original para evitar deriva después del ajuste de fin de mes.
 - **FR-006 (HU-35)**: Una regla MUST distinguir los estados Activa, Pausada y Cancelada; pausar y cancelar conservan el historial.
 - **FR-007 (HU-35)**: Pausar o cancelar MUST detener avisos futuros de la regla; la entrega, deduplicación y centro de notificaciones son responsabilidad de HU-44 y quedan fuera de esta implementación.
@@ -111,7 +113,7 @@ Como usuario de Kipu, quiero pausar, reanudar o cancelar una recurrencia, para c
 ### Measurable Outcomes
 
 - **SC-001**: El 100% de los escenarios de aceptación de HU-33 y HU-35 puede verificarse sin crear una transacción financiera ficticia.
-- **SC-002**: Toda regla válida probada conserva una próxima fecha válida; una regla sin próxima fecha o con intervalo inválido no se guarda.
+- **SC-002**: Toda regla válida probada conserva una próxima fecha válida (preseleccionada con HOY por decisión del Owner 2026-11-05); una regla con intervalo o configuración de fechas inválida no se guarda.
 - **SC-003**: La misma regla de calendario no produce dos fechas para el mismo periodo al repetir su cálculo o guardado.
 - **SC-004**: Tras pausar/cancelar no se entrega un nuevo aviso de la regla; tras reanudar no aparecen cargos ni pagos de periodos omitidos.
 - **SC-005**: En todos los escenarios probados, los movimientos anteriores y su historia sobreviven a pausa, reanudación, cancelación y reintentos.
@@ -188,24 +190,7 @@ Usar fechas gregorianas estrictas `YYYY-MM-DD` en el rango común `0001-01-01`..
 1. Dado que vence una recurrencia, cuando se genera el esperado, aparece el recordatorio sin cambiar banco, ledger o saldo.
 2. Dado que un candidato confirmado coincide con una obligación, cuando se vincula, se marca atendida sin duplicar gasto.
 3. Si varias obligaciones coinciden, la elección queda persistida y se recupera después de salir/reabrir; elegir «Ninguno» la resuelve sin otro movimiento.
-
-### Requisitos funcionales
-
-- **FR-012 (HU-34, escenario 1)**: Para reglas `ACTIVE`, generar de manera idempotente un esperado por recurrencia/fecha, sin periodos perdidos y sin efecto en ledger, saldo o presupuesto.
-- **FR-013 (HU-34, escenario 2)**: Una coincidencia única por importe, moneda y ventana de fecha MUST vincular el movimiento existente, marcar `ATTENDED` y no crear otro movimiento.
-- **FR-014 (HU-34, escenario 3)**: Coincidencias múltiples MUST conservar una elección pendiente; actualizar expectativa y candidato de modo atómico. El mismo vínculo repetido es idempotente.
-- **FR-015 (HU-34/Free)**: Free conserva recordatorios ordinarios; el estado esperado no suprime recordatorios antes de ser atendido.
-
-### Evidencia pendiente en dispositivo
-
-`impl-T6b.md` reporta generación, sincronización de importes esperados, elección persistente y vínculo atómico, con compilación exitosa; no ejecutó pruebas ni ADB. Pendiente validar recordatorio Free, ausencia de periodos anteriores, sin segundo movimiento, recuperación de elección tras cerrar/reabrir y comportamiento de recordatorios para `ATTENDED`.
-
-
-### Escenarios de aceptación (HU-34)
-
-1. Dado que vence una recurrencia, cuando se genera el esperado, aparece el recordatorio sin cambiar banco, ledger o saldo.
-2. Dado que un candidato confirmado coincide con una obligación, cuando se vincula, se marca atendida sin duplicar gasto.
-3. Si varias obligaciones coinciden, la elección queda persistida y se recupera después de salir/reabrir; elegir «Ninguno» la resuelve sin otro movimiento.
+4. Dado que existe una regla activa en plan Free, cuando llega su fecha, el recordatorio ordinario funciona con normalidad y permite el registro manual del gasto, sin suprimir alertas antes de ser atendido (FR-015; decisión Owner 2026-11-05).
 
 ### Requisitos funcionales
 
