@@ -1,8 +1,10 @@
 # Contrato interno — Comandos de obligaciones
 
-**Estado**: contrato de planificación para HU-26–HU-29; no implementado.
+**Estado**: IMPLEMENTADO y verificado (HU-26–HU-29). Todos los comandos de obligaciones (`OPEN_DEBT`, `SETTLE_DEBT`, `SET_DEBT_SCHEDULE`, `CLOSE_DEBT`, `DELETE_DEBT_IF_UNREFERENCED`) y anulación de liquidaciones se encuentran implementados, desplegados y verificados.
 
-**Nota de verificación 2026-11-03:** la cabecera anterior corresponde al estado de planificación original. Se contrastaron los handlers de apertura desplegados y dos operaciones reales ya sincronizadas: la representación remota de su desembolso es `transactions` + `debt_events` + `internal.ledger_entries`. El alta local añade una copia auxiliar en `financial_movements` mediante `insertRaw`, sin otro asiento. Esa copia no constituye un comando adicional por enviar, ni su ausencia en una instalación restaurada prueba pérdida del desembolso. Se preserva la historia; no se insertan hechos remotos ni se borran filas para igualar conteos. Alcance, pruebas y límites: [informe](../../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03). Esta comprobación de apertura no certifica los demás comandos.
+**Nota de verificación 2026-11-03:** la cabecera original correspondía al estado de planificación previo. Se contrastaron los handlers de apertura desplegados y dos operaciones reales ya sincronizadas: la representación remota de su desembolso es `transactions` + `debt_events` + `internal.ledger_entries`. El alta local añade una copia auxiliar en `financial_movements` mediante `insertRaw`, sin otro asiento. Esa copia no constituye un comando adicional por enviar, ni su ausencia en una instalación restaurada prueba pérdida del desembolso. Se preserva la historia; no se insertan hechos remotos ni se borran filas para igualar conteos. Alcance, pruebas y límites: [informe](../../sprint-9-device-validation.md#procedencia-de-los-desembolsos-locales--2026-11-03).
+
+**Nota de actualización 2026-11-05 (Decisión Owner 2026-11-05 — BUG-003):** Corrección y verificación de la anulación de pagos (liquidaciones) implementada. La anulación de un pago de deuda se ejecuta indistintamente desde el detalle de la deuda (`DebtDetailScreen`/`DebtDetailViewModel`) o desde el movimiento vinculado en el historial (`MovementHistoryScreen`/`VoidTransaction`), utilizando la misma RPC (`void_transaction_v1`). La anulación opera atómicamente sobre el grupo principal + interés vinculado (reversión conjunta sin escrituras parciales), recalcula saldo pendiente, cuotas del cronograma y, si la obligación se encontraba en estado cerrado (`SETTLED`), la reabre automáticamente a `ACTIVE` restaurando el saldo pendiente y liberando/reajustando el cupo según corresponda.
 
 ## Reglas comunes
 
@@ -67,7 +69,7 @@
 - El tramo de principal es DEBT_PAYMENT y no cuenta como ingreso/gasto ni consumo de presupuesto. El interés real, si existe, se registra como movimiento operativo separado y enlazado con DEBT_AMORTIZATION; solo ese tramo participa en resultados.
 - La operación crea el evento PAYMENT y los movimientos/asientos vinculados de forma atómica.
 - No se recorta el exceso ni se permite principal mayor al pendiente.
-- El endpoint que invalida/corrige una liquidación debe operar sobre el grupo principal + interés; la vista de saldo ignora eventos cuyo principal está VOIDED y recalcula cuotas/estado.
+- La anulación o corrección de una liquidación (BUG-003) se realiza mediante la misma RPC `void_transaction_v1`, ejecutable tanto desde el detalle de la deuda (`DebtDetailScreen`/`DebtDetailViewModel`) como desde el movimiento vinculado en el historial (`MovementHistoryScreen`/`VoidTransaction`). Revierte atómicamente la pareja principal e interés (sin escrituras parciales); la vista de saldo ignora eventos cuyo principal está `VOIDED`, recalcula cuotas del cronograma y reabre la obligación a estado `ACTIVE` si estaba en `SETTLED`. *(Decisión Owner 2026-11-05: anular pago de deuda desde el detalle de la deuda Y desde el movimiento vinculado, misma RPC; reabre la deuda si estaba cerrada)*.
 
 ### Respuesta
 
