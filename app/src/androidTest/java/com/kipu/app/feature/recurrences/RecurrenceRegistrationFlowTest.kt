@@ -17,6 +17,22 @@ import org.junit.Test
 class RecurrenceRegistrationFlowTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun fixedAmountIsAnExpectedTemplateAndDoesNotAlterSourcePayment() {
+        var submitted: RecurrenceDraft? = null
+        val source = movement()
+        compose.setContent { RecurrenceRegistrationScreen(source, {}, { submitted = it }) }
+        compose.onNodeWithTag("recurrence_amount_mode_fixed").performScrollTo().performClick()
+        compose.onNodeWithText("Monto fijo esperado · no se registra como pago").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("recurrence_save").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals("FIXED", submitted?.amountMode)
+            assertEquals("1250", submitted?.templateTransaction?.get("amount_minor")?.toString())
+            assertEquals(movement(), source)
+            assertNull(submitted?.templateTransaction?.get("paid_at"))
+            assertNull(submitted?.templateTransaction?.get("transaction_id"))
+        }
+    }
+
     @Test fun registrationCanStartFromExpenseDetailsAndKeepsSourceUnchanged() {
         var opened = false
         val source = movement()
@@ -136,7 +152,7 @@ class RecurrenceRegistrationFlowTest {
     }
     private fun movement() = TransactionItem(
         transaction = Transaction(id = "source-movement", userId = "user-1", type = MovementType.EXPENSE,
-            amountMinor = 1250L, currency = "PEN", sourceAccountId = "account-1", categoryId = "category-1", occurredAt = 1760000000000L),
+            amountMinor = 1250L, currency = "PEN", sourceAccountId = "account-1", categoryId = "category-1", occurredAt = 1760000000000L, createdAt = 1760000000000L, updatedAt = 1760000000000L),
         merchantName = "Netflix", merchantLogoKey = "ic_merchant_netflix", categoryName = "Entretenimiento",
     )
 }
