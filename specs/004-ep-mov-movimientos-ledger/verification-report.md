@@ -114,3 +114,69 @@ Esta actualización posterior sustituye para T144/T148 el estado histórico ante
 ### Límites y tareas abiertas
 
 No se ejecutó la migración Room en runtime en este pase, la suite instrumentada completa, una auditoría manual de TalkBack/UI ni revisión independiente de QA/Finanzas/Seguridad. En EP-PRE quedan abiertos T023 (presentación de historial/aviso), T031, T032 y T033; en EP-MOV queda abierto T149. No declarar aceptación integral de HU-25 hasta cerrar T149. No se accedió a Supabase hosted/producción ni se tocó la migración SQL de periodos o los DTO de sync de presupuestos.
+
+---
+
+## Ronda de corrección 2026-11-05
+
+- **Fecha:** 2026-11-05
+- **Alcance:** HU-18 a HU-25 (Épica completa EP-MOV: HU-18 Registro manual local, HU-19 Saldos y atomicidad, HU-20 Edición y correcciones estándar, HU-21 Anulación/VOIDED y compensación, HU-22 Consultas Free/Premium con filtro avanzado por fuente [T110], HU-23 Deduplicación e idempotencia, HU-24 Aplicar movimientos a obligaciones y metas desde registro rápido [Fase 1.4], HU-25 Registrar reembolsos vinculados).
+
+### Evidencia automatizada (2026-11-05)
+
+1. **Unitarios JVM (`:app:testDebugUnitTest`):**
+   - 1.678 tests totales: **1.675 PASS, 0 FAIL, 3 SKIPPED** (BUILD SUCCESSFUL en 1m59s).
+   - Pruebas clave de EP-MOV aprobadas:
+     - `QueryMovementHistoryTest`: 2 tests PASS (`sourceOnlyFilterRequiresPremiumAndFreeStripsAllAdvancedForPageAndSummary`, `premiumPreservesSourcesAndRevalidationRemovesSourcesWithOtherAdvancedFilters`).
+     - `ConfirmCaptureCandidateTest`: PASS (`notificationSourceIsSentForReviewedAndAutomaticConfirmation`).
+     - `ConfirmReceiptCandidateTest`: PASS (`keepsStableIdempotencyKeyAndDuplicateOverrideWhilePreservingReceiptReference`).
+     - `MovementFilterDraftTest`: PASS (`sourcesSurviveAppliedAndSavedDraftRoundTrips`).
+     - `RefundTransactionTest`: 11 tests PASS (validación de importes, saldo remanente, replay y propiedad).
+     - `MovementRevisionTest`: 20 tests PASS.
+     - `ExpenseEligibilityTest`: PASS (exclusión estricta de pagos de principal y no elegibles).
+
+2. **Instrumentados en dispositivo físico (Galaxy A16 / Android 16):**
+   - 22 clases focalizadas ejecutadas: **142 PASS, 0 FAIL, 2 @Ignore BUG (en metas), 4 omitidos (opt-in remoto desactivado)**.
+   - Clases directas de EP-MOV ejecutadas en A16:
+     - `com.kipu.app.core.database.MovementSourceMigrationTest`: **1 PASS** (ejecutado PASS A16 2026-11-05; valida backfill 39->40, clasificación MANUAL para históricos sin procedencia y preservación de candidatos).
+     - `com.kipu.app.feature.movements.data.local.MovementLocalDataSourceTest`: **18 PASS** (ejecutado PASS A16 2026-11-05; valida atomicidad de transferencias ante inyecciones de fallo en `transferFailureBetweenEntriesRollsBackEveryLocalArtifact` y `transferFailureAtOutboxRollsBackAlreadyWrittenLedgerProjectionsAndReceipt`, reapertura en `reopeningFilePreservesTransferAndOfflineAccountCategoryExpense`, exactitud de minor units en `tenTenCentIncomePostingsSumExactlyOneSol`, y persistencia de fuentes en `registrationPersistsEveryCaptureSourceAndReplayKeepsOriginalProvenance`).
+     - `com.kipu.app.feature.movements.data.local.MovementHistoryQueryTest`: **11 PASS** (ejecutado PASS A16 2026-11-05; unión de fuentes, intersección con filtros y coherencia keyset/conteo/neto).
+     - `com.kipu.app.feature.movements.presentation.MovementSourceFiltersTest`: **4 PASS** (ejecutado PASS A16 2026-11-05; borrador de fuentes, botón Limpiar, retiro individual de chips y bloqueo en plan Free).
+     - `com.kipu.app.feature.movements.presentation.MovementObligationEntryPointTest`: **3 PASS** (ejecutado PASS A16 2026-11-05; 3 tests anteriormente @Ignore BUG habilitados y pasando en verde: `expenseOffersDebtPrincipalApplication`, `incomeOffersLoanPrincipalCollection`, `transferOffersGoalSelectionBeforeQuotaValidation`).
+     - `com.kipu.app.feature.movements.MovementRefundBudgetIntegrationTest`: **2 PASS** (ejecutado PASS A16 2026-11-05).
+     - `com.kipu.app.feature.movements.data.sync.MovementRefundSyncTest`: **2 PASS** (ejecutado PASS A16 2026-11-05).
+     - `com.kipu.app.feature.movements.data.sync.SyncMovementsWorkerTest`: **25 PASS** (ejecutado PASS A16 2026-11-05).
+
+3. **Base de datos local (pgTAP):**
+   - 74 archivos / **1.422 tests PASS** (2026-11-05).
+   - Incluye `movements_transfer_atomic_failure_test.sql` (6 aserciones de rollback atómico ante fallo simulado entre asientos SOURCE y DESTINATION; cero residuos en ledger, recibos y sync), `movements_refund_test.sql` (31 aserciones), y `movements_register_transaction_test.sql`.
+
+### Evidencia QA previa
+
+- `docs/qa/auditoria-sprint-6-2026-10-19/informe.md`: Búsqueda textual exacta y parcial en historial aprobadas (`hu-22-search-exact-qa.png`, `hu-22-search-partial-qa.png`); estado vacío por búsqueda sin resultados PASS; pago parcial de principal y visualización en historial PASS; transferencia explícita ligada a meta PASS.
+- `docs/qa/movement-swipe-receipts-2026-11-04.md`: Gesto swipe para eliminar del historial con anulación lógica (`VoidTransaction`) sin borrado físico, verificado en dispositivo físico (`MovementSwipeReceiptsTest` 7/7 instrumentados PASS; 39 pruebas lab unitarias PASS).
+- `docs/qa/activacion-sync-planificacion-2026-10-26.md`: Verificación de consistencia tras restauración remota, ledger y checkpoint 316.
+
+### Cambios de esta ronda (2026-11-05)
+
+1. **HU-22 / T110 (Fase 1.3):** Implementación del filtro avanzado Premium por fuente `capture_source` (MANUAL / NOTIFICATION / OCR). Migración Room 39->40 (`MIGRATION_39_40`), backfill de procedencia desde candidatos locales (clasificando históricos sin evidencia como MANUAL según Decisión Owner 2026-11-05), constructor de consulta SQL con filtro `source IN (...)`, `AdvancedHistoryCriteria.sources`, chips en `MovementFiltersSheet`, persistencia en borrador y retiro individual.
+2. **HU-24 (Fase 1.4):** Implementación de la opción 'Aplicar a…' en registro rápido (`QuickMovementViewModel`, `QuickMovementScreen`), permitiendo imputar pagos a deudas (`DebtRepository.settleDebt`), cobros a préstamos y aportes a metas (`GoalRepository.reserveGoalFunds`) sin registrar movimientos estándar ni consumo operativo. La reserva de meta utiliza la fecha actual del sistema (reloj actual) ocultando la selección manual de fecha en UI (Decisión Owner 2026-11-05). Se habilitaron los tests instrumentados en `MovementObligationEntryPointTest.kt` (3 PASS).
+3. **HU-19 / T027 / T029 (Fase 3.2):** Incorporación y verificación de pruebas de atomicidad local/remota ante fallos inyectados (`MovementLocalDataSourceTest` y `movements_transfer_atomic_failure_test.sql`).
+
+### Pendientes y bloqueos
+
+- **Dispositivo Galaxy S24:** no ejecutado debido a `INSTALL_FAILED_UPDATE_INCOMPATIBLE` por diferencia de firmas entre el release previo instalado en el teléfono y la build debug local. Validación instrumentada completada en Galaxy A16 (142 PASS).
+- **HU-25 / T149:** la revisión independiente formal por `qa-auditor`, Finanzas y Seguridad permanece abierta, aunque el código, pruebas Room, sync y contratos se encuentran en verde.
+
+### Veredicto por HU
+
+| Historia | Descripción | Veredicto | Justificación |
+|---|---|---|---|
+| **HU-18** | Registro manual de tres tipos | **CUMPLIDO** | Registro offline, ledger y proyecciones verificados en unitarios e instrumentados. |
+| **HU-19** | Saldos y confirmación atómica | **CUMPLIDO** | Rollback atómico local y remoto comprobado ante fallos inyectados (T027 en A16, T029 en pgTAP). |
+| **HU-20** | Edición y correcciones estándar | **CUMPLIDO** | Compensaciones auditables, nuevas revisiones y recalculo sin pérdida de historia. |
+| **HU-21** | Anulación lógica (VOIDED) | **CUMPLIDO** | Reversión atómica y preservación de estado VOIDED frente a sincronización tardía y swipe. |
+| **HU-22** | Historial y filtros avanzados | **CUMPLIDO** | Historial básico Free y filtros avanzados Premium con filtro por fuente `capture_source` (T110) verificado en A16. |
+| **HU-23** | Deduplicación e idempotencia | **CUMPLIDO** | Idempotencia por hash/operation_id y advertencia de similitudes sin falsos bloqueos. |
+| **HU-24** | Aplicar a obligaciones y metas | **CUMPLIDO** | Flujo rápido 'Aplicar a…' implementado en F1.4; tests instrumentados 3/3 PASS en A16. |
+| **HU-25** | Reembolsos vinculados | **PARCIAL / VALIDACIÓN PENDIENTE** | Implementación y tests (Room, sync, pgTAP 31/31) en GREEN; revisión independiente T149 permanece abierta. |
