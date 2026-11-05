@@ -12,11 +12,11 @@
 
 **Propagated**: 2026-10-19 — T025/T026 cerraron v3 con **BLOCKING / NO-GO**. T030 `t_00bff9a1` entregó v4 estático adjunto (SHA-256 `bf6bc260f18129ac9014660f652a7403e63b61b7825256031879537fd4650a34`, 51,025 bytes; 36/36 checksums internas verificadas); Compose SHA-256 `f95fef8536d75da0b421f6eff17f9e2ae5af49590333757ec89e705590f08bfb` no cambió. T056 `t_56ebf6c1` concluyó 12/12 GET anónimos de OCI manifests con HTTP 401. Re-review final T031 `t_c2f897bb`: **BLOCKING / NO-GO**, SEC-CAND-002 **NOT ACCEPTED**, contra esos hashes. Requiere decisión humana escrita o remediación/verificación separada; no hay target autorizado.
 
-**Input**: HU-33 Registro de recurrencias y HU-35 Estados de recurrencias, Sprint S6; alcance aprobado exclusivamente HU-33/HU-35.
+**Input**: HU-33 Registro de recurrencias y HU-35 Estados de recurrencias (Sprint S6); HU-34 Pagos esperados y coincidencia con captura incorporada como incremento en Sprint S8.
 
 ## Summary
 
-Diseñar e implementar el ciclo de una regla recurrente (alta, calendario, importe esperado y ciclo Activa/Pausada/Cancelada) en la app Android local-first y Supabase, con sincronización idempotente y preservación de historia. La regla nunca confirma ni ejecuta un pago. El plan es deliberadamente incremental y no activa la generación de `recurrence_occurrences`, el matching de HU-34, el calendario HU-40 ni la entrega/deduplicación de avisos HU-44. La recomendación arquitectónica independiente está registrada en Kanban `t_1901d5ce`; las respuestas funcionales aprobadas constan en T001 y su seguimiento, y T003 aprobó el contrato/modelo documental antes de liberar código. La paridad de implementación continúa pendiente.
+Diseñar e implementar el ciclo de una regla recurrente (alta, calendario, importe esperado y ciclo Activa/Pausada/Cancelada) en la app Android local-first y Supabase, con sincronización idempotente y preservación de historia. La regla nunca confirma ni ejecuta un pago. El plan inicial de S6 era incremental sin activar generación de `recurrence_occurrences`, HU-40 ni entrega de avisos HU-44; en Sprint S8 se incorpora HU-34 (pagos esperados y vinculación con captura, sin transacciones financieras). La recomendación arquitectónica independiente está registrada en Kanban `t_1901d5ce`; las respuestas funcionales aprobadas constan en T001 y su seguimiento, y T003 aprobó el contrato/modelo documental antes de liberar código. La paridad de implementación continúa pendiente.
 
 ## Technical Context
 
@@ -27,8 +27,8 @@ Diseñar e implementar el ciclo de una regla recurrente (alta, calendario, impor
 - **Target Platform**: Android minSdk 24, targetSdk 36, compileSdk 37; Supabase PostgreSQL 17.
 - **Project Type**: Aplicación Android nativa local-first con backend Supabase.
 - **Performance Goals**: No se aprobó un SLO específico. El cálculo de fechas debe ser determinista y ejecutarse sin bloquear UI; no introducir trabajo periódico de generación de pagos en este alcance.
-- **Constraints**: Persistencia local-first; no registrar transacciones/ledger/saldos al crear o cambiar reglas; aislamiento por propietario; migraciones aditivas y preservación de historial; HU-34/HU-40/HU-44 fuera de implementación; no acceso ni cambios hosted sin autorización.
-- **Scale/Scope**: Dos historias (HU-33 y HU-35), una regla y su configuración por propietario, sin generación de ocurrencias esperadas.
+- **Constraints**: Persistencia local-first; no registrar transacciones/ledger/saldos al crear o cambiar reglas ni al generar/vincular pagos esperados (HU-34); aislamiento por propietario; migraciones aditivas y preservación de historial; HU-40 fuera de implementación (el calendario se trabaja por separado); no acceso ni cambios hosted sin autorización.
+- **Scale/Scope**: Inicialmente dos historias en S6 (HU-33 y HU-35); ampliado en S8 para incorporar HU-34 (pagos esperados locales y matching con captura confirmada).
 
 ## Constitution Check
 
@@ -166,7 +166,30 @@ Los directorios de la feature de recurrencias y los archivos nombrados como futu
 - **Database**: Room v22→v23 y fresh install, preservación de filas/outbox, claves por propietario, constraints de estados y fecha próxima.
 - **Backend**: schemas/allowlists y refs de create/update/pause/resume/cancel, operation idempotency/hash mismatch, stale revision, owner isolation, RLS/ACL; validar campos antes del digest/receipt/mutación. Ejecutar paridad local numérica y de strings Kotlin/PostgreSQL; hashes de referencia calculados documentalmente no equivalen a haber ejecutado ambas implementaciones.
 - **UI**: estados ACTIVE/PAUSED/CANCELLED, confirmación/abandono de la fecha de reanudación y cancelación, no emitir comando ACTIVE antes de confirmar, accesibilidad Compose, error/conflicto/offline.
-- **Cross-feature**: HU-44 solo como boundary contract/regresión; pruebas de HU-34/HU-40 quedan fuera.
+- **Cross-feature**: HU-44 integrado en boundary contract/regresión y supresión de avisos atendidos; HU-34 validada en Sprint S8; pruebas de HU-40 permanecen fuera de este alcance.
 - **SQL target safety**: v3 corrige el runner solo en configuración estática, pero su review es BLOCKING/NO-GO por SEC-CAND-002; SEC-CAND-003 no se validó en runtime. No hay target autorizado. Invocación opt-in solo después de Security favorable a hash exacto, decisión humana escrita y QA runtime independiente. Las tres suites incluyen schema, create/update y lifecycle; archivo/checksum no equivale a GREEN.
 - **Device**: test instrumentado real en Samsung Galaxy conectado; registrar modelo/Android y resultado sin publicar serial.
 - **Gate**: no marcar entrega como DONE hasta evidencia de cada criterio, revisión independiente `qa-auditor` y aprobación arquitectónica T003. El inventario hosted y el significado de anticipación 0 siguen como gates de sus respectivos dueños; no desplegar.
+
+## Incremento Sprint 8: HU-34 — Pagos esperados y coincidencia con captura
+
+**Fecha de incorporación**: 2026-10-28 | **Sprint**: S8 | **Estado**: Validado en dispositivo y aprobado por Owner (2026-10-29).
+
+### Alcance y arquitectura
+- Generar pagos esperados locales desde reglas `ACTIVE` mediante Room (`recurrence_expected_payments`), con unicidad `(owner_id, recurrence_id, due_date)` y estados `EXPECTED`, `ATTENDED`, `SKIPPED`.
+- La regla o el esperado no crean transacciones contables, no mueven saldo ni alteran ledger o presupuestos.
+- Asociar candidatos de captura confirmados (`expected_match_state`: `PENDING_CHOICE`, `LINKED`, `NONE`); reutiliza el movimiento confirmado existente sin duplicar gasto.
+- Persistir la elección ambigua si varias obligaciones coinciden hasta que el usuario resuelva («Opción» o «Ninguno»).
+- Suprimir la emisión de recordatorios de HU-44 si el pago esperado para esa fecha ya figura como `ATTENDED`. Free conserva recordatorios ordinarios de recurrencia.
+
+### Componentes y entregables
+- **Dominio**: `app/src/main/java/com/kipu/app/feature/recurrences/domain/ExpectedPayments.kt` (modelo de esperado, estados y lógica de matching puro).
+- **Persistencia local (Room)**: `app/src/main/java/com/kipu/app/feature/recurrences/data/local/ExpectedPaymentEntity.kt` y DAOs correspondientes (migración Room gestionada en EP-AUT PR #90).
+- **Sincronización y workers**: `app/src/main/java/com/kipu/app/feature/recurrences/data/sync/ExpectedPaymentWorker.kt` y `app/src/main/java/com/kipu/app/feature/recurrences/data/sync/RecurrenceReminderWorker.kt`.
+
+### Evidencia de verificación
+- **Pruebas unitarias**: `app/src/test/java/com/kipu/app/feature/capture/domain/ExpectedPaymentsTest.kt` (generación, coincidencia exacta/ambigua y resolución).
+- **Pruebas instrumentadas Android**:
+  - `app/src/androidTest/java/com/kipu/app/core/database/ExpectedPaymentAssociationTest.kt` — 4/4 PASS en Galaxy A16 (`SM-A165M`).
+  - `app/src/androidTest/java/com/kipu/app/feature/recurrences/data/RecurrenceReminderWorkerTest.kt` — 4/4 PASS en Galaxy A16 (`SM-A165M`), incluyendo verificación de que un pago `ATTENDED` suprime el recordatorio.
+- **Informe de verificación**: `specs/007-ep-rec-recurrencias-obligaciones/verification-report.md` (sección "Incremento Sprint 8 — HU-34: pagos esperados", verificado 2026-10-29, commit `38a2c9ba1e67b0e25789883e22f0bc776a7a496c`).
