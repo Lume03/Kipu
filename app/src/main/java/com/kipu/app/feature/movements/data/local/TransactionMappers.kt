@@ -29,4 +29,5 @@ internal fun TransactionEntity.toDomain(): Transaction = Transaction(
     createdAt = createdAt,
     updatedAt = updatedAt,
     paymentChannel = source,
+    captureSource = com.kipu.app.feature.movements.domain.model.MovementSource.valueOf(captureSource),
 )
