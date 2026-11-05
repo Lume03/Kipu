@@ -108,6 +108,50 @@ class GoalReplacementRoomIntegrationTest {
         assertGoal("confirmed", "ACTIVE", 3, "SYNCED")
     }
 
+    @Test
+    fun editingGoalWithPersistedContributionsRecalculatesProgressWithoutFinancialWrites() = runBlocking {
+        seedGoal("edited", "ACTIVE", revision = 3)
+        seedHistory("edited")
+        val historyBefore = local.getEvents(userId, "edited")
+        val repository = OfflineFirstGoalRepository(local, mockk<GoalsSyncScheduler>(relaxed = true))
+        val result = repository.updateGoal(userId, "edited",
+            com.kipu.app.feature.goals.domain.usecase.UpdateGoalCommand(
+                expectedRevision = 3, name = "Nuevo nombre", target = Money(2_000, Currency.PEN),
+                targetDate = java.time.LocalDate.parse("2027-02-01"), linkedAccountId = null,
+                now = java.time.Instant.parse("2026-11-05T12:00:00Z"),
+            ))
+        assertTrue("Unexpected result: $result", result is GoalCommandResult.Applied)
+        val persisted = database.goalDao().getGoalIncludingArchived(userId, "edited")!!.toDomain()
+        assertEquals("Nuevo nombre", persisted.name)
+        assertEquals(java.time.LocalDate.parse("2027-02-01"), persisted.targetDate)
+        assertEquals(historyBefore, local.getEvents(userId, "edited"))
+        val progress = com.kipu.app.feature.goals.domain.GoalProgressCalculator.calculate(
+            persisted, repository.observeEvents(userId, "edited").first())
+        assertEquals(500L, progress.reserved.minorUnits)
+        assertEquals(0, progress.progressPercent.compareTo(java.math.BigDecimal("25")))
+        assertEquals("UPDATE_GOAL", database.goalOutboxDao().getPendingForUser(userId).single().commandType)
+        assertHistoryAndFinanceUnchanged(expectedHistoryCount = 1)
+    }
+
+    @Test
+    fun conflictingFeedRetainsPendingCommandHistoryAndFinancialState() = runBlocking {
+        seedGoal("conflicted", "ACTIVE", revision = 3)
+        seedHistory("conflicted")
+        val current = database.goalDao().getGoalIncludingArchived(userId, "conflicted")!!
+        database.goalDao().upsertGoal(current.copy(syncState = "PENDING"))
+        val command = GoalOutboxEntity(userId, "pending", "conflicted", "UPDATE_GOAL", "a".repeat(64),
+            expectedRevision = 2, payload = "{}", createdAt = 1, updatedAt = 1)
+        database.goalOutboxDao().insert(command)
+        val applier = GoalChangeFeedApplier(database, database.goalDao(), database.goalOutboxDao(), database.accountDao(), database.movementDao())
+        val result = applier.applyPage(userId, PullChangesResponseDto(listOf(goalChange("conflicted", 1, 4, "Otro dispositivo")), 1, false))
+        assertTrue(result is GoalChangeApplyResult.Conflict)
+        assertGoal("conflicted", "ACTIVE", 3, "CONFLICT")
+        assertEquals(current.name, database.goalDao().getGoalIncludingArchived(userId, "conflicted")!!.name)
+        assertEquals(command, database.goalOutboxDao().get(userId, "pending"))
+        assertNull(database.goalDao().getSyncCheckpoint(userId))
+        assertHistoryAndFinanceUnchanged(expectedHistoryCount = 1)
+    }
+
     private suspend fun seedLegacyChain() {
         seedGoal("legacy", "ACTIVE", revision = 1)
         val current = database.goalDao().getGoalIncludingArchived(userId, "legacy")!!
