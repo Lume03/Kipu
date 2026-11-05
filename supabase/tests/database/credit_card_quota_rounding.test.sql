@@ -3,6 +3,9 @@ SET LOCAL search_path = public, extensions;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE TEMP TABLE quota_tap(line text);
 INSERT INTO quota_tap SELECT plan(15);
+-- Global gate audit receipts use this sentinel; the deletion guard requires Auth.
+INSERT INTO auth.users(id,email) VALUES
+ ('00000000-0000-0000-0000-000000000000','quota-gate-audit@example.test');
 INSERT INTO auth.users(id,email) VALUES ('a0211111-1111-4111-8111-111111111111','quota-fixture@kipu.test');
 SELECT set_config('request.jwt.claim.sub','a0211111-1111-4111-8111-111111111111',true);
 
