@@ -15,7 +15,8 @@ class PendingLocalChanges @Inject constructor(private val database: KipuDatabase
         require(owner.isNotBlank())
         database.withTransaction {
             PendingLocalSummary(queues.mapValues { (table, state) ->
-                val filter = state?.let { " AND $it NOT IN ('APPLIED','DUPLICATE','COMPLETED','SYNCED','SUCCEEDED')" }.orEmpty()
+                val discardedGoals = if (table == "goal_command_outbox") ",'DISCARDED'" else ""
+                val filter = state?.let { " AND $it NOT IN ('APPLIED','DUPLICATE','COMPLETED','SYNCED','SUCCEEDED'$discardedGoals)" }.orEmpty()
                 database.openHelper.readableDatabase.query(SimpleSQLiteQuery(
                     "SELECT COUNT(*) FROM $table WHERE user_id = ?$filter", arrayOf(owner)
                 )).use { it.moveToFirst(); it.getInt(0) }
