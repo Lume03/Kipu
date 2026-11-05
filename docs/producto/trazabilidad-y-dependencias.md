@@ -1,6 +1,6 @@
 # KIPU V4.2 - Trazabilidad y Dependencias
 
-> **Integración documental — 2026-10-20.** Se conserva el mapa base de `KipuApp/Kipu md/04_Kipu_V4.2_Trazabilidad_y_Dependencias.md`. Los sprints indican planificación, no aceptación ni despliegue. Ver [backlog](backlog.md), [cronograma](../planificacion/cronograma-scrum.md), [artefactos por épica](../../specs/) y [control documental](../control-documental.md). El número de carpeta de una épica no determina su orden de negocio: EP-DEU existe como `013-ep-deu-deudas-prestamos`.
+> **Integración documental — 2026-10-20 (actualizado 2026-11-05).** Se conserva el mapa base de `KipuApp/Kipu md/04_Kipu_V4.2_Trazabilidad_y_Dependencias.md`. Los sprints indican planificación, no aceptación ni despliegue. Ver [backlog](backlog.md), [cronograma](../planificacion/cronograma-scrum.md), [artefactos por épica](../../specs/) y [control documental](../control-documental.md). Las carpetas de épica están alineadas con el orden del cronograma (EP-DEU es `005-ep-deu-deudas-prestamos`, EP-PRE es `008-ep-pre-presupuestos-consumos` y EP-INF es `009-ep-inf-informacion-financiera`, commit 0059e329; anteriormente EP-DEU usaba el prefijo `013`).
 
 > **Mapa operativo Épica → HU → dependencias → Sprint. No duplica un catálogo de requisitos: la especificación funcional vive en las HU y sus reglas de negocio.**
 
