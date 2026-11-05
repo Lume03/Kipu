@@ -102,6 +102,12 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
         val state by viewModel.state.collectAsStateWithLifecycle()
         val fundsViewModel: GoalContributionViewModel = hiltViewModel()
         LaunchedEffect(state.isDeleted) { if (state.isDeleted) navController.popBackStack() }
+        LaunchedEffect(state.openConflictEditor) {
+            if (state.openConflictEditor) {
+                viewModel.consumeConflictEditor()
+                state.goal?.id?.let { navController.navigate("goals/$it/edit") }
+            }
+        }
         val fundsState by fundsViewModel.state.collectAsStateWithLifecycle()
         LaunchedEffect(fundsViewModel) { fundsViewModel.events.collect { if (it == GoalContributionEvent.Saved) navController.popBackStack() } }
         GoalDetailScreen(
@@ -113,6 +119,9 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             fundsState = fundsState,
             onReassign = viewModel::reassign,
             onArchive = viewModel::archive,
+            onDiscardConflict = { viewModel.discardConflict() },
+            onAdjustConflict = { viewModel.discardConflict(adjust = true) },
+            onRetryConflict = viewModel::retryConflict,
             onComplete = viewModel::complete,
             onDelete = viewModel::delete,
             onDeleteWithReplacement = { viewModel.delete(it) },
@@ -121,6 +130,10 @@ fun NavGraphBuilder.goalDestinations(navController: NavController) {
             startWithWithdrawal = backStackEntry.arguments?.getBoolean("withdraw") == true,
             initialAction = backStackEntry.arguments?.getString("action"),
             onCreateGoal = { navController.navigate(GOAL_CREATE_ROUTE) },
+            onDeposit = { accountId ->
+                navController.navigateToMovementHistory(accountId = accountId)
+                navController.currentBackStackEntry?.savedStateHandle?.set("open_register_movement", true)
+            },
         )
     }
 
