@@ -42,7 +42,7 @@ No se copian todas las revisiones antiguas ni se crean diagramas vacíos para co
 
 La especificación general dice 5 de gastos + 5 de ingresos; HU-14/HU-57 del backlog de origen y algunos escenarios dicen solo cinco. [EP-CCO](../specs/003-ep-cco-categorias-comercios/spec.md) contiene una aclaración de autoridad por tipo, y existe una [migración versionada 5 + 5](../supabase/migrations/20261007144500_category_free_quota_5_plus_5.sql).
 
-**Tratamiento:** notas explícitas en el backlog dirigen a ese refinamiento; se preservan los escenarios originales en vez de reinterpretarlos silenciosamente. **Pendiente:** reconciliar su redacción completa por tipo y revisar los contratos de las épicas consumidoras mediante el flujo aprobado. La existencia de la migración no verifica su aplicación remota.
+**Tratamiento:** notas explícitas en el backlog dirigen a ese refinamiento con respaldo técnico en la migración `20261007144500_category_free_quota_5_plus_5.sql` (el cupo 5+5 aplica exclusivamente con el respaldo de dicha migración). En la ronda 2026-11-05 se consolida este criterio en el backlog y artefactos relacionados, preservando la trazabilidad con los escenarios de selección.
 
 ### DOC-02 — Modelo físico de septiembre frente a refinamientos
 
@@ -62,9 +62,9 @@ La misma disponibilidad se explicita en el mapa de migración de mockups; se cor
 
 ### DOC-04 — Planificación y evidencia de entrega
 
-El cronograma tiene horizonte hasta el 17/11/2026 y es coherente nominalmente con 60 HU y 12 épicas V4.2. Esto no acredita cumplimiento. Hay nueve carpetas de épica en este checkout; EP-PRE, EP-INF y EP-AUT no tienen artefactos propios aquí. EP-DEU usa el prefijo `013`; no se renumera.
+El cronograma tiene horizonte hasta el 17/11/2026 y es coherente nominalmente con 60 HU y 12 épicas V4.2. Esto no acredita cumplimiento. Actualmente las 12 carpetas de épica existen en este repositorio (`specs/001-ep-aps...` a `specs/012-ep-pla...`); mediante el commit `0059e329`, las carpetas de EP-DEU (`005-ep-deu-deudas-prestamos`), EP-PRE (`008-ep-pre-presupuestos-consumos`) y EP-INF (`009-ep-inf-informacion-financiera`) fueron alineadas con el orden del cronograma y dotadas de artefactos propios, dejando EP-DEU de utilizar el prefijo `013`.
 
-**Tratamiento:** conservar fechas y asignaciones como plan base. No inventar progreso ni carpetas. Consultar las tareas, gates e informes de cada alcance.
+**Tratamiento:** conservar fechas y asignaciones como plan base. Todas las épicas cuentan con carpeta y artefactos Spec Kit en este checkout. Consultar las tareas, gates e informes de cada alcance.
 
 ### DOC-05 — Tasas e investigaciones no revalidadas
 
@@ -139,3 +139,20 @@ Con el gate interno encendido, cualquier usuario autenticado puede activarse Pre
 **Obligatorio antes del lanzamiento:** APAGARLO con `internal.set_dev_plan_mode(false, 'preparación del lanzamiento')` y cargar `billing_products` reales. La migración no enciende el gate. Apagarlo impide nuevas activaciones y grants de prueba; los grants ya emitidos vencen dentro de su lease offline existente. La compatibilidad pendiente de Lifetime con `verify-purchase` debe validarse con un producto de pago único de Google Play antes de ofrecerlo comercialmente.
 
 Artefactos: [EP-PLA spec](../specs/012-ep-pla-planes-monetizacion/spec.md), [plan](../specs/012-ep-pla-planes-monetizacion/plan.md), [tasks](../specs/012-ep-pla-planes-monetizacion/tasks.md), [contrato](../specs/012-ep-pla-planes-monetizacion/contracts/dev-plan-mode.md) y [ADR-012](adr/ADR-012-freemium-intent.md). Esta decisión aprueba únicamente el modo temporal de desarrollo; no acredita despliegue remoto.
+
+## Decisiones del Owner 2026-11-05 (autoridad para esta ronda)
+
+Fuente: "Decisiones del Owner (2026-11-05)". Se registran en los artefactos indicados sin cambiar código, migraciones ni otros requisitos fuera del alcance asignado.
+
+| ID | Decisión | Artefactos afectados |
+| --- | --- | --- |
+| D-20261105-01 | HU-13 (Cierre exclusivo): una compra hecha exactamente el día de cierre entra al ciclo SIGUIENTE (cierre EXCLUSIVO, comportamiento actual del código). | [Backlog](producto/backlog.md) (HU-13), [EP-CTA spec](../specs/002-ep-cta-cuentas-tarjetas/spec.md) |
+| D-20261105-02 | HU-10 (Umbrales de crédito fijos): umbrales de utilización de crédito FIJOS 50/80/100 (no editables por el usuario). Se elimina el escenario de edición de umbrales en el backlog. | [Backlog](producto/backlog.md) (HU-10), [EP-CTA spec](../specs/002-ep-cta-cuentas-tarjetas/spec.md) |
+| D-20261105-03 | HU-08 / HU-57 (Débito compartido y cupos): la tarjeta de débito COMPARTE el cupo Free de su banco/cuenta (corrección aprobada 2026-10-21, migración `20261021191708_shared_bank_instrument_quota.sql`). Se actualiza la regla de 4 cupos. | [Backlog](producto/backlog.md) (HU-08, HU-57), [EP-CTA spec/quickstart](../specs/002-ep-cta-cuentas-tarjetas/) |
+| D-20261105-04 | HU-49 / HU-58 (OCR Yape en Free): OCR local de comprobantes Yape PERMITIDO en Free con consentimiento y revisión (excepción FR-011 EP-AUT). El resto de la captura (notificaciones, autorregistro) sigue Premium. | [Backlog](producto/backlog.md) (HU-49, HU-58), [EP-AUT spec](../specs/011-ep-aut-captura-inbox/) |
+| D-20261105-05 | HU-52 (Copy Trial solo si elegible): el texto informativo del Trial se muestra SOLO si el usuario es elegible (comportamiento actual). | [Backlog](producto/backlog.md) (HU-52), [EP-PLA spec](../specs/012-ep-pla-planes-monetizacion/) |
+| D-20261105-06 | HU-22 / HU-58 (Filtro por fuente): se IMPLEMENTA el filtro por fuente (Manual / Notificación / OCR) como filtro avanzado Premium; los movimientos históricos sin procedencia se clasifican como "Manual", salvo los vinculados a candidatos de captura. | [Backlog](producto/backlog.md) (HU-22, HU-58), [EP-MOV spec](../specs/004-ep-mov-movimientos-ledger/) |
+| D-20261105-07 | HU-40 / HU-42 (Navegación al detalle y fallback): los eventos de recurrencia del calendario y los avisos de deuda/meta abren el detalle de su objeto; si ya no existe, fallback "no disponible". | [EP-INF spec](../specs/009-ep-inf-informacion-financiera/), [EP-NOT spec](../specs/010-ep-not-notificaciones-avisos/) |
+| D-20261105-08 | BUG-003 (HU-28/29 - Anulación de pago de deuda): anular pago de deuda desde el detalle de la deuda Y desde el movimiento vinculado, misma RPC; reabre la deuda si estaba cerrada. | [EP-DEU spec](../specs/005-ep-deu-deudas-prestamos/) |
+| D-20261105-09 | Play Billing (HU-53/54/55/56): BLOQUEADO externamente (sin track/testers/productos en Play Console). No marcar como aceptado. | [EP-PLA spec](../specs/012-ep-pla-planes-monetizacion/), [Cronograma](planificacion/cronograma-scrum.md) |
+| D-20261105-10 | Yape real (HU-49 escenarios 1-3): pendiente de validación en vivo por el Owner. | [Backlog](producto/backlog.md) (HU-49), [EP-AUT spec](../specs/011-ep-aut-captura-inbox/) |
