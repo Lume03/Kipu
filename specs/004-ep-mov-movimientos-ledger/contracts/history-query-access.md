@@ -64,3 +64,5 @@ T084 permanece bloqueada hasta productor integrado, contrato compatible y prueba
 
 
 **Propagated**: 2026-10-03 — The current Kotlin/Room history projection lacks a persisted capture-source field; source in FR-017 remains an explicit baseline gap tracked by T110. Sync status and source/destination accounts must not be interpreted as capture provenance. No source migration/backfill is included in the approved UI refinement.
+
+**Actualización 2026-11-05 (Fase 1.3 - T110 / Decisión Owner 2026-11-05)**: Brecha de procedencia cerrada. Implementado `capture_source` (MANUAL / NOTIFICATION / OCR) en Room v40; los movimientos históricos sin procedencia local se clasifican como MANUAL (salvo los vinculados a candidatos de captura). El filtro por fuente se integra como criterio avanzado Premium dentro de `AdvancedHistoryCriteria.sources`, combinándose por unión interna y por intersección con el resto de filtros.
