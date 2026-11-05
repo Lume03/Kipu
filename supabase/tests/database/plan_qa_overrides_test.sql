@@ -1,5 +1,8 @@
 BEGIN;
 SELECT plan(44);
+-- Global gate audit receipts use this sentinel; the deletion guard requires Auth.
+INSERT INTO auth.users(id,email) VALUES
+ ('00000000-0000-0000-0000-000000000000','qa-gate-audit@example.test');
 
 -- Exercise the migration's ACL change transactionally; this test rolls it back.
 REVOKE ALL ON public.v_feature_access FROM PUBLIC, anon, authenticated, service_role;
