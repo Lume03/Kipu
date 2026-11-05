@@ -151,6 +151,7 @@ private fun MovementFiltersSheetContent(
         if (draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()) count++
         if (draft.financialStates.isNotEmpty()) count++
         if (draft.syncStatuses.isNotEmpty()) count++
+        if (draft.sources.isNotEmpty()) count++
         count
     }
 
@@ -174,6 +175,7 @@ private fun MovementFiltersSheetContent(
             if (draft.categoryIds.isNotEmpty() && (tx.categoryId == null || tx.categoryId !in draft.categoryIds)) return@count false
             if (draft.cardIds.isNotEmpty() && (tx.cardId == null || tx.cardId !in draft.cardIds)) return@count false
             if (draft.merchantIds.isNotEmpty() && (tx.merchantId == null || tx.merchantId !in draft.merchantIds)) return@count false
+            if (draft.sources.isNotEmpty() && tx.captureSource !in draft.sources) return@count false
             if (draft.paymentChannels.isNotEmpty()) {
                 val channel = WalletPaymentChannel.entries.firstOrNull { it.name == tx.paymentChannel }
                 if (channel == null || channel !in draft.paymentChannels) return@count false
@@ -347,6 +349,15 @@ private fun MovementFiltersSheetContent(
                             )
                         }
 
+                        draft.sources.forEach { source ->
+                            ActiveFilterDismissChip(
+                                text = "Fuente ${source.label}",
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
+                                onDismiss = { updateDraft(draft.copy(sources = draft.sources - source)) }
+                            )
+                        }
                         draft.paymentChannels.forEach { channel ->
                             ActiveFilterDismissChip(
                                 text = "Billetera ${channel.label}",
@@ -903,6 +914,12 @@ private fun MovementFiltersSheetContent(
                             onClick = { showUpsell = true }
                         )
 
+                        LockedAdvancedRow(
+                            icon = Icons.Rounded.Category,
+                            title = "Fuente",
+                            summary = "Manual, Notificación u OCR",
+                            onClick = { showUpsell = true }
+                        )
                         // Ver Premium CTA button in card
                         Surface(
                             onClick = { showUpsell = true },
@@ -1016,6 +1033,7 @@ private fun MovementFiltersSheetContent(
                                 paymentChannels = prev.paymentChannels,
                                 financialStates = prev.financialStates,
                                 syncStatuses = prev.syncStatuses,
+                                sources = prev.sources,
                                 minAmount = prev.minAmount,
                                 maxAmount = prev.maxAmount,
                                 currency = prev.currency
@@ -1624,6 +1642,20 @@ private fun AdvancedFiltersControls(
                     onClick = { onDraftChange(draft.copy(financialStates = draft.financialStates.toggle(value))) },
                     label = { Text(value.uiLabel()) },
                     modifier = Modifier.testTag("chip_filter_${value.name.lowercase()}")
+                )
+            }
+        }
+
+        // Procedencia del movimiento
+        Text("Fuente", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.kipu.app.feature.movements.domain.model.MovementSource.entries.forEach { source ->
+                KipuFilterChip(
+                    selected = source in draft.sources,
+                    enabled = allowed,
+                    onClick = { onDraftChange(draft.copy(sources = draft.sources.toggle(source))) },
+                    label = { Text(source.label) },
+                    modifier = Modifier.testTag("chip_filter_source_${source.name.lowercase()}")
                 )
             }
         }
