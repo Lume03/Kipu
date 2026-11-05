@@ -203,6 +203,8 @@
 
 **Decision**: Keep preferred closing_day and due_day values in the inclusive range 1..31. For each month, compute the effective day as the smaller of the preference and the month's last calendar day. A purchase on the effective closing date belongs to that cycle; a purchase after it belongs to the next cycle. The first installment is due on the earliest effective due_day strictly after the selected cycle's effective closing date; later installments are monthly and independently clamp in short months.
 
+> **Actualización 2026-11-05 (Decisión Owner)**: Cierre EXCLUSIVO adoptado — una compra realizada exactamente el día de cierre entra al ciclo SIGUIENTE (cierre exclusivo), coherente con `BillingCycleCalculator.kt` y la migración `20261031163043_credit_purchase_terms_and_cycles.sql`.
+
 **Rationale**: This records the user's clarification for HU-13.8 and preserves the user's preferred day when February or another short month requires a temporary adjustment. It matches RF-C04/RF-C12 and the official backlog's 1..31 preference.
 
 **Alternatives considered**: Mutating the stored preference to 28; assigning purchases on the closing date to the following cycle; choosing a fixed offset from purchase date. These do not match the accepted cycle rule.
