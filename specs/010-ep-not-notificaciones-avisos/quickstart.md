@@ -41,7 +41,7 @@ Expected: the notification migration applies cleanly to the existing baseline, a
 3. Filter `Todos`, `Alertas`, and `Recordatorios`; mark one and all as read; verify badge counts update.
 4. Dismiss a notice; verify it disappears locally and remains remotely with `deleted_at` set.
 5. Disable network, mark/dismiss another notice, restore network, and verify the per-user outbox converges.
-6. Tap an existing card reference and verify card detail. Tap a deleted or unsupported reference and verify a friendly message while PNOT remains visible.
+6. Tap an existing card reference and verify card detail. Tap a deleted or unsupported reference and verify a friendly message while PNOT remains visible (Decisión Owner 2026-11-05: los eventos de recurrencia del calendario y los avisos de deuda/meta abren el detalle de su objeto; si ya no existe, fallback «no disponible»).
 7. Switch test accounts and verify no notice/count from the prior account appears.
 8. Enable reduced motion and confirm all content/actions remain usable with decorative transitions removed.
 
