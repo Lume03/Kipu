@@ -64,6 +64,20 @@ class RecurrenceSyncTest {
         verify(exactly = 1) { scheduler.scheduleSync(OWNER) }
     }
 
+    @Test fun fixedExpectedAmountPersistsAcrossRepositoryRecreationWithoutRecordingPayment() = runTest {
+        val created = create()
+        val reopenedRepository = repository(db.recurrenceOutboxDao())
+        val restored = reopenedRepository.observe(OWNER, created.recurrence.id).first()!!
+        assertEquals("FIXED", restored.amountMode)
+        assertEquals(1200L, restored.templateTransaction["amount_minor"]!!.jsonPrimitive.long)
+        assertEquals(draft().templateTransaction, restored.templateTransaction)
+        listOf("transactions", "ledger_entries", "recurrence_expected_payments").forEach { table ->
+            db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use {
+                assertTrue(it.moveToFirst()); assertEquals("Creating a rule is not a payment: $table", 0L, it.getLong(0))
+            }
+        }
+    }
+
     @Test fun failedSchedulingKeepsCommittedCommandForRescue() = runTest {
         every { scheduler.scheduleSync(OWNER) } throws IllegalStateException("WorkManager unavailable")
         val created = create()
