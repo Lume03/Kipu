@@ -62,6 +62,39 @@ class QueryMovementHistoryTest {
     }
 
     @Test
+    fun sourceOnlyFilterRequiresPremiumAndFreeStripsAllAdvancedForPageAndSummary() = runTest {
+        val repository = FakeQueryRepository()
+        val useCase = QueryMovementHistory(repository, entitlementProvider = FakeEntitlementProvider(null))
+        val query = MovementHistoryQuery(queryText = "market", fromInclusive = 10L, toExclusive = 90L,
+            types = setOf(MovementType.EXPENSE), contextAccountId = "bank",
+            cursor = MovementHistoryCursor(50L, "middle"),
+            advancedCriteria = AdvancedHistoryCriteria(sources = setOf(com.kipu.app.feature.movements.domain.model.MovementSource.OCR)))
+        assertTrue(query.requiresAdvancedAccess)
+        val result = useCase("owner", query)
+        useCase.getHistorySummary("owner", query)
+        assertTrue(result.accessDecision is MovementHistoryAccessDecision.PremiumRequired)
+        assertEquals(query.toBasicFallback(), repository.lastExecutedQuery)
+        assertEquals(query.toBasicFallback().copy(cursor = null), repository.lastSummaryQuery)
+    }
+
+    @Test
+    fun premiumPreservesSourcesAndRevalidationRemovesSourcesWithOtherAdvancedFilters() = runTest {
+        val repository = FakeQueryRepository()
+        val evidence = MovementEntitlementEvidence(verified = true, verifiedServerTimeMillis = 1000L,
+            entitlementExpiresAtMillis = 999999999L, monotonicContinuityValid = true, trustedNowMillis = 1001L)
+        val provider = FakeEntitlementProvider(evidence)
+        val useCase = QueryMovementHistory(repository, entitlementProvider = provider)
+        val query = MovementHistoryQuery(advancedCriteria = AdvancedHistoryCriteria(accountIds = setOf("bank"),
+            sources = setOf(com.kipu.app.feature.movements.domain.model.MovementSource.MANUAL,
+                com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION)))
+        assertEquals(MovementHistoryAccessDecision.Allowed, useCase("owner", query).accessDecision)
+        assertEquals(query, repository.lastExecutedQuery)
+        provider.evidence = evidence.copy(trustedNowMillis = 1000L + 72L * 3600000L)
+        assertTrue(useCase("owner", query).accessDecision is MovementHistoryAccessDecision.RevalidationRequired)
+        assertNull(repository.lastExecutedQuery?.advancedCriteria)
+    }
+
+    @Test
     fun basicQueryAllowedForFreeUser() = runTest {
         val repository = FakeQueryRepository()
         val provider = FakeEntitlementProvider(null) // Free user
