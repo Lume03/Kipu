@@ -34,7 +34,7 @@ import kotlin.math.absoluteValue
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 internal fun DebtHistorySheet(debt: DebtSummary, activities: List<DebtSettlementActivity>, onDismiss: () -> Unit,
-    onOpenMovement: (String) -> Unit = {}) {
+    onOpenMovement: (String) -> Unit = {}, onVoidPayment: (DebtSettlementActivity) -> Unit = {}) {
     var paymentsOnly by rememberSaveable { mutableStateOf(false) }
     val currency = Currency.fromCode(debt.currencyCode)
     KipuBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("debt_history_sheet"),
@@ -68,6 +68,7 @@ internal fun DebtHistorySheet(debt: DebtSummary, activities: List<DebtSettlement
                     MoneyText(activity.interestMinor, currency = currency)
                 }
                 if (activity.isVoided) Text("Anulado · saldo restaurado", color = MaterialTheme.colorScheme.error)
+                DebtPaymentVoidAction(activity, onVoidPayment)
                 activity.transactionId?.let { id ->
                     TextButton(onClick = { onOpenMovement(id) }, modifier = Modifier.testTag("debt_history_movement_$id")) { Text("Ver movimiento") }
                 }
