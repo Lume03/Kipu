@@ -1,6 +1,6 @@
 # KIPU V4.2 - Product Backlog
 
-> **Integración documental — 2026-10-20.** Base HU-01–HU-60 procedente de `KipuApp/Kipu md/02_Kipu_V4.2_Product_Backlog.md`. Se conservan los identificadores y escenarios de origen; no se declaran todas las HU implementadas. Consultar los refinamientos aprobados en [specs/](../../specs/) y las [diferencias documentales](../control-documental.md). En particular, las menciones genéricas de «cinco categorías» en HU-14/HU-57 deben leerse con la aclaración por tipo de EP-CCO, no como un límite global nuevo.
+> **Integración documental — 2026-10-20 (actualizado 2026-11-05 con decisiones del Owner).** Base HU-01–HU-60 procedente de `KipuApp/Kipu md/02_Kipu_V4.2_Product_Backlog.md`. Se conservan los identificadores y escenarios de origen; no se declaran todas las HU implementadas. Consultar los refinamientos aprobados en [specs/](../../specs/) y las [diferencias documentales](../control-documental.md). En particular, las menciones genéricas de «cinco categorías» en HU-14/HU-57 deben leerse con la aclaración por tipo de EP-CCO (5 de gastos + 5 de ingresos según migración `20261007144500_category_free_quota_5_plus_5.sql`), no como un límite global nuevo. Decisiones Owner 2026-11-05 incorporadas en esta ronda: cierre exclusivo en crédito (HU-13), umbrales de utilización fijos 50/80/100 (HU-10), tarjeta de débito con cupo compartido de su banco/cuenta (HU-08/HU-57), OCR local de comprobantes Yape permitido en Free con consentimiento y revisión (HU-49/HU-58), copy de Trial solo visible para usuarios elegibles (HU-52), y filtro por fuente como filtro avanzado Premium (HU-22/HU-58).
 
 > **60 Historias de Usuario específicas agrupadas en 12 épicas, con prioridad, puntos, Sprint de cierre, dependencias, reglas de negocio y criterios de aceptación Gherkin.**
 
@@ -631,16 +631,16 @@ Como usuario de Kipu, quiero registrar mis tarjetas de débito y crédito, para 
 ### Reglas de Negocio
 
 1. Guardar solo alias, emisor, red, tipo y últimos cuatro dígitos.
-2. Débito reutiliza el saldo de la cuenta vinculada.
+2. Débito reutiliza el saldo de la cuenta vinculada y comparte el cupo Free de su banco/cuenta (no consume un cupo de instrumento adicional independiente; corrección aprobada 2026-10-21, migración `20261021191708_shared_bank_instrument_quota.sql`, decisión Owner 2026-11-05).
 3. La cuenta interna contable de crédito no consume un segundo cupo.
 4. PAN completo y CVV nunca se solicitan.
 
 ### Criterios de Aceptación (Gherkin)
 
-#### Escenario 1: Débito vinculado
-- **Dado que** el banco tiene S/300,
-- **Cuando** registra su débito,
-- **Entonces** ambos muestran el mismo activo sin sumar S/600.
+#### Escenario 1: Débito vinculado (saldo y cupo compartido)
+- **Dado que** el banco tiene S/300 y ocupa un cupo Free,
+- **Cuando** registra su débito vinculado a esa cuenta,
+- **Entonces** ambos muestran el mismo activo sin sumar S/600 y la tarjeta de débito comparte el cupo Free de la cuenta bancaria sin consumir un cupo adicional (decisión Owner 2026-11-05).
 
 #### Escenario 2: Crédito
 - **Dado que** hay cupo de instrumento,
@@ -742,11 +742,11 @@ Como usuario de Kipu, quiero configurar línea, cierre y vencimiento y consultar
 
 ### Descripción Ágil
 
-Como usuario de Kipu, quiero configurar alertas de utilización, para advertir cuándo estoy cerca de mi límite.
+Como usuario de Kipu, quiero recibir alertas de utilización de crédito ante cruces de límite, para advertir cuándo estoy cerca de mi límite.
 
 ### Reglas de Negocio
 
-1. Umbrales iniciales 50, 80 y 100 por ciento, editables.
+1. Umbrales de utilización fijos al 50, 80 y 100 por ciento, no editables por el usuario (Decisión Owner 2026-11-05).
 2. No repetir la misma condición sin un nuevo cruce válido.
 3. Un aviso no bloquea registrar un hecho financiero.
 
@@ -762,15 +762,12 @@ Como usuario de Kipu, quiero configurar alertas de utilización, para advertir c
 - **Cuando** reabre el detalle,
 - **Entonces** no se repite el aviso.
 
-#### Escenario 3: Editar umbrales
-- **Dado que** ingresa porcentajes válidos y ordenados,
-- **Cuando** guarda,
-- **Entonces** se aplican a futuras evaluaciones.
-
-#### Escenario 4: Avisos denegados
+#### Escenario 3: Avisos denegados
 - **Dado que** Android no permite mostrar notificaciones,
-- **Cuando** ocurre el cruce,
+- **Cuando** ocurre el cruce de un umbral fijo (50 %, 80 % o 100 %),
 - **Entonces** el registro financiero se guarda y el aviso queda consultable dentro de Kipu.
+
+*(Nota: conforme a la decisión del Owner 2026-11-05, los umbrales son fijos 50/80/100 y no editables; se elimina el antiguo escenario de edición de umbrales).*
 
 ---
 
@@ -921,6 +918,7 @@ Como usuario de Kipu, quiero registrar compras directas o en cuotas, para planif
 2. Cuotas solo para crédito; estimaciones no son gastos reales.
 3. Distribuir céntimos de redondeo preservando la suma.
 4. Toda compra detectada con crédito requiere confirmación antes de afectar saldos.
+5. Ciclo de facturación con cierre exclusivo: una compra realizada exactamente el día de cierre entra al ciclo SIGUIENTE (cierre exclusivo, comportamiento actual del código; decisión Owner 2026-11-05).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -948,6 +946,11 @@ Como usuario de Kipu, quiero registrar compras directas o en cuotas, para planif
 - **Dado que** el número de cuotas es cero,
 - **Cuando** intenta guardar,
 - **Entonces** se solicita un número válido y no se crea la compra.
+
+#### Escenario 6: Compra en día de cierre (cierre exclusivo)
+- **Dado que** la tarjeta de crédito tiene día de cierre configurado (por ejemplo, el día 20 de cada mes),
+- **Cuando** el usuario registra una compra con fecha exactamente del día de cierre,
+- **Entonces** la compra entra al ciclo de facturación siguiente (cierre exclusivo, comportamiento actual del código; decisión Owner 2026-11-05).
 
 ---
 
@@ -1451,7 +1454,7 @@ Como usuario de Kipu, quiero encontrar movimientos mediante búsqueda y filtros,
 ### Reglas de Negocio
 
 1. Free conserva todo el historial legible, búsqueda textual, fechas y filtro G/I/T.
-2. Premium habilita combinación por cuenta, tarjeta, categoría, comercio, monto, fuente y estado.
+2. Premium habilita combinación por cuenta, tarjeta, categoría, comercio, monto, fuente (Manual / Notificación / OCR; decisión Owner 2026-11-05) y estado. Los movimientos históricos sin procedencia se clasifican como «Manual», salvo los vinculados a candidatos de captura.
 3. La política se valida también al abrir un enlace directo.
 
 ### Criterios de Aceptación (Gherkin)
@@ -1475,6 +1478,11 @@ Como usuario de Kipu, quiero encontrar movimientos mediante búsqueda y filtros,
 - **Dado que** Free abre un enlace con filtros avanzados,
 - **Cuando** intenta ejecutarlo,
 - **Entonces** se explica el beneficio y se ofrece el historial básico.
+
+#### Escenario 5: Filtro por fuente (filtro avanzado Premium)
+- **Dado que** el usuario cuenta con plan Premium y movimientos registrados con distintas procedencias,
+- **Cuando** filtra por fuente («Manual», «Notificación» u «OCR»),
+- **Entonces** visualiza únicamente los movimientos correspondientes, clasificando los históricos sin procedencia como «Manual» salvo si están vinculados a candidatos de captura (decisión Owner 2026-11-05).
 
 ---
 
@@ -3071,7 +3079,7 @@ Como usuario de Kipu, quiero confirmar si mi compra detectada fue directa o en c
 
 ### Precondiciones
 
-1. Premium y fuente autorizada; para compartir hay una imagen accesible mediante permiso temporal.
+1. Plan Free con consentimiento o Premium, y fuente autorizada; para compartir hay una imagen accesible mediante permiso temporal (decisión Owner 2026-11-05: OCR local de comprobantes Yape permitido en Free con consentimiento y revisión).
 
 ### Descripción Ágil
 
@@ -3080,7 +3088,7 @@ Como usuario de Kipu, quiero capturar Yape por notificación o comprobante compa
 ### Reglas de Negocio
 
 1. Notificación compatible, especialmente ingresos; Compartir complementa pagos sin notificación.
-2. OCR local sin IA generativa ni subida de imagen por defecto.
+2. OCR local sin IA generativa ni subida de imagen por defecto. Excepción en Free: el OCR local de comprobantes Yape compartidos está PERMITIDO en plan Free con consentimiento explícito y revisión obligatoria (FR-011, decisión Owner 2026-11-05); el resto de la captura automática por notificación continúa restringido a Premium.
 3. Deduplicar entre notificación, compartido y otras fuentes compatibles.
 4. No confundir dos pagos reales del mismo importe.
 
@@ -3116,15 +3124,17 @@ Como usuario de Kipu, quiero capturar Yape por notificación o comprobante compa
 - **Cuando** lo recibe Kipu,
 - **Entonces** se explica el formato requerido sin procesarlo.
 
-#### Escenario 7: Free
-- **Dado que** no tiene Premium,
-- **Cuando** comparte comprobante,
-- **Entonces** no se aplica OCR y se ofrece registro manual.
+#### Escenario 7: Comprobante Yape compartido en Free (excepción FR-011)
+- **Dado que** el usuario tiene plan Free y otorga su consentimiento explícito,
+- **Cuando** comparte un comprobante legible de Yape,
+- **Entonces** se procesa mediante OCR local prellenando un candidato para su revisión obligatoria antes de registrar (decisión Owner 2026-11-05; el resto de la captura automática y comprobantes de otras fuentes siguen denegados en Free ofreciendo registro manual).
 
 #### Escenario 8: Vencimiento
 - **Dado que** Premium vence después de capturar y antes de confirmar,
 - **Cuando** abre el candidato,
 - **Entonces** permite descartarlo o convertirlo explícitamente en manual sin nuevo OCR.
+
+*(Nota de validación: los escenarios 1-3 con integración de Yape real permanecen pendientes de validación por el Owner).*
 
 ---
 
@@ -3279,7 +3289,7 @@ Como usuario de Kipu, quiero elegir Free o conocer la prueba Premium voluntaria,
 ### Reglas de Negocio
 
 1. Free permanente sin tarjeta ni anuncios.
-2. Trial de siete días voluntario, elegible y vinculado a mensual/anual.
+2. Trial de siete días voluntario, elegible y vinculado a mensual/anual. El texto informativo (copy) del Trial se muestra SOLO si el usuario es elegible (comportamiento actual del código; decisión Owner 2026-11-05).
 3. Informar precio posterior, renovación y cancelación antes de contratar.
 4. La elección expresa intención; la activación exige compra verificada en HU-54.
 
@@ -3290,15 +3300,15 @@ Como usuario de Kipu, quiero elegir Free o conocer la prueba Premium voluntaria,
 - **Cuando** elige continuar Free,
 - **Entonces** entra sin pedir método de pago.
 
-#### Escenario 2: Información Trial
-- **Dado que** consulta la oferta,
+#### Escenario 2: Información Trial (usuario elegible)
+- **Dado que** el usuario consulta la oferta y es elegible para el periodo de prueba,
 - **Cuando** selecciona mensual o anual,
-- **Entonces** ve duración, precio posterior y renovación antes de aceptar.
+- **Entonces** ve el texto informativo del Trial con duración, precio posterior y renovación antes de aceptar (decisión Owner 2026-11-05).
 
-#### Escenario 3: No elegible
-- **Dado que** ya consumió la prueba,
-- **Cuando** consulta oferta elegible,
-- **Entonces** no se promete otro Trial.
+#### Escenario 3: No elegible (ocultamiento de copy Trial)
+- **Dado que** el usuario ya consumió la prueba o no es elegible,
+- **Cuando** consulta la oferta,
+- **Entonces** el texto informativo del Trial no se muestra y no se promete otro Trial (ofreciendo únicamente la suscripción directa; decisión Owner 2026-11-05).
 
 #### Escenario 4: Abandonar
 - **Dado que** no ha confirmado compra en Play,
@@ -3588,9 +3598,9 @@ Como usuario de Kipu, quiero seleccionar mis objetos activos al usar Free, para 
 
 ### Reglas de Negocio
 
-1. Free: cuatro instrumentos, cinco raíces personalizadas, dos metas, dos deudas y dos presupuestos activos.
+1. Free: cuatro instrumentos activos (la tarjeta de débito COMPARTE el cupo Free de su banco/cuenta vinculada; corrección aprobada 2026-10-21, migración `20261021191708_shared_bank_instrument_quota.sql`, decisión Owner 2026-11-05), cinco raíces personalizadas (5 gastos + 5 ingresos con respaldo exclusivo en migración `20261007144500_category_free_quota_5_plus_5.sql`), dos metas, dos deudas y dos presupuestos activos.
 
-   **Contexto del cupo de categorías:** la aclaración de [EP-CCO](../../specs/003-ep-cco-categorias-comercios/spec.md) separa gastos e ingresos (5 + 5). Los escenarios de selección de este apartado no deben usarse para imponer un límite global de cinco sin considerar ese refinamiento.
+   **Contexto del cupo de categorías:** la aclaración de [EP-CCO](../../specs/003-ep-cco-categorias-comercios/spec.md) separa gastos e ingresos (5 + 5, respaldado por la migración `20261007144500_category_free_quota_5_plus_5.sql`). Los escenarios de selección de este apartado no deben usarse para imponer un límite global de cinco sin considerar ese refinamiento.
 2. Bloqueo de plan separado del estado funcional y borrado.
 3. No borrar historia ni excluir saldos por downgrade.
 4. Sin selección se restringe solo el grupo excedido; efectivo y grupos válidos siguen disponibles.
@@ -3607,10 +3617,10 @@ Como usuario de Kipu, quiero seleccionar mis objetos activos al usar Free, para 
 - **Cuando** guarda,
 - **Entonces** esas quedan utilizables y cuatro bloqueadas.
 
-#### Escenario 3: Instrumentos
-- **Dado que** hay una cuenta, un débito y dos créditos,
-- **Cuando** consulta cupos,
-- **Entonces** ve cuatro; cuenta interna de crédito no vuelve a contar.
+#### Escenario 3: Instrumentos (regla de 4 cupos con débito compartido)
+- **Dado que** el usuario registra una cuenta bancaria con su tarjeta de débito vinculada (comparten cupo = 1) y tres tarjetas de crédito (3 cupos),
+- **Cuando** consulta cupos de instrumentos en Free,
+- **Entonces** ve cuatro cupos ocupados de cuatro permitidos; la tarjeta de débito comparte el cupo de su cuenta bancaria y la cuenta interna de crédito no vuelve a contar (decisión Owner 2026-11-05 / migración `20261021191708_shared_bank_instrument_quota.sql`).
 
 #### Escenario 4: Sin selección
 - **Dado que** un grupo está excedido,
@@ -3658,8 +3668,8 @@ Como usuario de Kipu, quiero conocer qué acciones incluye mi plan, para usar la
 
 ### Reglas de Negocio
 
-1. La nueva captura y categorización automática requieren Premium. Excepción aprobada: el OCR local de comprobantes Yape está disponible en Free con autorización explícita, procesamiento local y revisión antes de registrar.
-2. Analítica histórica y filtros combinados requieren Premium.
+1. La nueva captura y categorización automática requieren Premium. Excepción aprobada: el OCR local de comprobantes Yape está disponible en Free con consentimiento explícito, procesamiento local y revisión obligatoria antes de registrar (FR-011, decisión Owner 2026-11-05); el resto de la captura automática por notificación continúa restringido a Premium.
+2. Analítica histórica y filtros combinados requieren Premium (incluye el filtro por fuente Manual / Notificación / OCR como filtro avanzado Premium; los movimientos históricos sin procedencia se clasifican como «Manual», salvo los vinculados a candidatos de captura; decisión Owner 2026-11-05).
 3. Manual, sync, consultas básicas y personalización ordinaria siguen Free.
 4. Comprobar acción en dominio, no solo ocultar botones.
 
@@ -3670,10 +3680,10 @@ Como usuario de Kipu, quiero conocer qué acciones incluye mi plan, para usar la
 - **Cuando** registra gasto offline,
 - **Entonces** se guarda y queda pendiente de sincronizar.
 
-#### Escenario 2: Captura Free
-- **Dado que** un intent intenta solicitar OCR,
+#### Escenario 2: Captura Free y excepción OCR Yape
+- **Dado que** un intent o notificación intenta activar captura automática o comprobante no autorizado en Free,
 - **Cuando** se evalúa autorización,
-- **Entonces** se deniega antes de extraer imagen.
+- **Entonces** se deniega antes de extraer datos y se ofrece registro manual; si se trata de un comprobante local de Yape con consentimiento explícito, se autoriza el OCR local bajo revisión obligatoria (FR-011, decisión Owner 2026-11-05).
 
 #### Escenario 3: Analítica Free
 - **Dado que** se intenta filtro histórico combinado,
