@@ -102,6 +102,7 @@ data class DebtSettlementActivity(
     val eventType: String = "PAYMENT",
     val principalDeltaMinor: Long? = null,
     val transactionId: String? = null,
+    val syncStatus: String? = null,
 )
 
 @Composable
@@ -120,6 +121,7 @@ fun DebtDetailScreen(
     initialAction: String? = null,
     onClose: () -> Unit = onSchedule,
     onOpenMovement: (String) -> Unit = {},
+    onVoidPayment: (DebtSettlementActivity) -> Unit = {},
 ) {
     var showDeleteConfirmation by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "manage") }
     var showHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "history") }
@@ -250,6 +252,7 @@ fun DebtDetailScreen(
                     errorMessage = errorMessage,
                     onHistory = { showHistory = true },
                     onMovement = onOpenMovement,
+                    onVoidPayment = onVoidPayment,
                 )
             }
         }
@@ -260,7 +263,7 @@ fun DebtDetailScreen(
             { showHistory = true }, onEdit, onClose, { showDeleteConfirmation = true })
     }
     if (showHistory) {
-        DebtHistorySheet(debt, activities, onDismiss = { showHistory = false }, onOpenMovement = onOpenMovement)
+        DebtHistorySheet(debt, activities, onDismiss = { showHistory = false }, onOpenMovement = onOpenMovement, onVoidPayment = onVoidPayment)
     }
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -302,6 +305,7 @@ private fun ActiveDebtDetailView(
     errorMessage: String?,
     onHistory: () -> Unit,
     onMovement: (String) -> Unit,
+    onVoidPayment: (DebtSettlementActivity) -> Unit,
 ) {
     val payable = debt.obligationType.name == "PAYABLE"
     val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
@@ -549,6 +553,7 @@ private fun ActiveDebtDetailView(
                             color = if (activity.isVoided) emeraldColors.secondaryMuted else if (payable) emeraldColors.expenseText else emeraldColors.incomeText,
                         )
                     }
+                    DebtPaymentVoidAction(activity, onVoidPayment)
                 }
             }
         }
