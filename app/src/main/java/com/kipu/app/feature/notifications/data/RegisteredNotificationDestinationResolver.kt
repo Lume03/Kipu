@@ -2,6 +2,8 @@ package com.kipu.app.feature.notifications.data
 
 import com.kipu.app.feature.accounts.data.local.CardDao
 import com.kipu.app.feature.budgets.data.local.BudgetDao
+import com.kipu.app.feature.debts.data.local.DebtDao
+import com.kipu.app.feature.goals.data.local.GoalDao
 import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.feature.notifications.domain.NotificationDestination
 import com.kipu.app.feature.notifications.domain.NotificationDestinationResolver
@@ -14,6 +16,8 @@ class RegisteredNotificationDestinationResolver @Inject constructor(
     private val cardDao: CardDao,
     private val budgetDao: BudgetDao,
     private val candidates: CaptureCandidateStore,
+    private val debtDao: DebtDao,
+    private val goalDao: GoalDao,
 ) : NotificationDestinationResolver {
     override suspend fun resolve(userId: String, notification: AppNotification): NotificationDestination {
         if (notification.userId != userId) return NotificationDestination.Unavailable()
@@ -39,8 +43,14 @@ class RegisteredNotificationDestinationResolver @Inject constructor(
                     NotificationDestination.CaptureCandidate(referenceId)
                 else NotificationDestination.Unavailable()
             }
-            NotificationReferenceType.DEBT,
-            NotificationReferenceType.GOAL,
+            NotificationReferenceType.DEBT -> {
+                if (debtDao.getDebt(userId, referenceId) == null) NotificationDestination.Unavailable()
+                else NotificationDestination.DebtDetail(referenceId)
+            }
+            NotificationReferenceType.GOAL -> {
+                if (goalDao.getGoal(userId, referenceId) == null) NotificationDestination.Unavailable()
+                else NotificationDestination.GoalDetail(referenceId)
+            }
             null -> NotificationDestination.Unavailable()
         }
     }
