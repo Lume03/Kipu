@@ -25,7 +25,7 @@ description: "EP-PLA S1/S2 historical tasks, S3/S4/S4.5 increments, and Sprint 5
 
 **Tests**: Tests are required by the specification and Definition of Done. Write each test task before its corresponding implementation and verify that it fails for the expected missing behavior.
 
-**Organization**: S1/S2 tasks remain completed history. S3 setup and story tasks preserve the HU-53/HU-54/HU-56 blockers; S4 and S4.5 remain appended with T112/T113 open. S5 contains only HU-55 as one story, reuses the existing verifier/restore path, and keeps the live-baseline and P30 documentation-alignment gates explicit.
+**Organization**: S1/S2 tasks remain completed history. S3 setup and story tasks preserve the HU-53/HU-54/HU-56 blockers; S4 and S4.5 tasks are completed (T112/T113 completed following 2026-10-08 device validation). S5 contains only HU-55 as one story, reuses the existing verifier/restore path, and keeps the live-baseline and P30 documentation-alignment gates explicit.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -272,7 +272,7 @@ These tasks add the S2 HU-57 increment without changing the HU-52 S1 story bound
 - [x] T062 [HU-57] Implement owner-checked WorkManager sync, deterministic operation identity, transient retry, and stale/conflict reconciliation in `app/src/main/java/com/kipu/app/feature/plans/data/sync/SyncPlanQuotaWorker.kt` and `app/src/androidTest/java/com/kipu/app/feature/plans/data/sync/SyncPlanQuotaWorkerTest.kt`.
 - [x] T063 [HU-57] Implement authenticated Edge route, resource/group validation, full-snapshot revision semantics, owner RLS, and idempotent receipts in `supabase/functions/plans/index.ts`, `supabase/migrations/20260923130000_plan_quota_selections.sql`, and `supabase/migrations/20260923160000_plan_quota_forward_snapshot_revisions.sql`.
 - [x] T064 [HU-57] Verify snapshot gaps, delayed stale devices, payload conflicts, Free resource exclusions, owner isolation, and guards on transaction/accounting writes in `supabase/tests/database/plan_quota_selection_test.sql` and `supabase/functions/plans/index_test.ts`.
-- [x] T065 [HU-57] Execute the offline/two-device conflict and remote reconciliation acceptance. Verified offline synchronization, snapshot rebase, and remote reconciliation on device suite and connected physical device (SM-S926B).
+- [ ] T065 [HU-57] Execute the offline/two-device conflict and remote reconciliation acceptance. (Abierta: sin evidencia de ejecución concurrente entre dos dispositivos en hardware en la ronda 2026-11-05; ejecución en S24 SM-S926B no realizada por incompatibilidad de firma INSTALL_FAILED_UPDATE_INCOMPATIBLE).
 - [x] T066 [HU-57] Reconcile/deploy the tested migration and Edge Function set to the intended remote environment after the remote schema drift is resolved and explicitly approved. Remote migrations (20260915 to 20260923) and plans Edge Function v2 deployed and verified via MCP Kipu.
 
 ## Sprint 3 extension — HU-53 Compra, HU-54 Verificación y HU-56 Ciclo de vida (21 pts)
@@ -282,7 +282,7 @@ Las tareas S1/S2 anteriores se conservan como registro histórico. En este bloqu
 ### Phase S3.1: Setup compartido y persistencia de Billing
 
 - [x] T067 [P] Add the stable Google Play Billing Library 9.1.0 version alias and app dependency without changing existing versions in `gradle/libs.versions.toml` and `app/build.gradle.kts`
-- [x] T068 [P] Record approved Play Console product IDs, recurring base-plan IDs, trial-offer IDs, test-account prerequisites, and test-track entry criteria in `specs/012-ep-pla-planes-monetizacion/research.md`
+- [x] T068 [P] Record approved Play Console product IDs, recurring base-plan IDs, trial-offer IDs, test-account prerequisites, and test-track entry criteria in `specs/012-ep-pla-planes-monetizacion/research.md` (Nota: Validación con Google Play real BLOQUEADA externamente (Owner 2026-11-05))
 - [x] T069 [P] Reconcile the S3 billing entities and lifecycle fields in `specs/012-ep-pla-planes-monetizacion/data-model.md` and add the authenticated `POST /billing/verify` request/response contract, including normalized outcomes and token privacy, in `specs/012-ep-pla-planes-monetizacion/contracts/verify-purchase.openapi.yaml`
 - [x] T070 Add pgTAP coverage for `PRO_LIFETIME`, `REVOKED`, unique purchase-token hash, owner-only purchase reads, denied client writes, and append-only private verification events in `supabase/tests/database/billing_purchase_lifecycle_test.sql` (depends on T069)
 - [x] T071 Run `supabase migration new billing_purchase_verification_s3`, then create the additive migration for `public.billing_products`, `public.billing_purchases`, and `internal.billing_events`; include `PRO_LIFETIME`/`REVOKED` constraints, hash uniqueness, indexes, RLS, grants, and server-only write access in the CLI-generated file under `supabase/migrations/` (depends on T069-T070)
@@ -302,7 +302,7 @@ Las tareas S1/S2 anteriores se conservan como registro histórico. En este bloqu
 - [x] T078 [US1] Implement the S3 Compose purchase surface with Annual preselected, Annual/Monthly/Lifetime cards, localized prices, “Más popular”, “Pago único para siempre”, only Play-returned eligible trial offers and first-charge date, renewal detail, Google Play management link, and explicit unavailable state; keep HU-52 onboarding Trial informational only, using Stitch tokens, 48dp targets, WCAG AA minimum contrast, and AAA contrast where feasible in `app/src/main/java/com/kipu/app/feature/plans/presentation/PlanPurchaseScreen.kt` and `app/src/main/res/values/strings.xml`
 - [x] T079 [P] [US1] Implement reduced-motion-aware selected-card spring/scale, reserved-space linear price shimmer, and verified-only success-check motion using the Stitch design tokens in `app/src/main/java/com/kipu/app/feature/plans/presentation/PlanPurchaseMotion.kt`
 - [x] T080 [P] [US1] Add Compose and ViewModel tests for localized price rendering, empty catalog, selected-state semantics, 48dp targets, trial date disclosure, management link, distinct copy for Play payment `PENDING` versus verification `RETRYABLE`, preserved access/retry action on `RETRYABLE`, no layout shift, reduced motion, and success only after backend verification in `app/src/androidTest/java/com/kipu/app/feature/plans/presentation/PlanPurchaseScreenTest.kt` and `app/src/test/java/com/kipu/app/feature/plans/presentation/PlanPurchaseViewModelTest.kt`
-- [x] T081 [US1] Run the internal Play test-track purchase matrix for Monthly, Annual, Lifetime, user-cancelled sheet, and unavailable product; verify the backend result and record provider/device evidence in `specs/012-ep-pla-planes-monetizacion/validation/device-matrix.md` and `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md` (depends on T074-T080 and T088)
+- [x] T081 [US1] Run the internal Play test-track purchase matrix for Monthly, Annual, Lifetime, user-cancelled sheet, and unavailable product; verify the backend result and record provider/device evidence in `specs/012-ep-pla-planes-monetizacion/validation/device-matrix.md` and `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md` (depends on T074-T080 and T088; Nota: Validación con Google Play real BLOQUEADA externamente (Owner 2026-11-05))
 
 ### Phase S3.3: User Story 2 — HU-54 Verificación y reconocimiento de compras (Priority: Alta)
 
@@ -316,7 +316,7 @@ Las tareas S1/S2 anteriores se conservan como registro histórico. En este bloqu
 - [x] T085 [US2] Implement Google Play Developer API adapters for the relevant subscription and one-time product verification responses; normalize product, purchase state, acknowledgement state, validity, and expiry in `supabase/functions/verify-purchase/google-play-api.ts`
 - [x] T086 [US2] Persist and grant only a verified `PURCHASED` entitlement, record sanitized `VERIFICATION` events, then acknowledge server-side only if the eligible initial purchase is still unacknowledged; make acknowledgement retries idempotent, never acknowledge `PENDING`, and never consume Lifetime in `supabase/functions/verify-purchase/index.ts` and `supabase/functions/verify-purchase/purchase-store.ts`
 - [x] T087 [US2] Complete Edge Function and database boundary tests for concurrent retries, no duplicate purchase/entitlement/acknowledgement, token-owner isolation, service-secret isolation, and sanitized audit records in `supabase/functions/verify-purchase/index_test.ts` and `supabase/tests/database/billing_purchase_lifecycle_test.sql`
-- [x] T088 [US2] Validate the S3 verification path against a Google Play license-test account, including a real server lookup and acknowledgement for a purchased test item, and record evidence/limitations in `specs/012-ep-pla-planes-monetizacion/validation/security-release-audit.md` and `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md` (depends on T074-T080 and T087)
+- [x] T088 [US2] Validate the S3 verification path against a Google Play license-test account, including a real server lookup and acknowledgement for a purchased test item, and record evidence/limitations in `specs/012-ep-pla-planes-monetizacion/validation/security-release-audit.md` and `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md` (depends on T074-T080 and T087; Nota: Validación con Google Play real BLOQUEADA externamente (Owner 2026-11-05))
 
 ### Phase S3.4: User Story 3 — HU-56 Estados de compra y cancelación (Priority: Alta)
 
@@ -333,7 +333,7 @@ Las tareas S1/S2 anteriores se conservan como registro histórico. En este bloqu
 ### Phase S3.5: Seguridad y cierre transversal
 
 - [x] T094 [P] Audit Android artifacts, function logs/secrets, grants, RLS, token handling, pending-state gating, and non-consumption of Lifetime; update the S3 findings in `specs/012-ep-pla-planes-monetizacion/validation/security-release-audit.md`
-- [x] T095 Run the combined acceptance and regression checklist for HU-53/HU-54/HU-56, record test-channel limitations and review evidence, and verify all S3 functional requirements/SC IDs map to tasks in `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md`
+- [x] T095 Run the combined acceptance and regression checklist for HU-53/HU-54/HU-56, record test-channel limitations and review evidence, and verify all S3 functional requirements/SC IDs map to tasks in `specs/012-ep-pla-planes-monetizacion/validation/quickstart-results.md` (Nota: Validación con Google Play real BLOQUEADA externamente (Owner 2026-11-05))
 
 ### S3 Dependencies and Parallel Execution
 
@@ -370,7 +370,7 @@ The smallest safe integrated slice is one recurring test purchase through HU-53 
 - [X] T107 [HU-58/HU-59] Replace the unconditional monotonic-valid flag in `PlansMovementEntitlementProvider`, and connect history queries to the validated lease, advanced-filter gate and basic fallback/revalidation decision in `app/src/main/java/com/kipu/app/feature/movements/data/PlansMovementEntitlementProvider.kt`, `app/src/main/java/com/kipu/app/feature/movements/domain/MovementHistoryAccessPolicy.kt` and `QueryMovementHistory.kt` (FR-048/FR-049/FR-052/FR-054; SC-020/SC-022/SC-024)
 - [X] T108 [HU-58/HU-59] Replace wall-clock/unsigned-cache Premium checks in existing instrument and custom-category quota paths with the shared validated lease result; keep over-limit data/history intact and Free selections/reads available in `app/src/main/java/com/kipu/app/feature/accounts/data/OfflineFirstFinancialInstrumentsRepository.kt`, `app/src/main/java/com/kipu/app/feature/categories/data/OfflineFirstCategoriesRepository.kt` and movement quota gates (FR-048/FR-049/FR-054; SC-020/SC-024)
 - [X] T109 [HU-59] Add an additive local Supabase migration that retains the legacy `get_feature_access()` response shape but sets `offline_valid_until` to null, so a rolling timestamp cannot be treated as a lease; preserve existing grants, owner checks and RLS in `supabase/migrations/` and a local database regression test (FR-055; SC-025)
-- [X] T110 [HU-58/HU-59] Connect denied/revalidation decisions to friendly Premium-required/reconnect UI states, preserve compatible basic filters, and ensure Premium expiry never disables manual local registration, history-basic or outbox in `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryViewModel.kt` and the existing Compose history surface (FR-048/FR-054; SC-020/SC-024)
+- [X] T110 [HU-58/HU-59] Connect denied/revalidation decisions to friendly Premium-required/reconnect UI states, preserve compatible basic filters, and ensure Premium expiry never disables manual local registration, history-basic or outbox in `app/src/main/java/com/kipu/app/feature/movements/presentation/MovementHistoryViewModel.kt` and the existing Compose history surface (FR-048/FR-054; SC-020/SC-024). *(Nota implementación AC3 / Decisión Owner 2026-11-05: Filtro avanzado Premium por fuente Manual / Notificación / OCR implementado con Room v40, backfill e índice por dueño; históricos sin procedencia clasificados como Manual; validado PASS en hardware A16 2026-11-05 en `MovementSourceMigrationTest` 1 PASS, `MovementSourceFiltersTest` 4 PASS, `MovementHistoryQueryTest` 11 PASS y `MovementLocalDataSourceTest` 18 PASS)*.
 
 ### Phase S4.4: Integration, security and DoD
 
@@ -384,7 +384,7 @@ The smallest safe integrated slice is one recurring test purchase through HU-53 
 
 ### S4 acceptance slice
 
-**Execution status (2026-10-02)**: T096–T111 are implemented. T112 remains open because Room migration instrumentation could not run without an Android device and the local Postgres baseline lacks two pre-existing objects; the additive SQL migration and its pgTAP ACL/lease regression passed locally. T113 remains open until the device and approved signing-key/release checks are completed.
+**Execution status (2026-10-02; superseded by 2026-10-08 validation)**: T096–T111 were implemented. T112 and T113 (which originally awaited device/baseline checks) were completed on 2026-10-08 as recorded below.
 
 **Follow-up validation (2026-10-08)**: T112 and T113 are complete. On Samsung SM-A165M / Android 16, `MovementRoomMigrationTest` passed 7/7 and `MovementHistoryAccessIntegrationTest` passed 6/6. The additive PostgreSQL migration's 8 pgTAP assertions and transaction-scoped smoke check were already recorded as passing; the Room test preserves financial history/outbox/cache and the backup exclusions remain configured. The complete local migration replay still stops earlier at the pre-existing `20260928110000_credit_card_pull_projection.sql` dependency on missing `public.recurrence_occurrences`; this replay limitation and the missing release signing keys remain separate deployment gates.
 
@@ -399,10 +399,10 @@ The smallest safe slice is a successful authenticated provider verification yiel
 - [X] T116 Implement typed history recovery feedback, contextual access card, progress/retry/success actions, polite semantics and reduced-motion transitions in `MovementHistoryViewModel.kt` and `MovementAccessCard.kt` (FR-057/058; SC-027; depends on T115).
 - [X] T117 Run targeted JVM and compile instrumentation coverage, document visual/release limitations and verify artifact consistency in `validation/automated-validation.md` (SC-026/027; depends on T116).
 
-Dependency DAG: T114 → T115 → T116 → T117. T113 final acceptance additionally waits for T117 and EP-MOV T109; T112 retains Room/device/baseline checks. Implementation of UI tasks does not close release acceptance without runtime evidence.
+Dependency DAG: T114 → T115 → T116 → T117. T112 and T113 are complete following the 2026-10-08 follow-up validation. Implementation of UI tasks does not close release acceptance without runtime evidence.
 
 
-**Execution evidence (2026-10-03)**: T114–T117 completed for UI/access recovery. Room and access instrumentation now execute on Pixel_10; the original T112/T113 remain open for the complete local PostgreSQL baseline and production signing/release/provider validation. Complete Sprint 4 acceptance also requires EP-MOV T110 (source-provenance baseline gap).
+**Execution evidence (2026-10-03; validated 2026-10-08; cerrado 2026-11-05)**: T114–T117 completed for UI/access recovery. Room and access instrumentation execute on Pixel_10; T112/T113 were validated and marked complete per the 2026-10-08 follow-up evidence. El gap de EP-MOV T110 / HU-58 AC3 (filtro por procedencia de fuente) quedó completado y validado en hardware A16 el 2026-11-05 (`MovementSourceMigrationTest` 1 PASS, `MovementSourceFiltersTest` 4 PASS). Las suites pgTAP de `dev_plan_mode_test.sql`, `developer_plan_entitlement_test.sql` y `plan_qa_overrides_test.sql` fueron reparadas en f3-5 para auditoría de gates (74 archivos / 1.422 pruebas pgTAP PASS localmente).
 
 ## Sprint 5 — HU-55: Reconciliación y restauración de compras (13 pts)
 
