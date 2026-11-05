@@ -99,7 +99,7 @@ data class MovementHistoryUiState(
             toDate != null ||
             selectedFinancialStates.isNotEmpty() || appliedFilters.cardIds.isNotEmpty() ||
             appliedFilters.merchantIds.isNotEmpty() || appliedFilters.syncStatuses.isNotEmpty() ||
-            appliedFilters.paymentChannels.isNotEmpty()
+            appliedFilters.paymentChannels.isNotEmpty() || appliedFilters.sources.isNotEmpty()
 }
 
 private data class VoidDialogState(
@@ -135,12 +135,13 @@ data class AdvancedFiltersState(
     val paymentChannels: Set<WalletPaymentChannel> = emptySet(),
     val syncStatuses: Set<com.kipu.app.feature.movements.domain.model.MovementSyncStatus> = emptySet(),
     val currency: String? = null,
+    val sources: Set<com.kipu.app.feature.movements.domain.model.MovementSource> = emptySet(),
 ) {
     fun hasCriteria(): Boolean =
         accountIds.isNotEmpty() || categoryIds.isNotEmpty() || minAmountMinor != null ||
             maxAmountMinor != null || fromDate != null || toDate != null || financialStates.isNotEmpty() ||
             cardIds.isNotEmpty() || merchantIds.isNotEmpty() || syncStatuses.isNotEmpty() ||
-            paymentChannels.isNotEmpty()
+            paymentChannels.isNotEmpty() || sources.isNotEmpty()
 }
 
 @HiltViewModel
@@ -483,6 +484,7 @@ class MovementHistoryViewModel @Inject constructor(
             "category" -> current.copy(categoryIds = current.categoryIds - id)
             "card" -> current.copy(cardIds = current.cardIds - id)
             "merchant" -> current.copy(merchantIds = current.merchantIds - id)
+            "source" -> current.copy(sources = current.sources.filterNot { it.name == id }.toSet())
             "channel" -> current.copy(paymentChannels = current.paymentChannels.filterNot { it.name == id }.toSet())
             "amount" -> current.copy(minAmountMinor = null, maxAmountMinor = null, currency = null)
             "dates" -> current.copy(fromDate = null, toDate = null)
@@ -1031,6 +1033,7 @@ private fun AdvancedFiltersState.toHistoryCriteria() =
         cardIds = cardIds,
         categoryIds = categoryIds,
         merchantIds = merchantIds,
+        sources = sources,
         paymentChannels = paymentChannels,
         minAmountMinor = minAmountMinor,
         maxAmountMinor = maxAmountMinor,
