@@ -23,6 +23,9 @@ import com.kipu.app.ui.component.MoneyText
 fun GoalBackingStatus(
     accounts: List<GoalBackingAccount>,
     modifier: Modifier = Modifier,
+    onDeposit: ((String) -> Unit)? = null,
+    onRelease: ((String) -> Unit)? = null,
+    onReassign: ((String) -> Unit)? = null,
 ) {
     val colors = rememberPlanningColors()
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -44,6 +47,10 @@ fun GoalBackingStatus(
                     AmountRow("Libre para reservar", account.available)
                     if (account.shortfall.minorUnits > 0L) {
                         AmountRow("Faltante de respaldo", account.shortfall, MaterialTheme.colorScheme.error)
+                        Text("El faltante es compartido por las metas respaldadas por esta cuenta. Reasignar entre metas conserva ese faltante.", style = MaterialTheme.typography.bodySmall)
+                        androidx.compose.material3.TextButton(onClick = { onDeposit?.invoke(account.id) }, enabled = onDeposit != null) { Text("Ingresar fondos") }
+                        androidx.compose.material3.TextButton(onClick = { onRelease?.invoke(account.id) }, enabled = onRelease != null) { Text("Liberar reservas") }
+                        androidx.compose.material3.TextButton(onClick = { onReassign?.invoke(account.id) }, enabled = onReassign != null) { Text("Reasignar reservas") }
                     }
                 }
             }
