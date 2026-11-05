@@ -177,6 +177,41 @@ app/src/main/java/com/kipu/app/
 
 **Complexity**: One Room migration and a separate device-local event source are required to satisfy strict idempotency and the no-permission center fallback without weakening HU-42 server privileges. No new remote service, Supabase schema, or Android dependency is introduced.
 
+## Sprint 8 Increment — HU-43: Avisos de candidatos pendientes y alertas Android
+
+**Fecha de incorporación**: 2026-10-28 | **Sprint**: S8 | **Estado**: Implementado en código; verificación en dispositivo en curso (T062).
+
+### Alcance y arquitectura
+- **Aviso de candidato pendiente (`CAPTURE_REVIEW`)**:
+  - Generado cuando un candidato de captura requiere revisión humana (FR-027). Usa `notification_type = CAPTURE_REVIEW`, referencia `CAPTURE_CANDIDATE` y canal Android `capture-review` («Capturas por revisar»).
+  - Navegación explícita: al tocar el aviso desde el centro se abre el candidato específico en la bandeja P19 (enmienda aprobada a FR-004 y FR-013; la campana financiera general permanece separada).
+  - Deduplicación local por candidato sin emisión remota hacia Supabase (FR-028).
+  - Un exceso presupuestario nunca bloquea el guardado de un gasto real confirmado (FR-029).
+- **Alertas financieras como notificación Android (FR-021..FR-026)**:
+  - Los avisos de `BUDGET_ALERT`, `CREDIT_THRESHOLD` y `CREDIT_UTILIZATION_THRESHOLD_CROSSED` nuevos (últimas 24 horas), activos y no leídos se publican en el canal Android «Alertas financieras» cuando `POST_NOTIFICATIONS` está otorgado.
+  - Sin permiso Android, el aviso permanece consultable en el centro HU-42 del dispositivo (FR-022).
+  - El servidor admite `CREDIT_THRESHOLD` y `CREDIT_UTILIZATION_THRESHOLD_CROSSED` mediante la migración `20261028233000_allow_credit_utilization_notifications.sql` (FR-025, aplicada en el backend remoto).
+  - `BudgetCenterAlertNotifier` nombra el umbral cruzado (50/80/100%) en el cuerpo de la alerta presupuestaria (FR-026).
+  - `SyncNotificationsWorker` realiza pull inmediato tras confirmar compras con tarjeta (FR-023). Tocar la alerta abre el centro mediante `kipu://notifications/center` (FR-024).
+- **Navegación resiliente y fallback (Decisión Owner 2026-11-05)**:
+  - Los avisos de deuda, meta, presupuesto o tarjeta abren el detalle exacto de su objeto; si el objeto fue eliminado físicamente o ya no existe, se muestra un mensaje no bloqueante («no disponible») y el centro permanece en pantalla sin fallar.
+
+### Componentes y entregables
+- **Presentación y resolución de destinos**:
+  - `app/src/main/java/com/kipu/app/feature/notifications/presentation/NotificationCenterScreen.kt` (renderizado de chips, iconos y estilos para `BUDGET_ALERT`, `CREDIT_THRESHOLD`, `CAPTURE_REVIEW`).
+  - `app/src/main/java/com/kipu/app/feature/notifications/domain/NotificationDestinationResolver.kt` y `RegisteredNotificationDestinationResolver.kt`.
+- **Publicadores y workers**:
+  - `app/src/main/java/com/kipu/app/feature/notifications/data/FinancialAlertSystemNotifier.kt` (canal «Alertas financieras»).
+  - `app/src/main/java/com/kipu/app/feature/budgets/data/BudgetCenterAlertNotifier.kt` (umbral en cuerpo).
+  - `app/src/main/java/com/kipu/app/feature/notifications/data/sync/SyncNotificationsWorker.kt` (pull tras compra confirmada).
+- **Backend**:
+  - `supabase/migrations/20261028233000_allow_credit_utilization_notifications.sql` (aplicada en remoto).
+
+### Evidencia de verificación
+- Unit tests: `NotificationDestinationResolverTest` (5/5 PASS, resolución a candidato y fallbacks).
+- Hardware (Galaxy A16): aviso `CAPTURE_REVIEW` y navegación a P19 (`qa2-3.png`, `qa2-6.png`), registro con exceso presupuestario (`qa2-7.png`).
+- T062 permanece abierta en esta ronda para verificación completa en hardware de alertas de presupuesto y crédito en la bandeja Android.
+
 ## Complexity Tracking
 
 No constitution violations or extra projects. The outbox is necessary to satisfy offline mutation durability, retry safety, and account-change isolation already required by HU-42.
