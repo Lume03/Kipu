@@ -37,11 +37,12 @@ class CaptureAtomicResolutionTest {
         override suspend fun <R> invoke(block: suspend () -> R): R = db.withTransaction { block() }
     }
     private val allowed = CaptureAccessDecision.Allowed(EffectiveEntitlement(true, null))
+    private var accessDecision: CaptureAccessDecision = allowed
     private var beforeAllow: suspend () -> Unit = {}
     private val gate = object : CaptureAccessGate {
         override fun currentOwnerId() = owner
         override suspend fun evaluateCurrent() = evaluate(owner)
-        override suspend fun evaluate(ownerId: String): CaptureAccessDecision { beforeAllow(); return allowed }
+        override suspend fun evaluate(ownerId: String): CaptureAccessDecision { beforeAllow(); return accessDecision }
     }
 
     @Before fun setup() = runBlocking {
@@ -181,4 +182,101 @@ class CaptureAtomicResolutionTest {
             assertTrue(restarted.pendingFollowups(owner).isEmpty())
         } finally { durable.close(); context.deleteDatabase(name) }
     }
+    /** HU-47 exact Android event replay: the notification key AND postTime are unchanged. */
+    @Test fun exactEventReplayAfterAutomaticRegistrationDoesNotCreateAnotherMovement() = runBlocking {
+        val events = RoomCaptureSourceEventStore(db.captureSourceEventDao())
+        val extract = ExtractCaptureCandidate(
+            CaptureSourceCatalog(false), gate, events, store,
+            CaptureInstrumentResolver { _, _, _ -> CaptureInstrumentResolution(CaptureInstrumentKind.DEBIT_ACCOUNT, "bank") },
+            mockk(), com.kipu.app.feature.categories.domain.usecase.EvaluateMerchantAlias(), Clock.systemUTC(), emptySet(),
+            runner, CaptureResolutionFollowups(store, emptySet(), emptySet()),
+        )
+        val signal = CaptureSignal(CaptureProvider.BCP, "com.bcp.bank.bcp", "same-notification-key", 1L, "BCP", "Consumo de S/ 10.00")
+        val created = (extract(owner, signal) as CaptureExtractionResult.Created).candidate
+        val ready = created.copy(categoryId = "category", confidence = CaptureConfidenceLevel.HIGH,
+            confidenceReasons = emptyList(), occurredAt = 1L, occurredAtInferred = false)
+        assertTrue(store.updatePending(ready))
+        val auto = AutoRegisterCaptureCandidate(store, confirm(), Clock.systemUTC())
+        val registered = auto(ready) as AutoRegisterResult.Registered
+        assertEquals(CaptureExtractionResult.Ignored(CaptureSourceOutcome.DUPLICATE), extract(owner, signal))
+        // Retrying the original pre-save callback also returns its original transaction.
+        assertEquals(AutoRegisterResult.Registered(registered.transactionId), auto(ready))
+        assertEquals(1, db.captureCandidateDao().all(owner).size)
+        assertEquals(-1000L, db.movementDao().calculateLedgerSumForAccount(owner, "bank"))
+        assertEquals(registered.transactionId, db.movementDao().getReceipt(owner, CaptureResolutionKey.of(owner, ready.id))!!.transactionId)
+    }
+
+    /** HU-51 E3/E4: inbox and manual conversion share the same persisted ledger receipt. */
+    @Test fun manualConversionAfterPremiumExpiryAndReconfirmationReturnExistingMovement() = runBlocking {
+        val row = candidate()
+        assertTrue(store.insertIfAbsent(row))
+        accessDecision = CaptureAccessDecision.PremiumRequired
+        val command = ConfirmCaptureCommand.fromCandidate(row)!!
+        assertEquals(CaptureConfirmationResult.AccessDenied(CaptureAccessDecision.PremiumRequired), confirm()(command))
+        assertNull(db.movementDao().getReceipt(owner, CaptureResolutionKey.of(owner, row.id)))
+        val first = confirm()(command, CaptureConfirmationMode.MANUAL_DRAFT) as CaptureConfirmationResult.Registered
+        assertFalse(first.alreadyResolved)
+        for (mode in CaptureConfirmationMode.entries) {
+            assertEquals(CaptureConfirmationResult.Registered(first.transactionId, true), confirm()(command, mode))
+        }
+        assertEquals(-1000L, db.movementDao().calculateLedgerSumForAccount(owner, "bank"))
+        assertEquals(first.transactionId, db.movementDao().getReceipt(owner, CaptureResolutionKey.of(owner, row.id))!!.transactionId)
+    }
+
+    /** HU-51 E5: verify stored columns, rather than only the domain result. */
+    @Test fun resolvingAndDiscardingImmediatelyPurgeEvidenceWhilePendingEvidenceRemains() = runBlocking {
+        val confirmed = candidate("confirm")
+        val discarded = candidate("discard").copy(amountMinor = 2000)
+        val untouched = candidate("pending").copy(amountMinor = 3000)
+        listOf(confirmed, discarded, untouched).forEach { assertTrue(store.insertIfAbsent(it)) }
+        assertTrue(confirm()(ConfirmCaptureCommand.fromCandidate(confirmed)!!) is CaptureConfirmationResult.Registered)
+        assertTrue(discard()(owner, discarded.id) is CaptureDiscardResult.Discarded)
+        for (id in listOf(confirmed.id, discarded.id)) {
+            val persisted = db.captureCandidateDao().get(owner, id)!!
+            assertNull(persisted.evidenceSnippet)
+            assertNull(persisted.evidenceExpiresAt)
+        }
+        assertEquals("evidence", db.captureCandidateDao().get(owner, untouched.id)!!.evidenceSnippet)
+        assertEquals(-1000L, db.movementDao().calculateLedgerSumForAccount(owner, "bank"))
+    }
+
+    @Test fun evidencePurgeUsesInclusiveDeadlineAcrossOwnersAndDoesNotAlterCandidatesOrLedger() = runBlocking {
+        val expired = candidate("expired")
+        val foreign = candidate("foreign").copy(ownerId = "another-owner")
+        val future = candidate("future").copy(evidenceExpiresAt = 11L)
+        // Distinct records inserted through DAO to isolate retention from cross-source correlation.
+        listOf(expired, foreign, future).forEach { db.captureCandidateDao().insertIfAbsent(it.toEntity()) }
+        assertEquals(0, store.purgeExpiredEvidence(9L))
+        assertEquals(2, store.purgeExpiredEvidence(10L))
+        assertNull(db.captureCandidateDao().get(owner, expired.id)!!.evidenceSnippet)
+        assertNull(db.captureCandidateDao().get(foreign.ownerId, foreign.id)!!.evidenceSnippet)
+        assertEquals("evidence", db.captureCandidateDao().get(owner, future.id)!!.evidenceSnippet)
+        assertEquals(CaptureCandidateStatus.PENDING, store.get(owner, expired.id)!!.status)
+        assertEquals(0L, db.movementDao().calculateLedgerSumForAccount(owner, "bank") ?: 0L)
+        assertEquals(0, store.purgeExpiredEvidence(10L))
+    }
+
+    /** HU-34 E4: manual financial core and expected payment linkage work with capture denied. */
+    @Test fun freeUserRegistersExpectedPaymentManuallyWithoutCaptureOrDuplicateLedgerEffects() = runBlocking {
+        accessDecision = CaptureAccessDecision.PremiumRequired
+        val payments = RoomExpectedPaymentStore(db.expectedPaymentDao())
+        val expected = ExpectedPayment("expected", owner, "recurrence", java.time.LocalDate.parse("2026-11-05"),
+            1000, "PEN", ExpectedPaymentStatus.EXPECTED, null, null, 1, 1)
+        assertTrue(payments.insertIfAbsent(expected))
+        assertEquals(CaptureAccessDecision.PremiumRequired, gate.evaluateCurrent())
+        assertEquals(ExpectedPaymentStatus.EXPECTED, payments.get(owner, expected.id)!!.status)
+        assertEquals(0L, db.movementDao().calculateLedgerSumForAccount(owner, "bank") ?: 0L)
+        val command = RegisterTransactionCommand("manual-expected", owner, MovementType.EXPENSE, 1000, "PEN",
+            sourceAccountId = "bank", categoryId = "category", occurredAt = 1)
+        val result = register(command) as RegisterTransactionResult.Success
+        assertTrue(payments.markAttended(owner, expected.id, result.transaction.id, null, 2))
+        val attended = payments.get(owner, expected.id)!!
+        assertEquals(ExpectedPaymentStatus.ATTENDED, attended.status)
+        assertEquals(result.transaction.id, attended.matchedTransactionId)
+        assertNull(attended.matchedCandidateId)
+        assertTrue(db.captureCandidateDao().all(owner).isEmpty())
+        register(command)
+        assertEquals(-1000L, db.movementDao().calculateLedgerSumForAccount(owner, "bank"))
+    }
+
 }
