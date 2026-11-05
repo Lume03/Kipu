@@ -58,3 +58,37 @@ Se resuelve formalmente la discrepancia documental señalada en el hallazgo LOW 
 3. Se retira formalmente la contradicción de FR-012 de la lista de pendientes del sprint.
 4. Permanecen abiertos los criterios NO VERIFICADO en hardware: flujo completo desde app Yape real, notificación viva de Yape en ambos órdenes y 8 muestras privadas ausentes.
 5. Veredicto: **Aceptación PARCIAL; no APPROVED integral.**
+
+## Ronda de corrección 2026-11-05
+
+- **Fecha:** 2026-11-05
+- **Alcance:** HU-45, HU-46, HU-47, HU-48, HU-49, HU-50 y HU-51.
+- **Evidencia automatizada:**
+  - **Unitarios JVM:** 1.678 totales (1.675 PASS, 0 FAIL, 3 omitidos) en suite `:app:testDebugUnitTest`. Incluye:
+    - `com.kipu.app.feature.capture.domain.CaptureSignedExpiryAcceptanceTest`: 3 PASS (`signedPremiumExpiresAtBoundaryButManualEntryAndDedupeRemainAvailable`, `premiumExpiresBetweenCaptureAndAutomaticSaveAndLeavesPendingEvidence`, `expiredSignedGrantBlocksFreshNotificationBeforeAnyEvidenceOrCandidateWrite`). Cubre expiración Premium HU-45 E4 y HU-47 E5.
+    - `com.kipu.app.feature.capture.data.EvidencePurgeWorkerTest`: 3 PASS (`purgesAtInjectedTimeWithoutSessionOrNetworkAndSucceedsWhenNothingExpired`, `storageFailureRetriesAndSuccessfulRetryPurgesAtSameDeadline`, `cancellationPropagatesInsteadOfSchedulingFalseSuccess`). Cubre purga HU-51 E5.
+    - `com.kipu.app.feature.capture.domain.ConfirmCaptureCandidateTest`: PASS (`notificationSourceIsSentForReviewedAndAutomaticConfirmation`).
+  - **Instrumentados en Galaxy A16 (`SM-A165M`):** 142 PASS, 0 FAIL en 22 clases focalizadas:
+    - `com.kipu.app.core.database.CaptureAtomicResolutionTest`: **11 PASS** (ejecutado PASS A16 2026-11-05), con:
+      - `exactEventReplayAfterAutomaticRegistrationDoesNotCreateAnotherMovement`: Replay exacto de autorregistro (HU-47, HU-51 E3/E4).
+      - `manualConversionAfterPremiumExpiryAndReconfirmationReturnExistingMovement`: Conversión manual ante expiración Premium y reconfirmación idempotente sin nuevo movimiento contable (HU-45 E4, HU-47 E5, HU-51 E3/E4).
+      - `resolvingAndDiscardingImmediatelyPurgeEvidenceWhilePendingEvidenceRemains`: Purga inmediata de evidencia al descartar/resolver mientras candidatos pendientes conservan evidencia (HU-51 E5).
+      - `evidencePurgeUsesInclusiveDeadlineAcrossOwnersAndDoesNotAlterCandidatesOrLedger`: Purga de evidencia con plazo inclusivo entre propietarios sin alterar candidatos ni ledger (HU-51 E5).
+      - `freeUserRegistersExpectedPaymentManuallyWithoutCaptureOrDuplicateLedgerEffects`: Registro manual de usuario Free sin efectos duplicados ni bypass de captura.
+  - **Base de datos pgTAP local:** 74 archivos / 1422 tests PASS (exit code 0). Migraciones sincronizadas remoto = local = 114.
+- **Evidencia QA previa:** Informes de Sprint 8 (2026-10-29) y Sprint 9 (2026-11-03).
+- **Cambios de esta ronda:**
+  - Cobertura y ejecución de tests para expiración Premium (HU-45 E4, HU-47 E5), replay exacto de autorregistro y reconfirmación (HU-47, HU-51 E3/E4) y matriz de purga/privacidad (HU-51 E5) en Galaxy A16.
+  - Decisión Owner (2026-11-05): OCR local de comprobantes Yape PERMITIDO en plan Free con consentimiento explícito y revisión obligatoria (excepción FR-011 EP-AUT), corrigiendo el backlog «OCR denegado en Free» y manteniendo la protección Premium del resto del pipeline de captura.
+- **Pendientes y bloqueos:**
+  - T046-5 (Compatibilidad real de notificaciones en vivo por proveedor externo) sigue abierta (requiere interacción en vivo con apps bancarias externas en hardware real).
+  - Flujo completo desde app Yape real (HU-49 escenarios 1-3) permanece abierto / pendiente del Owner.
+  - S24 no ejecutado en esta ronda por firma incompatible (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+- **Veredicto por HU:**
+  - **HU-45:** CUMPLIDO (gate, consentimiento y expiración Premium HU-45 E4 validados en A16 con `CaptureAtomicResolutionTest` y unitarios).
+  - **HU-46:** PARCIAL (pipeline de extracción y parsers validados; compatibilidad real universal con proveedores externos en vivo abierta en T046-5).
+  - **HU-47:** CUMPLIDO (scoring determinista, autorregistro, replay exacto y expiración HU-47 E5 validados en A16 con `CaptureAtomicResolutionTest`).
+  - **HU-48:** CUMPLIDO (confirmación crédito/débito validada en Room y A16 sin efectos colaterales al salir/descartar).
+  - **HU-49:** PARCIAL (correlación híbrida, Room v37 y migración validadas; OCR local Free autorizado por decisión Owner 2026-11-05; Yape real escenarios 1-3 pendiente del Owner).
+  - **HU-50:** CUMPLIDO (aprendizaje desde correcciones confirmadas y followups transaccionales validados).
+  - **HU-51:** CUMPLIDO (bandeja, revisión, descarte, replay exacto de reconfirmación y conversión manual E3/E4 y purga/privacidad E5 validados en A16 con `CaptureAtomicResolutionTest` y `EvidencePurgeWorkerTest`).
