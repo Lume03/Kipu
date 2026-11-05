@@ -249,6 +249,7 @@ class GoalLocalDataSource @Inject constructor(
 
         for ((goalId, expectedRevision) in expectedRevisions) {
             val current = goalDao.getGoalIncludingArchived(userId, goalId)
+            if (current?.syncState == "CONFLICT") return@withTransaction GoalCommandResult.Rejected("GOAL_CONFLICT_REVIEW_REQUIRED")
             if (expectedRevision == null) {
                 if (current != null) return@withTransaction GoalCommandResult.Conflict("GOAL_ID_REUSED")
             } else if (current == null || current.revision != expectedRevision) {
