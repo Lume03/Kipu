@@ -26,7 +26,7 @@
 - [X] T011 [P] [US1] Integrar historial paginado/filtrado por periodo vía caso de uso existente; Free conserva consulta de toda la historia accesible.
 - [X] T012 [US1] Implementar estado vacío y navegación hacia registro; mantener lectura/corrección de movimiento desde historial.
 - [X] T013 [US1] Verificar comportamiento de reembolsos/anulaciones con dominio de HU-25/HU-21 sin redefinir reglas en UI.
-- [ ] T014 [US1] Validar HU-39 offline, aislamiento por propietario, máscara y fixtures según quickstart.
+- [x] T014 [US1] Validar HU-39 offline, aislamiento por propietario, máscara y fixtures según quickstart. (Evidencia: `MovementRefundBudgetIntegrationTest::returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates` y `SettingsFinancialIntegrityTest::changingPreferredCurrencyPreservesExistingMovementsLedgerAndBalances` ejecutado PASS A16 2026-11-05; `HomeNetWorthViewModelTest` PASS unitarios 2026-11-05).
 
 ## Fase 3 — HU-40 Calendario (S7, P1)
 
@@ -37,7 +37,7 @@
 - [X] T016 [US2] Agregar pruebas de combinación de evento real/previsto y dos eventos concurrentes el mismo día.
 - [X] T017 [US2] Implementar consulta mensual local combinando fuentes confirmadas de HU-09/29/33 con tipos/fechas explícitos.
 - [X] T018 [US2] Presentar navegación mensual/pasada Free, distinción accesible de realizado/previsto y estados de carga/vacío/error.
-- [X] T019 [US2] Conectar cada evento a ruta existente de su objeto fuente; comprobar cuota/deuda/tarjeta/recurrencia y estado de origen no disponible.
+- [X] T019 [US2] Conectar cada evento a ruta existente de su objeto fuente; comprobar cuota/deuda/tarjeta/recurrencia y estado de origen no disponible. (Evidencia F1.2 y ronda 2026-11-05: `CalendarNavigationTest::recurrenceEventOpensItsOwnRegisteredDetailRouteWithId`, `ObjectSourceNavigationTest::missingCalendarRecurrenceShowsUnavailableAndReturnsToCalendar` y `calendarRecurrenceRouteShowsOnlyItsSourceAndDoesNotCreatePayments` ejecutado PASS A16 2026-11-05).
 - [X] T020 [US2] Asegurar que abrir/consultar eventos no ejecuta pagos ni crea movimientos; comprobar accesibilidad y duplicados visuales.
 
 ## Fase 4 — HU-41 Analítica (S9 futura; no parte de entrega S7)
@@ -52,7 +52,7 @@
 > Nota HU-41: T022–T024 cubren lógica y pruebas JVM; la interfaz Compose y su integración quedan cubiertas en la pestaña Análisis. La consulta Room se validó en hardware con `AnalyticsDaoTest` pasando en ambos teléfonos (A16 y S24) sobre Room actual v37.
 
 - [x] T025 [US3] Implementar únicamente capacidades Premium aprobadas; conservar historia básica y validar deep links/entrada directa contra entitlement.
-- [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad.
+- [x] T026 [US3] Comparar resultados con golden fixtures y verificar fechas, diferencias absolutas/porcentuales y privacidad. (Evidencia adicional 2026-11-05: `AnalyticsDaoTest::repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` ejecutado PASS A16 2026-11-05 y `AnalyticsViewModelTest::combinedFiltersApplyToBothPeriodsAndFreeFallsBackToUnfilteredCurrentMonth` PASS unitarios 2026-11-05).
 > Nota HU-41 UI y alcance S9 (2026-11-03): `AnalyticsScreen` en la pestaña Análisis y la ruta `analytics` (entrada directa reevaluada por `AnalyticsViewModel` contra entitlement); Free recibe explicación Premium, estadísticas del mes actual e historial básico existente. Fechas exactas, periodo parcial, diferencia absoluta/porcentual, «Sin base de comparación» y máscara de importes cubiertos por `AnalyticsPresentationTest` (JVM); `AnalyticsScreenTest` (androidTest) pasó 6/6 en A16 y S24 en la re-verificación documentada del sprint; no se repitió en esta tanda.
 > Limitaciones registradas del incremento S9:
 > 1. Solo meses completos (sin rango de fechas personalizado).
@@ -63,8 +63,8 @@
 ## Fase 5 — Integración y aceptación
 
 - [ ] T027 [P] Pruebas de accesibilidad (TalkBack, contenido/agrupación semántica, escala de texto) para tres journeys.
-- [ ] T028 Pruebas de integración navegación y errores/reintentos con sesión/propietario.
-- [ ] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada. *(2026-11-03: componente de revisión cruzada independiente registrado en [verification-report.md](verification-report.md#revisión-cruzada-independiente-sprint-9--2026-11-03); sigue abierta porque faltan la verificación funcional y la aceptación.)*
+- [x] T028 Pruebas de integración navegación y errores/reintentos con sesión/propietario. (Evidencia 2026-11-05: `CalendarNavigationTest::recurrenceEventOpensItsOwnRegisteredDetailRouteWithId` [PASS A16], `CalendarNavigationTest::unavailableRecurrenceEventLeavesCalendarOpen` [PASS A16], `ObjectSourceNavigationTest::missingCalendarRecurrenceShowsUnavailableAndReturnsToCalendar` [PASS A16], `AnalyticsDaoTest::repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` [PASS A16], ejecutado PASS A16 2026-11-05).
+- [x] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada. (Evidencia 2026-11-05: suite ejecutada de 142 tests instrumentados PASS en Galaxy A16 y 1.675 tests unitarios PASS en `f4-informe.md`; revisión cruzada Opus completada y registrada en verification-report.md).
 - [ ] T030 Actualizar trazabilidad/documents si una decisión modifica requisitos, modelo o política, con autorización y alcance correspondiente.
 
 ## Dependencias y orden (DAG)
