@@ -103,7 +103,7 @@ Setup (Phase 1) and Foundational (Phase 2) establish shared Android security/ses
 ### Tests for User Story 2
 
 - [X] T024 [P] [US2] Write failing unit tests for recovery timing normalization, single-use link token handling, and pending changes counting across outboxes in `app/src/test/java/com/kipu/app/feature/auth/domain/RecoveryAndSignOutTest.kt`
-- [X] T025 [P] [US2] Write failing ViewModel tests for RecoveryViewModel, ResetPasswordViewModel, and SignOutDialog in `app/src/test/java/com/kipu/app/feature/auth/presentation/RecoveryViewModelTest.kt`
+- [X] T025 [P] [US2] Write failing ViewModel tests for RecoveryViewModel, ResetPasswordViewModel, and SignOutDialog in `app/src/test/java/com/kipu/app/feature/auth/presentation/RecoveryViewModelTest.kt` (Evidencia adicional 2026-11-05: `RecoveryAcceptanceTest` en `app/src/test/java/com/kipu/app/feature/auth/presentation/RecoveryAcceptanceTest.kt` con 5 tests PASS).
 - [X] T026 [P] [US2] Write failing unit tests for deep link validation (`/auth/confirm`, `/auth/recovery`) verifying scheme, host, path, single-use consumption, and replay rejection in `app/src/test/java/com/kipu/app/navigation/AuthDeepLinkHandlerTest.kt`
 - [X] T027 [P] [US2] Write failing Deno tests for `POST /functions/v1/auth-access/recovery` checking identical 202 status and normalized response duration for existing vs non-existing emails in `supabase/functions/auth-access/recovery_test.ts`
 - [X] T028 [P] [US2] Write failing Android instrumented tests for sign-out warning dialog when pending outbox rows exist and multi-user data isolation in `app/src/androidTest/java/com/kipu/app/feature/auth/presentation/SignOutFlowTest.kt`
@@ -170,7 +170,7 @@ Setup (Phase 1) and Foundational (Phase 2) establish shared Android security/ses
 
 ### Tests for User Story 4
 
-- [X] T048 [P] [US4] Write failing unit tests for permission evaluation rules (device grant + account consent + capability + source available) in `app/src/test/java/com/kipu/app/feature/settings/domain/PermissionSourcePolicyTest.kt`
+- [X] T048 [P] [US4] Write failing unit tests for permission evaluation rules (device grant + account consent + capability + source available) in `app/src/test/java/com/kipu/app/feature/settings/domain/PermissionSourcePolicyTest.kt` (Evidencia adicional 2026-11-05: `SettingsFinancialIntegrityTest` en `app/src/androidTest/java/com/kipu/app/feature/settings/presentation/SettingsFinancialIntegrityTest.kt` con 4 tests ejecutado PASS A16 2026-11-05, cubriendo HU-04 y HU-05).
 - [X] T049 [P] [US4] Write failing ViewModel tests for `PermissionsViewModel` covering rationale display, consent grant/denial, Free tier restriction, and revocation in `app/src/test/java/com/kipu/app/feature/settings/presentation/PermissionsViewModelTest.kt`
 - [X] T050 [P] [US4] Write failing Room tests for `InstallationPermissionStateDao` (installation-wide) and `AccountSourceConsentDao` (per-account) in `app/src/androidTest/java/com/kipu/app/feature/settings/data/local/PermissionDataTest.kt`
 - [X] T051 [P] [US4] Write failing Compose tests for `PermissionsScreen` verifying TalkBack announcements, rationale dialogs, and non-color state indicators in `app/src/androidTest/java/com/kipu/app/feature/settings/presentation/PermissionsScreenTest.kt`
@@ -201,7 +201,7 @@ Setup (Phase 1) and Foundational (Phase 2) establish shared Android security/ses
 - [X] T057 [P] [US5] Write failing unit tests for `LocalLockCoordinator` state transitions, monotonic clock 60s timeout, and background lifecycle events in `app/src/test/java/com/kipu/app/core/security/LocalLockTest.kt`
 - [X] T058 [P] [US5] Write failing ViewModel tests for `BiometricSettingsViewModel` and `LockScreenViewModel` in `app/src/test/java/com/kipu/app/feature/settings/presentation/BiometricSettingsViewModelTest.kt`
 - [X] T059 [P] [US5] Write failing Room tests for `DeviceAccountSettingsDao` per-account storage and exclusion from backup in `app/src/androidTest/java/com/kipu/app/feature/settings/data/local/DeviceAccountSettingsTest.kt`
-- [X] T060 [P] [US5] Write failing Compose tests for `LockScreenOverlay` verifying opaque cover, accessibility semantics hiding balances, and retry actions in `app/src/androidTest/java/com/kipu/app/core/security/LocalLockScreenTest.kt`
+- [X] T060 [P] [US5] Write failing Compose tests for `LockScreenOverlay` verifying opaque cover, accessibility semantics hiding balances, and retry actions in `app/src/androidTest/java/com/kipu/app/core/security/LocalLockScreenTest.kt` (Evidencia adicional 2026-11-05: `LocalLockScreenTest::cancellationAndFailureKeepBalancesHiddenUntilSuccessfulRetry` ejecutado PASS A16 2026-11-05; `AndroidXBiometricGatewayTest` y `BiometricSettingsViewModelTest` PASS unitarios 2026-11-05).
 
 ### Domain and Data for User Story 5
 
@@ -378,7 +378,7 @@ Evidencia T088/T091: las tres páginas y auditoría de acceso implementadas; la 
 - [X] T094 Implementar purge SQL service-only transaccional, bloqueo de repoblación e idempotencia; Edge diferencia completed/pending/error y borra Auth con Admin.
 - [X] T095 Implementar resumen, cancelación, contraseña actual, confirmación explícita, DataStore durable y recuperación desde acceso.
 - [X] T096 Limpiar solo partición local, preferencias/evidencia, workers y credenciales después de completar remoto, con reintento independiente de limpieza.
-- [X] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP; 1.581 casos Android sin fallos (3 omitidos), ambos APK, 142 Deno y 181 aserciones pgTAP verdes. Evidencia: `account-deletion-verification.md`.
+- [X] T097 Validar suite Android completa, builds requeridos, Deno y pgTAP; 1.581 casos Android sin fallos (3 omitidos), ambos APK, 142 Deno y 181 aserciones pgTAP verdes. Evidencia: `account-deletion-verification.md`. (Evidencia adicional 2026-11-05: `AccountDeletionTest::offlineDeletionRetainsEveryOwnerAndRecoversWithOriginalRequestAfterRestart` y `PortabilityOfflineAcceptanceTest` 2 tests PASS unitarios 2026-11-05; eliminación de cuenta por UI con cuenta desechable sigue pendiente del Owner).
 - [X] T098 Aplicar migraciones remotas (20261103152406_delete_account, 20261103162347_account_deletion_concurrency_fix, 20261103172646_profile_preferences_private_usage), desplegar Edge Function delete-account v2 (verify_jwt=false); validar API con cuenta desechable (403 sin password reciente, 200 completed, 200 idempotente, Auth 404, 60 tablas con 0 filas); resolver QA-S9-01 (cliente outbox preservada, RemoteProfileDto.displayName nullable, restauración 7/7 dos veces en A16 y S24 con sincronización limpia de outbox); validar resumen/cancelación en hardware con sesión real; Room actual v37.
 
 
