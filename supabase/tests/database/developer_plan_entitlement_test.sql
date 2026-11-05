@@ -1,5 +1,8 @@
 BEGIN;
 SELECT no_plan();
+-- Global gate audit receipts use this sentinel; the deletion guard requires Auth.
+INSERT INTO auth.users(id,email) VALUES
+ ('00000000-0000-0000-0000-000000000000','developer-gate-audit@example.test');
 
 INSERT INTO auth.users(id, email) VALUES
  ('74000000-0000-4000-8000-000000000001', 'developer-plan-owner@example.test'),
