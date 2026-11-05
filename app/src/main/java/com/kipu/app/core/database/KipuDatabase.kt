@@ -166,7 +166,7 @@ import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
         CaptureCandidateEntity::class,
         ExpectedPaymentEntity::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
