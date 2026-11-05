@@ -33,6 +33,12 @@ object GoalBackingCalculator {
                 Math.addExact(total, event.delta.minorUnits)
             }
         val reserved = Money(reservedMinor, confirmedBalance.currency)
+        return positionFromReserved(accountId, confirmedBalance, reserved)
+    }
+
+    fun positionFromReserved(accountId: String, confirmedBalance: Money, reserved: Money): GoalBackingPosition {
+        require(accountId.isNotBlank()) { "Backing account id is required" }
+        require(confirmedBalance.currency == reserved.currency) { "Backing reserve currency mismatch" }
         val available = confirmedBalance - reserved
         val shortfall = if (reserved > confirmedBalance) reserved - confirmedBalance else Money.zero(confirmedBalance.currency)
         return GoalBackingPosition(accountId, confirmedBalance, reserved, available, shortfall)
