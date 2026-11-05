@@ -19,6 +19,43 @@ import org.junit.Test
 
 class GoalManagementTest {
     @Test
+    fun historyAlonePreventsDeletion() {
+        assertDeletionPreservesHistory(events = 1, transfers = 0, pending = 0)
+    }
+
+    @Test
+    fun linkedTransferAlonePreventsDeletion() {
+        assertDeletionPreservesHistory(events = 0, transfers = 1, pending = 0)
+    }
+
+    @Test
+    fun pendingOutboxAlonePreventsDeletion() {
+        assertDeletionPreservesHistory(events = 0, transfers = 0, pending = 1)
+    }
+
+    private fun assertDeletionPreservesHistory(events: Int, transfers: Int, pending: Int) {
+        val result = com.kipu.app.feature.goals.domain.usecase.DeleteEmptyGoal().execute(
+            goal(10_000), events, transfers, pending,
+        )
+        assertEquals(GoalPlanResult.Invalid("HISTORY_PRESERVED"), result)
+    }
+
+    @Test
+    fun renewedPremiumAllowsPreviouslyPlanLockedGoalToBecomeOperationalAndKeepsReserve() {
+        val locked = goal(20_000, status = GoalStatus.LOCKED_BY_PLAN)
+        val result = UpdateGoal().execute(locked, UpdateGoalCommand(
+            expectedRevision = locked.revision, name = locked.name, target = locked.target,
+            targetDate = locked.targetDate, linkedAccountId = locked.linkedAccountId,
+            hasPremiumAccess = true, now = Instant.parse("2026-11-05T12:00:00Z"),
+        ), currentReserved = Money(5_000, Currency.PEN)) as GoalPlanResult.Valid
+        assertEquals(GoalStatus.ACTIVE, result.value.status)
+        assertEquals(locked.target, result.value.target)
+        val existing = GoalEvent("existing", "user-1", locked.id, GoalEventType.ALLOCATION,
+            Money(5_000, Currency.PEN), "account-1", "operation-1", occurredAt = Instant.EPOCH)
+        assertEquals(5_000L, GoalProgressCalculator.calculate(result.value, listOf(existing)).reserved.minorUnits)
+    }
+
+    @Test
     fun createAllowsVirtualGoalWithoutLinkedAccountAndDoesNotCreateFinancialEvents() {
         val result = CreateGoal().execute(
             CreateGoalCommand(
