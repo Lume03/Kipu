@@ -10,6 +10,27 @@ class PlanQuotaPolicyTest {
     private val policy = PlanQuotaPolicy()
 
     @Test
+    fun goalDowngradeRequiresTwoSelectionsAndPremiumRenewalRestoresAllWithoutDeletingResources() {
+        val goals = setOf("goal-a", "goal-b", "goal-c", "goal-d")
+        val premium = policy.evaluate(QuotaGroup.GOALS, goals, emptySet(), premiumVerified = true)
+        assertEquals(goals, premium.usableResourceIds)
+        val downgraded = policy.evaluate(QuotaGroup.GOALS, goals, emptySet(), premiumVerified = false)
+        assertTrue(downgraded.needsSelection)
+        assertEquals(goals, downgraded.activeResourceIds)
+        assertTrue(downgraded.usableResourceIds.isEmpty())
+        val selected = policy.evaluate(QuotaGroup.GOALS, goals, setOf("goal-a", "goal-c"))
+        assertEquals(2, selected.limit)
+        assertFalse(selected.needsSelection)
+        assertEquals(setOf("goal-a", "goal-c"), selected.usableResourceIds)
+        assertEquals(setOf("goal-b", "goal-d"), selected.planLockedResourceIds)
+        val renewed = policy.evaluate(QuotaGroup.GOALS, goals, selected.selectedResourceIds, premiumVerified = true)
+        assertEquals(goals, renewed.activeResourceIds)
+        assertEquals(goals, renewed.usableResourceIds)
+        assertTrue(renewed.planLockedResourceIds.isEmpty())
+        assertFalse(renewed.needsSelection)
+    }
+
+    @Test
     fun overLimitRequiresExplicitSelectionAndPreservesEveryResource() {
         val active = (1..9).map { "category-$it" }
         val state = policy.evaluate(QuotaGroup.CUSTOM_CATEGORIES, active, emptyList())
