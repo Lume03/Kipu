@@ -126,6 +126,11 @@ object MovementQuerySqlBuilder {
                 adv.merchantIds.forEach { args.add(it) }
                 adv.merchantIds.forEach { args.add(it) }
             }
+            if (adv.sources.isNotEmpty()) {
+                val placeholders = adv.sources.joinToString(",") { "?" }
+                sql.append(" AND capture_source IN ($placeholders)")
+                adv.sources.forEach { args.add(it.name) }
+            }
             if (adv.paymentChannels.isNotEmpty()) {
                 val channels = adv.paymentChannels.map { it.name }
                 val placeholders = channels.joinToString(",") { "?" }
