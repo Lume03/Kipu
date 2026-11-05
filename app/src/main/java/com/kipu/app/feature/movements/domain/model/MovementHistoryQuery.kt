@@ -16,6 +16,10 @@ enum class WalletPaymentChannel(val label: String) {
     PLIN("Plin"),
 }
 
+enum class MovementSource(val label: String) {
+    MANUAL("Manual"), NOTIFICATION("Notificación"), OCR("OCR"),
+}
+
 data class AdvancedHistoryCriteria(
     val accountIds: Set<String> = emptySet(),
     val cardIds: Set<String> = emptySet(),
@@ -27,6 +31,7 @@ data class AdvancedHistoryCriteria(
     val currency: String? = null,
     val financialStates: Set<MovementFinancialState> = emptySet(),
     val syncStatuses: Set<MovementSyncStatus> = emptySet(),
+    val sources: Set<com.kipu.app.feature.movements.domain.model.MovementSource> = emptySet(),
 ) {
     init {
         if (minAmountMinor != null && maxAmountMinor != null) {
@@ -46,7 +51,7 @@ data class AdvancedHistoryCriteria(
             cardIds.isNotEmpty() ||
             categoryIds.isNotEmpty() ||
             merchantIds.isNotEmpty() ||
-            paymentChannels.isNotEmpty() ||
+            paymentChannels.isNotEmpty() || sources.isNotEmpty() ||
             minAmountMinor != null ||
             maxAmountMinor != null ||
             financialStates.isNotEmpty() ||
