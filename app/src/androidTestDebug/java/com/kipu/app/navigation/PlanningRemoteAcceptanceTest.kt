@@ -1,5 +1,6 @@
 package com.kipu.app.navigation
 
+import com.kipu.app.feature.debts.data.sync.NoOpDebtSyncScheduler
 import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
@@ -188,7 +189,7 @@ class PlanningRemoteAcceptanceTest {
                 val factory = object : WorkerFactory() {
                     override fun createWorker(appContext: Context, workerClassName: String, params: WorkerParameters): ListenableWorker? = when (workerClassName) {
                         SyncMovementsWorker::class.java.name -> SyncMovementsWorker(appContext, params, restored.movementDao(),
-                            access.movementApi(), access.financialApi(), restored.accountDao(), restored.cardDao(), restored, access.session())
+                            access.movementApi(), access.financialApi(), restored.accountDao(), restored.cardDao(), restored, access.session(), NoOpDebtSyncScheduler)
                         SyncBudgetCommandsWorker::class.java.name -> SyncBudgetCommandsWorker(appContext, params,
                             restored.budgetDao(), restored.budgetAlertLedgerDao(), object : DatabaseTransactionRunner {
                                 override suspend fun <R> invoke(block: suspend () -> R): R = restored.withTransaction { block() }
