@@ -1,12 +1,12 @@
 # Implementation Plan: EP-PRE — Presupuestos y Consumos
 
-**Branch**: `008-ep-pre-presupuestos-consumos` | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md)
+**Branch**: `008-ep-pre-presupuestos-consumos` | **Date**: 2026-10-24 | **Spec**: [spec.md](spec.md) | **Estado**: Vigente (Aprobado tras la resolución de gates G1–G6 en `research.md`)
 
-**Input**: HU-36, HU-37, HU-38, Sprint 7, 21 puntos. Este plan es propuesta técnica previa a aprobación; no autoriza implementación.
+**Input**: HU-36, HU-37, HU-38, Sprint 7, 21 puntos. Plan en estado vigente tras la aprobación de especificación y resolución de gates del Sprint 7.
 
 ## Summary
 
-Especificar un módulo presupuestario incremental integrado con la arquitectura Android nativa, local-first y el dominio financiero existente. El módulo crea/consulta presupuestos y periodos; deriva consumo solo de gastos confirmados elegibles; evita doble conteo por jerarquía; y conserva la inmutabilidad de los movimientos. Antes de abrir implementación se requiere revisar los gates de periodo/zonas, contrato de reembolso HU-25, alertas HU-42 y estado/schema de persistencia.
+Especificar e implementar el módulo presupuestario incremental integrado con la arquitectura Android nativa, local-first y el dominio financiero existente. El módulo crea/consulta presupuestos y periodos; deriva consumo solo de gastos confirmados elegibles; evita doble conteo por jerarquía; y conserva la inmutabilidad de los movimientos. Los gates de periodo/zonas (G1), contrato de reembolso HU-25 (G2), alertas HU-42 (G3), schema de persistencia (G4), borrado/sync (G5) y moneda elegible (G6) quedaron formalmente resueltos en `research.md` (sección «Resolución de gates — 2026-10-24»).
 
 ## Technical Context
 
@@ -92,11 +92,11 @@ Dependencia hacia adentro: presentation → domain → interfaces; data implemen
 - Evitar logging de importes detallados, transacciones o notas; telemetría mínima, códigos de error seguros.
 - No almacenar PAN/credenciales; presupuesto no necesita dato sensible adicional.
 
-## Implementation Plan (propuesta, gate previo)
+## Implementation Plan (estado vigente)
 
-1. Verificar estado actual de dependencias (HU-14/18/19/25/42/57) y enumerar archivos/capacidades existentes.
-2. Resolver G1–G6, en particular HU-25/EP-MOV y la regla de moneda elegible/explicación al usuario; no implementar con fixtures como sustituto.
-3. Aprobar modelo físico/índices/RLS y migración aditiva con análisis de datos existentes/rollback.
+1. Verificar estado actual de dependencias (HU-14/18/19/25/42/57) y enumerar archivos/capacidades existentes (completado en T001).
+2. Resolver G1–G6, en particular HU-25/EP-MOV y la regla de moneda elegible/explicación al usuario (resueltos en `research.md`, T002).
+3. Aprobar modelo físico/índices/RLS y migración aditiva con análisis de datos existentes/rollback (completado en T004, T005, T006, T006b).
 4. Implementar P1 HU-36 con dominio/DAO/persistencia/cupo/consulta y tests antes de UI de integración; persistencia Room primero.
 5. Añadir P2 HU-37, integrando periodos, cálculo por categorías únicas, reembolsos reales, alertas deduplicadas y sync.
 6. Añadir P3 HU-38, ciclo de edición/finalización/borrado y protección de historia con conflict/retry tests.
@@ -112,7 +112,7 @@ HU-14 + HU-18/19 + HU-57 ───────────────► HU-36 
                                               └──────────┘ (HU-25 / HU-42 integrados)
 ```
 
-La secuencia expresa dependencias; no significa que se haya realizado código ni que gates estén resueltos.
+La secuencia expresa el orden de ejecución y dependencias; los gates G1–G6 quedaron resueltos el 2026-10-24 en `research.md`.
 
 ## Verification Strategy
 
