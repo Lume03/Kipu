@@ -50,3 +50,19 @@
 - `MerchantSearchUseCasesTest`: 12 tests passed, including punctuation-only input whose normalization is empty.
 - `MerchantPickerTest`: 7 tests passed on Samsung SM-A165M / Android 16, including whitespace-only catalog browsing and punctuation-only provisional text.
 - Full app `connectedDebugAndroidTest`: 267 tests ran; 18 failed in account, movement, notification, and plan packages. A full run at clean `origin/main` (`89a117e`) ran 257 tests and had 21 failures. All 18 failures on the CCO branch also failed on the base; the base additionally failed three category tests that pass on this branch. Every CCO category instrumentation test passed. The broad suite remains red, with no branch-only failing test identified.
+
+## 2026-11-05 Reconciliación, Bloques 3/4 y Despliegue Remoto
+
+- **Aplicación remota de migraciones**: Se desplegaron exitosamente en el proyecto Supabase remoto las migraciones `20261104051901_system_category_expense_catalog.sql` y `20261104053612_merchant_discovery_logo_recovery.sql` (así como `20261105180419` y `20261105190000_merchant_catalog_audit_fk_index.sql`). La base remota y la local quedan completamente reconciliadas y alineadas en 114 migraciones aplicadas.
+- **Bloque 3 (Catálogo predeterminado a EXPENSE)**:
+  - 12 raíces predeterminadas del sistema y 39 subcategorías migraron a `EXPENSE`; 0 subcategorías creadas por usuarios se vieron afectadas.
+  - Room migró a versión 38 (`RoomMigrations.kt`, `38.json`), asegurando la inicialización offline de las 51 entradas con sus tokens de diseño e iconos.
+  - Selectores de movimientos en creación y edición (`MovementCategoryOptions.kt`) rechazan selecciones incompatibles de categoría según el tipo de movimiento, preservando asociaciones históricas.
+  - Resultados automatizados: 85 tests unitarios PASS en JVM/Robolectric; 110 aserciones pgTAP PASS (`category_type_test.sql`, `category_merchant.test.sql`, `system_category_catalog.test.sql`, `movements_revision_test.sql`).
+- **M3 (Merchant Discovery)**:
+  - Búsqueda remota bajo demanda en Logo.dev vía Edge Function `merchant-search`, cache de 30 días (`internal.merchant_search_cache`), rate limiting (20/h, 100/24h, 10 altas/24h), comercios privados owner-scoped y alta compartida deduplicada por dominio (`20261102222216_merchant_discovery.sql`, Room v35).
+  - Resultados: 38 Deno tests PASS (`merchant-search`, `merchant-logo-sync`), 20 pgTAP assertions PASS (`merchant_discovery_test.sql`).
+- **Bloque 4 (Comercios compartidos y logos)**:
+  - Persistencia en Room v39 (`39.json`) de dominio, origen y estado de logo; recuperación reintentable tras 5 minutos sin consumir altas adicionales; interruptor `shared_additions_enabled` en `internal.merchant_discovery_settings` (`20261104053612_merchant_discovery_logo_recovery.sql`).
+  - Render de avatares con iniciales deterministas en `MovementAvatarPolicy.kt` cuando no hay logo; detalle de tarjeta (`CardMovementDisplay.kt`) observa catálogo por propietario para resolver comercios privados.
+  - Resultados: 23 unitarios JVM PASS, 41 Deno tests PASS, 42 pgTAP assertions PASS (`merchant_logo_block4.test.sql`, `merchant_logo_repair_block4.test.sql`, `merchant_discovery_test.sql`).
