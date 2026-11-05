@@ -95,7 +95,7 @@ internal fun openSourceLabel(event: CalendarEvent): String = when (event.source)
     is CalendarEventSource.Movement -> "Abrir movimiento"
     is CalendarEventSource.Card -> "Abrir tarjeta"
     is CalendarEventSource.Debt -> "Abrir deuda"
-    is CalendarEventSource.Recurrence -> "Ver movimientos"
+    is CalendarEventSource.Recurrence -> "Abrir recurrencia"
 }
 
 internal fun eventCountLabel(count: Int): String = when (count) {
