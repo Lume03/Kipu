@@ -79,7 +79,7 @@ class CalendarPresentationTest {
         assertEquals("Abrir deuda", openSourceLabel(event(today)))
         assertEquals("Abrir tarjeta", openSourceLabel(event(today).copy(source = CalendarEventSource.Card("c"))))
         assertEquals("Abrir movimiento", openSourceLabel(event(today).copy(source = CalendarEventSource.Movement("t"))))
-        assertEquals("Ver movimientos", openSourceLabel(event(today).copy(source = CalendarEventSource.Recurrence("r"))))
+        assertEquals("Abrir recurrencia", openSourceLabel(event(today).copy(source = CalendarEventSource.Recurrence("r"))))
         assertEquals("2 eventos", eventCountLabel(2))
     }
 }
