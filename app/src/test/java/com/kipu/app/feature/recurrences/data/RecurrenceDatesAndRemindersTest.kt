@@ -85,6 +85,22 @@ class RecurrenceDatesAndRemindersTest {
         coVerify(exactly = 1) { events.upsert(any()) }
     }
 
+
+    /** HU-34 E4: Free blocks capture association, but expected payments and reminders remain. */
+    @Test fun freeCaptureGateDoesNotSuppressExpectedPaymentOrReminder() = runTest {
+        val freeGate = FakeCaptureAccessGate("owner", CaptureAccessDecision.PremiumRequired)
+        assertEquals(CaptureAccessDecision.PremiumRequired, freeGate.evaluate("owner"))
+        val expected = slot<ExpectedPayment>()
+        coEvery { store.insertIfAbsent(capture(expected)) } returns true
+        coEvery { dao.get("owner", "rule") } returns entity()
+        GenerateExpectedPayments(store, clock)(rule())
+        assertEquals(ExpectedPaymentStatus.EXPECTED, expected.captured.status)
+        assertNull(expected.captured.matchedTransactionId)
+        assertTrue(worker().doWork() is ListenableWorker.Result.Success)
+        coVerify(exactly = 1) { events.upsert(any()) }
+        assertEquals(1, freeGate.evaluations)
+    }
+
     private fun worker() = RecurrenceReminderWorker(
         context, mockk<WorkerParameters> {
             every { inputData } returns workDataOf(
