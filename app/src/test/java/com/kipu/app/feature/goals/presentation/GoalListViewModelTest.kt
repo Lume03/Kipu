@@ -93,6 +93,7 @@ class GoalListViewModelTest {
         every { repository.observeBackingAccounts(userId) } returns flowOf(emptyList())
         every { repository.observeEvents(userId, any()) } returns flowOf(emptyList())
         coEvery { cacheDao.get(UUID.fromString(userId)) } returns cachedPremium
+        every { cacheDao.observe(UUID.fromString(userId)) } returns flowOf(cachedPremium)
         every { entitlementEvaluator.evaluate(userId, cachedPremium) } returns
             OfflineEntitlementLeaseDecision.Allowed(trustedNowMillis = 1_800_000_000_000)
         val commandResult = GoalCommandResult.Applied(goal.id, revision = 5)
