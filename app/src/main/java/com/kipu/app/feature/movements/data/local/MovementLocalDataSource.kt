@@ -456,6 +456,7 @@ class MovementLocalDataSource @Inject constructor(
                 acknowledgedRevision = null,
                 currentRevisionId = null,
                 source = command.paymentChannel,
+                captureSource = command.captureSource.name,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -1182,20 +1183,37 @@ class MovementLocalDataSource @Inject constructor(
         if (selected.id !in transactionIds || transactionIds.isEmpty()) {
             return MovementMutationResult.Rejected("SETTLEMENT_LINK_INVALID")
         }
+        // Validate every member before writing: returning Rejected from withTransaction does not roll it back.
+        val debt = databaseDebtDao.getDebt(userId, event.debtId)
+            ?: return MovementMutationResult.Rejected("SETTLEMENT_DEBT_NOT_FOUND")
+        data class PlannedVoid(
+            val transaction: TransactionEntity,
+            val command: MovementRevisionCommand.Void,
+            val plan: MovementMutationPlan,
+        )
+        val plannedVoids = mutableListOf<PlannedVoid>()
+        val transactions = transactionIds.map { id ->
+            movementDao.getTransactionById(userId, id)
+                ?: return MovementMutationResult.Rejected("SETTLEMENT_LINK_INVALID")
+        }
+        if (transactions.all { it.status == "VOIDED" }) return MovementMutationResult.Success(selectedHead, isDuplicate = true)
+        if (transactions.any { it.status == "VOIDED" }) return MovementMutationResult.Rejected("SETTLEMENT_NOT_ACTIVE")
         val now = System.currentTimeMillis()
         val touchedAccounts = mutableSetOf<Pair<String, String>>()
-        var effectOrdinal = 0
 
-        for (transactionId in transactionIds) {
-            val transaction = movementDao.getTransactionById(userId, transactionId)
-                ?: return MovementMutationResult.Rejected("SETTLEMENT_LINK_INVALID")
-            if (transaction.status == "VOIDED") continue
+        for (transaction in transactions) {
             val head = if (transaction.id == selected.id) selectedHead else buildRevisionHead(
                 transaction,
                 hasPendingOutbox = movementDao.getPendingOutboxForTransaction(userId, transaction.id).isNotEmpty(),
             )
-            val groupedCommandId = if (transaction.id == selected.id) command.idempotencyKey else
-                UUID.nameUUIDFromBytes("${command.idempotencyKey}:debt-settlement:${transaction.id}".toByteArray()).toString()
+            // Match void_debt_settlement_v1's logical effect identity on every replay/pull.
+            val groupedCommandId = if (transaction.id == event.transactionId) command.idempotencyKey else {
+                val digest = java.security.MessageDigest.getInstance("MD5").digest(
+                    "kipu:debt-settlement-void:${command.idempotencyKey}:${transaction.id}".toByteArray(Charsets.UTF_8),
+                )
+                val bytes = java.nio.ByteBuffer.wrap(digest)
+                UUID(bytes.long, bytes.long).toString()
+            }
             val transactionCommand = command.copy(
                 idempotencyKey = groupedCommandId,
                 transactionId = transaction.id,
@@ -1230,6 +1248,11 @@ class MovementLocalDataSource @Inject constructor(
                 is MovementRevisionPlanningResult.AlreadyVoided -> continue
                 is MovementRevisionPlanningResult.Rejected -> return MovementMutationResult.Rejected(result.code)
             }
+            plannedVoids += PlannedVoid(transaction, transactionCommand, plan)
+        }
+        if (plannedVoids.isEmpty()) return MovementMutationResult.Success(selectedHead, isDuplicate = true)
+        for ((transaction, transactionCommand, plan) in plannedVoids) {
+            val groupedCommandId = transactionCommand.idempotencyKey
             val revisionId = UUID.randomUUID().toString()
             val updated = transaction.copy(
                 status = MovementFinancialState.VOIDED.name,
@@ -1254,7 +1277,7 @@ class MovementLocalDataSource @Inject constructor(
                     createdAt = now,
                 ),
             )
-            for (effect in plan.effects) {
+            for ((effectOrdinal, effect) in plan.effects.withIndex()) {
                 val entryId = UUID.randomUUID().toString()
                 movementDao.insertLedgerEntries(listOf(
                     LedgerEntryEntity(
@@ -1272,7 +1295,7 @@ class MovementLocalDataSource @Inject constructor(
                     MovementLedgerEffectEntity(
                         userId = userId,
                         commandId = groupedCommandId,
-                        effectOrdinal = effectOrdinal++,
+                        effectOrdinal = effectOrdinal,
                         transactionId = transaction.id,
                         revisionId = revisionId,
                         ledgerEntryId = entryId,
@@ -1285,7 +1308,7 @@ class MovementLocalDataSource @Inject constructor(
                         userId = userId,
                         physicalEntryId = entryId,
                         commandId = groupedCommandId,
-                        effectOrdinal = effectOrdinal - 1,
+                        effectOrdinal = effectOrdinal,
                     ),
                 )
                 touchedAccounts += effect.accountId to effect.currency
@@ -1300,18 +1323,16 @@ class MovementLocalDataSource @Inject constructor(
         }
         database.financialMovementDao().updateOperationStatus(userId, requireNotNull(event.transactionId), "VOIDED")
 
-        val debt = databaseDebtDao.getDebt(userId, event.debtId)
-            ?: return MovementMutationResult.Rejected("SETTLEMENT_DEBT_NOT_FOUND")
         val events = databaseDebtDao.getEvents(userId, event.debtId)
         var debtDelta = 0L
         for (debtEvent in events) {
             val linked = debtEvent.transactionId?.let { movementDao.getTransactionById(userId, it) }
             if (debtEvent.transactionId == null || linked?.status != "VOIDED") {
-                debtDelta += debtEvent.principalDeltaMinor
-                    ?: if (debtEvent.eventType == "PAYMENT") -debtEvent.amountMinor else 0L
+                debtDelta = Math.addExact(debtDelta, debtEvent.principalDeltaMinor
+                    ?: if (debtEvent.eventType == "PAYMENT") -debtEvent.amountMinor else 0L)
             }
         }
-        val remaining = (debt.totalMinor + debtDelta).coerceIn(0L, debt.totalMinor)
+        val remaining = Math.addExact(debt.totalMinor, debtDelta).coerceAtLeast(0L)
         databaseDebtDao.updateDebt(
             debt.copy(
                 status = if (remaining == 0L) "SETTLED" else "ACTIVE",
@@ -1320,13 +1341,14 @@ class MovementLocalDataSource @Inject constructor(
                 updatedAt = now,
             ),
         )
-        for (installment in databaseDebtDao.getInstallments(userId, event.debtId)) {
+        for (installment in databaseDebtDao.getInstallments(userId, event.debtId).filter { it.id == event.installmentId }) {
             var paid = 0L
             for (debtEvent in events) {
                 if (debtEvent.installmentId != installment.id || debtEvent.eventType != "PAYMENT") continue
                 val linked = debtEvent.transactionId?.let { movementDao.getTransactionById(userId, it) }
                 if (debtEvent.transactionId == null || linked?.status != "VOIDED") {
-                    paid = (paid + debtEvent.amountMinor).coerceAtMost(installment.amountMinor)
+                    paid = Math.addExact(paid, debtEvent.principalDeltaMinor?.let { Math.negateExact(it).coerceAtLeast(0L) }
+                        ?: debtEvent.amountMinor).coerceAtMost(installment.amountMinor)
                 }
             }
             databaseDebtDao.upsertInstallment(
@@ -1334,7 +1356,7 @@ class MovementLocalDataSource @Inject constructor(
                     status = when {
                         paid >= installment.amountMinor -> "PAID"
                         paid > 0L -> "PARTIAL"
-                        else -> "PLANNED"
+                        else -> "PENDING"
                     },
                     revision = installment.revision + 1,
                     updatedAt = now,
