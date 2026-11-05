@@ -25,7 +25,7 @@
 
 - [x] T001 (DONE — Kanban `t_00451d7d`) Obtener aprobación humana de DP-REC-01..06 y registrar respuestas en el hilo. Aprobado: estado independiente de `deleted_at`; primera fecha futura válida al reanudar sin gastos omitidos; `end_date` opcional en S6 con `>= start_date`; cancelación terminal con nueva regla para reutilizar; anticipación default 2/rango 0–30; dependencia parcial de contrato HU-18 no bloqueante para HU-33/HU-35. No se aprobó acceso ni migración hosted.
 - [x] T002 (DONE — Kanban `t_713a060d`, tech-lead) Propagar las decisiones aprobadas T001 a los 11 artefactos documentales; en ese momento las respuestas disponibles aún dejaban abiertos el mapping/retención de `is_active`, confirmación de fecha al reanudar y presencia/nullability de `reminder_lead_days`. Esas tres subdecisiones se resolvieron después en T003 comentario #83 y se reconciliaron en T002-follow-up. T003 ya aprobó la revisión arquitectónica final.
-- [x] T002-follow-up (DONE — Kanban `t_c4dcb0a5`, tech-lead) Reconciliar en los 11 artefactos autorizados las respuestas complementarias aprobadas de DP-REC-01/02/05. Mantener HU-33/HU-35, exclusiones HU-34/HU-40/HU-44, cero ocurrencias/efectos financieros, inventario hosted como gate y `reminder_lead_days=0` en la frontera EP-NOT. Reentregar a T003 para revisión arquitectónica.
+- [x] T002-follow-up (DONE — Kanban `t_c4dcb0a5`, tech-lead) Reconciliar en los 11 artefactos autorizados las respuestas complementarias aprobadas de DP-REC-01/02/05. Mantener HU-33/HU-35 (la exclusión de HU-34 correspondía a la planificación inicial de S6; HU-34 se incorporó posteriormente en S8), exclusiones HU-40/HU-44, cero ocurrencias/efectos financieros, inventario hosted como gate y `reminder_lead_days=0` en la frontera EP-NOT. Reentregar a T003 para revisión arquitectónica.
 - [x] T003 (DONE — Kanban `t_a0fdee9b`, architect) Revisión arquitectónica independiente read-only de los artefactos objetivo. Veredicto APPROVED; 16 fixtures documentales de hash/bytes recalculados, 0 discrepancias. La revisión no ejecutó suites de implementación ni paridad Kotlin/PostgreSQL; estas siguen pendientes. Sin cambios de archivos ni acceso hosted.
 
 **Checkpoint**: T001, T002/seguimientos y T003 están DONE; las decisiones de producto DP-REC-01/02/05 están propagadas y el contrato/modelo documental tiene aprobación arquitectónica. Los writers están liberados con sus gates TDD y Security/local-apply aún vigentes. La aceptación parcial de HU-18 no equivale a cierre total. Deployment hosted sigue bloqueado por DB-REC-01 y el inventario autorizado pendiente.
@@ -107,6 +107,27 @@
 - [x] Apply/GREEN SQL (`t_50ebd716`, DONE): Migraciones aplicadas en `supabase_db_kipu` y 80/80 tests pgTAP aprobados con exit code 0 (`pgtap-80-80-execution.log`).
 - [x] T023 (DONE — `verification-report.md`, APPROVED): Auditoría independiente completada (7/7 pruebas Android instrumentadas en Galaxy A16 PASS, 16/16 unit tests PASS, 80/80 pgTAP PASS).
 - [x] T024 Validar escenarios finales de `quickstart.md`, reconciliar checks de `tasks.md`, ejecutar `speckit-converge` y proceder al release T025.
+
+---
+
+## Phase 6: Incremento Sprint 8 — HU-34: Pagos esperados y coincidencia con captura
+
+**Goal**: Generar pagos esperados locales desde reglas `ACTIVE`, asociar candidatos confirmados reutilizando movimientos sin duplicar gasto, y suprimir recordatorios de HU-44 si el pago de esa fecha ya fue atendido.
+
+- [x] T032 [US3] Implementar modelo de dominio y casos de uso para pagos esperados (`EXPECTED`, `ATTENDED`, `SKIPPED`) y matching puro en `app/src/main/java/com/kipu/app/feature/recurrences/domain/ExpectedPayments.kt`. Evidencia: `app/src/test/java/com/kipu/app/feature/capture/domain/ExpectedPaymentsTest.kt` (pruebas unitarias de generación y coincidencia pasan).
+- [x] T033 [US3] Implementar persistencia Room `ExpectedPaymentEntity` (`recurrence_expected_payments`), DAOs y workers en `app/src/main/java/com/kipu/app/feature/recurrences/data/local/ExpectedPaymentEntity.kt`, `app/src/main/java/com/kipu/app/feature/recurrences/data/sync/ExpectedPaymentWorker.kt` y `app/src/main/java/com/kipu/app/feature/recurrences/data/sync/RecurrenceReminderWorker.kt` (migración Room integrada en PR #90). Evidencia: `app/src/androidTest/java/com/kipu/app/core/database/ExpectedPaymentAssociationTest.kt` (4/4 PASS en Galaxy A16) y `app/src/androidTest/java/com/kipu/app/feature/recurrences/data/RecurrenceReminderWorkerTest.kt` (4/4 PASS en Galaxy A16, incluyendo supresión de aviso para pagos atendidos).
+- [x] T034 [US3] Verificación E2E en dispositivo físico Galaxy A16 y formalización de informe. Evidencia: `specs/007-ep-rec-recurrencias-obligaciones/verification-report.md` (sección "Incremento Sprint 8 — HU-34: pagos esperados", verificado 2026-10-29, commit `38a2c9ba1e67b0e25789883e22f0bc776a7a496c`).
+
+---
+
+## Phase 7: Ronda de corrección y verificación 2026-11-05 (Fases 1.5, 3.3, 4)
+
+**Contexto**: Cobertura adicional y verificación en hardware Samsung Galaxy A16 (`f4-informe.md`). Decisión del Owner del 2026-11-05: próxima fecha preseleccionada con HOY en `RecurrenceRegistrationScreen` (el escenario 'sin fecha' ya no aplica; test @Ignore `missingNextDateRequestsSelectionAndDoesNotSubmit` retirado en Fase 1.5).
+
+- [x] T035 [US1] Verificar que la modalidad de importe fijo (FIXED) actúa como plantilla esperada sin alterar el pago fuente ni registrar transacciones en `app/src/androidTest/java/com/kipu/app/feature/recurrences/RecurrenceRegistrationFlowTest.kt::fixedAmountIsAnExpectedTemplateAndDoesNotAlterSourcePayment` (ejecutado PASS A16 2026-11-05).
+- [x] T036 [US1] Verificar que el importe esperado FIXED persiste al recrear el repositorio sin registrar movimientos ni transacciones en el ledger en `app/src/test/java/com/kipu/app/feature/recurrences/data/RecurrenceSyncTest.kt::fixedExpectedAmountPersistsAcrossRepositoryRecreationWithoutRecordingPayment` (unit PASS 2026-11-05).
+- [x] T037 [US3] Verificar en plan Free que los recordatorios ordinarios se publican en fecha y se suprimen únicamente cuando el pago esperado figura como atendido (HU-34 Escenario 4) en `app/src/androidTest/java/com/kipu/app/feature/recurrences/data/RecurrenceReminderWorkerTest.kt::allowedReminderPostsOneSystemNotificationOnRetry`, `RecurrenceReminderWorkerTest::deniedPostNotificationsPersistsLocalEventWithoutRemoteMutation` y `RecurrenceReminderWorkerTest::attendedExpectedPaymentSkipsReminder` (ejecutado PASS A16 2026-11-05).
+- [x] T038 [US3] Verificar el aislamiento financiero completo: recibir, reintentar, resolver o leer avisos de recurrencia y deuda no crea ni confirma pagos en `app/src/androidTest/java/com/kipu/app/feature/notifications/data/local/ReminderFinancialIsolationTest.kt::receivingReadingAndResolvingReminderPreservesPaymentsMovementsAndBalances` (ejecutado PASS A16 2026-11-05).
 
 ---
 
