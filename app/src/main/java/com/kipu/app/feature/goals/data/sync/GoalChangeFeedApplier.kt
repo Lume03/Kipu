@@ -26,6 +26,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.longOrNull
 
 sealed interface GoalChangeApplyResult {
     data class Applied(val nextSequence: Long, val appliedChanges: Int) : GoalChangeApplyResult
@@ -42,6 +44,49 @@ class GoalChangeFeedApplier @Inject constructor(
     private val movementDao: MovementDao,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    /** Explicitly accept the server's metadata; financial commands always retain their history for review. */
+    suspend fun discardMetadataConflict(userId: String, goalId: String, expectedRevision: Long, remote: JsonObject): GoalChangeApplyResult = try {
+        database.withTransaction {
+            val current = goalDao.getGoalIncludingArchived(userId, goalId)
+                ?: throw InvalidGoalChangePage("GOAL_NOT_FOUND")
+            if (current.revision != expectedRevision || current.syncState != "CONFLICT") {
+                throw InvalidGoalChangePage("SYNC_CHECKPOINT_CHANGED")
+            }
+            val commands = outboxDao.getUnresolvedForUser(userId).filter { command ->
+                command.goalId == goalId || runCatching {
+                    Json.parseToJsonElement(command.payload).jsonObject["payload"]?.jsonObject
+                        ?.get("replacement_goal_id")?.jsonPrimitive?.contentOrNull == goalId
+                }.getOrDefault(false)
+            }
+            if (commands.any { command ->
+                val body = Json.parseToJsonElement(command.payload).jsonObject["payload"]?.jsonObject
+                command.goalId != goalId || command.commandType != "UPDATE_GOAL" ||
+                    body?.containsKey("replacement_goal_id") == true ||
+                    (command.attemptCount > 0 && command.state != "CONFLICT") || command.state == "LEASED"
+            }) throw InvalidGoalChangePage("FINANCIAL_CONFLICT_REVIEW_REQUIRED")
+            val revision = remote["revision"]?.jsonPrimitive?.longOrNull
+                ?: throw InvalidGoalChangePage("INVALID_GOAL_VALUE")
+            applyGoalUpsert(userId, SyncChangeItemDto(
+                sequence = 0L, entityType = "GOAL", entityId = goalId,
+                operation = "UPSERT", revision = revision, payload = remote,
+            ), acceptMetadata = true)
+            commands.forEach { command ->
+                outboxDao.updateResult(userId, command.operationId, "DISCARDED", null,
+                    "USER_DISCARDED_METADATA", remote.toString(), clock.millis())
+                movementDao.getReceipt(userId, command.operationId)?.let { receipt ->
+                    movementDao.insertOrUpdateReceipt(receipt.copy(status = "DISCARDED"))
+                }
+            }
+            GoalChangeApplyResult.Applied(goalDao.getSyncCheckpoint(userId)?.sequence ?: 0L, 1)
+        }
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (invalid: InvalidGoalChangePage) {
+        GoalChangeApplyResult.Rejected(invalid.code)
+    } catch (_: Exception) {
+        GoalChangeApplyResult.Rejected("INVALID_REMOTE_GOAL_CHANGE")
+    }
+
     suspend fun applyPage(userId: String, page: PullChangesResponseDto): GoalChangeApplyResult {
         if (userId.isBlank() || page.changes.size > MAX_PAGE_SIZE) {
             return GoalChangeApplyResult.Rejected("INVALID_SYNC_PAGE")
@@ -103,7 +148,7 @@ class GoalChangeFeedApplier @Inject constructor(
         }
     }
 
-    private suspend fun applyGoalUpsert(userId: String, change: SyncChangeItemDto) {
+    private suspend fun applyGoalUpsert(userId: String, change: SyncChangeItemDto, acceptMetadata: Boolean = false) {
         val payload = change.payload ?: throw InvalidGoalChangePage("GOAL_PAYLOAD_REQUIRED")
         val remote = json.decodeFromJsonElement<RemoteGoalDto>(payload)
         if (remote.userId != userId || remote.id != change.entityId || remote.revision != change.revision) {
@@ -123,7 +168,7 @@ class GoalChangeFeedApplier @Inject constructor(
         }
 
         val existing = goalDao.getGoalIncludingArchived(userId, remote.id)
-        if (existing != null && remote.revision < existing.revision) {
+        if (!acceptMetadata && existing != null && remote.revision < existing.revision) {
             if (existing.syncState == "SYNCED") return
             throw StaleGoalRevision(remote.id, existing.revision, remote.revision)
         }
@@ -143,7 +188,7 @@ class GoalChangeFeedApplier @Inject constructor(
             createdAt = remote.createdAt?.let(::parseInstantMillis) ?: existing?.createdAt ?: clock.millis(),
             updatedAt = remote.updatedAt?.let(::parseInstantMillis) ?: clock.millis(),
         )
-        if (existing != null && remote.revision == existing.revision) {
+        if (!acceptMetadata && existing != null && remote.revision == existing.revision) {
             if (!sameGoalContent(existing, entity)) {
                 if (existing.syncState != "SYNCED") {
                     throw StaleGoalRevision(remote.id, existing.revision, remote.revision)
@@ -153,7 +198,7 @@ class GoalChangeFeedApplier @Inject constructor(
             if (existing.syncState != "SYNCED") goalDao.upsertGoal(entity.copy(createdAt = existing.createdAt))
             return
         }
-        if (existing != null && existing.syncState != "SYNCED" && !sameGoalContent(existing, entity)) {
+        if (!acceptMetadata && existing != null && existing.syncState != "SYNCED" && !sameGoalContent(existing, entity)) {
             throw StaleGoalRevision(remote.id, existing.revision, remote.revision)
         }
         goalDao.upsertGoal(entity.copy(createdAt = existing?.createdAt ?: entity.createdAt))
