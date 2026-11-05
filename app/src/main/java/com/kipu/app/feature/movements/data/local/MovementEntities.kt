@@ -19,6 +19,7 @@ import com.kipu.app.feature.accounts.data.local.AccountEntity
     ],
     indices = [
         Index(value = ["user_id", "occurred_at"]),
+        Index(value = ["user_id", "capture_source", "occurred_at", "id"]),
         Index(value = ["user_id", "card_id", "occurred_at"]),
         Index(value = ["user_id", "source_account_id", "occurred_at"]),
         Index(value = ["user_id", "sync_status"]),
@@ -69,6 +70,7 @@ data class TransactionEntity(
     @ColumnInfo(name = "acknowledged_revision") val acknowledgedRevision: Long? = null,
     @ColumnInfo(name = "current_revision_id") val currentRevisionId: String? = null,
     @ColumnInfo(name = "source") val source: String? = null,
+    @ColumnInfo(name = "capture_source", defaultValue = "'MANUAL'") val captureSource: String = "MANUAL",
 )
 
 data class MovementHistoryCountRow(
