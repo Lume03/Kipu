@@ -45,6 +45,7 @@ class UpdateGoal {
         if (normalizedName.isBlank()) return GoalPlanResult.Invalid("NAME_REQUIRED")
 
         val updated = current.copy(
+            status = if (current.status == GoalStatus.LOCKED_BY_PLAN && command.hasPremiumAccess) GoalStatus.ACTIVE else current.status,
             name = normalizedName,
             target = command.target,
             targetDate = command.targetDate,
