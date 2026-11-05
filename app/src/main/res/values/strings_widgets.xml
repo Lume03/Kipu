@@ -1,0 +1,23 @@
+<resources>
+    <string name="widget_free_label">Libre para gastar</string>
+    <string name="widget_free_description">Cuánto puedes gastar hoy sin tocar tus metas ni los pagos que ya vienen.</string>
+
+    <string name="widget_budgets_label">Presupuestos</string>
+    <string name="widget_budgets_description">Cuánto llevas gastado de cada presupuesto, con su ícono.</string>
+    <string name="widget_payments_label">Pagos</string>
+    <string name="widget_payments_description">Tu próximo pago y los de la semana, y si ya los tienes apartados.</string>
+    <string name="widget_goals_label">Meta</string>
+    <string name="widget_goals_description">El avance de tu meta y las semanas que la mantuvieron en marcha.</string>
+    <string name="widget_quick_label">Accesos rápidos</string>
+    <string name="widget_quick_description">Registrar, movimientos, capturas y calendario a un toque.</string>
+    <string name="widget_networth_label">Patrimonio</string>
+    <string name="widget_networth_description">Tu patrimonio y cómo se movió tu dinero en 30 días.</string>
+    <string name="widget_captures_label">Capturas por revisar</string>
+    <string name="widget_captures_description">Pagos que Kipu leyó de tus notificaciones y esperan tu confirmación.</string>
+    <string name="widget_pace_label">Ritmo del mes</string>
+    <string name="widget_pace_description">Cuánto llevas gastado frente a un ritmo parejo y cómo cerrarías el mes.</string>
+    <string name="widget_debts_label">Deudas</string>
+    <string name="widget_debts_description">Lo que debes y lo que te deben.</string>
+    <string name="widget_climate_label">Clima financiero</string>
+    <string name="widget_climate_description">Cinco días de saldo disponible tras tus pagos programados.</string>
+</resources>

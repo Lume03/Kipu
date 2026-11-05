@@ -34,6 +34,116 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 tools:node="remove" />
         </provider>
+        <receiver
+            android:name=".feature.widgets.ui.FreeToSpendReceiver"
+            android:exported="true"
+            android:label="@string/widget_free_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_free_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.BudgetsReceiver"
+            android:exported="true"
+            android:label="@string/widget_budgets_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_budgets_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.PaymentsReceiver"
+            android:exported="true"
+            android:label="@string/widget_payments_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_payments_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.GoalsReceiver"
+            android:exported="true"
+            android:label="@string/widget_goals_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_goals_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.QuickActionsReceiver"
+            android:exported="true"
+            android:label="@string/widget_quick_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.NetWorthReceiver"
+            android:exported="true"
+            android:label="@string/widget_networth_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_networth_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.CapturesReceiver"
+            android:exported="true"
+            android:label="@string/widget_captures_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_captures_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.PaceReceiver"
+            android:exported="true"
+            android:label="@string/widget_pace_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pace_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.DebtsReceiver"
+            android:exported="true"
+            android:label="@string/widget_debts_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_debts_info" />
+        </receiver>
+        <receiver
+            android:name=".feature.widgets.ui.ClimateReceiver"
+            android:exported="true"
+            android:label="@string/widget_climate_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_climate_info" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -219,6 +219,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // Home screen widgets
+    implementation(libs.androidx.glance.appwidget)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)

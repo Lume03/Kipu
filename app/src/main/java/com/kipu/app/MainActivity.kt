@@ -88,6 +88,15 @@ import com.kipu.app.navigation.RootTabMotion
 import com.kipu.app.navigation.MOVEMENTS_HISTORY_PATTERN
 import com.kipu.app.navigation.MOVEMENTS_HISTORY_ROUTE
 import com.kipu.app.navigation.NOTIFICATION_CENTER_ROUTE
+import com.kipu.app.navigation.navigateToAccountDetail
+import com.kipu.app.navigation.navigateToBudget
+import com.kipu.app.navigation.navigateToCalendar
+import com.kipu.app.navigation.navigateToCaptureInbox
+import com.kipu.app.navigation.navigateToCardDetail
+import com.kipu.app.navigation.navigateToDebtDetail
+import com.kipu.app.navigation.navigateToGoal
+import com.kipu.app.navigation.navigateToPlanning
+import com.kipu.app.navigation.navigateToUpcomingDues
 import com.kipu.app.navigation.ReceiptShareIntent
 import com.kipu.app.navigation.navigateToReceiptImport
 import com.kipu.app.ui.component.LocalBalanceMasked
@@ -158,6 +167,8 @@ class MainActivity : FragmentActivity() {
 
     private var pendingDeepLink by mutableStateOf<DeepLinkResult?>(null)
     private var pendingReminderRoute by mutableStateOf<String?>(null)
+    /** Where a home screen widget asked to go, e.g. `goal/<id>`; consumed once the session is available. */
+    private var pendingWidgetTarget by mutableStateOf<String?>(null)
     private var pendingReceiptUri by mutableStateOf<String?>(null)
     private var restorationJob: Job? = null
     private val authCallbackViewModel: AuthCallbackViewModel by viewModels()
@@ -176,7 +187,8 @@ class MainActivity : FragmentActivity() {
         lifecycle.addObserver(localLockCoordinator)
         enableEdgeToEdge()
 
-        pendingDeepLink = intent?.data?.let { authDeepLinkHandler.handleDeepLink(it) }
+        pendingWidgetTarget = widgetTarget(intent)
+        pendingDeepLink = intent?.data?.takeUnless { widgetTarget(intent) != null }?.let { authDeepLinkHandler.handleDeepLink(it) }
         pendingReminderRoute = reminderRoute(intent)
         pendingReceiptUri = if (savedInstanceState != null) {
             savedInstanceState.getString("pending_receipt_uri")
@@ -344,6 +356,19 @@ class MainActivity : FragmentActivity() {
                                 ) {
                                     navController.navigateToReceiptImport(uri)
                                     pendingReceiptUri = null
+                                }
+                            }
+
+                            // A widget tap lands on its screen once the session is open and unlocked.
+                            LaunchedEffect(pendingWidgetTarget, currentRoute, accessState, lockState) {
+                                val target = pendingWidgetTarget
+                                val route = currentRoute
+                                if (target != null && route != null && accessState is LocalAccess.Available &&
+                                    lockState != LocalLockState.LOCKED && sessionEntryCurtain.state.value == null &&
+                                    !route.startsWith("auth") && !route.startsWith("setup") && !route.startsWith("onboarding")
+                                ) {
+                                    navController.openWidgetTarget(target)
+                                    pendingWidgetTarget = null
                                 }
                             }
 
@@ -527,7 +552,8 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        pendingDeepLink = intent.data?.let { authDeepLinkHandler.handleDeepLink(it) }
+        widgetTarget(intent)?.let { pendingWidgetTarget = it }
+        pendingDeepLink = intent.data?.takeUnless { widgetTarget(intent) != null }?.let { authDeepLinkHandler.handleDeepLink(it) }
         pendingReminderRoute = reminderRoute(intent)
         sharedReceiptUri(intent)?.let { pendingReceiptUri = it }
     }
@@ -558,6 +584,39 @@ class MainActivity : FragmentActivity() {
     }
 }
 
+
+/** `kipu://widget/<target>[/<id>]`, the links the home screen widgets open; null for any other intent. */
+private fun widgetTarget(intent: Intent?): String? {
+    val uri = intent?.data ?: return null
+    if (uri.scheme != "kipu" || uri.host != "widget") return null
+    return uri.pathSegments.joinToString("/").takeIf { it.isNotBlank() }
+}
+
+private fun NavController.openWidgetTarget(target: String) {
+    val parts = target.split("/")
+    val id = parts.getOrNull(1)?.takeIf { runCatching { UUID.fromString(it) }.isSuccess }
+    when (parts.first()) {
+        "money" -> selectRootTab(RootTab.MONEY)
+        "movements" -> selectRootTab(RootTab.MOVEMENTS)
+        "analysis" -> selectRootTab(RootTab.ANALYSIS)
+        "goals" -> navigateToPlanning(PlanningTab.GOALS)
+        "budgets" -> navigateToPlanning(PlanningTab.BUDGETS)
+        "debts" -> navigateToPlanning(PlanningTab.DEBTS)
+        "register" -> {
+            selectRootTab(RootTab.MONEY)
+            dashboardEntryOrNull()?.savedStateHandle?.set("open_register_movement", true)
+        }
+        "calendar" -> { selectRootTab(RootTab.MONEY); navigateToCalendar() }
+        "dues" -> { selectRootTab(RootTab.MONEY); navigateToUpcomingDues() }
+        "capture" -> { selectRootTab(RootTab.MONEY); navigateToCaptureInbox() }
+        "goal" -> { selectRootTab(RootTab.MONEY); if (id != null) navigateToGoal(id) else navigateToPlanning(PlanningTab.GOALS) }
+        "budget" -> { selectRootTab(RootTab.MONEY); if (id != null) navigateToBudget(id) else navigateToPlanning(PlanningTab.BUDGETS) }
+        "debt" -> { selectRootTab(RootTab.MONEY); if (id != null) navigateToDebtDetail(id) else navigateToPlanning(PlanningTab.DEBTS) }
+        "card" -> { selectRootTab(RootTab.MONEY); if (id != null) navigateToCardDetail(id) else selectRootTab(RootTab.MONEY) }
+        "account" -> { selectRootTab(RootTab.MONEY); if (id != null) navigateToAccountDetail(id) }
+        else -> selectRootTab(RootTab.MONEY)
+    }
+}
 
 private fun reminderRoute(intent: Intent?): String? {
     val uri = intent?.data ?: return null

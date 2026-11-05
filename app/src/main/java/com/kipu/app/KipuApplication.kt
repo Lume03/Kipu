@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import com.kipu.app.feature.budgets.data.sync.BudgetMaintenanceScheduler
 import com.kipu.app.feature.capture.data.work.EvidencePurgeScheduler
 import com.kipu.app.feature.recurrences.data.sync.ExpectedPaymentScheduler
+import com.kipu.app.feature.widgets.WidgetRefresher
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import com.kipu.app.feature.plans.data.sync.PlanEntitlementRefreshCoordinator
@@ -28,12 +29,15 @@ class KipuApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var expectedPaymentScheduler: ExpectedPaymentScheduler
 
+    @Inject lateinit var widgetRefresher: WidgetRefresher
+
     override fun onCreate() {
         super.onCreate()
         planEntitlementRefresh.start(applicationScope)
         budgetMaintenanceScheduler.ensurePeriodic()
         evidencePurgeScheduler.ensurePeriodic()
         expectedPaymentScheduler.ensurePeriodic()
+        widgetRefresher.start(applicationScope)
     }
 
     override val workManagerConfiguration: Configuration

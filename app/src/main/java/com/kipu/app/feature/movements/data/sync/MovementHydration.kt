@@ -38,7 +38,9 @@ class MovementHydration @javax.inject.Inject constructor(
 ) {
     private class InvalidSyncPage : RuntimeException()
     private val json = Json { ignoreUnknownKeys = true }
-    private val FOREIGN_FEED_ENTITY_TYPES = setOf("CATEGORY", "BUDGET", "GOAL", "GOAL_EVENT", "DEBT", "DEBT_EVENT", "DEBT_INSTALLMENT", "SAVINGS_GOAL", "OBLIGATION", "RECURRENCE")
+    private val FOREIGN_FEED_ENTITY_TYPES = setOf("CATEGORY", "BUDGET", "GOAL", "GOAL_EVENT", "DEBT", "DEBT_EVENT", "DEBT_INSTALLMENT", "SAVINGS_GOAL", "OBLIGATION", "RECURRENCE",
+        // Merchant rules travel in the same feed and are applied by the categories sync; they must not block restoring money data.
+        "MERCHANT_ALIAS_RULE", "MERCHANT_CATEGORY_PREFERENCE")
     private fun requireOwner(userId: String) = requireSyncOwner(sessionCoordinator, userId)
     private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T {
         requireOwner(userId)
