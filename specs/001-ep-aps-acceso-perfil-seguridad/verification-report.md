@@ -109,3 +109,31 @@ No hay APPROVED integral de Sprint 9: T021, TalkBack hablado, A16 en última tan
 **Resultado final de la corrección: VALIDADA en backend local y proveedor remoto; aceptación del sprint sigue PARCIAL.** API contra delete-account v3 con dos cuentas desechables nuevas: se preparó mediante RPC el límite exacto `data_deleted` con Auth vivo (Admin 200), se obtuvo 403 `owner_mismatch` con el JWT del otro usuario sin borrarlo y 403 `recent_reauthentication_required` con AMR envejecido realmente >305 s. Tras login reciente, una capacidad nueva recuperó el recibo y respondió 200 completed. Capacidad original, nueva y alias del segundo dispositivo devolvieron 200 completed en tres peticiones paralelas y nuevamente con bearer de reconciliación después de desaparecer Auth. Admin 404; 60 tablas comprobadas, cero filas propias. La segunda cuenta desechable también fue eliminada mediante su propio flujo autorizado. Archivo privado `deletion-recovery-api-result.json`; credenciales temporales retiradas.
 
 Límite de la prueba: el fallo de Admin Auth se inyecta en Deno; en remoto se reproduce su estado persistido con purge RPC y se verifica recuperación real, sin provocar indisponibilidad del proveedor. La concurrencia de preparación se prueba con siete conexiones SQL locales; la tanda paralela remota valida reconciliación e idempotencia tras completarse la recuperación. Ninguna cuenta/sesión real, instalación Android o caché del usuario fue alterada.
+
+## Ronda de corrección 2026-11-05
+
+- **Fecha:** 2026-11-05
+- **Alcance:** HU-01 a HU-05 (Sprint 1) y HU-06 (Sprint 9).
+- **Evidencia automatizada:**
+  - **Unitarios JVM:** 1.678 totales (1.675 PASS, 0 FAIL, 3 omitidos) en suite `:app:testDebugUnitTest`. Incluye:
+    - `com.kipu.app.feature.auth.presentation.RecoveryAcceptanceTest`: 5 PASS (`validLinkUpdatesPasswordAndNewPasswordSignsIn`, `expiredRecoveryLinkShowsErrorAndPreservesPassword`, `usedRecoveryLinkShowsErrorAndPreservesPassword`, `alteredRecoveryLinkShowsErrorAndPreservesPassword`, `providerRejectsExpiredSessionDuringUpdateWithoutChangingPassword`). Cubre HU-02.
+    - `com.kipu.app.core.security.AndroidXBiometricGatewayTest`: 1 PASS (`credentialOnlyDeviceOffersPinInThePlatformPrompt`). Cubre HU-03.
+    - `com.kipu.app.feature.settings.presentation.BiometricSettingsViewModelTest`: 2 PASS (`activation persists only after successful authentication and survives reopening`, `device credential enables local protection when biometrics are unavailable`). Cubre HU-03.
+    - `com.kipu.app.feature.portability.AccountDeletionTest`: 1 PASS (`offlineDeletionRetainsEveryOwnerAndRecoversWithOriginalRequestAfterRestart`). Cubre HU-06.
+    - `com.kipu.app.feature.portability.PortabilityOfflineAcceptanceTest`: 2 PASS (`offlineRestoreShowsMessageAndLocalExportSurvivesWriteFailureAndRetry`, `restorationRecoversAfterConnectivityReturnsAndRetriesOnlyFailedModules`). Cubre HU-06.
+  - **Instrumentados en Galaxy A16 (`SM-A165M`):** 142 PASS, 0 FAIL en 22 clases focalizadas:
+    - `com.kipu.app.core.security.LocalLockScreenTest`: 2 PASS (ejecutado PASS A16 2026-11-05), incluyendo `cancellationAndFailureKeepBalancesHiddenUntilSuccessfulRetry`. Cubre HU-03.
+    - `com.kipu.app.feature.settings.presentation.SettingsFinancialIntegrityTest`: 4 PASS (ejecutado PASS A16 2026-11-05), incluyendo `changingPreferredCurrencyPreservesExistingMovementsLedgerAndBalances` (cubre HU-04), `deniedNotificationPermissionStillAllowsManualRegistration`, `revokedSourceStopsNewCaptureAndPreservesConfirmedHistory` y `revokedAndroidPermissionStopsNewCaptureAndPreservesConfirmedHistory` (cubren HU-05).
+  - **Base de datos pgTAP local:** 74 archivos / 1422 tests PASS (exit code 0). Migraciones sincronizadas remoto = local = 114.
+- **Evidencia QA previa:** Informes de Sprint 1, Sprint 8 (`PermissionsViewModelTest` y `PermissionsScreenTest`) y Sprint 9 (`account-deletion-verification.md` y `docs/qa/incidente-sync-restauracion-2026-10-25`).
+- **Cambios de esta ronda:** Incorporación y ejecución de tests focalizados de recuperación (HU-02), bloqueo y credenciales biométricas (HU-03), integridad financiera de moneda y preferencias (HU-04), control y revocación de permisos (HU-05) y portabilidad/eliminación offline (HU-06).
+- **Pendientes y bloqueos:**
+  - Eliminación de cuenta por UI completa con cuenta desechable en hardware (HU-06) permanece pendiente del Owner (validación API y backend completas; resumen/cancelación en hardware ejecutado con sesión real).
+  - S24 no ejecutado en esta ronda por firma incompatible (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+- **Veredicto por HU:**
+  - **HU-01:** CUMPLIDO (flujos de registro y login estables).
+  - **HU-02:** CUMPLIDO (recuperación validada con `RecoveryAcceptanceTest` PASS 2026-11-05).
+  - **HU-03:** CUMPLIDO (desbloqueo local y cobertura de PIN/biometría validados con `LocalLockScreenTest` ejecutado PASS A16 2026-11-05 y tests unitarios).
+  - **HU-04:** CUMPLIDO (preferencias y preservación contable validadas con `SettingsFinancialIntegrityTest` ejecutado PASS A16 2026-11-05).
+  - **HU-05:** CUMPLIDO (explicación, denegación y revocación sin pérdida de registro manual validadas con `SettingsFinancialIntegrityTest` ejecutado PASS A16 2026-11-05).
+  - **HU-06:** PARCIAL (Parte A restauración y exportación validadas; Parte B validada en backend/API y pruebas offline; eliminación por UI en dispositivo físico pendiente de cuenta desechable por el Owner).
