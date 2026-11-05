@@ -106,7 +106,11 @@ class RoomCaptureCandidateStore @Inject constructor(
         require(status == CaptureCandidateStatus.CONFIRMED || status == CaptureCandidateStatus.AUTO_REGISTERED) {
             "A candidate is resolved only as CONFIRMED or AUTO_REGISTERED"
         }
-        return dao.markResolved(ownerId, id, status.name, transactionId, resolutionKey, userCorrectedFields.toJsonCodes(), now) > 0
+        return database.withTransaction {
+            val changed = dao.markResolved(ownerId, id, status.name, transactionId, resolutionKey, userCorrectedFields.toJsonCodes(), now) > 0
+            if (changed) database.movementDao().setCaptureSource(ownerId, transactionId, "NOTIFICATION")
+            changed
+        }
     }
 
     override suspend fun resolve(
