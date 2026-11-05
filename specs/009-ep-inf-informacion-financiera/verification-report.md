@@ -79,3 +79,30 @@ Evidencia privada exclusivamente en `C:/Users/Alume/s9-device-validation-2026110
 No se accedió a datos de la app Yape ni a otras aplicaciones; no se generaron notificaciones/movimientos sintéticos sobre la cuenta real. Compartir Yape real, notificación viva en ambos órdenes y ocho muestras privadas siguen NO VERIFICADO. Sin defecto nuevo de producción detectado ni fix/deploy necesario; no se envían cambios remotos mediante APIs/SQL.
 
 Decisiones de producto resueltas (actualizado 2026-11-03 [2026-11-04 UTC]): el Product Owner aprobó explícitamente («Aprobar este alcance incremental», [decisiones del Owner](../sprint-9-owner-decisions.md)) el catálogo de métricas, reglas de corte, monedas, periodos y filtros de HU-41, resolviendo formalmente **GATE-ANALYTICS-04 / T021** para este incremento (meses completos y comparación por totales conservados). Asimismo, el Owner aprobó conservar eventos incompatibles para revisión, reconciliando **FR-012 de EP-AUT/011** con Room v37 (PK owner+fuente+event_id e índice no único). No se declara APPROVED integral ni se certifica todo el backlog por estas decisiones. Permanecen abiertos T027, T028 (errores/reintentos/propietario integrados), T029 (aceptación integral) y los criterios NO VERIFICADO en hardware.
+
+## Ronda de corrección 2026-11-05
+
+- **Fecha:** 2026-11-05
+- **Alcance:** HU-39 (Inicio e historial), HU-40 (Calendario financiero) y HU-41 (Estadísticas y analítica).
+- **Evidencia automatizada:**
+  - **Unitarios JVM:** 1.678 totales (1.675 PASS, 0 FAIL, 3 omitidos) en `:app:testDebugUnitTest`. Incluye:
+    - `com.kipu.app.feature.calendar.presentation.CalendarPresentationTest`: PASS (etiqueta actualizada a «Abrir recurrencia»).
+    - `com.kipu.app.feature.analytics.AnalyticsViewModelTest`: PASS (incluye `combinedFiltersApplyToBothPeriodsAndFreeFallsBackToUnfilteredCurrentMonth`).
+    - `com.kipu.app.feature.home.presentation.HomeNetWorthViewModelTest`: PASS.
+  - **Instrumentados en Galaxy A16 (`SM-A165M`):** 142 PASS, 0 FAIL:
+    - `com.kipu.app.feature.movements.MovementRefundBudgetIntegrationTest`: 2 PASS (ejecutado PASS A16 2026-11-05), con `returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates` validando HU-39 escenario 5 (reembolso en periodo posterior refresca patrimonio y ambas fechas en Inicio).
+    - `com.kipu.app.navigation.CalendarNavigationTest`: 3 PASS (ejecutado PASS A16 2026-11-05), con `recurrenceEventOpensItsOwnRegisteredDetailRouteWithId` y `unavailableRecurrenceEventLeavesCalendarOpen` validando HU-40 (navegación a recurrencia y fallback no disponible).
+    - `com.kipu.app.navigation.ObjectSourceNavigationTest`: 4 PASS (ejecutado PASS A16 2026-11-05), con `missingCalendarRecurrenceShowsUnavailableAndReturnsToCalendar` y `calendarRecurrenceRouteShowsOnlyItsSourceAndDoesNotCreatePayments` validando HU-40 (origen faltante sin mutación financiera).
+    - `com.kipu.app.feature.analytics.AnalyticsDaoTest`: 2 PASS (ejecutado PASS A16 2026-11-05), con `repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` validando HU-41 escenario 2 (comparación combinada de filtros y periodos con aislamiento de propietario).
+  - **Base de datos pgTAP local:** 74 archivos / 1422 tests PASS (exit code 0). Migraciones sincronizadas remoto = local = 114.
+- **Evidencia QA previa:** Informes de Sprint 7 y Sprint 9 (`coverage2-` y `closure3-`), y `docs/qa/incidente-historial-post-sync-2026-10-26.md`.
+- **Cambios de esta ronda:**
+  - F1.2: Navegación de recurrencia corregida en Calendario (`CalendarPresentation.kt` muestra "Abrir recurrencia" y `CalendarNavigation.kt` enruta a `calendarRecurrenceDestination` con fallback no disponible seguro si el objeto no existe o es ajeno, sin efectos contables).
+  - F3.3 y F3.4: Incorporación de tests instrumentados para HU-39 esc. 5 (reembolso trans-mes), HU-40 (navegación de recurrencia y aislamiento contable) y HU-41 esc. 2 (comparación y filtros combinados).
+- **Pendientes y bloqueos:**
+  - T027 (TalkBack hablado) sigue abierta por requerir entorno de escucha/audio accesible en hardware; pendiente del Owner.
+  - S24 no ejecutado en esta ronda por firma incompatible (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+- **Veredicto por HU:**
+  - **HU-39:** CUMPLIDO (patrimonio, historial y escenario 5 de reembolso trans-mes validados con tests instrumentados en hardware A16).
+  - **HU-40:** CUMPLIDO (eventos ocurridos y previstos, distinción accesible y navegación corregida F1.2 con fallback no disponible validados en hardware A16).
+  - **HU-41:** PARCIAL (resumen Free y comparación Premium con filtros combinados validados con `AnalyticsDaoTest` en A16; limitaciones de meses completos y comparación por totales se mantienen; T027 TalkBack permanece abierta).
