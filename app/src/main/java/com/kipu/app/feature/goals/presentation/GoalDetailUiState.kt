@@ -19,4 +19,5 @@ data class GoalDetailUiState(
     val message: String? = null,
     val isDeleted: Boolean = false,
     val isPaused: Boolean = false,
+    val openConflictEditor: Boolean = false,
 )
