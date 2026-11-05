@@ -79,11 +79,12 @@ fun GoalContributionSheet(
     initialWithdrawal: Boolean = false,
     onReleaseAchieved: (() -> Unit)? = null,
     onCreateGoal: (() -> Unit)? = null,
+    initialBackingAccountId: String? = null,
 ) {
     val colors = rememberPlanningColors()
     val goal = state.goal
     var withdrawing by rememberSaveable(goal?.id) { mutableStateOf(initialWithdrawal) }
-    var releaseAccountId by rememberSaveable(goal?.id) { mutableStateOf("") }
+    var releaseAccountId by rememberSaveable(goal?.id) { mutableStateOf(initialBackingAccountId.orEmpty()) }
     var replacementId by rememberSaveable(goal?.id) { mutableStateOf("") }
     var replacementMenu by remember { mutableStateOf(false) }
     val reserves = remember(withdrawalState?.events) {
