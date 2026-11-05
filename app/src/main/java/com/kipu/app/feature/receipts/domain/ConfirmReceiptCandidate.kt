@@ -31,7 +31,7 @@ class ConfirmReceiptCandidate @Inject constructor(
         // The unique reference index separately links repeat imports to this same candidate.
         val key = receiptRegistrationKey(ownerId, candidateId)
         // Keep the same idempotency key across duplicate-warning confirmation and retries.
-        val result = registerTransaction(command.copy(idempotencyKey = key))
+        val result = registerTransaction(command.copy(idempotencyKey = key, captureSource = com.kipu.app.feature.movements.domain.model.MovementSource.OCR))
         if (result is RegisterTransactionResult.Success && !store.markConfirmed(ownerId, candidateId)) {
             store.markConfirmed(ownerId, candidateId)
         }
