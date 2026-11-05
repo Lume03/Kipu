@@ -47,13 +47,13 @@ Como usuario, quiero abrir el objeto exacto relacionado con un aviso y recibir u
 
 - **Dado que** selecciona un aviso,
 - **Cuando** lo abre,
-- **Entonces** accede al detalle exacto.
+- **Entonces** accede al detalle exacto (incluyendo deudas y metas mediante `OpenDebt` y `OpenGoal`, F1.2).
 
 #### Escenario 4: Objeto eliminado
 
-- **Dado que** se eliminó físicamente un presupuesto,
+- **Dado que** se eliminó físicamente un presupuesto, deuda o meta,
 - **Cuando** abre aviso anterior,
-- **Entonces** se informa que ya no existe y no falla la navegación.
+- **Entonces** se informa que ya no existe («no disponible») y no falla la navegación (Decisión Owner 2026-11-05).
 
 ### User Story 3 — Mantener organizado el centro (Priority: P2)
 
@@ -91,8 +91,8 @@ Como usuario, quiero filtrar, marcar avisos como leídos y retirar los que ya no
 - **FR-001**: El centro MUST mostrar en una lista unificada las alertas y los recordatorios del usuario autenticado, ordenados del más reciente al más antiguo.
 - **FR-002**: El centro MUST distinguir visual y textualmente una condición ocurrida de un evento futuro con fecha prevista. MUST reconocer `BUDGET_ALERT`, `BILLING_DUE`, `GOAL_REACHED`, `CREDIT_THRESHOLD` y `SYSTEM`, además del tipo histórico de cruce de crédito que ya emite el servidor.
 - **FR-003**: El centro MUST ofrecer los filtros «Todos», «Alertas» y «Recordatorios» y un estado vacío con el copy «Todo al día. No tienes avisos pendientes».
-- **FR-004**: Al abrir un aviso, el sistema MUST resolver el objeto exacto indicado por su tipo e identificador de referencia (`card`, `budget`, `debt`, `goal` o `CAPTURE_CANDIDATE`) cuando el objeto y su pantalla estén disponibles. `CAPTURE_CANDIDATE` se incorpora por el incremento HU-43 aprobado el 2026-10-28.
-- **FR-005**: Si el objeto referido fue eliminado, no existe o no tiene un destino registrado, el sistema MUST conservar el centro en pantalla, mostrar un mensaje amigable y no lanzar una excepción de navegación.
+- **FR-004**: Al abrir un aviso, el sistema MUST resolver el objeto exacto indicado por su tipo e identificador de referencia (`card`, `budget`, `debt`, `goal` o `CAPTURE_CANDIDATE`) cuando el objeto y su pantalla estén disponibles. `CAPTURE_CANDIDATE` se incorpora por el incremento HU-43 aprobado el 2026-10-28. *(Decisión Owner 2026-11-05: los eventos de recurrencia del calendario y los avisos de deuda/meta abren el detalle de su objeto; si ya no existe, fallback «no disponible»).*
+- **FR-005**: Si el objeto referido fue eliminado, no existe o no tiene un destino registrado, el sistema MUST conservar el centro en pantalla, mostrar un mensaje amigable y no lanzar una excepción de navegación. *(Decisión Owner 2026-11-05: confirmación del comportamiento resiliente con fallback «no disponible»).*
 - **FR-006**: El sistema MUST permitir marcar un aviso como leído y marcar como leídos todos los avisos activos de la cuenta actual.
 - **FR-007**: El sistema MUST permitir retirar un aviso mediante borrado lógico; las consultas del centro MUST excluir avisos retirados y la operación MUST conservar su registro remoto.
 - **FR-008**: La campana del TopAppBar MUST mostrar el total de avisos activos no leídos de la cuenta actual y actualizarse tras las acciones individuales o masivas.
