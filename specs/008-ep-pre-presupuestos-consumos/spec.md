@@ -2,7 +2,7 @@
 
 **Feature Branch**: `008-ep-pre-presupuestos-consumos`<br>
 **Created**: 2026-10-24<br>
-**Status**: Draft — requisitos base aprobados; gates de integración abiertos antes de implementar
+**Status**: Approved — requisitos base aprobados; gates G1–G6 resueltos en research.md (sección «Resolución de gates — 2026-10-24»)<br>
 **Input**: HU-36 Crear y consultar presupuestos, HU-37 Renovación, consumo jerárquico y alertas, HU-38 Edición, finalización y eliminación de presupuestos (Sprint 7, 21 puntos).
 
 ## Contexto y autoridad
@@ -121,7 +121,7 @@ Como usuario de Kipu, quiero editar, finalizar o eliminar mis presupuestos, para
 - La carpeta de la épica se alineó con el cronograma Sprint 7 (`008-ep-pre-presupuestos-consumos`), que es la referencia de nombres del proyecto. La rama Git de trabajo aún se llama `014-ep-pre-presupuestos-consumos`; su renombrado no forma parte de este cambio.
 - Los objetivos cuantitativos de rendimiento, volumen, retención y disponibilidad no están aprobados; no se inventan. Se deberá medir perfil local con datos representativos, sin afirmar un umbral contractual.
 - No se requieren contratos de API pública para este feature documental. Los seams internos se describen como gates/propuestas hasta revisión de especialistas.
-- **G6 — Moneda elegible y explicación al usuario (abierto)**: aprobar si una operación solo es elegible cuando su moneda coincide con la del presupuesto y qué explicación recibe el usuario ante una moneda distinta, o definir otra regla. La coincidencia sin conversión es recomendación propuesta del modelo, no decisión de producto. Resolver y propagar la decisión antes de implementar FR-003/FR-004; no asumir conversión automática.
+- **G6 — Moneda elegible y explicación al usuario (resuelto 2026-10-24)**: resuelto por el Product Owner en `research.md`. Cada presupuesto tiene una moneda y solo cuentan gastos en esa moneda, sin conversión; la pantalla avisa que los gastos en otra moneda no se incluyen. Gates G1–G5 también resueltos técnica y funcionalmente en `research.md` (sección «Resolución de gates — 2026-10-24»).
 
 ## Key Entities
 
