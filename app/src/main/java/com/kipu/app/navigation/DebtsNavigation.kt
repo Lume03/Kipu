@@ -189,10 +189,17 @@ fun NavGraphBuilder.debtDestinations(navController: NavController) {
                 onClose = { navController.navigateToDebtClosure(viewModel.debtId) },
                 onOpenMovement = { navController.navigate("debts/movement/$it") },
                 errorMessage = state.errorMessage,
+                onVoidPayment = viewModel::selectPaymentToVoid,
                 activities = state.activities,
                 closure = state.closure,
                 installments = state.installments,
                 initialAction = backStackEntry.arguments?.getString("action"),
+            )
+        }
+        state.selectedPayment?.let { payment ->
+            com.kipu.app.feature.debts.presentation.DebtPaymentVoidDialog(
+                payment = payment, isVoiding = state.isVoidingPayment, errorMessage = state.voidError,
+                onDismiss = viewModel::dismissPaymentVoid, onConfirm = viewModel::confirmPaymentVoid,
             )
         }
     }
