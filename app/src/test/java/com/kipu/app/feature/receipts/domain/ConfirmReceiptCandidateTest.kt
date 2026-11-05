@@ -44,6 +44,7 @@ class ConfirmReceiptCandidateTest {
         confirm(owner, candidate.id, command(owner, ignoreDuplicate = true))
 
         assertEquals(2, submitted.size)
+        assertTrue(submitted.all { it.captureSource == com.kipu.app.feature.movements.domain.model.MovementSource.OCR })
         assertEquals(submitted.first().idempotencyKey, submitted.last().idempotencyKey)
         assertTrue(!submitted.first().ignoreSimilarityWarning)
         assertTrue(submitted.last().ignoreSimilarityWarning)
