@@ -10,6 +10,7 @@ import com.kipu.app.feature.goals.domain.usecase.UpdateGoalCommand
 import kotlinx.coroutines.flow.Flow
 
 interface GoalRepository {
+    suspend fun restorePlanLockedGoals(userId: String) = Unit
     fun observeGoals(userId: String): Flow<List<Goal>>
     fun observeGoal(userId: String, goalId: String): Flow<Goal?>
     fun observeEvents(userId: String, goalId: String): Flow<List<GoalEvent>>
