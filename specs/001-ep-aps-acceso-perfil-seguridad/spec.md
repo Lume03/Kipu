@@ -44,7 +44,7 @@ Permitir que una persona cree una cuenta Kipu, acceda exclusivamente a su propio
 
 ### Fuera de Alcance
 
-- HU-06 - Portabilidad, eliminación de cuenta y restauración: incorporada en Sprint 9 (partes A y B implementadas en código; migraciones 20261103152406_delete_account, 20261103162347_account_deletion_concurrency_fix y 20261103172646_profile_preferences_private_usage aplicadas remotamente; Edge Function delete-account v2 desplegada con verify_jwt=false; QA-S9-01 resuelto con restauración 7/7 dos veces en ambos teléfonos A16 y S24; eliminación verificada por API con cuenta desechable y resumen/cancelación en hardware; Room actual v37).
+- HU-06 - Portabilidad, eliminación de cuenta y restauración: incorporada en Sprint 9 (partes A y B implementadas en código; migraciones 20261103152406_delete_account, 20261103162347_account_deletion_concurrency_fix y 20261103172646_profile_preferences_private_usage aplicadas remotamente; Edge Function delete-account v2 desplegada con verify_jwt=false; QA-S9-01 resuelto con restauración 7/7 dos veces en ambos teléfonos A16 y S24; eliminación verificada por API con cuenta desechable y resumen/cancelación en hardware; Room actual v37). En la ronda 2026-11-05 se añade cobertura automatizada con tests unitarios e instrumentados en A16 (HU-02/03/04/05/06); la eliminación de cuenta por UI con cuenta desechable sigue pendiente del Owner.
 - Inicio de sesión con proveedores sociales o identidades bancarias.
 - Open Banking, lectura bancaria directa, lectura de SMS o correos y ejecución de pagos.
 - Implementación de captura automática, análisis de contenido u OCR; HU-05 solo configura y explica permisos y fuentes.
