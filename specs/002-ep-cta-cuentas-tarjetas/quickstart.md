@@ -106,7 +106,7 @@ Expected Room evidence:
 
 1. The registered migration chain from schema 1 through schema 10 preserves representative rows and relationships.
 2. Full `1 -> 10` path succeeds and validates exported schema 10 against the checked-in database.
-3. The planned `10 -> 11` migration preserves every schema-10 row and adds only the Sprint 3 card-rate/installment projections; verify round-trips for Long minor-unit fields, owner isolation and foreign keys.
+3. The `10 -> 11` migration preserves every schema-10 row and adds the Sprint 3 card-rate/installment projections; verify round-trips for Long minor-unit fields, owner isolation and foreign keys.
 4. Account, one opening movement and outbox commit together.
 5. Injected failure rolls back all three.
 6. Retry with same operation/payload creates no duplicate; changed payload conflicts.
@@ -204,7 +204,7 @@ Sprint 3 capture evidence, before enabling any source:
 
 1. Create an active savings account.
 2. Register a debit card linked to it.
-3. Confirm Free quota consumed two slots.
+3. Confirm Free quota consumed only one slot (the debit card shares the quota of its linked bank account; Decisión Owner 2026-11-05, migration `20261021191708_shared_bank_instrument_quota.sql`).
 4. Confirm dashboard liquid total is unchanged and displayed once.
 5. Archive account and verify new debit operations are disabled while history/link remain.
 
@@ -254,11 +254,11 @@ Sprint 2 is closed. Retain these checks as regression gates whenever Sprint 3 to
 - Clean Supabase reset stays reproducible.
 - Cross-user, duplicate-effect, history-loss and PAN/CVV leakage tests remain green.
 - Review changes for architecture, financial integrity, privacy and requirement traceability.
-- Sprint 3 behavior is planned separately in Section 11 and is not part of the closed Sprint 2 increment.
+- Sprint 3 behavior is documented and validated in Section 11 as part of the completed Sprint 3 increment (HU-09..HU-13).
 
 ## 11. Sprint 3 EP-CTA Validation (HU-09..HU-13)
 
-Run these only after the Sprint 2 gates, external blockers HU-18/HU-19/HU-23, the clean Supabase baseline and the canonical command contracts are verified. They are validation scenarios for the planned increment; they do not imply Sprint 3 is implemented yet.
+Run these after the Sprint 2 gates, external blockers HU-18/HU-19/HU-23, the clean Supabase baseline and the canonical command contracts are verified. These validation scenarios cover the implemented Sprint 3 increment (evidence recorded 2026-09-25/26 in tasks.md).
 
 ### A. Credit separation and line metrics
 
@@ -271,7 +271,7 @@ Run these only after the Sprint 2 gates, external blockers HU-18/HU-19/HU-23, th
 
 1. Confirm a PEN 100.00 credit purchase in three installments. Verify exactly one PEN 100.00 expense and liability increase, and installment principal values are PEN 33.34, PEN 33.33 and PEN 33.33.
 2. Verify installment principal sums to the confirmed principal for counts 1..36, including totals smaller than the count and values at monetary bounds.
-3. Verify a purchase on closing_day belongs to that cycle; a purchase after closing_day belongs to the next cycle. The first installment is due on the next due_day after the selected cycle close; later installments are monthly with independent short-month clamping.
+3. Verify a purchase strictly before closing_day belongs to that cycle; a purchase on closing_day or after belongs to the next cycle (exclusive closing; Decisión Owner 2026-11-05, BillingCycleCalculator.kt and 20261031163043_credit_purchase_terms_and_cycles.sql). The first installment is due on the next due_day after the selected cycle close; later installments are monthly with independent short-month clamping.
 4. Simulate a nonzero TEA using the French fixed-payment formula. Verify the method/rate/source, dates, rounded total and explicit estimate warning; verify the simulation alone changes neither ledger, expense nor debt.
 5. Retry the same confirmed purchase operation and payload. Verify it creates no extra expense, liability effect, installment or threshold event. Reject the same operation identity with a changed payload.
 
