@@ -9,6 +9,10 @@ import androidx.room.Update
 
 @Dao
 interface GoalOutboxDao {
+    @Query("UPDATE goal_command_outbox SET state='RETRYABLE', next_attempt_at=NULL, lease_until=NULL, updated_at=:now WHERE user_id=:userId AND goal_id=:goalId AND state='CONFLICT'")
+    suspend fun retryConflicts(userId: String, goalId: String, now: Long): Int
+    @Query("SELECT * FROM goal_command_outbox WHERE user_id=:userId AND state NOT IN ('APPLIED','DUPLICATE','DISCARDED')")
+    suspend fun getUnresolvedForUser(userId: String): List<GoalOutboxEntity>
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(command: GoalOutboxEntity)
 
@@ -28,7 +32,7 @@ interface GoalOutboxDao {
           AND NOT EXISTS (SELECT 1 FROM goal_command_outbox prior
             WHERE prior.user_id=c.user_id AND prior.goal_id=c.goal_id
               AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND COALESCE(prior.expected_revision,-1)<COALESCE(c.expected_revision,-1)))
-              AND prior.state NOT IN ('APPLIED','DUPLICATE'))
+              AND prior.state NOT IN ('APPLIED','DUPLICATE','DISCARDED'))
           AND (
               (state IN ('PENDING', 'RETRYABLE') AND (next_attempt_at IS NULL OR next_attempt_at <= :now))
               OR (state = 'LEASED' AND lease_until <= :now)
