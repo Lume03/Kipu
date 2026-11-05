@@ -42,6 +42,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -168,6 +169,50 @@ class MovementRefundBudgetIntegrationTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates() = runBlocking {
+        val instruments = io.mockk.mockk<com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository>()
+        val account = com.kipu.app.feature.accounts.domain.model.Account(
+            id = com.kipu.app.core.finance.domain.model.AccountId(accountId),
+            userId = com.kipu.app.core.finance.domain.model.UserId(ownerId), alias = "Efectivo",
+            type = com.kipu.app.feature.accounts.domain.model.AccountType.CASH,
+            currency = com.kipu.app.core.finance.domain.model.Currency.PEN,
+            initialBalance = com.kipu.app.core.finance.domain.model.Money(0, com.kipu.app.core.finance.domain.model.Currency.PEN),
+            openedAt = clock.instant(),
+        )
+        io.mockk.every { instruments.observeAccounts(false) } returns kotlinx.coroutines.flow.flowOf(listOf(account))
+        io.mockk.every { instruments.observeCards(false) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+        io.mockk.every { instruments.observeActiveComputableCount() } returns kotlinx.coroutines.flow.flowOf(0)
+        io.mockk.every { instruments.observeAccountBalance(account.id) } answers {
+            kotlinx.coroutines.flow.flow {
+                emit(com.kipu.app.core.finance.domain.model.Money(requireNotNull(database.movementDao().calculateLedgerSumForAccount(ownerId, accountId)),
+                    com.kipu.app.core.finance.domain.model.Currency.PEN))
+            }
+        }
+        val debts = io.mockk.mockk<com.kipu.app.feature.debts.domain.DebtRepository>()
+        io.mockk.every { debts.observeDebts(ownerId) } returns kotlinx.coroutines.flow.flowOf(emptyList())
+        val summary = com.kipu.app.feature.home.domain.ObserveNetWorthSummary(
+            com.kipu.app.feature.accounts.domain.usecase.ObserveFinancialDashboard(instruments), debts)
+        suspend fun returnHome(): com.kipu.app.feature.home.presentation.NetWorthUiState.Content {
+            val model = com.kipu.app.feature.home.presentation.HomeNetWorthViewModel(summary, session)
+            return kotlinx.coroutines.withTimeout(5_000) {
+                model.state.first { it is com.kipu.app.feature.home.presentation.NetWorthUiState.Content }
+                    as com.kipu.app.feature.home.presentation.NetWorthUiState.Content
+            }
+        }
+        assertEquals(-10_000L, returnHome().byCurrency.single().netWorth.minorUnits)
+        val purchaseBefore = database.movementDao().getTransactionById(ownerId, purchaseId)!!
+        assertTrue(refund(4_000, "home-refund", "home-refund-key") is RefundTransactionResult.Success)
+        val after = returnHome()
+        assertEquals(-6_000L, after.byCurrency.single().realAssets.minorUnits)
+        assertEquals(-6_000L, after.byCurrency.single().netWorth.minorUnits)
+        assertEquals(6_000L, consumed("2026-09-01", "2026-10-01"))
+        assertEquals(0L, consumed("2026-10-01", "2026-11-01"))
+        assertEquals(purchaseBefore, database.movementDao().getTransactionById(ownerId, purchaseId))
+        assertEquals(at("2026-09-15"), purchaseBefore.occurredAt)
+        assertEquals(at("2026-10-10"), database.movementDao().getTransactionById(ownerId, "home-refund")!!.occurredAt)
     }
 
     @Test
