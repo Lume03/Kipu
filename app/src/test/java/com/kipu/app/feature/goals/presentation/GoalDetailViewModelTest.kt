@@ -47,6 +47,7 @@ class GoalDetailViewModelTest {
         every { repository.observeEvents(owner, goal.id) } returns flowOf(if (reserved == 0L) emptyList() else listOf(
             GoalEvent("event", owner, goal.id, GoalEventType.ALLOCATION, Money(reserved, Currency.PEN), "account", "operation", occurredAt = Instant.EPOCH)))
         coEvery { cache.get(UUID.fromString(owner)) } returns null
+        every { cache.observe(UUID.fromString(owner)) } returns flowOf(null)
         return GoalDetailViewModel(SavedStateHandle(mapOf("goalId" to goal.id)), repository, session, cache, evaluator, preferences)
     }
 
