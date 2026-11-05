@@ -71,8 +71,14 @@ class RoomReceiptCandidateStore @Inject constructor(
         }
     }
 
-    override suspend fun markConfirmed(ownerId: String, candidateId: String): Boolean =
-        dao.confirm(UUID.fromString(ownerId).toString(), candidateId, System.currentTimeMillis()) == 1
+    override suspend fun markConfirmed(ownerId: String, candidateId: String): Boolean = database.withTransaction {
+        val owner = UUID.fromString(ownerId).toString()
+        val changed = dao.confirm(owner, candidateId, System.currentTimeMillis()) == 1
+        if (changed) registeredMovementId(owner, candidateId)?.let {
+            database.movementDao().setCaptureSource(owner, it, "OCR")
+        }
+        changed
+    }
 
     override suspend fun discard(ownerId: String, candidateId: String): Boolean =
         dao.discard(UUID.fromString(ownerId).toString(), candidateId, System.currentTimeMillis()) == 1
