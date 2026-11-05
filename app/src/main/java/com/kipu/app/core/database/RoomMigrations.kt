@@ -1589,3 +1589,26 @@ val MIGRATION_38_39 = object : Migration(38, 39) {
         db.execSQL("ALTER TABLE merchant_catalog_cache ADD COLUMN catalog_origin TEXT NOT NULL DEFAULT 'CURATED'")
     }
 }
+
+/** Local capture provenance; source remains the independent Yape/Plin payment channel. */
+val MIGRATION_39_40 = object : Migration(39, 40) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN capture_source TEXT NOT NULL DEFAULT 'MANUAL'")
+        db.execSQL("""UPDATE transactions SET capture_source = 'NOTIFICATION'
+            WHERE id IN (SELECT resolved_transaction_id FROM capture_candidates
+                WHERE owner_id = transactions.user_id AND resolved_transaction_id IS NOT NULL)""")
+        // OCR registration keys are UUID-v3 hashes, not reproducible with SQLite built-ins.
+        // Rebuild each existing key once and use the receipt's indexed owner/key lookup.
+        db.query("SELECT owner_id, candidate_id FROM receipt_candidates").use { rows ->
+            while (rows.moveToNext()) {
+                val owner = rows.getString(0)
+                val key = com.kipu.app.feature.receipts.domain.receiptRegistrationKey(owner, rows.getString(1))
+                db.execSQL("""UPDATE transactions SET capture_source = 'OCR'
+                    WHERE user_id = ? AND capture_source = 'MANUAL' AND id IN
+                        (SELECT transaction_id FROM local_command_receipts WHERE user_id = ? AND idempotency_key = ?)""",
+                    arrayOf(owner, owner, key))
+            }
+        }
+        db.execSQL("CREATE INDEX index_transactions_user_id_capture_source_occurred_at_id ON transactions (user_id, capture_source, occurred_at, id)")
+    }
+}
