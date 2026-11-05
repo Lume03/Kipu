@@ -316,6 +316,7 @@ class ConfirmCaptureCandidate @Inject constructor(
                     // Automatic registration never overrides a similarity warning (HU-47).
                     ignoreSimilarityWarning = command.acceptSimilar && mode != CaptureConfirmationMode.AUTOMATIC,
                     paymentChannel = channel,
+                    captureSource = com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION,
                 ),
             )
         } catch (cancelled: CancellationException) {
