@@ -99,6 +99,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -232,6 +234,7 @@ fun QuickMovementBottomSheet(
             onSourceCardSelected = viewModel::onSourceCardSelected,
             onDestinationAccountSelected = viewModel::onDestinationAccountSelected,
             onDestinationCardSelected = viewModel::onDestinationCardSelected,
+            onApplicationSelected = viewModel::onApplicationSelected,
             onCategorySelected = viewModel::onCategorySelected,
             onRememberCategoryChanged = viewModel::onRememberCategoryChanged,
             onOpenMerchantPicker = { showMerchantPicker = true },
@@ -359,11 +362,13 @@ fun QuickMovementContent(
     onCreditPurchaseDraftChanged: (CreditPurchaseDraft) -> Unit = {},
     onRememberCategoryChanged: (Boolean) -> Unit = {},
     onRegisterRecurrenceChanged: (Boolean) -> Unit = {},
+    onApplicationSelected: (String?) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val emeraldColors = rememberCalmEmeraldColors()
     val reducedMotion = rememberReducedMotionEnabled()
     val animDuration = if (reducedMotion) 0 else KipuMotionTokens.SegmentMillis
+    var showApplicationPicker by remember { mutableStateOf(false) }
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showSourceAccountPicker by remember { mutableStateOf(false) }
     var showDestinationAccountPicker by remember { mutableStateOf(false) }
@@ -479,7 +484,7 @@ fun QuickMovementContent(
                         text = bannerMessage,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                         color = emeraldColors.expenseText,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
             }
@@ -864,7 +869,7 @@ fun QuickMovementContent(
                     enabled = !uiState.isSaving,
                 )
             }
-            uiState.budgetImpacts.forEach { impact ->
+            uiState.budgetImpacts.filter { uiState.selectedApplicationId == null }.forEach { impact ->
                 val exceeded = impact.projected.isExceeded
                 Surface(shape = RoundedCornerShape(14.dp),
                     color = if (exceeded) emeraldColors.warningBg else emeraldColors.incomeBg,
@@ -885,9 +890,28 @@ fun QuickMovementContent(
                 }
             }
 
+            TextButton(
+                onClick = { showApplicationPicker = true },
+                enabled = !uiState.isSaving,
+                modifier = Modifier.fillMaxWidth().testTag("quick_apply_to"),
+            ) {
+                val selectedName = uiState.availableDebts.firstOrNull { it.debtId == uiState.selectedApplicationId }?.counterpartyName
+                    ?: uiState.availableGoals.firstOrNull { it.id == uiState.selectedApplicationId }?.name
+                Text(selectedName?.let { "Aplicar a: $it" } ?: when (uiState.type) {
+                    MovementType.EXPENSE -> "Aplicar a… deuda (pago de principal)"
+                    MovementType.INCOME -> "Aplicar a… préstamo (cobro de principal)"
+                    MovementType.TRANSFER -> "Aplicar a… meta"
+                })
+            }
+            if (uiState.selectedApplicationId != null) {
+                Text(if (uiState.type == MovementType.TRANSFER) "Traslado y reserva de meta en una sola operación."
+                    else "Solo principal: no se registra ingreso ni gasto operativo.",
+                    style = MaterialTheme.typography.bodySmall)
+            }
+
             // Category Row (for Expense and Income)
             AnimatedVisibility(
-                visible = uiState.type != MovementType.TRANSFER,
+                visible = uiState.type != MovementType.TRANSFER && uiState.selectedApplicationId == null,
                 enter = fadeIn(tween(animDuration)) + expandVertically(tween(animDuration)),
                 exit = fadeOut(tween(animDuration)) + shrinkVertically(tween(animDuration)),
             ) {
@@ -963,6 +987,7 @@ fun QuickMovementContent(
                     }
                     val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
 
+                    if (uiState.type != MovementType.TRANSFER || uiState.selectedApplicationId == null) {
                     CalmEmeraldSelectionRow(
                         icon = Icons.Default.CalendarToday,
                         iconContainer = dateBg,
@@ -973,15 +998,18 @@ fun QuickMovementContent(
                         onClick = onOpenDatePicker,
                         modifier = Modifier.testTag("selector_occurred_at"),
                     )
+                    } else {
+                        Text("El aporte a la meta se registra con la fecha actual.", style = MaterialTheme.typography.bodySmall)
+                    }
 
-                    if (uiState.type == MovementType.EXPENSE) {
+                    if (uiState.type == MovementType.EXPENSE && uiState.selectedApplicationId == null) {
                         MerchantSelectionRow(
                             merchantName = uiState.merchantName,
                             onOpenMerchantPicker = onOpenMerchantPicker,
                             onClearMerchant = onClearMerchant,
                         )
                     }
-                    if (uiState.type == MovementType.EXPENSE) {
+                    if (uiState.type == MovementType.EXPENSE && uiState.selectedApplicationId == null) {
                         Row(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                                 .toggleable(value = uiState.registerRecurrenceAfterSave, role = Role.Switch, onValueChange = onRegisterRecurrenceChanged)
@@ -997,7 +1025,7 @@ fun QuickMovementContent(
                         }
                     }
                     // The note lives in the same optional section; card payments do not take notes.
-                    if (uiState.selectedDestinationCardId == null) {
+                    if (uiState.selectedDestinationCardId == null && uiState.selectedApplicationId == null) {
                         OutlinedTextField(
                             value = uiState.note,
                             onValueChange = onNoteChanged,
@@ -1023,7 +1051,11 @@ fun QuickMovementContent(
         Spacer(modifier = Modifier.height(10.dp))
 
         // Sticky Pinned Footer Save Button
-        val saveButtonText = when (uiState.type) {
+        val saveButtonText = if (uiState.selectedApplicationId != null) when (uiState.type) {
+            MovementType.EXPENSE -> "Aplicar pago de principal"
+            MovementType.INCOME -> "Aplicar cobro de principal"
+            MovementType.TRANSFER -> "Confirmar traslado y reserva"
+        } else when (uiState.type) {
             MovementType.EXPENSE -> "Guardar gasto"
             MovementType.INCOME -> "Guardar ingreso"
             MovementType.TRANSFER -> if (uiState.selectedDestinationCardId != null) "Confirmar pago de tarjeta" else "Confirmar transferencia"
@@ -1127,12 +1159,48 @@ fun QuickMovementContent(
         )
     }
 
+    if (showApplicationPicker) {
+        val options = when (uiState.type) {
+            MovementType.TRANSFER -> uiState.availableGoals.map { it.id to (it.name +
+                if (it.status == com.kipu.app.feature.goals.domain.model.GoalStatus.LOCKED_BY_PLAN) " · Sin cupo activo" else "") }
+            else -> uiState.availableDebts.filter {
+                it.obligationType == if (uiState.type == MovementType.EXPENSE)
+                    com.kipu.app.feature.debts.domain.model.DebtObligationType.PAYABLE
+                else com.kipu.app.feature.debts.domain.model.DebtObligationType.RECEIVABLE
+            }.map { it.debtId to it.counterpartyName }
+        }
+        AlertDialog(
+            onDismissRequest = { showApplicationPicker = false },
+            title = { Text("Aplicar a…") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    TextButton(onClick = { onApplicationSelected(null); showApplicationPicker = false }) {
+                        Text("Sin aplicar a una obligación o meta")
+                    }
+                    if (options.isEmpty()) Text(when (uiState.type) {
+                        MovementType.EXPENSE -> "No tienes deudas activas."
+                        MovementType.INCOME -> "No tienes préstamos activos."
+                        MovementType.TRANSFER -> "No tienes metas activas."
+                    })
+                    options.forEach { (id, label) ->
+                        TextButton(onClick = { onApplicationSelected(id); showApplicationPicker = false },
+                            modifier = Modifier.fillMaxWidth()) { Text(label) }
+                    }
+                    if (uiState.type == MovementType.TRANSFER) Text(
+                        "Si la meta no tiene cupo en Free, selecciona su cupo o sustituye una meta activa desde Metas antes de aportar.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { showApplicationPicker = false }) { Text("Cerrar") } },
+        )
+    }
+
     if (showSourceAccountPicker) {
         val sourceAccounts = uiState.availableAccounts.filter { account ->
             sourceAccountPickerCurrency == null || account.currency.name == sourceAccountPickerCurrency
         }
         val sourceCards = uiState.availableCreditCards.filter { card ->
-            sourceAccountPickerCurrency == null || card.currency.name == sourceAccountPickerCurrency
+            uiState.selectedApplicationId == null &&
+                (sourceAccountPickerCurrency == null || card.currency.name == sourceAccountPickerCurrency)
         }
         AccountSelectorBottomSheet(
             onDismissRequest = {
@@ -1153,7 +1221,7 @@ fun QuickMovementContent(
                 MovementType.TRANSFER -> AccountSelectorPurpose.TRANSFER_SOURCE
             },
             balancesLoaded = uiState.balancesLoaded,
-            allowCreditCards = uiState.type == MovementType.EXPENSE,
+            allowCreditCards = uiState.type == MovementType.EXPENSE && uiState.selectedApplicationId == null,
             accountBalances = accountBalances,
             cardDebts = creditCardDebts,
             cardAvailableCredits = creditCardAvailableCredits,
@@ -1179,11 +1247,11 @@ fun QuickMovementContent(
             onDismissRequest = { showDestinationAccountPicker = false },
             accounts = eligibleDestinationAccounts,
             selectedAccountId = uiState.selectedDestinationAccountId,
-            creditCards = uiState.availableCreditCards.filter { it.currency.name == uiState.currency },
+            creditCards = uiState.availableCreditCards.filter { uiState.selectedApplicationId == null && it.currency.name == uiState.currency },
             selectedCardId = uiState.selectedDestinationCardId,
             onCardIdSelected = onDestinationCardSelected,
             purpose = AccountSelectorPurpose.TRANSFER_DESTINATION,
-            allowCreditCards = true,
+            allowCreditCards = uiState.selectedApplicationId == null,
             balancesLoaded = uiState.balancesLoaded,
             cardDebts = creditCardDebts,
             cardAvailableCredits = creditCardAvailableCredits,
