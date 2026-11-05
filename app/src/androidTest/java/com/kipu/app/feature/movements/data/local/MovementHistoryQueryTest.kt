@@ -262,6 +262,43 @@ class MovementHistoryQueryTest {
         )
     }
 
+    @Test
+    fun sourceUnionIntersectsOtherFiltersAndKeysetPagesAgreeWithCountAndNet() = runBlocking {
+        val sources = listOf("MANUAL", "OCR", "NOTIFICATION", "OCR", "MANUAL", "NOTIFICATION", "OCR")
+        sources.forEachIndexed { index, source ->
+            dao.insertTransaction(TransactionEntity(id = "source-$index", userId = userId, type = "EXPENSE",
+                amountMinor = 100L, currencyCode = "PEN", sourceAccountId = bcpAccountId,
+                categoryId = foodCategoryId, occurredAt = 2000L, status = "ACTIVE", syncStatus = "PENDING",
+                source = "YAPE", captureSource = source, note = "needle", createdAt = 1L, updatedAt = 1L))
+        }
+        // Each decoy differs in exactly one criterion, including the owner boundary.
+        val base = dao.getTransactionById(userId, "source-1")!!
+        database.accountDao().insert(database.accountDao().getById(userId, bcpAccountId)!!.copy(userId = "foreign-owner", creationOperationId = "foreign-op"))
+        listOf(base.copy(id = "foreign", userId = "foreign-owner"),
+            base.copy(id = "other-channel", source = "PLIN"), base.copy(id = "other-text", note = "different"),
+            base.copy(id = "other-date", occurredAt = 3000L), base.copy(id = "other-account", sourceAccountId = bbvaAccountId),
+            base.copy(id = "voided", status = "VOIDED")).forEach { dao.insertTransaction(it) }
+        val query = MovementHistoryQuery(queryText = "needle", fromInclusive = 1000L, toExclusive = 3000L,
+            limit = 2, types = setOf(MovementType.EXPENSE), advancedCriteria = AdvancedHistoryCriteria(
+                sources = setOf(com.kipu.app.feature.movements.domain.model.MovementSource.OCR,
+                    com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION),
+                accountIds = setOf(bcpAccountId), paymentChannels = setOf(com.kipu.app.feature.movements.domain.model.WalletPaymentChannel.YAPE),
+                financialStates = setOf(MovementFinancialState.CONFIRMED)))
+        val ids = mutableListOf<String>()
+        var pageQuery = query
+        do {
+            val page = repository.queryHistory(userId, pageQuery)
+            ids += page.items.map { it.transaction.id }
+            val cursor = page.nextCursor ?: break
+            pageQuery = query.copy(cursor = cursor)
+        } while (true)
+        assertEquals(listOf("source-6", "source-5", "source-3", "source-2", "source-1"), ids)
+        assertEquals(ids.size, ids.distinct().size)
+        val summary = repository.getHistorySummary(userId, pageQuery)
+        assertEquals(5L, summary.totalCount)
+        assertEquals(java.math.BigInteger.valueOf(-500L), summary.netByCurrency["PEN"])
+    }
+
     @After
     fun tearDown() {
         database.close()
