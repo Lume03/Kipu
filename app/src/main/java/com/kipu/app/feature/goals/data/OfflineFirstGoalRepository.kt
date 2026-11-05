@@ -35,6 +35,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -46,6 +47,18 @@ class OfflineFirstGoalRepository @Inject constructor(
     private val syncScheduler: GoalsSyncScheduler,
     private val clock: Clock = Clock.systemUTC(),
 ) : GoalRepository {
+    // Called only after the presentation boundary verifies the owner's Premium lease.
+    override suspend fun restorePlanLockedGoals(userId: String) {
+        local.observeGoals(userId).first().filter { it.status == "LOCKED_BY_PLAN" && it.syncState == "SYNCED" }.forEach { row ->
+            val goal = row.toDomain()
+            updateGoal(userId, goal.id, UpdateGoalCommand(
+                expectedRevision = goal.revision, name = goal.name, target = goal.target,
+                targetDate = goal.targetDate, linkedAccountId = goal.linkedAccountId,
+                iconKey = goal.iconKey, colorArgb = goal.colorArgb, hasPremiumAccess = true,
+                now = clock.instant(),
+            ))
+        }
+    }
     override fun observeGoals(userId: String): Flow<List<Goal>> =
         local.observeGoals(userId).map { goals -> goals.map { it.toDomain() } }
 
