@@ -6,6 +6,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.get
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -27,6 +28,31 @@ class GoalsApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
+    suspend fun fetchGoal(userId: String, goalId: String): GoalsApiResponse<JsonObject> = try {
+        val session = sessionProvider.currentSession()
+        if (session == null || session.userId.toString() != userId) {
+            GoalsApiResponse.Error(401, "No active owner session")
+        } else {
+            val response = httpClient.get("rest/v1/goals") {
+                header(HttpHeaders.Authorization, "Bearer " + session.accessToken)
+                url {
+                    parameters.append("user_id", "eq.$userId")
+                    parameters.append("id", "eq.$goalId")
+                    parameters.append("deleted_at", "is.null")
+                    parameters.append("limit", "1")
+                }
+            }
+            if (response.status == HttpStatusCode.OK) {
+                response.body<List<JsonObject>>().singleOrNull()?.let { GoalsApiResponse.Success(it) }
+                    ?: GoalsApiResponse.Error(404, "Goal unavailable")
+            } else GoalsApiResponse.Error(response.status.value, null)
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        GoalsApiResponse.NetworkFailure(error)
+    }
+
     suspend fun execute(commandType: GoalCommandType, payload: JsonObject): GoalsApiResponse<GoalCommandRemoteResult> {
         val rpc = RPC_BY_COMMAND[commandType]
             ?: return GoalsApiResponse.Error(400, "Unsupported goal command")
