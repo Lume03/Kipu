@@ -7,6 +7,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MovementFilterDraftTest {
+    @Test fun sourcesSurviveAppliedAndSavedDraftRoundTrips() {
+        val sources = setOf(com.kipu.app.feature.movements.domain.model.MovementSource.OCR,
+            com.kipu.app.feature.movements.domain.model.MovementSource.NOTIFICATION)
+        val draft = MovementFilterDraft(sources = sources, accountIds = setOf("bank"))
+        val applied = draft.validate().filters!!
+        assertEquals(sources, applied.sources)
+        assertEquals(draft, MovementFilterDraft.fromApplied(applied))
+        val scope = object : androidx.compose.runtime.saveable.SaverScope {
+            override fun canBeSaved(value: Any) = true
+        }
+        val saved = with(MovementFilterDraftSaver) { scope.save(draft) }!!
+        assertEquals(draft, MovementFilterDraftSaver.restore(saved))
+        assertTrue(draft.copy(sources = emptySet()).validate().filters!!.sources.isEmpty())
+    }
+
     @Test fun decimalAmountsUseMajorUnitsAndRequireCurrency() {
         val valid = MovementFilterDraft(minAmount = "15,50", maxAmount = "20", currency = "PEN").validate()
         assertEquals(1550L, valid.filters?.minAmountMinor)
