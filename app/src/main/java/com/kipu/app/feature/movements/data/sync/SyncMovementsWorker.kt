@@ -93,6 +93,7 @@ class SyncMovementsWorker @AssistedInject constructor(
     private val cardDao: CardDao,
     private val database: KipuDatabase,
     private val sessionCoordinator: SessionCoordinator,
+    private val debtSyncScheduler: com.kipu.app.feature.debts.data.sync.DebtSyncScheduler,
 ) : CoroutineWorker(appContext, workerParams) {
 
     private val hydration = MovementHydration(movementDao, financialApi, accountDao, cardDao, database, sessionCoordinator)
@@ -339,6 +340,26 @@ class SyncMovementsWorker @AssistedInject constructor(
     }
 
     private suspend fun processRevisionCommand(cmd: MovementOutboxEntity, now: Long): Boolean {
+        val settlement = if (cmd.commandType == "VOID_TRANSACTION") {
+            database.debtDao().getSettlementEventForTransaction(cmd.userId, cmd.aggregateId)
+                ?.takeIf { it.eventType == "PAYMENT" }
+        } else null
+        if (settlement != null) {
+            // Settlements are created by the debt outbox, not the movement outbox.
+            val opening = settlement.transactionId?.let { database.debtOutboxDao().get(cmd.userId, it) }
+            if (opening?.state in setOf("CONFLICT", "FAILED_PERMANENT")) {
+                ownerTransaction(cmd.userId) {
+                    movementDao.completeClaimedOutbox(cmd, "CONFLICT", null, "DEBT_SETTLEMENT_DEPENDENCY_FAILED",
+                        MovementSyncStatus.CONFLICT.name)
+                    updateSettlementSyncState(cmd.userId, settlement, "CONFLICT")
+                }
+                return false
+            }
+            if (opening != null && opening.state != "SYNCED") {
+                retryCommand(cmd, now, "WAITING_DEBT_SETTLEMENT")
+                return false
+            }
+        }
         if (cmd.dependsOnCommandId != null) {
             val parentReceipt = movementDao.getReceipt(cmd.userId, cmd.dependsOnCommandId)
             if (parentReceipt == null || parentReceipt.status !in listOf("APPLIED", "REVISED", "VOIDED")) {
@@ -384,6 +405,10 @@ class SyncMovementsWorker @AssistedInject constructor(
                         movementDao.completeClaimedOutbox(
                             cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name,
                         )
+                        if (settlement != null) {
+                            updateSettlementSyncState(cmd.userId, settlement, "SYNCED")
+                            debtSyncScheduler.schedule(cmd.userId)
+                        }
                         true
                     }
                     "CONFLICT" -> {
@@ -413,12 +438,17 @@ class SyncMovementsWorker @AssistedInject constructor(
                         movementDao.completeClaimedOutbox(
                             cmd, "CONFLICT", null, "CONFLICT", MovementSyncStatus.CONFLICT.name,
                         )
+                        if (settlement != null) updateSettlementSyncState(cmd.userId, settlement, "CONFLICT")
                         false
                     }
                     "REJECTED" -> {
                         val error = response.data.error
                         if (error?.retryable == true) {
                             retryCommand(cmd, now, error.code)
+                        } else if (settlement != null) {
+                            movementDao.completeClaimedOutbox(cmd, "FAILED_PERMANENT", null, error?.code ?: "REJECTED",
+                                MovementSyncStatus.FAILED_PERMANENT.name)
+                            updateSettlementSyncState(cmd.userId, settlement, "FAILED_PERMANENT")
                         } else {
                             MovementRejectionResolver(database, movementDao).rejectClaimed(cmd, error?.code ?: "REJECTED")
                         }
@@ -431,7 +461,11 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
                 is MovementApiResponse.Error -> {
                     val isPermanent = isPermanentHttpFailure(response.statusCode)
-                    if (isPermanent) {
+                    if (isPermanent && settlement != null) {
+                        movementDao.completeClaimedOutbox(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
+                            MovementSyncStatus.FAILED_PERMANENT.name)
+                        updateSettlementSyncState(cmd.userId, settlement, "FAILED_PERMANENT")
+                    } else if (isPermanent) {
                         MovementRejectionResolver(database, movementDao).rejectClaimed(
                             cmd, "HTTP_${response.statusCode}",
                         )
@@ -447,6 +481,21 @@ class SyncMovementsWorker @AssistedInject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun updateSettlementSyncState(
+        userId: String,
+        event: com.kipu.app.feature.debts.data.local.DebtEventEntity,
+        syncStatus: String,
+    ) {
+        for (id in listOfNotNull(event.transactionId, event.interestTransactionId)) {
+            movementDao.getTransactionById(userId, id)?.let { movementDao.updateTransaction(it.copy(syncStatus = syncStatus)) }
+        }
+        database.debtDao().updateSyncState(userId, event.debtId, when (syncStatus) {
+            "CONFLICT" -> "CONFLICT"
+            "FAILED_PERMANENT" -> "FAILED"
+            else -> "PENDING" // Debt hydration confirms the authoritative lifecycle and revision.
+        })
     }
 
     private suspend fun retryCommand(cmd: MovementOutboxEntity, now: Long, errorCode: String) {
