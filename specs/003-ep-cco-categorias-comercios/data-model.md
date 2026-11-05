@@ -8,7 +8,7 @@
 | `ownerId` | Obligatorio para categorías personalizadas; vacío para sistema. |
 | `parentId` | Vacío para raíz; una subcategoría referencia una raíz del mismo owner o catálogo. |
 | `origin` | `SYSTEM` o `CUSTOM`; solo `CUSTOM` consume cupo Free. |
-| `categoryType` | `EXPENSE`, `INCOME` o `GENERAL`; las categorías históricas pasan a `GENERAL` sin inferir por movimientos. |
+| `categoryType` | `EXPENSE`, `INCOME` o `GENERAL`; el catálogo predeterminado del sistema (12 raíces y 39 subcategorías) es `EXPENSE` (migración `20261104051901` y Room v38). |
 | `isActive` | Una subcategoría es elegible solo si ella y su raíz están activas. |
 | `revision` | Incrementa por mutación y participa en detección de conflicto. |
 
@@ -34,9 +34,13 @@ Una categoría personalizada puede usar su propia presentación; una categoría 
 | `name` | Nombre visible del catálogo. |
 | `normalizedName` | Forma buscable normalizada; permite subcadena. |
 | `isActive` | Solo entradas activas se muestran y se asignan. |
+| `isSystem` | `true` para catálogo compartido Kipu, `false` para comercio privado creado por el usuario (M3, Room v35). |
+| `ownerId` | `null` para comercio global del sistema; UUID del usuario para comercio privado (RLS owner-scoped). |
+| `domain` | Dominio web deduplicado para búsqueda y recuperación de logos en Logo.dev (M3 / Bloque 4). |
+| `logoPath`, `logoStatus`, `logoSource` | Rutas de activos, estado (`READY`, `PENDING`, `FAILED`, `MANUAL`) y procedencia del logo persistidos en Room v39 para render de avatares según `MovementAvatarPolicy.kt`. |
 | `catalogVersion`, `lastSyncedAt` | Identifican la última versión local para comunicar resultados potencialmente desactualizados. |
 
-No tiene owner, alias, regla personal ni operación de alta por cliente.
+M3 permite crear comercios privados owner-scoped y añadir candidatos globales autorizados desde Logo.dev. Bloque 4 añade Room v39 con persistencia de dominio, estado y origen de logo, y recuperación reintentable de descargas pendientes.
 
 ## MerchantAliasRule (Sprint 5 / HU-16)
 
