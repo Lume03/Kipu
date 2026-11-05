@@ -427,6 +427,131 @@ class MovementLocalDataSourceTest {
         assertEquals(null, dao.calculateLedgerSumForAccount(userId, "source"))
     }
 
+    @Test
+    fun transferFailureBetweenEntriesRollsBackEveryLocalArtifact() = runTest {
+        seedAccount("source")
+        seedAccount("destination")
+        database.openHelper.writableDatabase.execSQL("""
+            CREATE TRIGGER injected_transfer_failure BEFORE INSERT ON ledger_entries
+            WHEN NEW.role = 'DESTINATION'
+            BEGIN
+                SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM ledger_entries WHERE transaction_id = NEW.transaction_id AND role = 'SOURCE')
+                    THEN RAISE(ABORT, 'source entry missing') END;
+                SELECT RAISE(ABORT, 'injected between transfer entries');
+            END
+        """.trimIndent())
+        val transfer = command(MovementType.TRANSFER, "source", "destination", 4200L)
+        val error = try {
+            source.commitTransactionAtomic(transfer, "failed-transfer")
+            null
+        } catch (failure: android.database.sqlite.SQLiteException) { failure }
+        assertTrue("The trigger must actually interrupt the second posting", error?.message.orEmpty().contains("injected between transfer entries"))
+        for (table in listOf("transactions", "ledger_entries", "balance_projections", "local_command_receipts", "movement_outbox")) {
+            database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("No partial $table", 0L, it.getLong(0))
+            }
+        }
+        assertNull(dao.getBalanceProjection(userId, "source"))
+        assertNull(dao.getBalanceProjection(userId, "destination"))
+        database.openHelper.writableDatabase.execSQL("DROP TRIGGER injected_transfer_failure")
+        assertTrue(source.commitTransactionAtomic(transfer, "failed-transfer") is RegisterTransactionResult.Success)
+        assertEquals(2, dao.observeTransactions(userId).first().flatMap {
+            dao.getLedgerEntriesForTransaction(userId, it.id)
+        }.size)
+    }
+
+    @Test
+    fun transferFailureAtOutboxRollsBackAlreadyWrittenLedgerProjectionsAndReceipt() = runTest {
+        seedAccount("source")
+        seedAccount("destination")
+        database.openHelper.writableDatabase.execSQL("""
+            CREATE TRIGGER injected_outbox_failure BEFORE INSERT ON movement_outbox
+            BEGIN SELECT RAISE(ABORT, 'injected before commit'); END
+        """.trimIndent())
+        val transfer = command(MovementType.TRANSFER, "source", "destination", 4200L)
+        val error = try {
+            source.commitTransactionAtomic(transfer, "failed-outbox")
+            null
+        } catch (failure: android.database.sqlite.SQLiteException) { failure }
+        assertTrue(error?.message.orEmpty().contains("injected before commit"))
+        for (table in listOf("transactions", "ledger_entries", "balance_projections", "local_command_receipts", "movement_outbox")) {
+            database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("No partial $table", 0L, it.getLong(0))
+            }
+        }
+        assertNull(dao.getReceipt(userId, transfer.idempotencyKey))
+    }
+
+    @Test
+    fun tenTenCentIncomePostingsSumExactlyOneSol() = runTest {
+        seedAccount("source")
+        repeat(10) { index ->
+            assertTrue(source.commitTransactionAtomic(command(MovementType.INCOME, "source", amount = 10L), "cent-$index") is RegisterTransactionResult.Success)
+        }
+        assertEquals(100L, dao.calculateLedgerSumForAccount(userId, "source"))
+        assertEquals(100L, dao.getBalanceProjection(userId, "source")?.balanceMinor)
+        assertEquals(10, dao.observeTransactions(userId).first().size)
+    }
+
+    @Test
+    fun reopeningFilePreservesTransferAndOfflineAccountCategoryExpense() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "movement-reopen-${UUID.randomUUID()}.db"
+        database.close()
+        fun open() = Room.databaseBuilder(context, KipuDatabase::class.java, name).allowMainThreadQueries().build()
+        try {
+            database = open()
+            dao = database.movementDao()
+            source = MovementLocalDataSource(database, dao, BalanceProjectionStore(dao))
+            seedAccount("source")
+            seedAccount("destination")
+            database.categoryDao().insertCategory(CategoryEntity("offline-category", userId, null, "CUSTOM",
+                categoryType = "EXPENSE", createdAt = 1L, updatedAt = 1L))
+            val transfer = command(MovementType.TRANSFER, "source", "destination", 4200L)
+            val expense = command(MovementType.EXPENSE, "source", amount = 1250L).copy(categoryId = "offline-category")
+            val transferId = (source.commitTransactionAtomic(transfer, "reopen-transfer") as RegisterTransactionResult.Success).transaction.id
+            val expenseId = (source.commitTransactionAtomic(expense, "reopen-expense") as RegisterTransactionResult.Success).transaction.id
+            database.close()
+            database = open()
+            dao = database.movementDao()
+            source = MovementLocalDataSource(database, dao, BalanceProjectionStore(dao))
+            assertEquals(2, dao.getLedgerEntriesForTransaction(userId, transferId).size)
+            assertEquals(1, dao.getLedgerEntriesForTransaction(userId, expenseId).size)
+            assertEquals("offline-category", dao.getTransactionById(userId, expenseId)?.categoryId)
+            assertTrue(database.categoryDao().getCategoryById("offline-category") != null)
+            assertTrue(database.accountDao().getById(userId, "source") != null)
+            assertEquals(-5450L, dao.calculateLedgerSumForAccount(userId, "source"))
+            assertEquals(-5450L, dao.getBalanceProjection(userId, "source")?.balanceMinor)
+            assertEquals(4200L, dao.getBalanceProjection(userId, "destination")?.balanceMinor)
+            assertEquals(setOf(transfer.idempotencyKey, expense.idempotencyKey),
+                dao.findClaimableOutbox(userId, System.currentTimeMillis() + 1000L, 10).map { it.idempotencyKey }.toSet())
+            assertEquals(expenseId, dao.getReceipt(userId, expense.idempotencyKey)?.transactionId)
+            assertTrue((source.commitTransactionAtomic(transfer, "reopen-transfer") as RegisterTransactionResult.Success).isDuplicate)
+            assertTrue((source.commitTransactionAtomic(expense, "reopen-expense") as RegisterTransactionResult.Success).isDuplicate)
+            assertEquals(2, dao.observeTransactions(userId).first().size)
+        } finally {
+            database.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
+    fun registrationPersistsEveryCaptureSourceAndReplayKeepsOriginalProvenance() = runTest {
+        seedAccount("source")
+        com.kipu.app.feature.movements.domain.model.MovementSource.entries.forEach { origin ->
+            val command = command(MovementType.INCOME, "source", amount = 10L).copy(captureSource = origin)
+            val first = source.commitTransactionAtomic(command, "source-${origin.name}") as RegisterTransactionResult.Success
+            assertEquals(origin.name, dao.getTransactionById(userId, first.transaction.id)?.captureSource)
+            assertEquals(origin, first.transaction.captureSource)
+            val replay = source.commitTransactionAtomic(command, "source-${origin.name}") as RegisterTransactionResult.Success
+            assertTrue(replay.isDuplicate)
+            assertEquals(origin, replay.transaction.captureSource)
+            assertEquals(1, dao.getLedgerEntriesForTransaction(userId, first.transaction.id).size)
+        }
+    }
+
     private suspend fun seedAccount(id: String, owner: String = userId) {
         database.accountDao().insert(
             AccountEntity(
