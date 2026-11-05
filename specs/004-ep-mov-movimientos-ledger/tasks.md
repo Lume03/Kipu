@@ -14,6 +14,8 @@
 
 **Estado de S7/HU-25 (2026-10-24)**: implementación y verificación local completadas para T132–T148, incluida integración Room real con EP-PRE/HU-36 y runtime instrumentado filtrado. T149 conserva la revisión independiente pendiente; no declarar aceptación integral hasta completar ese gate.
 
+**Actualización 2026-11-05 (Ronda de corrección)**: T110 completada con implementación de filtro por fuente (MANUAL / NOTIFICATION / OCR) en Room v40 y tests en verde. T027 y T029 verificadas con pruebas de atomicidad local/remota de f3-2 y pgTAP PASS. T130 completada tras la implementación de Fase 1.4 de registro rápido 'Aplicar a…' y habilitación de pruebas instrumentadas PASS A16 2026-11-05 en `MovementObligationEntryPointTest.kt`. T149 permanece abierta pendiente de revisión independiente.
+
 **Propagated**: 2026-10-02 — Refinamiento aprobado P1–P5 y plan S4; nuevas tareas T058–T089, sin regenerar ni renumerar el trabajo S2. Baseline main `c80ea0ddea80dfe5332971f12418758ea1bc9923`, Room v16.
 
 **Propagated**: 2026-10-02 — Correcciones I1/U1/B1/I2 aprobadas: contexto explícito EP-MOV, prueba cuantitativa entre periodos, corte exacto/reinicio y T074 serializada después de T071. T001–T057 permanecen intactas.
@@ -90,9 +92,9 @@
 
 ### Tests for US2
 
-- [x] T027 [P] [US2] Probar rollback de movimiento, asientos, proyección y outbox ante fallos inyectados en `app/src/androidTest/java/com/kipu/app/feature/movements/data/local/MovementLocalDataSourceTest.kt`
-- [x] T028 [P] [US2] Probar recuperación de lease, reintento y reinicio del worker en `app/src/androidTest/java/com/kipu/app/feature/movements/data/sync/SyncMovementsWorkerTest.kt`
-- [x] T029 [P] [US2] Probar rollback remoto y balance de los dos asientos de transferencia en `supabase/tests/database/movements_register_transaction_test.sql`
+- [x] T027 [P] [US2] Probar rollback de movimiento, asientos, proyección y outbox ante fallos inyectados en `app/src/androidTest/java/com/kipu/app/feature/movements/data/local/MovementLocalDataSourceTest.kt` (métodos `transferFailureBetweenEntriesRollsBackEveryLocalArtifact` y `transferFailureAtOutboxRollsBackAlreadyWrittenLedgerProjectionsAndReceipt`; ejecutado PASS A16 2026-11-05).
+- [x] T028 [P] [US2] Probar recuperación de lease, reintento y reinicio del worker en `app/src/androidTest/java/com/kipu/app/feature/movements/data/sync/SyncMovementsWorkerTest.kt` (ejecutado PASS A16 2026-11-05, 25 tests PASS).
+- [x] T029 [P] [US2] Probar rollback remoto y balance de los dos asientos de transferencia en `supabase/tests/database/movements_transfer_atomic_failure_test.sql` (6 aserciones pgTAP; fallo inyectado entre SOURCE/DESTINATION y cero residuos; ejecutado PASS pgTAP local 2026-11-05) y `supabase/tests/database/movements_register_transaction_test.sql`.
 
 ### Implementation for US2
 
@@ -327,7 +329,7 @@ SC-001 conserva los escenarios oficiales por sprint; SC-006 mantiene el alta his
 Dependency DAG: T103 → T104; T103 → T105; T104 → T106/T107; T105/T106/T107 + EP-PLA T116 → T108; T108 + EP-PLA T117 → T109. No completed historical checkbox is reused as evidence of this refinement.
 
 
-- [ ] T110 [Baseline HU-22] Resolve canonical movement-source provenance with Obsidian Mind and the existing data authorities; refine/propagate the Room/domain/query contract and implement the source selector with authorization/combination tests, preserving unknown historical provenance (FR-017; full HU-22 acceptance remains open; requires a confirmed data contract before implementation).
+- [x] T110 [Baseline HU-22] Resolve canonical movement-source provenance with Obsidian Mind and the existing data authorities; refine/propagate the Room/domain/query contract and implement the source selector with authorization/combination tests, preserving unknown historical provenance (FR-017). Decisión Owner 2026-11-05: implementado filtro avanzado Premium por fuente (MANUAL / NOTIFICATION / OCR); históricos sin procedencia clasificados como MANUAL salvo candidatos de captura. Código en Fase 1.3: Room v40 (`capture_source`), `RoomMigrations.MIGRATION_39_40`, `MovementDao.kt`, `MovementEntities.kt`, `MovementLocalDataSource.kt`, `MovementQuerySqlBuilder.kt`, `AdvancedHistoryCriteria.kt`, `MovementFiltersSheet.kt`, `MovementAppliedFilters.kt`, `MovementFilterDraft.kt`. Pruebas unitarias: `QueryMovementHistoryTest.kt::sourceOnlyFilterRequiresPremiumAndFreeStripsAllAdvancedForPageAndSummary` y `premiumPreservesSourcesAndRevalidationRemovesSourcesWithOtherAdvancedFilters`, `ConfirmCaptureCandidateTest.kt::notificationSourceIsSentForReviewedAndAutomaticConfirmation`, `ConfirmReceiptCandidateTest.kt::keepsStableIdempotencyKeyAndDuplicateOverrideWhilePreservingReceiptReference`, `MovementFilterDraftTest.kt::sourcesSurviveAppliedAndSavedDraftRoundTrips` (ejecutado PASS JVM 2026-11-05). Pruebas instrumentadas: `MovementSourceMigrationTest.kt::sourceBackfillUsesOwnerEvidenceAndKeepsUnlinkedHistoryManual` (ejecutado PASS A16 2026-11-05), `MovementHistoryQueryTest.kt::sourceUnionIntersectsOtherFiltersAndKeysetPagesAgreeWithCountAndNet` (ejecutado PASS A16 2026-11-05), `MovementLocalDataSourceTest.kt::registrationPersistsEveryCaptureSourceAndReplayKeepsOriginalProvenance` (ejecutado PASS A16 2026-11-05), `MovementSourceFiltersTest.kt` (4 tests PASS; ejecutado PASS A16 2026-11-05).
 
 **Propagated**: 2026-10-03 — T103–T109 completed for the approved UI refinement. T110 is a pre-existing functional gap uncovered by cross-artifact review. EP-PLA T112/T113 retain their baseline/release gates. No statement here closes Sprint 4 as a whole.
 
@@ -392,7 +394,7 @@ T123 sigue abierta: falta una captura del IME real y la suite global continúa c
 - [x] T127 [US7] Añadir migración aditiva idempotencia/reconciliación para que `reserve_goal_v1` use el ID estable del comando como `transaction_id`, preservando owner/grants, transacción y compatibilidad de la definición vigente en `supabase/migrations/20261019190000_ep_mov_goal_transfer_identity.sql`.
 - [x] T128 [US7] Probar en Room la transferencia explícita offline con transacción TRANSFER, dos asientos net-zero, saldo/proyecciones, evento de meta enlazado y outbox pendiente en `app/src/androidTest/java/com/kipu/app/feature/goals/data/GoalReplacementRoomIntegrationTest.kt`.
 - [x] T129 [US7] Inyectar fallo del outbox y probar rollback conjunto de transacción, ledger, proyecciones, evento de reserva y recibo; validar además contabilidad de principal/interés con pruebas domain y sync existentes de EP-DEU.
-- [ ] T130 [US7] Obtener cross-review independiente de seguridad, integridad financiera y pruebas; atender observaciones antes de cualquier merge.
+- [x] T130 [US7] Obtener cross-review independiente de seguridad, integridad financiera y pruebas; atender observaciones antes de cualquier merge. Cross-reviews registradas: Security (`t_e8f9cc0a`, APPROVED) y QA (`t_b1f28d03`, APPROVED WITH OBSERVATIONS). Fase 1.4 implementó la entrada rápida 'Aplicar a…' (`QuickMovementViewModel.kt`, `QuickMovementScreen.kt`) y habilitó los tests en `MovementObligationEntryPointTest.kt` (retirados los 3 @Ignore BUG: `expenseOffersDebtPrincipalApplication`, `incomeOffersLoanPrincipalCollection`, `transferOffersGoalSelectionBeforeQuotaValidation`; ejecutado PASS A16 2026-11-05, 3 tests PASS). Verificado también contabilidad de amortización en `DebtSettlementSyncTest.kt` (`payablePrincipalReducesCashAndDebtWithoutOperatingExpense`, `receivablePrincipalIncreasesCashAndReducesLoanWithoutOperatingIncome`; ejecutado PASS A16 2026-11-05, 7 tests PASS).
 - [x] T131 Ejecutar pruebas focalizadas Room/unitarias y DB local, compilar Kotlin, revisar migración/diff y registrar veredicto y límites del alcance HU-24 en `verification-report.md`; no aplicar a hosted/prod.
 
 ## Phase 16: US8 — HU-25 Registrar reembolsos vinculados (S7, Priority P3)
@@ -426,7 +428,7 @@ T123 sigue abierta: falta una captura del IME real y la suite global continúa c
 ### Integración y cierre (evidencia parcial; gates pendientes)
 
 - [X] T148 [US8] Registrar en `specs/004-ep-mov-movimientos-ledger/verification-report.md` y quickstart de EP-PRE la ejecución focalizada real: JVM 800 tests, 0 fallos, 2 omitidos; cuatro clases instrumentadas, 4/4 en `emulator-5554`; y RED/GREEN de T010. La revisión independiente de aceptación continúa en T149. No se accedió a hosted/prod.
-- [ ] T149 [US8] Obtener revisión independiente de `qa-auditor`, Finanzas y Seguridad sobre cobertura FR-023–FR-028, SC-009, ledger, ownership/RLS, privacidad y evidencia en `specs/004-ep-mov-movimientos-ledger/review-record.md`; mantener HU-25 sin aceptación si hay críticos, falta HU-36 real o pruebas no ejecutadas.
+- [ ] T149 [US8] Obtener revisión independiente de `qa-auditor`, Finanzas y Seguridad sobre cobertura FR-023–FR-028, SC-009, ledger, ownership/RLS, privacidad y evidencia en `specs/004-ep-mov-movimientos-ledger/review-record.md`; mantener HU-25 sin aceptación si hay críticos, falta HU-36 real o pruebas no ejecutadas. (Permanece abierta al 2026-11-05 por falta de revisión formal externa; implementación local y tests de integración con presupuesto ejecutados PASS).
 
 ### Dependencies & Execution Order — Sprint 7
 
