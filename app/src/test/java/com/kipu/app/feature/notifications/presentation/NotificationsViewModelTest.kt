@@ -148,6 +148,34 @@ class NotificationsViewModelTest {
         assertEquals(0, repository.markReadCalls)
     }
 
+    @Test
+    fun `opening debt emits OpenDebt and explicit read marks only the notification`() = runTest(dispatcher) {
+        val notice = notice("debt-notice", USER_A, "BILLING_DUE", NOW)
+            .copy(referenceEntityType = "DEBT", referenceEntityId = "debt")
+        val repository = FakeRepository(mapOf(USER_A to listOf(notice)))
+        val model = viewModel(repository, resolver = NotificationDestinationResolver { _, _ -> NotificationDestination.DebtDetail("debt") })
+        val event = async { model.events.first() }
+        model.openNotification(notice)
+        assertEquals(NotificationsUiEvent.OpenDebt("debt"), event.await())
+        assertEquals(0, repository.markReadCalls)
+        model.markRead(notice.id)
+        assertEquals(1, repository.markReadCalls)
+    }
+
+    @Test
+    fun `opening goal emits OpenGoal and explicit read marks only the notification`() = runTest(dispatcher) {
+        val notice = notice("goal-notice", USER_A, "SYSTEM", NOW)
+            .copy(referenceEntityType = "GOAL", referenceEntityId = "goal")
+        val repository = FakeRepository(mapOf(USER_A to listOf(notice)))
+        val model = viewModel(repository, resolver = NotificationDestinationResolver { _, _ -> NotificationDestination.GoalDetail("goal") })
+        val event = async { model.events.first() }
+        model.openNotification(notice)
+        assertEquals(NotificationsUiEvent.OpenGoal("goal"), event.await())
+        assertEquals(0, repository.markReadCalls)
+        model.markRead(notice.id)
+        assertEquals(1, repository.markReadCalls)
+    }
+
     private fun viewModel(
         repository: NotificationsRepository,
         access: MutableStateFlow<LocalAccess> = MutableStateFlow(available(USER_A)),
