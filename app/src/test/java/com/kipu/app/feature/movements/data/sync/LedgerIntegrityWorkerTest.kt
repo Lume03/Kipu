@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.data.sync
 
+import com.kipu.app.feature.debts.data.sync.NoOpDebtSyncScheduler
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -272,5 +273,5 @@ class LedgerIntegrityWorkerTest {
     }
 
     private fun worker(workerDao: MovementDao = dao) = SyncMovementsWorker(context, params, workerDao, api, financialApi,
-        database.accountDao(), database.cardDao(), database, session)
+        database.accountDao(), database.cardDao(), database, session, NoOpDebtSyncScheduler)
 }
