@@ -231,6 +231,12 @@ class MovementEditorViewModel @Inject constructor(
             val merchantName = head.payload.merchantId?.let {
                 categoriesRepository.getMerchantById(MerchantId(it))?.name
             } ?: head.payload.merchantProvisionalText.orEmpty()
+            val rejectedDraft = maintenanceRepository.getRevisionAudit(userId, txId)
+                .maxByOrNull { it.createdAt }?.rejectedSnapshot
+                ?.let(MovementRevisionSnapshotCodec::decodeSnapshot)
+            val draftMerchantName = rejectedDraft?.merchantId?.let {
+                categoriesRepository.getMerchantById(MerchantId(it))?.name
+            } ?: rejectedDraft?.merchantProvisionalText.orEmpty()
             val formattedAmount = formatMinorUnits(head.payload.amountMinor)
 
             val proposals = maintenanceRepository.getConflictProposals(userId, txId)
@@ -258,15 +264,15 @@ class MovementEditorViewModel @Inject constructor(
                     initialMerchantId = head.payload.merchantId,
                     initialOccurredAt = head.payload.occurredAt,
                     initialNote = head.payload.note,
-                    amountText = formattedAmount,
-                    selectedSourceAccountId = head.payload.sourceAccountId,
-                    selectedDestinationAccountId = head.payload.destinationAccountId,
-                    selectedCategoryId = head.payload.categoryId,
-                    selectedCategoryName = matchingCat?.name,
-                    merchantName = merchantName,
-                    selectedMerchantId = head.payload.merchantId,
-                    occurredAt = head.payload.occurredAt,
-                    note = head.payload.note ?: "",
+                    amountText = rejectedDraft?.let { formatMinorUnits(it.amountMinor) } ?: formattedAmount,
+                    selectedSourceAccountId = rejectedDraft?.sourceAccountId ?: head.payload.sourceAccountId,
+                    selectedDestinationAccountId = if (rejectedDraft != null) rejectedDraft.destinationAccountId else head.payload.destinationAccountId,
+                    selectedCategoryId = if (rejectedDraft != null) rejectedDraft.categoryId else head.payload.categoryId,
+                    selectedCategoryName = if (rejectedDraft != null) current.availableCategories.firstOrNull { it.id == rejectedDraft.categoryId }?.name else matchingCat?.name,
+                    merchantName = if (rejectedDraft != null) draftMerchantName else merchantName,
+                    selectedMerchantId = if (rejectedDraft != null) rejectedDraft.merchantId else head.payload.merchantId,
+                    occurredAt = rejectedDraft?.occurredAt ?: head.payload.occurredAt,
+                    note = if (rejectedDraft != null) rejectedDraft.note.orEmpty() else head.payload.note.orEmpty(),
                     hasConflict = activeProposal != null,
                     conflictProposal = activeProposal,
                     conflictProposedAmountMinor = decodedSnapshot?.amountMinor,
@@ -406,7 +412,7 @@ class MovementEditorViewModel @Inject constructor(
                         learnRememberedCategory(UserId(userId), option, categoriesRepository, setMerchantCategoryPreference)
                     }
                     _uiState.update { it.copy(isSaving = false, isSuccess = true) }
-                    _events.send(MovementEditorUiEvent.TransactionRevised("Movimiento corregido (Pendiente de sincronizar)"))
+                    _events.send(MovementEditorUiEvent.TransactionRevised("Corrección pendiente de sincronizar"))
                     _events.send(MovementEditorUiEvent.CloseEditor)
                 }
                 is MovementMutationResult.Conflict -> {

@@ -61,6 +61,8 @@ fun MovementDetailSheet(
     val emeraldColors = rememberCalmEmeraldColors()
     val tx = item.transaction
     val voided = tx.status == TransactionStatus.VOIDED
+    val correctionRejected = revisions.maxByOrNull { it.createdAt }?.rejectedSnapshot != null
+    val pending = tx.syncStatus == MovementSyncStatus.PENDING || tx.syncStatus == MovementSyncStatus.IN_FLIGHT
     val specialized = isSpecializedMovement(item)
     val esPeLocale = remember { Locale.forLanguageTag("es-PE") }
     val dateFormat = remember(esPeLocale) {
@@ -244,8 +246,8 @@ fun MovementDetailSheet(
                             if (!voided) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = emeraldColors.incomeBg,
-                                    border = BorderStroke(1.dp, emeraldColors.incomeBorder),
+                                    color = if (pending) emeraldColors.warningBg else if (correctionRejected) MaterialTheme.colorScheme.errorContainer else emeraldColors.incomeBg,
+                                    border = BorderStroke(1.dp, if (pending) emeraldColors.warningBorder else if (correctionRejected) MaterialTheme.colorScheme.error else emeraldColors.incomeBorder),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -253,20 +255,35 @@ fun MovementDetailSheet(
                                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.CheckCircle,
+                                            imageVector = if (pending) Icons.Rounded.Sync else if (correctionRejected) Icons.Rounded.Cancel else Icons.Rounded.CheckCircle,
                                             contentDescription = null,
-                                            tint = emeraldColors.incomeText,
+                                            tint = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
-                                            text = if (tx.syncStatus == MovementSyncStatus.SYNCED) "Sincronizado" else "Guardado en este dispositivo",
+                                            text = when {
+                                                pending -> "Pendiente de sincronizar"
+                                                correctionRejected -> "Corrección no aplicada"
+                                                tx.syncStatus == MovementSyncStatus.SYNCED -> "Sincronizado"
+                                                tx.syncStatus == MovementSyncStatus.CONFLICT -> "Conflicto de sincronización"
+                                                else -> "No se pudo sincronizar"
+                                            },
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = emeraldColors.incomeText,
+                                            color = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
                                         )
                                     }
                                 }
                             }
                         }
+                    }
+
+                    if (correctionRejected && !pending) {
+                        Text(
+                            text = "No se pudo aplicar la corrección. Se mantiene $currencySymbol ${formatMinorUnits(tx.amountMinor)}.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.testTag("detail_correction_rejected"),
+                        )
                     }
 
                     // Monto Hero
@@ -539,7 +556,7 @@ fun MovementDetailSheet(
                             ) {
                                 Column(modifier = Modifier.padding(10.dp)) {
                                     Text(
-                                        text = "Revisión ${rev.revision} · ${mapRevisionOperation(rev.operation)}",
+                                        text = "Revisión ${rev.revision} · ${if (rev.operation == "CORRECTION_REJECTED") "Corrección no aplicada" else mapRevisionOperation(rev.operation)}",
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     )
                                     Text(
@@ -608,7 +625,7 @@ fun MovementDetailSheet(
                         onClick = onVoid,
                         modifier = Modifier
                             .weight(1f)
-                            .height(50.dp)
+                            .heightIn(min = 50.dp)
                             .testTag("detail_void"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -633,7 +650,7 @@ fun MovementDetailSheet(
                         enabled = !specialized,
                         modifier = Modifier
                             .weight(1f)
-                            .height(50.dp)
+                            .heightIn(min = 50.dp)
                             .testTag("detail_edit"),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -648,7 +665,7 @@ fun MovementDetailSheet(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Editar",
+                            text = if (correctionRejected) "Revisar cambios" else "Editar",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                         )
                     }

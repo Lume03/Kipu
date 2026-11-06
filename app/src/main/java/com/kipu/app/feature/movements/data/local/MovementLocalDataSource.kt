@@ -639,9 +639,9 @@ class MovementLocalDataSource @Inject constructor(
     }
 
     suspend fun getRevisionAudit(userId: String, transactionId: String): List<MovementRevisionAudit> =
-        movementDao.getRevisions(userId, transactionId).sortedByDescending { it.localRevision }.map {
-            MovementRevisionAudit(it.localRevision, it.commandType, it.createdAt, it.changeReason)
-        }
+        movementDao.getRevisions(userId, transactionId).toMovementRevisionAudit(
+            movementDao.getTransactionById(userId, transactionId)?.revision,
+        )
 
     private suspend fun collectReferences(
         userId: String,

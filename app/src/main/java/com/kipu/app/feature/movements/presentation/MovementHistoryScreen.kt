@@ -653,7 +653,7 @@ fun MovementHistoryRoute(
                 onDismiss = { editingTransactionId = null },
                 onSaved = {
                     editingTransactionId = null
-                    scope.launch { snackbarHostState.showSnackbar(if (offline) savedText else "Cambios guardados") }
+                    scope.launch { snackbarHostState.showSnackbar("Corrección pendiente de sincronizar") }
                 },
                 viewModel = hiltViewModel(key = "movement_editor_${transactionId}_$editorSession"),
             )

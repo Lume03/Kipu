@@ -48,6 +48,7 @@ class MovementEditorRememberTest {
         coEvery { repo.getMerchantById(merchant.id) } returns merchant
         coEvery { maintenance.getRevisionHead(owner.value, "tx") } returns head
         coEvery { maintenance.getConflictProposals(owner.value, "tx") } returns emptyList()
+        coEvery { maintenance.getRevisionAudit(owner.value, "tx") } returns emptyList()
         coEvery { movements.getTransactionById(owner.value, "tx") } returns Transaction(
             id = "tx", userId = owner.value, type = MovementType.EXPENSE, amountMinor = 100,
             currency = "PEN", sourceAccountId = "account", categoryId = "old", occurredAt = 100)
@@ -58,6 +59,19 @@ class MovementEditorRememberTest {
 
     private fun create() = MovementEditorViewModel(SavedStateHandle(mapOf("transactionId" to "tx")), session,
         ReviseTransaction(maintenance), maintenance, movements, instruments, ObserveCategories(repo), repo, SetMerchantCategoryPreference(repo))
+
+    @Test fun `rejected correction restores editable draft against current official revision`() = runTest(dispatcher) {
+        coEvery { maintenance.getRevisionAudit(owner.value, "tx") } returns listOf(
+            MovementRevisionAudit(3, "CORRECTION_REJECTED", 200, "REQUEST_HASH_MISMATCH",
+                """{"id":"tx","type":"EXPENSE","amount_minor":141,"currency_code":"PEN","source_account_id":"account","category_id":"old","occurred_at":"1970-01-01T00:00:00.100Z","note":"retained","status":"REVISED","revision":2}"""))
+        val vm = create(); advanceUntilIdle()
+        assertEquals(100L, vm.uiState.value.initialAmountMinor)
+        assertEquals("1.41", vm.uiState.value.amountText)
+        assertEquals("retained", vm.uiState.value.note)
+        assertEquals(1L, vm.uiState.value.expectedRevision)
+        vm.onSave(); advanceUntilIdle()
+        coVerify { maintenance.revise(owner.value, match { it.payload.amountMinor == 141L && it.expectedRevision == 1L }) }
+    }
 
     @Test fun `changed category offers and saves preference after revision`() = runTest(dispatcher) {
         val vm = create(); advanceUntilIdle()
