@@ -85,10 +85,8 @@ class DebtSettlementViewModel @Inject constructor(
                     val validTypes = if (type == DebtObligationType.PAYABLE) setOf("GENERAL", "EXPENSE")
                         else setOf("GENERAL", "INCOME")
                     val presentationById = presentations.associateBy { it.categoryId }
-                    val accounts = accountEntities
-                        .filterNot { it.type in EXCLUDED_ACCOUNT_TYPES }
-                        .filter { debt == null || it.currency == debt.currencyCode }
-                        .map { DebtAccountOption(it.id, it.alias, it.currency, balanceByAccount[it.id]) }
+                    val accounts = debtAccountOptions(accountEntities, balanceByAccount)
+                        .filter { debt == null || it.currencyCode == debt.currencyCode }
                     val interestCategories = categories
                         .filter { it.isActive && it.categoryType in validTypes }
                         .filter { it.userId == null || it.userId == userId }
@@ -161,9 +159,9 @@ class DebtSettlementViewModel @Inject constructor(
             _state.update { it.copy(errorMessage = "Revisa el interés; usa hasta dos decimales y no un monto negativo.") }
             return
         }
-        val accountId = current.selectedAccountId?.takeIf { id ->
-            current.availableAccounts.any { it.id == id && it.currencyCode == debt.currencyCode }
-        } ?: run {
+        val accountId = current.availableAccounts.firstOrNull {
+            it.id == current.selectedAccountId && it.currencyCode == debt.currencyCode
+        }?.effectiveAccountId ?: run {
             _state.update { it.copy(errorMessage = "Elige una cuenta activa en ${debt.currencyCode}.") }
             return
         }
@@ -227,7 +225,6 @@ class DebtSettlementViewModel @Inject constructor(
         (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId
 
     private companion object {
-        val EXCLUDED_ACCOUNT_TYPES = setOf("GOALS_VIRTUAL", "CREDIT_LIABILITY")
         const val PRINCIPAL_EXCEEDS_REMAINING = "El principal supera el saldo pendiente."
     }
 }

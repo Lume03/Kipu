@@ -227,7 +227,7 @@ fun DebtSettlementSheet(
                         val matchesCurrency = account.currencyCode == debt.currencyCode
                         DebtAccountOptionCard(
                             name = account.name,
-                            detail = if (matchesCurrency) "Moneda: ${account.currencyCode}" else "Moneda distinta (${account.currencyCode})",
+                            detail = if (!matchesCurrency) "Moneda distinta (${account.currencyCode})" else account.sharedWith?.let { "Comparte saldo con $it" } ?: "Moneda: ${account.currencyCode}",
                             selected = state.selectedAccountId == account.id,
                             enabled = matchesCurrency,
                             onClick = { onAccountSelected(account.id) },

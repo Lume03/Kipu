@@ -270,7 +270,7 @@ private fun DebtOpeningFormScreen(
                             val currencyMatches = account.currencyCode == state.currencyCode
                             DebtAccountOptionCard(
                                 name = account.name,
-                                detail = if (currencyMatches) account.currencyCode else "Moneda distinta (${account.currencyCode})",
+                                detail = if (!currencyMatches) "Moneda distinta (${account.currencyCode})" else account.sharedWith?.let { "Comparte saldo con $it" } ?: account.currencyCode,
                                 selected = state.selectedAccountId == account.id,
                                 enabled = currencyMatches,
                                 onClick = { onAccountSelected(account.id) },

@@ -106,6 +106,7 @@ class DebtOpeningViewModel @Inject constructor(
         viewModelScope.launch {
             val operationId = UUID.randomUUID().toString()
             val debtId = UUID.randomUUID().toString()
+            val effectiveAccountId = current.availableAccounts.firstOrNull { it.id == current.selectedAccountId }?.effectiveAccountId
             val canonical = listOf(
                 obligationType.name,
                 current.counterpartyName.trim().replace(WHITESPACE, " "),
@@ -113,7 +114,7 @@ class DebtOpeningViewModel @Inject constructor(
                 current.currencyCode,
                 current.openedOn.toString(),
                 current.openingMode.name,
-                current.selectedAccountId.orEmpty(),
+                effectiveAccountId.orEmpty(),
                 current.dueDate?.toString().orEmpty(),
                 current.reminderLeadDays?.toString().orEmpty(),
                 current.notes.trim(),
@@ -127,7 +128,7 @@ class DebtOpeningViewModel @Inject constructor(
                 currencyCode = current.currencyCode,
                 openedOn = current.openedOn,
                 openingMode = current.openingMode,
-                accountId = current.selectedAccountId,
+                accountId = effectiveAccountId,
                 dueDate = current.dueDate,
                 reminderLeadDays = current.reminderLeadDays,
                 notes = current.notes,
@@ -161,9 +162,7 @@ class DebtOpeningViewModel @Inject constructor(
             }
                 .catch { _state.update { it.copy(errorMessage = "No se pudieron cargar las cuentas.") } }
                 .collect { (entities, balanceByAccount) ->
-                    val accounts = entities
-                        .filterNot { it.type in EXCLUDED_ACCOUNT_TYPES }
-                        .map { DebtAccountOption(it.id, it.alias, it.currency, balanceByAccount[it.id]) }
+                    val accounts = debtAccountOptions(entities, balanceByAccount)
                     _state.update { current ->
                         val existing = accounts.firstOrNull { it.id == current.selectedAccountId && it.currencyCode == current.currencyCode }
                         current.copy(
@@ -206,7 +205,6 @@ class DebtOpeningViewModel @Inject constructor(
 
     private companion object {
         val SUPPORTED_CURRENCIES = setOf("PEN", "USD")
-        val EXCLUDED_ACCOUNT_TYPES = setOf("GOALS_VIRTUAL", "CREDIT_LIABILITY")
         val WHITESPACE = Regex("\\s+")
     }
 }
