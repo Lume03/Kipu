@@ -171,6 +171,7 @@ class DashboardRedesignStatesTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 KipuTheme(darkTheme = dark) {
                     DashboardScreen(
+                        profileViewModel = mockk<DashboardProfileViewModel> { every { displayName } returns MutableStateFlow(null) },
                         viewModel = viewModel,
                         onNavigateToNewAccount = {},
                         onNavigateToNewCard = {},
@@ -249,6 +250,7 @@ class DashboardRedesignStatesTest {
             ),
         )
         every { viewModel.creditNotifications } returns MutableStateFlow<List<CreditUtilizationNotification>>(emptyList())
+        every { viewModel.creditNotificationsError } returns MutableStateFlow<String?>(null)
         every { viewModel.isMasked } returns MutableStateFlow(masked)
         return viewModel
     }

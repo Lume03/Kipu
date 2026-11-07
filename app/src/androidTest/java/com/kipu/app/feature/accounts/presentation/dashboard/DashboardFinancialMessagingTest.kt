@@ -49,6 +49,7 @@ class DashboardFinancialMessagingTest {
         compose.setContent {
             KipuTheme {
                 DashboardScreen(
+                    profileViewModel = mockk<DashboardProfileViewModel> { every { displayName } returns MutableStateFlow(null) },
                     viewModel = viewModel,
                     onNavigateToNewAccount = {},
                     onNavigateToNewCard = {},
@@ -57,6 +58,8 @@ class DashboardFinancialMessagingTest {
             }
         }
 
+        compose.onNodeWithText("Bienvenido").assertExists()
+        compose.onNodeWithText("MC").assertDoesNotExist()
         compose.onNodeWithTag(DASHBOARD_ROOT_TAG).assertExists()
         compose.onNodeWithText("Cuenta de evidencia").assertExists()
         compose.onNodeWithText("Tus cuentas est\u00e1n sincronizadas.", substring = true).assertDoesNotExist()
@@ -78,6 +81,7 @@ class DashboardFinancialMessagingTest {
                 val expectedBackground = rememberCalmEmeraldColors().background.toArgb()
                 SideEffect { expectedBackgroundArgb.set(expectedBackground) }
                 DashboardScreen(
+                    profileViewModel = mockk<DashboardProfileViewModel> { every { displayName } returns MutableStateFlow(null) },
                     viewModel = viewModel,
                     onNavigateToNewAccount = {},
                     onNavigateToNewCard = {},
@@ -148,6 +152,7 @@ class DashboardFinancialMessagingTest {
             ),
         )
         every { viewModel.creditNotifications } returns MutableStateFlow<List<CreditUtilizationNotification>>(emptyList())
+        every { viewModel.creditNotificationsError } returns MutableStateFlow<String?>(null)
         every { viewModel.isMasked } returns MutableStateFlow(false)
 
         return viewModel

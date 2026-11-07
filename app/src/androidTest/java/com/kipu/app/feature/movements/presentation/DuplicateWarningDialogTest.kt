@@ -16,6 +16,36 @@ import org.junit.Rule
 import org.junit.Test
 
 class DuplicateWarningDialogTest {
+    @Test fun incomeShowsPositiveAmountAndIncomeActionAndCancelDoesNotConfirm() = typedWarning(
+        com.kipu.app.feature.movements.domain.model.MovementType.INCOME,
+        "¿Es otro ingreso?", "+S/ 100.00", "Sí, es otro ingreso · guardar",
+    )
+
+    @Test fun expenseShowsNegativeAmountAndPurchaseActionAndCancelDoesNotConfirm() = typedWarning(
+        com.kipu.app.feature.movements.domain.model.MovementType.EXPENSE,
+        "¿Es una compra distinta?", "-S/ 100.00", "Sí, es otra compra · guardar",
+    )
+
+    private fun typedWarning(
+        type: com.kipu.app.feature.movements.domain.model.MovementType,
+        title: String, amount: String, action: String,
+    ) {
+        var confirmed = false
+        var dismissed = false
+        val command = com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand(
+            idempotencyKey = "UX-duplicate", userId = "UX-owner", type = type,
+            amountMinor = 10_000L, currency = "PEN", sourceAccountId = "UX-cash",
+        )
+        compose.setContent { KipuTheme {
+            DuplicateWarningDialog(onConfirm = { confirmed = true }, onDismiss = { dismissed = true }, proposed = command)
+        } }
+        compose.onNodeWithText(title).assertIsDisplayed()
+        compose.onNodeWithText(amount).assertIsDisplayed()
+        compose.onNodeWithText(action).assertIsDisplayed()
+        compose.onNodeWithTag("btn_cancel_duplicate").performClick()
+        compose.runOnIdle { assertTrue(dismissed); assertFalse(confirmed) }
+    }
+
     @get:Rule
     val compose = createComposeRule()
 
@@ -38,7 +68,7 @@ class DuplicateWarningDialogTest {
             }
         }
 
-        compose.onNodeWithText("Posible Movimiento Duplicado").assertIsDisplayed()
+        compose.onNodeWithText("¿Es una compra distinta?").assertIsDisplayed()
         compose.onNodeWithTag("btn_cancel_duplicate").performClick()
 
         compose.onNodeWithTag("dialog_duplicate_warning").assertDoesNotExist()
@@ -68,7 +98,7 @@ class DuplicateWarningDialogTest {
         }
 
         compose.onNodeWithText(
-            "Se ha detectado una transacción idéntica registrada recientemente en esta cuenta. ¿Deseas guardarla de todas formas?"
+            "Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces."
         ).assertIsDisplayed()
         compose.onNodeWithTag("btn_confirm_duplicate").performClick()
 
