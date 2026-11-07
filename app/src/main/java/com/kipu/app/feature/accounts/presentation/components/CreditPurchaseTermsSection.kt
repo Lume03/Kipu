@@ -191,7 +191,7 @@ fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier 
                         while (end + 1 < amounts.size && amounts[end + 1] == amounts[start]) end++
                         val label = when {
                             start == 0 && end == 0 -> stringResource(R.string.credit_purchase_first_installment)
-                            start == 1 && end == amounts.lastIndex -> stringResource(R.string.credit_purchase_following_installments)
+                            start == 1 && end == amounts.lastIndex && end > start -> stringResource(R.string.credit_purchase_following_installments)
                             start == end -> stringResource(R.string.credit_purchase_installment_number, start + 1)
                             else -> stringResource(R.string.credit_purchase_installment_range, start + 1, end + 1)
                         }
