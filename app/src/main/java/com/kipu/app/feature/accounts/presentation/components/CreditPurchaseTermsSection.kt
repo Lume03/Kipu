@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -177,7 +178,7 @@ fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier 
             val minimum = amounts.minBy { it.minorUnits }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stringResource(R.string.credit_purchase_payment_amount), style = MaterialTheme.typography.labelMedium, color = colors.secondaryMuted)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(itemVerticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (!equalPayments) Text(stringResource(R.string.credit_purchase_installments_from, simulation.installmentsCount),
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
                     else if (simulation.installmentsCount > 1) Text("${simulation.installmentsCount} ×",
