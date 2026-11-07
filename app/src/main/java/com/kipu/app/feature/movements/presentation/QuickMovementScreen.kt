@@ -1499,6 +1499,8 @@ fun DuplicateWarningDialog(
     proposedMerchant: String? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val type = duplicateWarningType(proposed?.type, existing?.type)
+    val typeName = when (type) { MovementType.EXPENSE -> "Gasto"; MovementType.INCOME -> "Ingreso"; MovementType.TRANSFER -> "Transferencia" }
     KipuBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = emeraldColors.background,
@@ -1519,13 +1521,17 @@ fun DuplicateWarningDialog(
                     Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = emeraldColors.warningText, modifier = Modifier.size(22.dp))
                 }
                 Text(
-                    text = "¿Es una compra distinta?",
+                    text = when (type) { MovementType.EXPENSE -> "¿Es una compra distinta?"; MovementType.INCOME -> "¿Es otro ingreso?"; MovementType.TRANSFER -> "¿Es otra transferencia?" },
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = emeraldColors.primaryText,
                 )
             }
             Text(
-                "Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces.",
+                when (type) {
+                    MovementType.EXPENSE -> "Ya registraste un gasto parecido hace poco. Dos compras reales iguales son posibles; solo queremos evitar descontarlo dos veces."
+                    MovementType.INCOME -> "Ya registraste un ingreso parecido hace poco. Confirma si recibiste este dinero otra vez."
+                    MovementType.TRANSFER -> "Ya registraste una transferencia parecida hace poco. Confirma si transferiste este dinero otra vez."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = emeraldColors.secondaryMuted,
             )
@@ -1533,9 +1539,10 @@ fun DuplicateWarningDialog(
                 DuplicateComparisonCard(
                     label = "YA REGISTRADO · ${formatTransactionDate(it.occurredAt).uppercase(Locale("es", "PE"))}",
                     title = listOfNotNull(it.merchantProvisionalText?.takeIf(String::isNotBlank), accountAlias(it.sourceAccountId))
-                        .joinToString(" · ").ifBlank { "Gasto" },
+                        .joinToString(" · ").ifBlank { typeName },
                     amountMinor = it.amountMinor,
                     currency = it.currency,
+                    type = it.type,
                     highlighted = true,
                 )
             }
@@ -1545,9 +1552,10 @@ fun DuplicateWarningDialog(
                     title = listOfNotNull(
                         (it.merchantProvisionalText ?: proposedMerchant)?.takeIf(String::isNotBlank),
                         accountAlias(it.sourceAccountId),
-                    ).joinToString(" · ").ifBlank { "Gasto" },
+                    ).joinToString(" · ").ifBlank { typeName },
                     amountMinor = it.amountMinor,
                     currency = it.currency,
+                    type = it.type,
                     highlighted = false,
                 )
             }
@@ -1560,7 +1568,7 @@ fun DuplicateWarningDialog(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("btn_confirm_duplicate"),
             ) {
-                Text("Sí, es otra compra · guardar", fontWeight = FontWeight.Bold)
+                Text(when (type) { MovementType.EXPENSE -> "Sí, es otra compra · guardar"; MovementType.INCOME -> "Sí, es otro ingreso · guardar"; MovementType.TRANSFER -> "Sí, es otra transferencia · guardar" }, fontWeight = FontWeight.Bold)
             }
             OutlinedButton(
                 onClick = onDismiss,
@@ -1585,6 +1593,7 @@ private fun DuplicateComparisonCard(
     amountMinor: Long,
     currency: String,
     highlighted: Boolean,
+    type: MovementType,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val shape = RoundedCornerShape(16.dp)
@@ -1632,9 +1641,9 @@ private fun DuplicateComparisonCard(
         }
         Spacer(Modifier.width(12.dp))
         MoneyText(
-            amount = "−${formatMinorUnits(amountMinor)}",
+            amount = "${duplicateAmountSign(type)}${formatMinorUnits(amountMinor)}",
             currencySymbol = if (currency == "USD") "$" else "S/",
-            color = emeraldColors.expenseText,
+            color = when (type) { MovementType.EXPENSE -> emeraldColors.expenseText; MovementType.INCOME -> emeraldColors.incomeText; MovementType.TRANSFER -> emeraldColors.transferBlue },
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
         )
     }
