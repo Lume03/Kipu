@@ -7,6 +7,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.theme.KipuTheme
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,7 +29,12 @@ class MovementDetailCorrectionsTest {
         title.assertIsDisplayed()
         val layouts = mutableListOf<TextLayoutResult>()
         title.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        assertFalse("Title must not overflow", layouts.single().hasVisualOverflow)
+        val layout = layouts.single()
+        // Check the painted line extent; multiParagraph.width can retain the wider parent constraint.
+        assertTrue("Title must fit: right=${layout.getLineRight(0)}, bounds=${layout.size.width}",
+            layout.getLineRight(0) <= layout.size.width + 1f)
+        assertFalse("Title must not be ellipsized", layout.isLineEllipsized(0))
+
         compose.onNodeWithText("COMERCIO").assertDoesNotExist()
         compose.onNodeWithText("Método de registro").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Manual").assertIsDisplayed()

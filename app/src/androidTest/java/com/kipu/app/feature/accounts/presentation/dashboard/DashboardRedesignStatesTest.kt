@@ -62,12 +62,11 @@ class DashboardRedesignStatesTest {
 
         compose.onNodeWithText("S/ 1,197.70").assertIsDisplayed()
         compose.onNodeWithText("S/ 1,097.70").assertIsDisplayed()
-        compose.scrolled("3 activas · 2 billeteras", false).assertIsDisplayed()
-        compose.scrolled("Usa el saldo de Cuenta BCP", false).assertIsDisplayed()
-        compose.onNodeWithText("Usa el saldo de BBVA").assertExists()
-        compose.onNodeWithText("Plin y Yape no suman saldo aparte", substring = true).assertExists()
-        compose.scrolled("Plan Básico · 4 de 4 cuentas y tarjetas", false).assertExists()
-        compose.onNodeWithText("Mejorar a PRO").assertExists()
+        compose.scrolled("Cuentas y efectivo", false).assertIsDisplayed()
+        compose.scrolled("Saldo de Cuenta BCP", false).assertIsDisplayed()
+        compose.onNodeWithText("Saldo de BBVA").assertExists()
+        compose.scrolled("Tarjetas de crédito", false).assertIsDisplayed()
+        compose.onNodeWithText("Mejorar a PRO").assertDoesNotExist()
         capture("H1-dinero")
     }
 
@@ -144,10 +143,10 @@ class DashboardRedesignStatesTest {
         show(populatedViewModel(), netWorth = netWorthContent(), dark = true, fontScale = 1.3f)
 
         compose.onNodeWithText("Mi dinero").assertIsDisplayed()
-        compose.scrolled("+ Cuenta", false).assertIsDisplayed()
-        compose.scrolled("Usa el saldo de Cuenta BCP", false).assertIsDisplayed()
+        compose.scrolled("Cuentas y efectivo", false).assertIsDisplayed()
+        compose.scrolled("Saldo de Cuenta BCP", false).assertIsDisplayed()
         capture("H1-dark-1_3x")
-        compose.scrolled("+ Tarjeta", false).assertIsDisplayed()
+        compose.scrolled("Tarjetas de crédito", false).assertIsDisplayed()
         capture("H1-dark-1_3x-tarjetas")
     }
 

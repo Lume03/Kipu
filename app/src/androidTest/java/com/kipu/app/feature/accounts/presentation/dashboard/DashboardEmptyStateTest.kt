@@ -66,8 +66,6 @@ class DashboardEmptyStateTest {
         // H5: with no instruments the own money is a real zero, not a missing figure.
         compose.onNodeWithTag("dashboard_empty_balance").assertIsDisplayed()
         compose.onNodeWithText(FinancialTerminology.REAL_MONEY_AVAILABLE).assertIsDisplayed()
-        compose.onNodeWithText("Plan Básico · 0 de 4 cuentas y tarjetas").performScrollTo().assertIsDisplayed()
-        compose.onAllNodesWithText("0 activas")[0].assertExists()
         compose.onNodeWithText("Aún no tienes cuentas").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Agregar mi primera cuenta").assertIsDisplayed()
         compose.onNodeWithText("Gestionar").assertDoesNotExist()
@@ -105,8 +103,8 @@ class DashboardEmptyStateTest {
         }
 
         compose.onNodeWithTag("dashboard_empty_add_account").performClick()
-        compose.onNodeWithText("Cuentas y tarjetas activas: 0 de 4 incluidos en el plan base")
-            .assertIsDisplayed()
+        compose.onNodeWithText("Plan Free · 0 de 4 cuentas y tarjetas")
+            .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Ver planes →").performClick()
 
         compose.runOnIdle { assertTrue(navigatedToPlans) }
