@@ -163,7 +163,6 @@ fun CreditPurchaseTermsSection(
 fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier = Modifier) {
     val colors = rememberCalmEmeraldColors()
     val first = simulation.schedule.first()
-    val last = simulation.schedule.last()
     val formatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.forLanguageTag("es-PE"))
     var expanded by rememberSaveable(simulation.cardId.value) { mutableStateOf(false) }
     Column(modifier.fillMaxWidth().testTag("credit_purchase_preview").animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -173,16 +172,35 @@ fun CreditPurchasePreview(simulation: InstallmentSimulation, modifier: Modifier 
 
         // Hero: "6 × S/ 222.58"
         Surface(shape = RoundedCornerShape(16.dp), color = colors.incomeBg, modifier = Modifier.fillMaxWidth()) {
+            val amounts = simulation.schedule.map { it.amount }
+            val equalPayments = amounts.distinct().size == 1
+            val minimum = amounts.minBy { it.minorUnits }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stringResource(R.string.credit_purchase_payment_amount), style = MaterialTheme.typography.labelMedium, color = colors.secondaryMuted)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (simulation.installmentsCount > 1) Text("${simulation.installmentsCount} ×",
+                    if (!equalPayments) Text(stringResource(R.string.credit_purchase_installments_from, simulation.installmentsCount),
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
-                    MoneyText(first.amount, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = colors.primaryText)
+                    else if (simulation.installmentsCount > 1) Text("${simulation.installmentsCount} ×",
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.secondaryMuted)
+                    MoneyText(if (equalPayments) first.amount else minimum, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = colors.primaryText)
                 }
-                if (last.amount != first.amount) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.credit_purchase_last_payment) + ":", style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
-                    MoneyText(last.amount, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = colors.secondaryMuted)
+                if (!equalPayments) {
+                    var start = 0
+                    while (start < amounts.size) {
+                        var end = start
+                        while (end + 1 < amounts.size && amounts[end + 1] == amounts[start]) end++
+                        val label = when {
+                            start == 0 && end == 0 -> stringResource(R.string.credit_purchase_first_installment)
+                            start == 1 && end == amounts.lastIndex -> stringResource(R.string.credit_purchase_following_installments)
+                            start == end -> stringResource(R.string.credit_purchase_installment_number, start + 1)
+                            else -> stringResource(R.string.credit_purchase_installment_range, start + 1, end + 1)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+                            MoneyText(amounts[start], style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = colors.secondaryMuted)
+                        }
+                        start = end + 1
+                    }
                 }
             }
         }
