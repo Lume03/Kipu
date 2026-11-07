@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -56,6 +57,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.model.Currency
@@ -102,6 +104,7 @@ fun DashboardScreen(
     netWorthState: NetWorthUiState? = null,
     onRetryNetWorth: () -> Unit = {},
     onNavigateToCalendar: (() -> Unit)? = null,
+    profileViewModel: DashboardProfileViewModel = hiltViewModel(),
 ) {
     val scope = rememberCoroutineScope()
     val state by viewModel.dashboardUiState.collectAsStateWithLifecycle()
@@ -115,6 +118,7 @@ fun DashboardScreen(
     val vmMasked by viewModel.isMasked.collectAsStateWithLifecycle()
     val isMasked = vmMasked || LocalBalanceMasked.current
     val emeraldColors = rememberCalmEmeraldColors()
+    val displayName by profileViewModel.displayName.collectAsStateWithLifecycle()
 
     LaunchedEffect(feedbackMessage) {
         feedbackMessage?.let {
@@ -139,6 +143,7 @@ fun DashboardScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 DashboardTopBar(
+                    displayName = displayName,
                     unreadNotificationCount = unreadNotificationCount,
                     onNavigateToNotifications = onNavigateToNotifications,
                     onNavigateToSettings = onNavigateToSettings,
@@ -245,11 +250,13 @@ fun DashboardScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DashboardTopBar(
+    displayName: String?,
     unreadNotificationCount: Int,
     onNavigateToNotifications: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val initials = dashboardInitials(displayName)
     val settingsContentDescription = stringResource(R.string.settings_access_content_description)
     TopAppBar(
         title = {
@@ -264,11 +271,16 @@ private fun DashboardTopBar(
                     modifier = Modifier.size(46.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "MC",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
-                            color = emeraldColors.primaryDeep,
-                        )
+                        if (initials != null) {
+                            Text(
+                                text = initials,
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
+                                color = emeraldColors.primaryDeep,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.PersonOutline, contentDescription = null,
+                                tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
                 Column {
