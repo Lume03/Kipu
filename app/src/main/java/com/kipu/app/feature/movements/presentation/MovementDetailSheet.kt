@@ -196,7 +196,7 @@ fun MovementDetailSheet(
                                 )
                             }
                             Column {
-                                Text(
+                                if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
                                     text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = emeraldColors.secondaryMuted,
@@ -473,7 +473,7 @@ fun MovementDetailSheet(
                         value = when {
                             item.cardAlias != null -> "Tarjeta · ${item.cardAlias}"
                             tx.type == MovementType.TRANSFER -> "Transferencia de fondos"
-                            else -> "Cuenta bancaria directa"
+                            else -> tx.captureSource.label
                         },
                         iconColor = emeraldColors.secondaryMuted,
                     )
