@@ -1,5 +1,8 @@
 # Acceso e introducción de Kipu
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 Fecha: 2026-10-05. El usuario proporcionó `Omboarding 3 - Corregido.png` y autorizó completar la tercera página. Sustituye al PNG duplicado original. Se implementan ilustración Compose de privacidad, texto aprobado, indicador final, «Empezar» y «Ya tengo una cuenta»; ambas acciones guardan la finalización antes de abrir login.
 
 ## Fuentes e integración

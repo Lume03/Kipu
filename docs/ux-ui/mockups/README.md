@@ -1,10 +1,8 @@
-# Índice de Mockups UI/UX de Kipu (Calm Emerald)
+# Índice de mockups UI/UX de Kipu
 
-> **Control documental — 2026-10-20.** Este índice declara Calm Emerald como oficial, mientras [Tokens Stitch](../../DESIGN.md) declara Andean Modernist como fuente normativa. La reorganización no decide una sustitución visual. Consultar el contrato aprobado de la pantalla y la [diferencia registrada](../../control-documental.md) antes de cambiar tokens o regenerar diseños.
+Este directorio conserva mockups de Kipu como referencia de estructura y flujo. Los colores los determina exclusivamente [docs/DESIGN.md](../../DESIGN.md), por decisión del propietario del 2026-11-06. El tablero Calm Emerald Fintech es histórico. Las referencias se dividen en diseños canónicos (`canonical/`), variantes interactivas (`states/`), flujos de autenticación (`Sesion/`) e inspiración (`inspiration/`).
 
-Este directorio consolida los mockups visuales oficiales de Kipu bajo el estándar **Calm Emerald Fintech**. Las referencias se dividen en diseños canónicos (`canonical/`), variantes interactivas (`states/`), flujos de autenticación (`Sesion/`) e inspiración (`inspiration/`). 
-
-Todas las pantallas provienen del proyecto de diseño oficial en Stitch AI (**Kipu V4.2 Rediseño UI/UX**, `projects/8741755512585500557`) y sirven de especificación visual directa para la implementación en Jetpack Compose.
+Todas las pantallas provienen del proyecto de diseño de referencia en Stitch AI (**Kipu V4.2 Rediseño UI/UX**, `projects/8741755512585500557`) y sirven de referencia de estructura y flujo para la implementación en Jetpack Compose.
 
 ---
 

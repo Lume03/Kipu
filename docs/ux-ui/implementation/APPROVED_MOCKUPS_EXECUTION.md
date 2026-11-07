@@ -1,5 +1,8 @@
 # Implementación de mockups aprobados
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 Fuente: brief de implementación aprobado y `../mockups/README.md`. La actualización
 Calm Emerald prevalece sobre la paleta histórica de Stitch; este conserva tipografía,
 espaciado y shapes. Ejecución sobre los cambios locales existentes, sin reemplazarlos.

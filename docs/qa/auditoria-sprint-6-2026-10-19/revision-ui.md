@@ -1,5 +1,8 @@
 # Revisión visual de Kipu — Sprint 6
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 **Estado:** revisión documental y visual de evidencia disponible; no es una validación exhaustiva de todas las pantallas ni de la build identificada.
 **Revisor:** Diseño visual / UI.
 **Entorno reportado por QA:** aplicación instalada `com.kipu.app` 0.1.0, Samsung SM-A165M, Android 16/API 36. Según la actualización de `informe.md` por QA, el SHA-256 del `base.apk` instalado coincide con el candidato local QA Premium debug APK (`e218941857b805335e932ac78b6412ef31e316607a0775ca2824db4eda8c2864`), construido desde el worktree QA con base `dd6758a01a236aa61053ebf8ab24f25e0c835ba5`; el delta QA inspeccionado es de provisioning/documentación, no de pantallas. Esto mejora la trazabilidad del artefacto actual, pero no es atestación reproducible del build ni vincula automáticamente síntomas históricos a esa misma instalación.

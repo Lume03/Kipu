@@ -50,11 +50,13 @@ El antiguo documento 03 y los dos de entidades declaran 34 tablas remotas y 10 R
 
 **Tratamiento:** se integran completos el modelo global, las entidades y el MER de V4.2, conservando sus fechas; el índice de arquitectura dirige además al detalle por dominio. Las cabeceras no los presentan como esquema remoto actual. Se advierte específicamente sobre las menciones originales a SMS/Plin y sobre la representación de reservas de metas mediante `GOALS_VIRTUAL`: no sustituyen la constitución, el backlog ni EP-MET. **Pendiente:** reconciliación exhaustiva del modelo global con el esquema objetivo; no reutilizar los conteos antiguos como estado actual.
 
-### DOC-03 — Dos declaraciones de autoridad visual
+### DOC-03 — Autoridad visual resuelta (2026-11-06)
 
-[Tokens Stitch](DESIGN.md) declara Andean Modernist y el [índice de mockups](ux-ui/mockups/README.md) declara Calm Emerald, con proyectos Stitch distintos.
+**RESUELTA en docs/ — decisión del propietario del 2026-11-06:** la paleta oficial es la que usa hoy la app. [docs/DESIGN.md](DESIGN.md) es el único documento normativo visual, extraído del código actual para claro y oscuro. Reemplaza las declaraciones Andean Modernist y del tablero Calm Emerald; ambos quedan como históricos. Los mockups aprobados conservan estructura y flujo, incluida Pantalla 1B de EP-PLA, sin autoridad de paleta.
 
-**Tratamiento:** advertencia visible en ambos documentos y en el índice UI/UX, sin cambiar tokens ni imágenes. **Pendiente:** confirmar la autoridad por pantalla o aprobar una unificación visual; no elegir por fecha solamente.
+**Tratamiento:** reemplazo del contenido de DESIGN, corrección de índices y notas de vigencia en referencias y evidencia histórica. Sin cambios de código, colores, imágenes ni requisitos funcionales. Los nombres Kotlin `CalmEmeraldTokens.kt` y `emeraldColors` designan los tokens actuales y no la paleta del tablero.
+
+**Pendiente explícito de Spec Kit:** `specs/012-ep-pla-planes-monetizacion/spec.md:20,225,713` y sus artefactos derivados aún declaran Andean Modernist y la paleta anterior. También existen referencias residuales en EP-CTA, EP-MOV y GATE-DESIGN-01 de EP-INF. No se editaron ni se afirma que estén alineados: requieren el proceso de refinamiento Spec Kit por decisión del propietario. El [informe de consolidación](ux-ui/references/design-consolidation-2026-11-06.md) enumera cada mención con archivo y línea. La constitución no fija una paleta. Esta pendiente propagación no reabre la elección visual resuelta en docs/.
 
 El índice de mockups también referencia nueve imágenes de estados de tarjetas que no están en este checkout. Se señalan como pendientes sin enlaces navegables y se corrigen tres enlaces de recuperación con caracteres mal codificados. No se generan imágenes ni se afirma que esos estados estén diseñados.
 

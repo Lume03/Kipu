@@ -1,5 +1,8 @@
 # Revisión local del issue #62 — autoridad de tokens UI
 
+> **Vigencia visual — 2026-11-06.** Evidencia histórica: las declaraciones de autoridad y pendientes de su fecha se conservan. La única autoridad visual actual es [docs/DESIGN.md](../../../../DESIGN.md); DOC-03 está resuelta en docs/ por decisión del propietario y falta propagar a Spec Kit.
+
+
 - **PR:** No aplica; investigación documental previa a cualquier PR.
 - **Repositorio:** Lume03/Kipu
 - **Autor / asignado:** UI/UX local

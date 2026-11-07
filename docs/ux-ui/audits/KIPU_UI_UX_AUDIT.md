@@ -1,5 +1,8 @@
 # Kipu — Auditoría integral de UI/UX Android / Jetpack Compose
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 **Fecha:** 3 de octubre de 2026. **Estado:** diagnóstico y propuestas; implementación pendiente de aprobación.
 
 ## 1. Resumen Ejecutivo y Diagnóstico Global

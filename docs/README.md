@@ -1,5 +1,8 @@
 # Documentación de Kipu
 
+> **Vigencia visual — 2026-11-06.** La única autoridad visual vigente es [docs/DESIGN.md](DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 `docs/` es la fuente principal de documentación del proyecto. `KipuApp` conserva los originales y el material no seleccionado, pero no debe recibir nuevas revisiones de los documentos integrados aquí. Obsidian Mind puede servir como herramienta de consulta; sus copias no sustituyen los archivos versionados de este repositorio.
 
 ## Por dónde empezar
@@ -19,7 +22,7 @@
 | Flujos funcionales, sin modelado académico | [Procesos](procesos/README.md) |
 | Catálogos e investigación de referencia | [Referencias](referencias/README.md) |
 | Diseño visual, mockups e implementación UI | [UI/UX](ux-ui/README.md) |
-| Guía de diseño y tokens | [DESIGN.md](DESIGN.md) |
+| Única autoridad visual y tokens vigentes | [DESIGN.md](DESIGN.md) |
 | Informes y acciones de auditoría | [Auditorías](audits/README.md) |
 | Verificación funcional y evidencia | [QA](qa/README.md) |
 | Selección realizada y diferencias pendientes | [Control documental](control-documental.md) |

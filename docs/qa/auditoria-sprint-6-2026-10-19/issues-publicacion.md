@@ -1,5 +1,8 @@
 # Control de publicación de issues — Auditoría S1–S6
 
+> **Vigencia visual — 2026-11-06.** Evidencia histórica: las declaraciones de autoridad y pendientes de su fecha se conservan. La única autoridad visual actual es [docs/DESIGN.md](../../DESIGN.md); DOC-03 está resuelta en docs/ por decisión del propietario y falta propagar a Spec Kit.
+
+
 ## Seguimiento vigente desde los 50 casos
 
 Ambas revisiones UI/UX existen y fueron leídas; no sigue pendiente encontrar `revision-ux.md`. Baseline del informe comprobado: **50 casos (32 PASS, 2 FAIL, 1 BLOCKED, 15 NOT TESTED)**, 43 ocurrencias de imágenes embebidas que corresponden a 31 PNG distintos. Los resultados posteriores, incluida la regla activa nueva, requieren reconciliación por QA; esta cifra no cierra la auditoría.

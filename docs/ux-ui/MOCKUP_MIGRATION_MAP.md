@@ -1,5 +1,8 @@
 # Mapeo de Migración Documental y Mockups UI/UX de Kipu
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 Este documento registra la trazabilidad completa de la migración y reorganización de assets visuales, referencias y documentación desde las carpetas no estandarizadas (`Mock/`, `redesign-references/`, `evidence/`, `evidence-final/` y raíz de `docs/`) hacia la estructura canónica y escalable de `docs/ux-ui/`.
 
 ---
@@ -25,7 +28,7 @@ Este documento registra la trazabilidad completa de la migración y reorganizaci
 | `Mock/image copy 13.png` | **Búsqueda de Tarjeta sin Resultados:** Mensaje empty "No encontramos «Amex Platinum Corp» en BCP" con sugerencias y fallback explícito a "Registrar tarjeta personalizada" / "Crear tarjeta manual". | [`docs/ux-ui/mockups/states/cards/card-not-found.png`](./mockups/states/cards/card-not-found.png) | State |
 | `Mock/image copy 16.png` | **Configurar Tarjeta con TEA Expandida:** Acordeón desplegado con progressive disclosure: campo de TEA Anual contractual (`89.90%`) y tasa referencial de mercado BCP (`84.50%`) con botón de aplicar. | [`docs/ux-ui/mockups/states/cards/card-tea-expanded.png`](./mockups/states/cards/card-tea-expanded.png) | State |
 | `Mock/image copy 17.png` | **Tarjeta Configurada con Éxito:** Hoja modal de confirmación con check circular verde, badge de la tarjeta creada, grid 2x2 (línea total, alertas, corte, pago) y CTAs de navegación. | [`docs/ux-ui/mockups/states/cards/card-created-success.png`](./mockups/states/cards/card-created-success.png) | State |
-| `Mock/image copy 18.png` | **Board Design System Calm Emerald Fintech:** Especificación visual de paleta (Primary `#0B5F51`, Secondary `#22C79A`, Tertiary `#BCEBDD`, Neutral `#17211E`), escala tipográfica Inter y botones. | [`docs/ux-ui/mockups/inspiration/design-system/calm-emerald-fintech.png`](./mockups/inspiration/design-system/calm-emerald-fintech.png) | Inspiration |
+| `Mock/image copy 18.png` | **Board Design System Calm Emerald Fintech:** Tablero histórico de paleta (Primary `#0B5F51`, Secondary `#22C79A`, Tertiary `#BCEBDD`, Neutral `#17211E`), escala tipográfica Inter y botones. | [`docs/ux-ui/mockups/inspiration/design-system/calm-emerald-fintech.png`](./mockups/inspiration/design-system/calm-emerald-fintech.png) | Inspiration |
 | `Mock/image copy 19.png` | **Estudio Gradient Builder - Emerald Night (Dark):** Referencia interactiva de preset "Emerald night · Aurora" con gradiente celeste a esmeralda profundo sobre negro azulado (`#132B45`). | [`docs/ux-ui/mockups/inspiration/gradients/emerald-night.png`](./mockups/inspiration/gradients/emerald-night.png) | Inspiration |
 | `Mock/image copy 20.png` | **Estudio Gradient Builder - Emerald Flow (Light):** Referencia interactiva de preset "Emerald · Flow" con gradiente fluido de verdes menta (`#F0FBEF`, `#22C79A`, `#0B5F51`). | [`docs/ux-ui/mockups/inspiration/gradients/emerald-flow.png`](./mockups/inspiration/gradients/emerald-flow.png) | Inspiration |
 
@@ -98,7 +101,7 @@ Trazabilidad de las pantallas generadas en Stitch (`projects/8741755512585500557
 |:---|:---|:---|
 | `docs/ux-ui/KIPU_UI_UX_AUDIT.md` | [`docs/ux-ui/audits/KIPU_UI_UX_AUDIT.md`](./audits/KIPU_UI_UX_AUDIT.md) | Clasificación en subcarpeta dedicada a diagnósticos y auditorías técnicas. |
 | `docs/ux-ui/KIPU_UI_UX_IMPLEMENTATION.md` | [`docs/ux-ui/implementation/KIPU_UI_UX_IMPLEMENTATION.md`](./implementation/KIPU_UI_UX_IMPLEMENTATION.md) | Agrupación en subcarpeta de especificaciones técnicas y registros de implementación. |
-| `docs/ux-ui/KIPU_CALM_EMERALD_REDESIGN.md` | [`docs/ux-ui/implementation/KIPU_CALM_EMERALD_REDESIGN.md`](./implementation/KIPU_CALM_EMERALD_REDESIGN.md) | Agrupación junto a las especificaciones activas de implementación Calm Emerald. |
+| `docs/ux-ui/KIPU_CALM_EMERALD_REDESIGN.md` | [`docs/ux-ui/implementation/KIPU_CALM_EMERALD_REDESIGN.md`](./implementation/KIPU_CALM_EMERALD_REDESIGN.md) | Agrupación de referencias históricas de implementación; autoridad visual actual en docs/DESIGN.md. |
 | `docs/merchant-logo-assets.md` | [`docs/ux-ui/references/merchant-logo-assets.md`](./references/merchant-logo-assets.md) | Centralización de inventarios y activos de diseño en carpeta de referencias UI/UX. |
 | `docs/KIPU_V4_2_STITCH_REDESIGN_CATALOG.md` | [`docs/ux-ui/references/stitch-redesign-catalog.md`](./references/stitch-redesign-catalog.md) | Renombrado en kebab-case y consolidación dentro del repositorio de referencias UI/UX. |
 

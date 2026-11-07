@@ -1,5 +1,8 @@
 # Catálogo de Rediseño UI/UX — Kipu V4.2 (Stitch AI)
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 > **Proyecto Stitch:** `projects/8741755512585500557`  
 > **Título del Proyecto:** *Kipu V4.2 Rediseño UI/UX*  
 > **Design System Asset:** `assets/9ef07f90f66d4e0b991e015000a05ca4` (*Kipu Andean Modernist*)  
@@ -17,7 +20,7 @@
 | **R3** | [Selector de Cuenta](#r3--selector-de-cuenta-modal-bottom-sheet) | Modal Bottom Sheet (~70% altura) | `5d09ee3b5e8f4c49b2ccacd4ff0825aa` |
 | **R4** | [Selector de Categoría (Cerrado)](#r4--selector-de-categoría-estado-cerrado) | Modal Bottom Sheet (~72% altura) | `a31e6be489a04a42983c7f7ee40e74dd` |
 | **R5** | [Selector de Categoría (Expandido)](#r5--selector-de-categoría-estado-expandido) | Modal Bottom Sheet (~80% altura) | `6e8ee3d8ed9644efbbac39c42fc04341` |
-| **R6** | [Mi Dinero Real (Cuentas e Instrumentos)](#r6--mi-dinero-real-cuentas-e-instrumentos) | Pantalla principal de Saldos y Cuentas (Perfeccionada) | `bdfaf17638a74a00be738d1ce132d745` |
+| **R6** | [Mi Dinero Real (Cuentas e Instrumentos)](#r6--mi-dinero-real-cuentas-e-instrumentos--perfeccionada) | Pantalla principal de Saldos y Cuentas (Perfeccionada) | `bdfaf17638a74a00be738d1ce132d745` |
 | **R7** | [Detalle de Cuenta "Sueldo"](#r7--detalle-de-cuenta-sueldo) | Vista de Detalle y Configuración | `fa5bdc233da8494597f60325ea78029b` |
 | **R8** | [Nuevo Instrumento: Ahorros / Débito](#r8--nuevo-instrumento-ahorros--débito-kibo-ui-card) | Formulario de Alta con Kibo UI Card | `8a78a330c3a64e378fffcef572c1af02` |
 | **R9** | [Nuevo Instrumento: Tarjeta de Crédito](#r9--nuevo-instrumento-tarjeta-de-crédito-kibo-ui-card) | Formulario de Alta con Kibo UI Card | `d68dd3078d4b43d28b3e4b3501070e4f` |

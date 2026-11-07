@@ -1,5 +1,8 @@
 # Issue #62 — Investigación de autoridad de tokens y overrides
 
+> **Vigencia visual — 2026-11-06.** Documento histórico o de referencia; conserva la evidencia y las decisiones de su fecha. La única autoridad visual vigente es [docs/DESIGN.md](../../DESIGN.md), basada en la paleta actual de la app por decisión del propietario. Sus paletas o declaraciones visuales anteriores no son normativas; DOC-03 está resuelta en docs/. La alineación de Spec Kit sigue pendiente.
+
+
 **Estado:** investigación estática; autoridad global y precedencia pendientes de confirmación del Owner. No se modifica paleta, código ni el issue de GitHub.
 
 ## Baseline y método
