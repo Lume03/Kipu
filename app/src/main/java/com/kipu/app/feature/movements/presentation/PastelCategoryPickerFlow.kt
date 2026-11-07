@@ -460,6 +460,7 @@ private enum class PastelFlowScreen {
 fun PastelCategoryPickerBottomSheet(
     categories: List<CategoryOption>,
     selectedCategoryId: String?,
+    categoryType: CategoryType = CategoryType.EXPENSE,
     onSelect: (CategoryOption) -> Unit,
     onCreateCategory: suspend (
         parentId: String?,
@@ -600,7 +601,7 @@ fun PastelCategoryPickerBottomSheet(
                 PastelFlowScreen.CREATE_SUBCATEGORY -> {
                     CategoryFormContent(
                         isEditing = false,
-                        categoryType = categories.find { it.id == selectedParentId }?.categoryType ?: CategoryType.EXPENSE,
+                        categoryType = categories.find { it.id == selectedParentId }?.categoryType ?: categoryType,
                         name = newSubcategoryName,
                         icon = selectedIconId,
                         color = selectedColorHex,

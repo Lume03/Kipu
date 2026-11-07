@@ -1141,6 +1141,7 @@ fun QuickMovementContent(
 
     if (showCategoryPicker) {
         PastelCategoryPickerBottomSheet(
+            categoryType = if (uiState.type == MovementType.INCOME) com.kipu.app.feature.categories.domain.model.CategoryType.INCOME else com.kipu.app.feature.categories.domain.model.CategoryType.EXPENSE,
             categories = uiState.availableCategories,
             selectedCategoryId = uiState.selectedCategoryId,
             onSelect = { category ->
