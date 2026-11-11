@@ -1,7 +1,7 @@
 # Tareas previstas: EP-INF — Inicio e Información Financiera
 
 **Entrada**: `spec.md`, `plan.md`, `research.md`, `data-model.md`.
-**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código (lógica y UI de analítica en pestaña Análisis). Limitaciones S9: solo meses completos (sin rango personalizado), comparación por totales por moneda (sin desglose por categoría), T021 CUMPLIDA tras la aprobación explícita del Product Owner del alcance incremental ([decisiones del Owner](../sprint-9-owner-decisions.md)), T027–T030 abiertas, AnalyticsScreenTest: 6/6 por teléfono en la re-verificación (QA-S9-02 resuelto); cobertura focalizada adicional S24 (16/16 instrumentadas, 11/11 JVM sobre Room actual v37) en verification-report.md, aceptación transversal parcial.
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código. T021 CUMPLIDA para el alcance incremental; T014 y T028 CUMPLIDAS por prueba manual del Owner; T027 RETIRADA del alcance por el Owner; T029 abierta y a cargo del Owner; T030 mantiene su estado. Ver [decisiones del Owner](../sprint-9-owner-decisions.md), 2026-11-08. La aceptación no es integral.
 
 > Nota histórica 2026-10-24: T014 queda abierta porque la validación offline/propietario/máscara según quickstart no se ejecutó en dispositivo; T027 y T028 quedan abiertas porque las pruebas `androidTest` (`CalendarAndHomeAccessibilityTest`) compilan pero no se ejecutaron (sin dispositivo) ni se hizo la revisión con TalkBack. T011/T012/T013 se cerraron por verificación del historial existente (`MovementHistoryScreen`, estado vacío con CTA «Registrar primer movimiento»; consulta básica abierta a Free) y de que Inicio no redefine reglas de reembolso.
 
@@ -26,7 +26,7 @@
 - [X] T011 [P] [US1] Integrar historial paginado/filtrado por periodo vía caso de uso existente; Free conserva consulta de toda la historia accesible.
 - [X] T012 [US1] Implementar estado vacío y navegación hacia registro; mantener lectura/corrección de movimiento desde historial.
 - [X] T013 [US1] Verificar comportamiento de reembolsos/anulaciones con dominio de HU-25/HU-21 sin redefinir reglas en UI.
-- [x] T014 [US1] Validar HU-39 offline, aislamiento por propietario, máscara y fixtures según quickstart. (Evidencia: `MovementRefundBudgetIntegrationTest::returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates` y `SettingsFinancialIntegrityTest::changingPreferredCurrencyPreservesExistingMovementsLedgerAndBalances` ejecutado PASS A16 2026-11-05; `HomeNetWorthViewModelTest` PASS unitarios 2026-11-05).
+- [x] T014 [US1] Validar HU-39 offline, aislamiento por propietario, máscara y fixtures según quickstart. (Evidencia técnica previa: pruebas enumeradas abajo; **CUMPLIDA por prueba manual del Owner de lectura offline real en Inicio**, 2026-11-08. Ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).)
 
 ## Fase 3 — HU-40 Calendario (S7, P1)
 
@@ -57,14 +57,14 @@
 > Limitaciones registradas del incremento S9:
 > 1. Solo meses completos (sin rango de fechas personalizado).
 > 2. Comparación por totales por moneda (sin desglose por categoría).
-> 3. T021 cumplida para alcance incremental ([decisiones del Owner](../sprint-9-owner-decisions.md)); T027–T030 permanecen abiertas.
+> 3. T021 cumplida para alcance incremental; al 2026-11-08, T014 y T028 cumplidas por prueba manual del Owner, T027 retirada y T029 abierta a cargo del Owner. T030 conserva su estado propio. Ver [decisiones del Owner](../sprint-9-owner-decisions.md).
 > 4. Ejecución instrumentada y límites: [verification-report.md](verification-report.md); aceptación transversal parcial.
 
 ## Fase 5 — Integración y aceptación
 
-- [ ] T027 [P] Pruebas de accesibilidad (TalkBack, contenido/agrupación semántica, escala de texto) para tres journeys.
-- [x] T028 Pruebas de integración navegación y errores/reintentos con sesión/propietario. (Evidencia 2026-11-05: `CalendarNavigationTest::recurrenceEventOpensItsOwnRegisteredDetailRouteWithId` [PASS A16], `CalendarNavigationTest::unavailableRecurrenceEventLeavesCalendarOpen` [PASS A16], `ObjectSourceNavigationTest::missingCalendarRecurrenceShowsUnavailableAndReturnsToCalendar` [PASS A16], `AnalyticsDaoTest::repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` [PASS A16], ejecutado PASS A16 2026-11-05).
-- [x] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada. (Evidencia 2026-11-05: suite ejecutada de 142 tests instrumentados PASS en Galaxy A16 y 1.675 tests unitarios PASS en `f4-informe.md`; revisión cruzada Opus completada y registrada en verification-report.md).
+- [ ] T027 [P] Pruebas de accesibilidad (TalkBack, contenido/agrupación semántica, escala de texto) para tres journeys. *(RETIRADA del alcance por decisión explícita del Product Owner, 2026-11-08; no se marca como cumplida. Ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).)*
+- [x] T028 Pruebas de integración navegación y errores/reintentos con sesión/propietario. (Evidencia técnica previa registrada; **CUMPLIDA por prueba manual del Owner** el 2026-11-08. Ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).)
+- [ ] T029 Ejecutar verificación técnica y funcional aprobada para la implementación futura, registrar resultados reales y revisión cruzada. *(La revisión cruzada técnica consta en la evidencia previa; la aceptación integral sigue abierta y queda a cargo del Owner, quien prevé mejoras posteriores a los diez sprints. No cerrar; ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).)*
 - [ ] T030 Actualizar trazabilidad/documents si una decisión modifica requisitos, modelo o política, con autorización y alcance correspondiente.
 
 ## Dependencias y orden (DAG)
@@ -98,19 +98,13 @@ Las historias están cubiertas por sus fases HU-39 (T007–T014), HU-40 (T015–
 Trabajo secuencial autorizado en `main`, desde `a10e7540`, sin comandos Spec Kit ni cambios remotos. [Informe](verification-report.md) y [matriz de dispositivos](../sprint-9-device-validation.md#cobertura-focalizada-adicional--2026-11-03) contienen los resultados y límites.
 
 - **T021 CUMPLIDA para alcance incremental (actualizado 2026-11-03 [2026-11-04 UTC])**: Tras quedar inicialmente abierta por falta de registro formal, el Product Owner aprobó explícitamente («Aprobar este alcance incremental», [decisiones del Owner](../sprint-9-owner-decisions.md)) el catálogo de métricas de HU-41 (gasto operativo neto de reembolsos, desglose por categoría y patrimonio; monedas separadas sin conversión; zona horaria del teléfono; meses completos con mes actual parcial; comparación de totales con «Sin base de comparación» si base cero; Free mes actual y Premium históricos/comparación/filtros; excluyendo rangos personalizados, comparación por categoría y otros indicadores específicos de crédito/deuda/metas). Esta decisión formaliza la aceptación del incremento, sin constituir prueba de todo el backlog ni completitud de pruebas.
-- **T027 parcial, abierta**: S24 pasó semántica/acciones de Inicio-patrimonio, Calendario y Análisis y tres casos nuevos con densidad de fuente Compose 2.0; no se cambió font_scale del sistema. Son recorridos de componentes con fixtures. TalkBack está instalado pero desactivado; no se ejecutó lectura hablada, foco secuencial o tres journeys completos con TalkBack. No se certifica ausencia de todo truncamiento por estas aserciones.
-- **T028 parcial, abierta**: 16/16 instrumentadas S24 y 11/11 JVM focalizadas. Navegación del grafo/volver, deep link de historial, evento disponible/no disponible, errores/reintentos, máscara y cancelación al cambiar propietario. Los estados Free, bloqueo y cambio de propietario se prueban aisladamente; falta aceptación integrada con sesión/propietario en los tres journeys. No se cambió sesión o entitlement real.
-- **T014 parcial, abierta**: máscara y estados de Inicio cubiertos en componente/JVM; sin prueba nueva de lectura offline real ni cambio de propietario real.
-- **T029 abierta**: la revisión cruzada independiente quedó registrada en verification-report.md; siguen pendientes la verificación funcional aprobada y la aceptación integral.
+- **Actualización de estado 2026-11-08:** el Product Owner declara T014 y T028 cumplidas tras prueba manual; T027 retirada del alcance; T029 permanece abierta y a cargo del Owner. Ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).
 - **T030 abierta**: no se modifica alcance de producto ni se presenta este registro como decisión aprobada.
 
 
 ## Cierre incremental factible — 2026-11-03 (`closure3`, base `9552a613`)
 
-- **T028 parcial, abierta**: recorridos S24 integrados con sesión real Inicio/historial, Calendario/meses/evento previsto/origen tarjeta/volver, Análisis/periodo parcial/máscara/scroll/volver ejecutados. Ya no falta toda navegación real; faltan errores/reintentos y cambio de propietario integrados. No se fabricaron errores en datos reales.
-- **T027 abierta**: sin escucha/captura segura del audio de accesibilidad disponible; no se activó TalkBack para inferir voz desde logs. Semántica previa no certifica salida hablada, foco ni gestos.
-- **T014 abierta**: sin nueva lectura offline real. **T021 CUMPLIDA**: alcance incremental aprobado por el Owner ([decisiones](../sprint-9-owner-decisions.md)).
-- **T029 abierta solo en su aceptación integral**: revisión cruzada Opus ya registrada en `3e5d8d8e`; sin revisiones redundantes. **T030 abierta**: las decisiones de producto pendientes no fueron inventadas.
+- **Estado actualizado 2026-11-08:** T014 y T028 cumplidas por prueba manual del Owner; T027 retirada del alcance; T029 sigue abierta exclusivamente para aceptación integral y queda a cargo del Owner. **T021 CUMPLIDA** para alcance incremental. Ver [decisiones](../sprint-9-owner-decisions.md). **T030 abierta**: conserva su estado propio.
 - Integridad privada `closure3-integrity.json`: 67 tablas, 65 idénticas, todas las outboxes y datos financieros conservados; solo metadatos de perfil (preferencia de máscara restaurada y SYNCED, revisión 2→4) y renovación de caché de acceso. Ajustes originales exactos, sesión real operativa y owner sets iguales. El toggle de Inicio produjo dos escrituras de preferencia por UI antes de identificar su persistencia; no se afirma ejecución sin escrituras remotas.
 - Eliminación UI desechable pendiente: emulador existente sin shell/servicio package operativo; solo perfil propietario en S24 y A16 ausente. No se toca la sesión real para sustituir ese entorno.
 

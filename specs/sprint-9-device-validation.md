@@ -289,13 +289,17 @@ Documento oficial de decisiones: [specs/sprint-9-owner-decisions.md](sprint-9-ow
 1. **HU-41 / T021 (GATE-ANALYTICS-04):** Aprobación del alcance incremental implementado en la pestaña Análisis (gasto operativo neto de reembolsos, desglose por categoría y patrimonio, monedas separadas sin conversión, zona horaria del teléfono, selección de meses con mes actual hasta hoy parcial, comparación de totales con «Sin base de comparación» si base cero, Free mes actual y Premium históricos/comparación/filtros; excluyendo rangos personalizados, comparación por categoría y otros indicadores específicos de crédito/deuda/metas). Se marca T021 como **CUMPLIDA**. Aceptación formal de este alcance incremental, sin constituir prueba de todo el backlog ni completitud de pruebas del sprint.
 2. **HU-49 / EP-AUT (FR-012):** Aprobación explícita de «Conservar eventos incompatibles para revision». Reconcilia FR-012, la entidad `capture_evidence`, `plan.md` y `tasks.md` con Room v37 (PK `(owner_id, source, event_id)`, índice no único `(owner_id, reference, source)` e índice `(owner_id, root)`). Misma referencia solo fusiona compatibles según los invariantes vigentes; incompatibles se conservan separados para revisión del usuario sin fusión automática ni duplicación de efectos contables en el ledger.
 
-**Estado resultante de pendientes del Sprint 9:**
-- **T021 (GATE-ANALYTICS-04):** CUMPLIDA para alcance incremental.
-- **FR-012 (discrepancia documental con Room v37):** RECONCILIADA y RETIRADA de la lista de pendientes.
-- **T027 (TalkBack):** ABIERTA (sin herramienta segura de escucha/captura de audio accesible).
-- **T028 (Integración sesión real):** ABIERTA (recorridos de lectura completados en S24; pendientes flujos integrados de errores, reintentos y cambio de propietario).
-- **T029 (Aceptación integral):** ABIERTA (componente de revisión cruzada completado por Opus `3e5d8d8e`; verificación funcional y aceptación integral pendientes).
-- **T014 (Offline Inicio):** ABIERTA (sin nueva prueba offline real en hardware).
-- **Criterios de hardware NO VERIFICADO:** Dispositivo A16 ausente en última tanda; sharing UI real desde aplicación Yape; notificación viva de Yape en ambos órdenes; 8 muestras privadas ausentes; nuevo cambio offline con recuperación remota; eliminación UI completa con cuenta desechable.
+**Estado resultante de pendientes del Sprint 9 (actualizado por decisión del Owner 2026-11-08):**
+- **T021:** CUMPLIDA para alcance incremental. **FR-012:** reconciliada con Room v37.
+- **T027:** RETIRADA del alcance por el Owner; no se marca cumplida.
+- **T028 y T014:** CUMPLIDAS por prueba manual del Owner (journeys integrados y lectura offline real en Inicio).
+- **T029:** ABIERTA y a cargo del Owner; no se declara aceptación integral.
+- **Criterios de hardware:** compartir UI real desde Yape, notificación viva y crear cambio offline fueron probados manualmente por el Owner. Recuperación remota del cambio, eliminación UI con cuenta desechable, A16 y ocho muestras privadas quedan a cargo del Owner y sin cerrar.
 - **Backend recovery v3:** Validado (15 Deno, 100 pgTAP, 10 Android API QA) en reportes existentes; no se repiten pruebas.
-- **Veredicto general de Sprint 9:** **Aceptación PARCIAL; NO se declara APPROVED integral.**
+- **Veredicto general:** aceptación del Owner para lo probado; T029 y los puntos reservados al Owner siguen pendientes. **NO se declara APPROVED integral.**
+
+## Addendum de estado por decisión del Owner — 2026-11-08 (Lima)
+
+Según decisión explícita del Product Owner, T027 (TalkBack hablado) se retira del alcance; T028 (journeys integrados de errores/reintentos/cambio de propietario) y T014 (lectura offline real en Inicio) se consideran cumplidas por prueba manual del Owner. El Owner también confirma que probó y funcionan compartir UI desde Yape, notificación viva de Yape y crear un cambio offline. Estos resultados se registran como aceptación manual comunicada por el Owner, sin añadir evidencia independiente del agente ni inferir despliegues.
+
+Siguen **a cargo del Owner, fuera del flujo de agentes, y no cerrados**: T029 aceptación integral (el Owner anticipa mejoras posteriores a los diez sprints), recuperación remota del cambio offline, eliminación de cuenta por UI con cuenta desechable, pruebas en Samsung Galaxy A16 y validación con las ocho muestras privadas. El Sprint 9 queda con aceptación del Owner para lo probado, pero **no se declara APPROVED integral**. Ver el registro formal en [decisiones del Owner](sprint-9-owner-decisions.md).

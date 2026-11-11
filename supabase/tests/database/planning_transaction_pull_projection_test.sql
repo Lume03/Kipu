@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(10);
+SELECT plan(11);
 \ir _goal_test_fixture.sql.inc
 INSERT INTO public.transactions(id,user_id,account_id,transaction_type,operation_kind,amount_minor,currency_code,status,revision)
 VALUES('96000000-0000-4000-8000-000000000881','96000000-0000-4000-8000-000000000001',
@@ -31,9 +31,16 @@ SELECT is((SELECT item->'payload'->>'source_account_id' FROM jsonb_array_element
   WHERE item->>'entity_id'='96000000-0000-4000-8000-000000000883' LIMIT 1),'96000000-0000-4000-8000-000000000011','income uses the Android single-account field');
 SELECT is((SELECT item->'payload'->>'destination_account_id' FROM jsonb_array_elements(public.pull_financial_changes_v1(1,0,500)->'changes') item
   WHERE item->>'entity_id'='96000000-0000-4000-8000-000000000883' LIMIT 1),NULL::text,'income is not presented as a transfer');
+INSERT INTO internal.ledger_entries(user_id,transaction_id,account_id,signed_amount_minor,currency_code,entry_role)
+VALUES('96000000-0000-4000-8000-000000000001','96000000-0000-4000-8000-000000000881',
+  '96000000-0000-4000-8000-000000000011',1000,'PEN','REVERSAL');
 UPDATE public.transactions SET status='VOIDED',revision=3 WHERE id='96000000-0000-4000-8000-000000000881';
 SELECT is((SELECT jsonb_array_length(item->'payload'->'ledger_entries') FROM
   jsonb_array_elements(public.pull_financial_changes_v1(1,0,500)->'changes') item
-  WHERE item->>'entity_id'='96000000-0000-4000-8000-000000000881' LIMIT 1),0,'voided history is financially inert in restore');
+  WHERE item->>'entity_id'='96000000-0000-4000-8000-000000000881' LIMIT 1),2,'voided history retains canonical original and reversal');
+SELECT is((SELECT sum((entry->>'signed_amount_minor')::bigint) FROM
+  jsonb_array_elements(public.pull_financial_changes_v1(1,0,500)->'changes') item,
+  LATERAL jsonb_array_elements(item->'payload'->'ledger_entries') entry
+  WHERE item->>'entity_id'='96000000-0000-4000-8000-000000000881'),0::numeric,'voided history is financially inert in restore');
 SELECT * FROM finish();
 ROLLBACK;

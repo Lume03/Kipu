@@ -149,6 +149,9 @@ interface MovementDao {
         updatedAt: Long = System.currentTimeMillis(),
     ): Int
 
+    @Query("SELECT * FROM movement_outbox WHERE user_id=:userId AND aggregate_id=:transactionId ORDER BY created_at,id")
+    suspend fun getAllOutboxForTransaction(userId: String, transactionId: String): List<MovementOutboxEntity>
+
     @Query("SELECT * FROM movement_outbox WHERE user_id = :userId AND aggregate_id = :transactionId AND state IN ('PENDING', 'IN_FLIGHT', 'RETRY') ORDER BY created_at ASC")
     suspend fun getPendingOutboxForTransaction(userId: String, transactionId: String): List<MovementOutboxEntity>
 

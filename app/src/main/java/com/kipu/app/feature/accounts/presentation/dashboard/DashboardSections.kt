@@ -134,6 +134,12 @@ internal fun sumByCurrency(accounts: List<AccountWithBalance>, include: (Account
     }
 }
 
+/** Spendable dashboard money uses the active instruments shown in its subtotals.
+ * Archived balances remain intact for history and net worth.
+ */
+internal fun availableMoneyByCurrency(accounts: List<AccountWithBalance>): Map<Currency, Long> =
+    sumByCurrency(accounts) { !it.account.isArchived && it.account.linkedAccountId == null }
+
 /** H1/H2: own money only (accounts and cash); credit is never part of this figure. */
 @Composable
 internal fun DashboardHero(

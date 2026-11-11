@@ -136,7 +136,7 @@ import com.kipu.app.feature.accounts.presentation.instruments.InstallmentSimulat
 import com.kipu.app.feature.accounts.presentation.instruments.PurchaseCandidateStateSaver
 import com.kipu.app.feature.accounts.presentation.instruments.AddFormLabel
 import com.kipu.app.feature.accounts.presentation.instruments.AddFormTextField
-import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsDialog
+import com.kipu.app.feature.accounts.presentation.instruments.CreditCardTermsSheet
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
 import com.kipu.app.ui.component.KipuErrorState
 import com.kipu.app.ui.component.MoneyText
@@ -340,7 +340,7 @@ fun AccountDetailScreen(
     )
 
     if (showCardTermsEditor && card is CreditCard) {
-        CreditCardTermsDialog(
+        CreditCardTermsSheet(
             card = card,
             isSaving = isSubmitting,
             onDismiss = { if (!isSubmitting) showCardTermsEditor = false },

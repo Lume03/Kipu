@@ -32,15 +32,15 @@ class MovementLocalDataSource @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : MovementRefundRepository {
     fun observeTransactions(userId: String): Flow<List<TransactionEntity>> {
-        return movementDao.observeTransactions(userId)
+        return movementDao.observeTransactions(userId).map { rows -> rows.filter { it.status != "FAILED" }.map { withOutboxStatus(it) } }
     }
 
     fun observeRecentTransactions(userId: String, limit: Int): Flow<List<TransactionEntity>> {
-        return movementDao.observeRecentTransactions(userId, limit)
+        return movementDao.observeRecentTransactions(userId, limit).map { rows -> rows.filter { it.status != "FAILED" }.map { withOutboxStatus(it) } }
     }
 
     suspend fun getTransactionById(userId: String, transactionId: String): TransactionEntity? {
-        return movementDao.getTransactionById(userId, transactionId)
+        return movementDao.getTransactionById(userId, transactionId)?.let { withOutboxStatus(it) }
     }
 
     override suspend fun getPurchaseTransaction(userId: String, transactionId: String): Transaction? =
@@ -284,7 +284,7 @@ class MovementLocalDataSource @Inject constructor(
     }
 
     suspend fun queryTransactions(query: SupportSQLiteQuery): List<TransactionEntity> {
-        return movementDao.queryTransactions(query)
+        return movementDao.queryTransactions(query).map { withOutboxStatus(it) }
     }
 
     suspend fun queryHistoryCount(query: SupportSQLiteQuery): Long {
@@ -302,6 +302,7 @@ class MovementLocalDataSource @Inject constructor(
     fun observeHistoryInvalidations(): Flow<Unit> {
         return database.invalidationTracker.createFlow(
             "transactions",
+            "movement_outbox",
             "accounts",
             "cards",
             "category_presentations",
@@ -1410,6 +1411,13 @@ class MovementLocalDataSource @Inject constructor(
     suspend fun getConflictProposals(userId: String, transactionId: String): List<MovementConflictProposalEntity> {
         return movementDao.getConflictProposals(userId, transactionId)
     }
+
+    private suspend fun withOutboxStatus(tx: TransactionEntity): TransactionEntity =
+        if (movementDao.getAllOutboxForTransaction(tx.userId, tx.id).any { it.state == "FAILED_PERMANENT" })
+            tx.copy(syncStatus = "FAILED_PERMANENT") else tx
+
+    suspend fun discardRejectedMovement(userId: String, transactionId: String): Boolean =
+        MovementRejectionResolver(database, movementDao).discardTerminal(userId, transactionId)
 
     suspend fun discardProposal(userId: String, proposalId: String): Boolean {
         return database.withTransaction {

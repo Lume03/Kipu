@@ -27,7 +27,7 @@ Se consultó la aprobación formal del catálogo de métricas, reglas de corte, 
 ### 1.3 Efecto y formalización
 - **T021 (GATE-ANALYTICS-04):** Se registra como **CUMPLIDA / CERRADA** para este alcance incremental de analítica financiera.
 - **Estado de HU-41:** El incremento implementado en código y validado con pruebas unitarias (`AnalyticsOperatingRulesTest`, `AnalyticsEntitlementTest`), persistencia Room v37 (`AnalyticsDaoTest` en A16 y S24) y presentación Compose (`AnalyticsScreenTest` 6/6 en A16 y S24) cuenta con aprobación formal de producto para su catálogo de métricas y reglas.
-- **Límites explícitos:** Esta decisión representa la aceptación del alcance incremental especificado; **no constituye prueba de la totalidad del backlog ni completitud de pruebas del sprint**. Las tareas transversales T027 (TalkBack hablado), T028 (integración completa con sesión real) y T029 (verificación funcional y aceptación integral) continúan abiertas.
+- **Límites explícitos (decisión 2026-11-03):** Esta aprobación incremental no constituía prueba de la totalidad del backlog ni completitud del sprint. Estado posterior actualizado por el Owner el 2026-11-08: T027 retirada, T028 cumplida manualmente y T029 sigue abierta a cargo del Owner; ver addendum abajo.
 
 ---
 
@@ -57,9 +57,9 @@ Se consultó la contradicción entre la especificación previa de FR-012 (que ex
 
 | Artefacto | Sección afectada | Modificación realizada | Estado resultante |
 |---|---|---|---|
-| `specs/009-ep-inf-informacion-financiera/spec.md` | Estado, US3, GATE-ANALYTICS-04 | Registrar aprobación formal de catálogo y alcance incremental; enlazar a esta decisión | T021 cumplida para alcance incremental; T027/T028/T029 abiertas |
+| `specs/009-ep-inf-informacion-financiera/spec.md` | Estado, US3, GATE-ANALYTICS-04 | Registrar aprobación formal de catálogo y alcance incremental | T021 cumplida para alcance incremental; estado posterior T027 retirada, T028 cumplida, T029 abierta a cargo del Owner |
 | `specs/009-ep-inf-informacion-financiera/plan.md` | Estado, Fase S9, Gates | Registrar resolución de GATE-ANALYTICS-04 conforme a decisión del Owner | Consistente con spec y código |
-| `specs/009-ep-inf-informacion-financiera/tasks.md` | Cabecera, T021, Cierres S9 | Marcar `[X] T021`, enlazar decisión; actualizar notas de estado | T021 cumplida; T027–T030 conservan su estado |
+| `specs/009-ep-inf-informacion-financiera/tasks.md` | Cabecera, T021, cierres S9 | Marcar `[X] T021` y registrar decisiones posteriores del Owner | T014/T028 cumplidas; T027 retirada; T029 abierta a cargo del Owner |
 | `specs/009-ep-inf-informacion-financiera/verification-report.md` | Decisiones pendientes, seguimiento | Actualizar GATE-ANALYTICS-04 como resuelto por el Owner | Pendiente T021 retirado |
 | `specs/011-ep-aut-captura-inbox/spec.md` | Clarifications #6, FR-012, Key Entities | Actualizar FR-012 y Key Entities a Room v37 (PK owner+fuente+event_id, índice no único) | Reconciliado con Room v37 y decisión Owner |
 | `specs/011-ep-aut-captura-inbox/plan.md` | Persistencia Room, estructura | Corregir índice único a índice no único con PK compuesta | Alineado con v37 |
@@ -73,16 +73,22 @@ Se consultó la contradicción entre la especificación previa de FR-012 (que ex
 
 ## Pendientes que Permanecen Abiertos en Sprint 9
 
-1. **T027 (TalkBack):** Pruebas de semántica y escala 200 % completadas en S24, pero sin herramienta segura de escucha/captura de audio accesible. Servicio TalkBack no probado en lectura hablada.
-2. **T028 (Integración con sesión real):** Recorridos de navegación completados con sesión real en S24 (Inicio, Calendario, Análisis); pendientes journeys integrados de errores, reintentos y cambio de propietario.
-3. **T029 (Aceptación integral):** Componente de revisión cruzada completado por Opus (`3e5d8d8e`), pero pendiente la verificación funcional y aceptación integral.
-4. **T014 (Offline Inicio):** Sin nueva prueba de lectura offline real en hardware.
-5. **Criterios de hardware NO VERIFICADO:**
-   - Dispositivo Samsung Galaxy A16 ausente en las tandas de cierre.
-   - Compartir UI real desde aplicación Yape instalada.
-   - Notificación viva de Yape en ambos órdenes con listener habilitado.
-   - 8 muestras privadas del propietario (fixture privado ausente).
-   - Crear cambio offline y recuperar remoto con sesión real.
-   - Eliminación UI completa con cuenta desechable (emulador sin servicio Android package operativo; validación remota API y recovery v3 verificadas y aprobadas en sus propios reportes).
-6. **Backend recovery v3:** Probado y validado (15 Deno, 100 pgTAP, 10 Android API QA) en [specs/001-ep-aps-acceso-perfil-seguridad/account-deletion-verification.md](001-ep-aps-acceso-perfil-seguridad/account-deletion-verification.md). No se repiten pruebas.
-7. **Veredicto general:** **Aceptación PARCIAL del Sprint 9; NO se declara APPROVED integral.**
+### Decisiones del Product Owner — 2026-11-08 (Lima)
+
+El Owner comunicó las siguientes decisiones en el chat oficial de Kipu:
+
+- **T027 (TalkBack hablado): RETIRADA del alcance** por decisión del Owner; no es necesaria. No se marca como cumplida.
+- **T028 (journeys integrados): CUMPLIDA**. El Owner probó manualmente los flujos integrados de errores, reintentos y cambio de propietario y confirmó que funcionan.
+- **T014 (lectura offline real en Inicio): CUMPLIDA**. El Owner la probó manualmente y confirmó que funciona.
+- **Criterios de hardware probados manualmente por el Owner:** compartir UI real desde Yape, notificación viva de Yape y creación de cambio offline funcionan.
+- **Responsabilidad exclusiva del Owner, fuera del flujo de agentes y aún sin cerrar:** T029 aceptación integral (el Owner prevé mejoras posteriores a los diez sprints), recuperación remota del cambio offline, eliminación de cuenta por UI con cuenta desechable, pruebas en A16 y las ocho muestras privadas.
+
+### Pendientes y responsabilidades al 2026-11-08
+
+1. **T027:** retirada del alcance; no cuenta como completada.
+2. **T028:** cumplida por prueba manual del Owner.
+3. **T014:** cumplida por prueba manual del Owner.
+4. **T029:** abierta y a cargo del Owner; no se declara aceptación integral.
+5. **Criterios de hardware:** compartir UI real desde Yape, notificación viva de Yape y creación offline probados y aceptados manualmente por el Owner. Recuperación remota del cambio offline, eliminación UI con cuenta desechable, A16 y ocho muestras privadas quedan a cargo del Owner, fuera del flujo de agentes.
+6. **Backend recovery v3:** probado y validado (15 Deno, 100 pgTAP, 10 Android API QA) en [specs/001-ep-aps-acceso-perfil-seguridad/account-deletion-verification.md](001-ep-aps-acceso-perfil-seguridad/account-deletion-verification.md); no se repiten pruebas.
+7. **Veredicto Sprint 9:** el Owner acepta lo probado según estas decisiones; **T029 y las responsabilidades expresamente reservadas al Owner permanecen pendientes. No se declara APPROVED integral.**

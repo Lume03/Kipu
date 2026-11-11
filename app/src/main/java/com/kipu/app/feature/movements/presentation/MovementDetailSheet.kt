@@ -47,6 +47,7 @@ fun MovementDetailSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onVoid: () -> Unit,
+    onDiscardRejected: () -> Unit = {},
     receiptAttached: Boolean = false,
     onAttachReceipt: () -> Unit = {},
     onOpenReceipt: () -> Unit = {},
@@ -61,7 +62,8 @@ fun MovementDetailSheet(
     val emeraldColors = rememberCalmEmeraldColors()
     val tx = item.transaction
     val voided = tx.status == TransactionStatus.VOIDED
-    val correctionRejected = revisions.maxByOrNull { it.createdAt }?.rejectedSnapshot != null
+    val terminalError = tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT
+    val correctionRejected = terminalError || revisions.maxByOrNull { it.createdAt }?.rejectedSnapshot != null
     val pending = tx.syncStatus == MovementSyncStatus.PENDING || tx.syncStatus == MovementSyncStatus.IN_FLIGHT
     val specialized = isSpecializedMovement(item)
     val esPeLocale = remember { Locale.forLanguageTag("es-PE") }
@@ -262,6 +264,7 @@ fun MovementDetailSheet(
                                         )
                                         Text(
                                             text = when {
+                                                terminalError -> "No se pudo sincronizar"
                                                 pending -> "Pendiente de sincronizar"
                                                 correctionRejected -> "Corrección no aplicada"
                                                 tx.syncStatus == MovementSyncStatus.SYNCED -> "Sincronizado"
@@ -277,7 +280,11 @@ fun MovementDetailSheet(
                         }
                     }
 
-                    if (correctionRejected && !pending) {
+                    if (terminalError) {
+                        Text("Descartar restaura la versión confirmada o retira el movimiento no aceptado.")
+                        TextButton(onClick = onDiscardRejected) { Text("Descartar") }
+                    }
+                    if (correctionRejected && !pending && !terminalError) {
                         Text(
                             text = "No se pudo aplicar la corrección. Se mantiene $currencySymbol ${formatMinorUnits(tx.amountMinor)}.",
                             style = MaterialTheme.typography.bodyMedium,

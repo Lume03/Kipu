@@ -1,6 +1,6 @@
 # EP-INF — verificación focalizada de Sprint 9
 
-Fecha: 2026-11-03, America/Lima. Base `main` / `a10e7540`; trabajo secuencial autorizado, artefactos editados a mano. **Veredicto: PASS focalizado, aceptación PARCIAL; no APPROVED integral.** T021 y T027–T030 permanecen abiertas; la revisión cruzada independiente Opus quedó registrada en `3e5d8d8e` y cierra solo ese componente de T029. No hubo cambios de código de producción, base de datos o despliegue remoto.
+Fecha de esta verificación: 2026-11-03, America/Lima. Base `main` / `a10e7540`; trabajo secuencial autorizado, artefactos editados a mano. **Veredicto de esa tanda: PASS focalizado, aceptación PARCIAL; no APPROVED integral.** La decisión posterior del Owner (2026-11-08) actualiza T014/T028 como cumplidas manualmente y T027 como retirada; T029 sigue abierta y reservada al Owner. Sin cambios de código de producción, base de datos o despliegue remoto en esta verificación. Ver [decisiones Sprint 9](../sprint-9-owner-decisions.md).
 
 Pruebas versionadas en `8da42128` (`test(qa): cover analytics accessibility isolation and Android URI grants`). Sin push, PR ni merge remoto.
 

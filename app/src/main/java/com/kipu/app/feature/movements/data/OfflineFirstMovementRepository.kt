@@ -225,6 +225,9 @@ class OfflineFirstMovementRepository @Inject constructor(
         return localDataSource.getConflictProposals(userId, transactionId)
     }
 
+    override suspend fun discardRejectedMovement(userId: String, transactionId: String): Boolean =
+        localDataSource.discardRejectedMovement(userId, transactionId)
+
     override suspend fun discardProposal(userId: String, proposalId: String): Boolean {
         return localDataSource.discardProposal(userId, proposalId)
     }

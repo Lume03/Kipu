@@ -49,7 +49,7 @@ object MovementQuerySqlBuilder {
         query: MovementHistoryQuery,
         includeCursor: Boolean,
     ) {
-        sql.append(" WHERE user_id = ?")
+        sql.append(" WHERE status != 'FAILED' AND user_id = ?")
         args.add(userId)
 
         query.contextAccountId?.let { accountId ->

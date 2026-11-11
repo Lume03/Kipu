@@ -52,6 +52,14 @@ La outbox persiste dependencias causales por agregado: alta → revisión → an
 6. IDs físicos distintos no prueban dos operaciones. Para baseline estándar comparar efectos y cardinalidad exactos y mapear alias; en S4 usar unicidad (user_id,command_id,effect_ordinal). No sumar original remoto de nuevo junto al original local.
 7. Conservar VOIDED aunque llegue snapshot ACTIVE de cliente/servidor antiguo. Un payload legacy sin revisión nunca tiene prioridad sobre head S4 conocido. Si no puede establecerse baseline compatible, detener esa cadena y revalidar; no fabricar revisión por timestamp.
 
+### Normalizaci?n del pull (Fix 1, 2026-11-08)
+
+`pull_financial_changes_v1` conserva secuencia, paginaci?n, cursor y scope del propietario. Cada UPSERT de transacci?n con fila can?nica devuelve el snapshot **vigente** y su revisi?n correspondiente, incluso si la secuencia representa una revisi?n anterior. Todas las operaciones, incluida STANDARD, incluyen `ledger_entries` completos desde `internal.ledger_entries`, con originales, contrapartidas y reemplazos; su suma representa el efecto vigente (cero despu?s de VOID). `ledger_effects` contiene referencias y no permite reconstruir importes. Las tarjetas conservan la proyecci?n especializada de cuotas/asignaciones. No se reescriben datos ni eventos hist?ricos.
+
+El cliente conserva la revisi?n recibida tambi?n al insertar en una restauraci?n nueva y reconcilia el neto por cuenta/moneda sin duplicar asientos. Se mantiene la atomicidad de p?gina y checkpoint del punto 2: una revisi?n legacy con ledger vac?o y asientos locales previos se rechaza sin avanzar el cursor. Saltarla perder?a hechos financieros y violar?a el contrato; no existe un cursor por entidad ni una cola durable de eventos rechazados que permita aislarla con seguridad. La excepci?n VOIDED legacy conserva su compensaci?n existente.
+
+Desplegar primero la migraci?n `20261108173837_canonical_transaction_revision_pull.sql`. El formato normalizado usa campos ya admitidos por la app anterior y corrige su bloqueo de pull; actualizar despu?s la app para conservar la revisi?n del head al restaurar. Una app nueva contra el servidor anterior sigue rechazando el evento incompleto: requiere migraci?n del servidor, sin recuperaci?n ciega del outbox terminal.
+
 ### Conflicto de edición local y rama oficial
 
 La propuesta conserva base, snapshot y efectos optimistas; la rama oficial conserva revisiones separadas. No imponer unicidad del número siguiente a ambas ramas locales.

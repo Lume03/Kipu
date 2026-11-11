@@ -607,6 +607,7 @@ fun MovementHistoryRoute(
                 editingTransactionId = item.transaction.id
             },
             onVoid = { viewModel.onCloseDetail(); viewModel.onSelectTransactionForVoid(item) },
+            onDiscardRejected = viewModel::onDiscardRejectedMovement,
             receiptAttached = !receiptUriText.isNullOrBlank(),
             onAttachReceipt = { receiptPicker.launch(arrayOf("application/pdf")) },
             onOpenReceipt = {
@@ -907,6 +908,11 @@ fun TransactionRow(
                 }
                 when {
                     // Anulado = borrado lógico: el movimiento deja de contar en los totales
+                    tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT -> RowStatusPill(
+                        text = "No se pudo sincronizar",
+                        background = emeraldColors.expenseBg,
+                        content = emeraldColors.expenseText,
+                    )
                     isVoided -> RowStatusPill(
                         text = "Anulado",
                         background = emeraldColors.pillTrack,

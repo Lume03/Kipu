@@ -1,7 +1,7 @@
 # Especificación: EP-INF — Inicio e Información Financiera
 
 **Rama**: `009-ep-inf-informacion-financiera`
-**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código; validación en hardware completada para AnalyticsScreenTest (6/6 en A16 y S24, QA-S9-02 resuelto) y cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM, aceptación parcial sobre Room v37); T021 (GATE-ANALYTICS-04) CUMPLIDA tras la aprobación explícita del Product Owner del alcance incremental ([decisiones del Owner](../sprint-9-owner-decisions.md)); T027 (TalkBack hablado), T028 (integración con sesión real de errores/reintentos/propietario) y T029 (verificación funcional y aceptación integral; componente de revisión cruzada cerrado por Opus en `3e5d8d8e`) permanecen abiertas.
+**Estado**: S7 (HU-39/HU-40) y S9 (HU-41) implementadas en código; evidencia de validación histórica descrita abajo. T021 CUMPLIDA para alcance incremental; estado actualizado por decisión del Owner 2026-11-08: T014/T028 CUMPLIDAS manualmente, T027 RETIRADA, T029 abierta y a cargo del Owner. No hay aceptación integral. Ver [decisiones del Owner](../sprint-9-owner-decisions.md).
 **Fecha**: 2026-10-24 (actualizado para Sprint 9: 2026-11-03)
 **Fuente de alcance**: `docs/producto/backlog.md` HU-39–HU-41, `docs/producto/trazabilidad-y-dependencias.md`, planificación base del cronograma.
 
@@ -41,8 +41,8 @@ Implementada en Sprint 9 (2026-11-03): lógica y UI en la pestaña Análisis (`f
 **Limitaciones conocidas del incremento S9:**
 1. **Solo meses completos**: La consulta y agregación operan únicamente por mes calendario completo (sin rangos de fechas personalizados).
 2. **Comparación por totales por moneda**: La comparación entre periodos se realiza sobre los totales globales agregados por moneda (sin desglose analítico por categoría dentro de la comparación).
-3. **Alcance aprobado y tareas abiertas**: T021 (GATE-ANALYTICS-04) formalmente CUMPLIDA tras la aprobación explícita del Product Owner del alcance incremental («Aprobar este alcance incremental», [decisiones del Owner](../sprint-9-owner-decisions.md)); T027–T030 (accesibilidad con TalkBack, integración transversal y aceptación integral) permanecen abiertas.
-4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos (QA-S9-02 resuelto con árbol descombinado y scroll); cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM) en [verification-report.md](verification-report.md) sobre Room v37. T021 cuenta con aprobación formal del catálogo incremental por el Owner, T027 sin TalkBack hablado, T028 parcial, T029 con revisión cruzada Opus registrada y aceptación integral pendiente, A16 desconectado en última tanda; aceptación PARCIAL del incremento, no prueba de todo el backlog ni aprobación integral.
+3. **Alcance aprobado y estado posterior**: T021 (GATE-ANALYTICS-04) formalmente CUMPLIDA para el alcance incremental ([decisiones del Owner](../sprint-9-owner-decisions.md)). Estado al 2026-11-08: T027 retirada, T028 y T014 cumplidas manualmente por el Owner, T029 abierta y reservada al Owner.
+4. **Ejecución UI y aceptación parcial**: `AnalyticsScreenTest` pasó 6/6 en ambos teléfonos (evidencia histórica); cobertura focalizada S24 (16/16 instrumentadas, 11/11 JVM) en [verification-report.md](verification-report.md) sobre Room v37. Estas pruebas no constituyen aceptación integral; T029 sigue abierta. No se declara aprobación integral.
 
 1. Con gasto S/100 y transferencia S/200, gasto operativo suma S/100.
 2. Premium compara periodos y filtros combinados mostrando fechas y diferencias absolutas/porcentuales válidas (verificado con `AnalyticsDaoTest::repositoryComparisonCombinesFiltersAndKeepsPeriodBoundariesAndOwnerIsolation` ejecutado PASS A16 2026-11-05 y `AnalyticsViewModelTest::combinedFiltersApplyToBothPeriodsAndFreeFallsBackToUnfilteredCurrentMonth` PASS unitarios 2026-11-05).
@@ -110,7 +110,7 @@ Las puntuaciones son esfuerzo relativo. La planificación fuente marca S7 como S
 
 ### Estado de verificación incremental — 2026-11-03
 
-La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md). T021/T027–T030 permanecen abiertas; no se deduce aprobación de métricas ni aceptación integral desde pruebas verdes. Solo cambian pruebas y registro de evidencia, sin ampliar capacidades de producto.
+La ejecución focalizada S24 (16/16 instrumentadas) y host (11/11 JVM) se registra en [verification-report.md](verification-report.md). T021 está cumplida para el alcance incremental; según la actualización del Owner 2026-11-08, T027 se retiró, T014/T028 se cumplieron manualmente y T029 sigue abierta a cargo del Owner. No se deduce aceptación integral desde pruebas verdes.
 
 
 ### Verificación integrada de lectura — 2026-11-03 (`closure3`)
@@ -121,4 +121,4 @@ T029 tiene revisión cruzada independiente Opus (`3e5d8d8e`) cerrada y aceptaci�
 
 ### Aprobación de alcance incremental por el Product Owner — 2026-11-03 [2026-11-04 UTC]
 
-El Product Owner aprobó explícitamente («Aprobar este alcance incremental», [decisiones del Owner](../sprint-9-owner-decisions.md)) el catálogo de métricas, reglas de corte, multidivisa, periodos y filtros de HU-41, resolviendo formalmente **T021 (GATE-ANALYTICS-04)**. Esta decisión formaliza la aceptación de producto del incremento implementado (gasto operativo neto de reembolsos, desglose por categoría y patrimonio, monedas separadas sin conversión, zona horaria del teléfono, selección de meses con mes actual hasta hoy parcial, comparación de totales con «Sin base de comparación» si base es cero, Free mes actual y Premium históricos/comparación/filtros; excluyendo rangos personalizados, comparación por categoría y otros indicadores específicos de crédito/deuda/metas). No constituye prueba de la totalidad del backlog ni completitud de pruebas; T027 (TalkBack hablado), T028 (integración completa de errores/reintentos/propietario) y T029 (verificación funcional y aceptación integral) permanecen abiertas.
+El Product Owner aprobó explícitamente («Aprobar este alcance incremental», [decisiones del Owner](../sprint-9-owner-decisions.md)) el catálogo de métricas, reglas de corte, multidivisa, periodos y filtros de HU-41, resolviendo formalmente **T021 (GATE-ANALYTICS-04)**. Esta decisión formaliza la aceptación de producto del incremento implementado y no constituye prueba de todo el backlog. Estado actualizado por el Owner el 2026-11-08: T027 retirada del alcance, T028 y T014 cumplidas por prueba manual, y T029 abierta a cargo del Owner; no se declara aceptación integral. Ver [registro actualizado](../sprint-9-owner-decisions.md).

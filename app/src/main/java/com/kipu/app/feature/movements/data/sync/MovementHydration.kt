@@ -467,6 +467,7 @@ class MovementHydration @javax.inject.Inject constructor(
             merchantProvisionalText = remote.merchantProvisionalText,
             occurredAt = occurredAt, note = remote.note,
             status = remote.status, syncStatus = MovementSyncStatus.SYNCED.name,
+            revision = revision,
             createdAt = occurredAt, updatedAt = occurredAt,
             cardId = remote.cardId,
             operationKind = remoteKind,

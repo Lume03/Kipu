@@ -1,0 +1,42 @@
+BEGIN;
+SELECT plan(14);
+INSERT INTO auth.users(id,email) VALUES('ab000000-0000-4000-8000-000000000001','archive-feed@kipu.test'),('ab000000-0000-4000-8000-000000000002','archive-other@kipu.test');
+SELECT set_config('request.jwt.claim.sub','ab000000-0000-4000-8000-000000000001',true);
+INSERT INTO public.accounts(id,user_id,name,account_type,currency_code,preset_id) VALUES('ab100000-0000-4000-8000-000000000001',auth.uid(),'QA','SAVINGS','PEN','BCP');
+CREATE FUNCTION pg_temp.repair() RETURNS void LANGUAGE sql AS $$
+ SELECT internal.publish_account_state_v1(a) FROM public.accounts a WHERE a.id='ab100000-0000-4000-8000-000000000001';
+$$;
+SELECT pg_temp.repair();
+SELECT pg_temp.repair();
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),1::bigint,'missing state repair is idempotent');
+SELECT public.set_instrument_archived_v1(jsonb_build_object('operation_id',gen_random_uuid(),'instrument_type','ACCOUNT','instrument_id','ab100000-0000-4000-8000-000000000001','is_archived',true));
+SET CONSTRAINTS accounts_sync_update IMMEDIATE;
+SET CONSTRAINTS accounts_sync_update DEFERRED;
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),2::bigint,'archive emits exactly one event');
+SELECT is((SELECT operation FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001' ORDER BY sequence DESC LIMIT 1),'UPSERT','archive snapshot supports full restore');
+SELECT ok((SELECT payload @> jsonb_build_object('alias','QA','type','SAVINGS','currency','PEN','is_archived',true) AND payload ?& ARRAY['id','creation_operation_id','opened_at','initial_balance_minor_units','preset_id','linked_account_id','color','icon'] FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001' ORDER BY sequence DESC LIMIT 1),'archive has Android account payload');
+SELECT public.set_instrument_archived_v1(jsonb_build_object('operation_id',gen_random_uuid(),'instrument_type','ACCOUNT','instrument_id','ab100000-0000-4000-8000-000000000001','is_archived',false));
+SET CONSTRAINTS accounts_sync_update IMMEDIATE;
+SET CONSTRAINTS accounts_sync_update DEFERRED;
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),3::bigint,'reactivate emits exactly one event');
+SELECT ok((SELECT revision=3 AND operation='UPSERT' AND payload->>'is_archived'='false' FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001' ORDER BY sequence DESC LIMIT 1),'reactivation has current revision and state');
+SELECT pg_temp.repair();
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),3::bigint,'repair after RPC is a no-op');
+SELECT public.update_instrument_appearance_v1(jsonb_build_object('operation_id',gen_random_uuid(),'instrument_type','ACCOUNT','instrument_id','ab100000-0000-4000-8000-000000000001','alias','Updated','expected_revision',3));
+SET CONSTRAINTS accounts_sync_update IMMEDIATE;
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),4::bigint,'existing edit RPC event is not duplicated');
+SELECT is((SELECT name FROM public.accounts WHERE id='ab100000-0000-4000-8000-000000000001'),'Updated','repair never rewrites account');
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_type='CARD' AND user_id=auth.uid()),0::bigint,'account updates emit no card events');
+-- Simulate a historical missing archive event without changing the account under repair.
+UPDATE internal.sync_changes SET payload=payload || '{"is_archived":true}'::jsonb
+WHERE entity_id='ab100000-0000-4000-8000-000000000001' AND revision=4;
+SELECT pg_temp.repair();
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),5::bigint,'repair appends mismatched archive state');
+SELECT pg_temp.repair();
+SELECT is((SELECT count(*) FROM internal.sync_changes WHERE entity_id='ab100000-0000-4000-8000-000000000001'),5::bigint,'repeated historical repair is idempotent');
+SELECT ok((SELECT revision=4 AND NOT is_archived FROM public.accounts WHERE id='ab100000-0000-4000-8000-000000000001'),'repair leaves account state and revision intact');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','ab000000-0000-4000-8000-000000000002',true);
+SELECT is(jsonb_array_length(public.pull_financial_changes_v1(1,0,500)->'changes'),0,'other owner cannot pull account events');
+SELECT * FROM finish();
+ROLLBACK;

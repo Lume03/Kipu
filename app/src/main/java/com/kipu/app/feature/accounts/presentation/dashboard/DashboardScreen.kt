@@ -430,7 +430,8 @@ private fun DashboardContent(
     val cashByCurrency = remember(liquidAccounts) {
         sumByCurrency(liquidAccounts) { it.account.type == AccountType.CASH }
     }
-    val hasUsd = (data?.totalUsd != null && data.totalUsd.minorUnits != 0L) ||
+    val availableByCurrency = remember(liquidAccounts) { availableMoneyByCurrency(liquidAccounts) }
+    val hasUsd =
         liquidAccounts.any { it.balance.currency == Currency.USD } ||
         instruments.activeAccounts.any { it.currency == Currency.USD }
 
@@ -471,8 +472,8 @@ private fun DashboardContent(
     ) {
         item(key = "dashboard_hero") {
             DashboardHero(
-                totalPen = data?.totalPen ?: Money(0L, Currency.PEN),
-                totalUsd = if (hasUsd) data?.totalUsd ?: Money(0L, Currency.USD) else null,
+                totalPen = Money(availableByCurrency[Currency.PEN] ?: 0L, Currency.PEN),
+                totalUsd = if (hasUsd) Money(availableByCurrency[Currency.USD] ?: 0L, Currency.USD) else null,
                 bankByCurrency = bankByCurrency,
                 cashByCurrency = cashByCurrency,
                 isMasked = isMasked,

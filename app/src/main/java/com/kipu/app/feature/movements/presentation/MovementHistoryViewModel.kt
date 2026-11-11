@@ -593,6 +593,17 @@ class MovementHistoryViewModel @Inject constructor(
         }
     }
 
+    fun onDiscardRejectedMovement() {
+        val item = _detail.value.item ?: return
+        viewModelScope.launch {
+            try {
+                if (maintenanceRepository?.discardRejectedMovement(item.transaction.userId, item.transaction.id) == true) onCloseDetail()
+                else _detail.update { it.copy(error = true) }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (_: Exception) { _detail.update { it.copy(error = true) } }
+        }
+    }
+
     fun onCloseDetail() { detailJob?.cancel(); _detail.value = HistoryDetailState() }
 
     fun onOpenRefund(item: TransactionItem) {

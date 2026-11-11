@@ -72,6 +72,66 @@ class FullHydrationRoomTest {
             assertEquals("Caja", db.accountDao().getById(owner, "cash")?.alias)
         }
     }
+    private fun standardSnapshot(amount: Long = 1500, ledger: String = """[{"id":"original","account_id":"cash","role":"PRIMARY","signed_amount_minor":-2000,"currency_code":"PEN"},{"id":"reversal","account_id":"cash","role":"REVERSAL","signed_amount_minor":2000,"currency_code":"PEN"},{"id":"replacement","account_id":"cash","role":"PRIMARY","signed_amount_minor":-1500,"currency_code":"PEN"}]""") =
+        """{"id":"standard","type":"EXPENSE","operation_kind":"STANDARD","amount_minor":$amount,"currency_code":"PEN","source_account_id":"cash","occurred_at":"2026-11-01T00:00:00Z","status":"REVISED","ledger_entries":$ledger}"""
+
+    @Test fun normalizedStandardRevisionRestoresHeadAndDependenciesWithoutDuplicatingBalances() = runTest {
+        val account = change("ACCOUNT", "cash", """{"id":"cash","alias":"Caja","type":"CASH","currency":"PEN","initial_balance_minor_units":5000,"opened_at":"2026-11-01T00:00:00Z"}""")
+        val card = change("CARD", "debit", """{"id":"debit","account_id":"cash","type":"DEBIT","currency":"PEN","network":"VISA","issuer":"Banco","last_four_digits":"1234"}""", 2)
+        val movement = change("TRANSACTION", "standard", standardSnapshot(), 3).copy(revision = 2)
+        val debt = change("DEBT", "debt", """{"id":"debt","user_id":"$owner","obligation_type":"PAYABLE","counterparty_name":"Ana","total_minor":5000,"currency_code":"PEN","opened_on":"2026-11-01","opening_mode":"HISTORICAL","status":"ACTIVE","revision":1,"created_at":"2026-11-01T00:00:00Z","updated_at":"2026-11-01T00:00:00Z"}""", 4)
+        val debtEvent = change("DEBT_EVENT", "payment", """{"id":"payment","user_id":"$owner","debt_id":"debt","transaction_id":"standard","event_type":"PAYMENT","amount_minor":1500,"currency_code":"PEN","occurred_at":"2026-11-01T00:00:00Z"}""", 5)
+        val goal = change("GOAL", "goal", """{"id":"goal","user_id":"$owner","name":"Viaje","target_minor":5000,"currency_code":"PEN","status":"ACTIVE","revision":1,"created_at":"2026-11-01T00:00:00Z","updated_at":"2026-11-01T00:00:00Z"}""", 6)
+        val goalEvent = change("GOAL_EVENT", "reserve", """{"id":"reserve","user_id":"$owner","goal_id":"goal","transaction_id":"standard","backing_account_id":"cash","event_type":"ALLOCATION","delta_minor":100,"currency_code":"PEN","occurred_at":"2026-11-01T00:00:00Z"}""", 7)
+        feed(account, card, movement, debt, debtEvent, goal, goalEvent)
+        val movements = MovementHydration(db.movementDao(), api, db.accountDao(), db.cardDao(), db, session)
+        val debts = DebtHydration(db.debtDao(), api, DebtChangeFeedApplier(db, db.debtDao(), db.movementDao(), clock), session)
+        val goals = GoalHydration(api, GoalChangeFeedApplier(db, db.goalDao(), db.goalOutboxDao(), db.accountDao(), db.movementDao(), clock), db, mockk(relaxed = true), session)
+        repeat(2) {
+            assertTrue(movements.hydrateFully(owner))
+            assertEquals(2L, db.movementDao().getTransactionById(owner, "standard")?.revision)
+            assertTrue(debts.hydrateFully(owner))
+            assertTrue(goals.hydrateFully(owner))
+            assertEquals(3500L, db.movementDao().getBalanceProjection(owner, "cash")?.balanceMinor)
+        }
+        assertEquals(1, count("cards")); assertEquals(1, count("transactions"))
+        assertEquals(4, count("ledger_entries")); assertEquals(1, count("debt_events")); assertEquals(1, count("goal_events"))
+    }
+
+    @Test fun normalizedStandardRegisterReviseVoidReconcilesExistingLedgerAndReplays() = runTest {
+        val account = change("ACCOUNT", "cash", """{"id":"cash","alias":"Caja","type":"CASH","currency":"PEN","initial_balance_minor_units":0,"opened_at":"2026-11-01T00:00:00Z"}""")
+        val original = """[{"id":"original","account_id":"cash","role":"PRIMARY","signed_amount_minor":-2000,"currency_code":"PEN"}]"""
+        val hydrate = MovementHydration(db.movementDao(), api, db.accountDao(), db.cardDao(), db, session)
+        feed(account, change("TRANSACTION", "standard", standardSnapshot(2000, original).replace("REVISED", "ACTIVE"), 2))
+        assertTrue(hydrate.hydrateFully(owner))
+        feed(change("TRANSACTION", "standard", standardSnapshot(), 3).copy(revision = 2))
+        repeat(2) { assertTrue(hydrate.pullChanges(owner, full = true)) }
+        assertEquals(-1500L, db.movementDao().getBalanceProjection(owner, "cash")?.balanceMinor)
+        assertEquals(2L, db.movementDao().getTransactionById(owner, "standard")?.revision)
+        val revised = Json.parseToJsonElement(standardSnapshot()).jsonObject
+        val voidLedger = JsonArray(revised.getValue("ledger_entries").jsonArray + Json.parseToJsonElement("""{"id":"void","account_id":"cash","role":"REVERSAL","signed_amount_minor":1500,"currency_code":"PEN"}"""))
+        val voidPayload = JsonObject(revised + mapOf("status" to JsonPrimitive("VOIDED"), "ledger_entries" to voidLedger))
+        feed(change("TRANSACTION", "standard", voidPayload.toString(), 4).copy(revision = 3))
+        repeat(2) { assertTrue(hydrate.pullChanges(owner, full = true)) }
+        assertEquals(0L, db.movementDao().getBalanceProjection(owner, "cash")?.balanceMinor)
+        assertEquals(0L, db.movementDao().calculateLedgerSumForAccount(owner, "cash"))
+        assertEquals("VOIDED", db.movementDao().getTransactionById(owner, "standard")?.status)
+        assertEquals(3, count("ledger_entries")) // original + two net corrections, never duplicate history
+    }
+
+    @Test fun legacyRevisionWithoutLedgerPreservesPageAndCheckpointForRetry() = runTest {
+        val account = change("ACCOUNT", "cash", """{"id":"cash","alias":"Caja","type":"CASH","currency":"PEN","initial_balance_minor_units":0,"opened_at":"2026-11-01T00:00:00Z"}""")
+        feed(account, change("TRANSACTION", "standard", standardSnapshot(), 2).copy(revision = 2))
+        val hydrate = MovementHydration(db.movementDao(), api, db.accountDao(), db.cardDao(), db, session)
+        assertTrue(hydrate.hydrateFully(owner))
+        feed(account.copy(sequence = 3, payload = Json.parseToJsonElement(account.payload.toString().replace("Caja", "New name"))),
+            change("TRANSACTION", "standard", standardSnapshot(1000, "[]"), 4).copy(revision = 3))
+        assertFalse(hydrate.pullChanges(owner))
+        assertEquals("Caja", db.accountDao().getById(owner, "cash")?.alias)
+        assertEquals(2L, db.movementDao().getSyncCheckpoint(owner)?.sequence)
+        assertEquals(-1500L, db.movementDao().calculateLedgerSumForAccount(owner, "cash"))
+    }
+
     @Test fun emptyUnfinishedPageIsNotACompletedRestore() = runTest {
         coEvery { api.pullChanges(any(), any()) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0, true))
         assertFalse(MovementHydration(db.movementDao(), api, db.accountDao(), db.cardDao(), db, session).hydrateFully(owner))
