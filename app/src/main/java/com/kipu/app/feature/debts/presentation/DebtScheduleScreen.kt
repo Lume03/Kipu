@@ -91,6 +91,12 @@ import com.kipu.app.feature.debts.domain.model.CloseDebtAction
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.theme.rememberPlanningColors
+import com.kipu.app.core.finance.domain.model.Currency as KipuCurrency
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMoneyTextDisplay
+import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.symbol
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -339,6 +345,8 @@ private fun ScheduleProjectionTab(
     val themeColors = rememberKipuColors()
     val semanticColors = rememberPlanningColors()
     val formatter = currencyFormatter(debt.currencyCode)
+    val kipuCurrency = KipuCurrency.fromCode(debt.currencyCode)
+    val isMasked = LocalBalanceMasked.current
     val count = state.installmentCount.toIntOrNull()?.coerceIn(1, 48) ?: 3
     val approxPerQuotaMinor = if (count > 0) debt.remainingPrincipalMinor / count else 0L
 
@@ -396,8 +404,9 @@ private fun ScheduleProjectionTab(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("Total", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
-                Text(
-                    formatter.format(debt.remainingPrincipalMinor / 100.0),
+                MoneyText(
+                    minorUnits = debt.remainingPrincipalMinor,
+                    currency = kipuCurrency,
                     modifier = Modifier.testTag("debt-schedule-total"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 )
@@ -507,8 +516,13 @@ private fun ScheduleProjectionTab(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Rounded.ReceiptLong, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(14.dp))
+                    val quotaDisplay = formatMoneyTextDisplay(
+                        amount = formatMinorUnits(approxPerQuotaMinor),
+                        currencySymbol = kipuCurrency.symbol(),
+                        isMasked = isMasked,
+                    )
                     Text(
-                        "Aprox. ${formatter.format(approxPerQuotaMinor / 100.0)} / cuota",
+                        "Aprox. $quotaDisplay / cuota",
                         style = MaterialTheme.typography.labelSmall,
                         color = emeraldColors.primaryDeep,
                     )
@@ -694,8 +708,9 @@ private fun ScheduleProjectionTab(
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        formatter.format(item.amountMinor / 100.0),
+                    MoneyText(
+                        minorUnits = item.amountMinor,
+                        currency = kipuCurrency,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     )
                     Text(item.caption, style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
@@ -720,8 +735,13 @@ private fun ScheduleProjectionTab(
                 Icon(Icons.Rounded.Info, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
                 Text("Suma total proyectada:", style = MaterialTheme.typography.bodySmall, color = themeColors.inkSecondary)
             }
+            val sumDisplay = formatMoneyTextDisplay(
+                amount = formatMinorUnits(debt.remainingPrincipalMinor),
+                currencySymbol = kipuCurrency.symbol(),
+                isMasked = isMasked,
+            )
             Text(
-                "${formatter.format(debt.remainingPrincipalMinor / 100.0)} exactos",
+                if (isMasked) sumDisplay else "$sumDisplay exactos",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = semanticColors.incomeText,
             )
@@ -824,6 +844,8 @@ private fun AdjustmentsAndClosureTab(
     val themeColors = rememberKipuColors()
     val semanticColors = rememberPlanningColors()
     val formatter = currencyFormatter(debt.currencyCode)
+    val kipuCurrency = KipuCurrency.fromCode(debt.currencyCode)
+    val isMasked = LocalBalanceMasked.current
     val isZeroBalance = debt.remainingPrincipalMinor == 0L
     var isReduce by remember { mutableStateOf(true) }
     var isSection1Expanded by remember { mutableStateOf(!isZeroBalance) }
@@ -913,8 +935,9 @@ private fun AdjustmentsAndClosureTab(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    formatter.format(debt.remainingPrincipalMinor / 100.0),
+                MoneyText(
+                    minorUnits = debt.remainingPrincipalMinor,
+                    currency = kipuCurrency,
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 34.sp,
@@ -1207,7 +1230,7 @@ private fun AdjustmentsAndClosureTab(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                "${formatter.format(0.0)} exonerados",
+                                "${formatMoneyTextDisplay(formatMinorUnits(0L), kipuCurrency.symbol(), isMasked)} exonerados",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = themeColors.inkPrimary,
                             )
@@ -1259,8 +1282,9 @@ private fun AdjustmentsAndClosureTab(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = themeColors.inkPrimary,
                             )
-                            Text(
-                                formatter.format(debt.remainingPrincipalMinor / 100.0),
+                            MoneyText(
+                                minorUnits = debt.remainingPrincipalMinor,
+                                currency = kipuCurrency,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = emeraldColors.primaryDeep,
                             )
@@ -1279,7 +1303,7 @@ private fun AdjustmentsAndClosureTab(
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = if (isForgivenessExceeded) semanticColors.expenseText else emeraldColors.secondaryMuted,
                         )
-                        Text("Máx: ${formatter.format(debt.remainingPrincipalMinor / 100.0)}", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
+                        Text("Máx: ${formatMoneyTextDisplay(formatMinorUnits(debt.remainingPrincipalMinor), kipuCurrency.symbol(), isMasked)}", style = MaterialTheme.typography.labelSmall, color = themeColors.inkSecondary)
                     }
                     OutlinedTextField(
                         value = state.forgivenessAmount,
@@ -1299,7 +1323,7 @@ private fun AdjustmentsAndClosureTab(
                     )
                     if (isForgivenessExceeded) {
                         Text(
-                            "El monto supera el saldo (${formatter.format(debt.remainingPrincipalMinor / 100.0)}).",
+                            "El monto supera el saldo (${formatMoneyTextDisplay(formatMinorUnits(debt.remainingPrincipalMinor), kipuCurrency.symbol(), isMasked)}).",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseText,
                         )
@@ -1477,7 +1501,7 @@ private fun AdjustmentsAndClosureTab(
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text("Cierre de obligación no disponible", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                             Text(
-                                "Faltan ${formatter.format(debt.remainingPrincipalMinor / 100.0)}. Amortiza, ajusta o condona para liquidar.",
+                                "Faltan ${formatMoneyTextDisplay(formatMinorUnits(debt.remainingPrincipalMinor), kipuCurrency.symbol(), isMasked)}. Amortiza, ajusta o condona para liquidar.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = themeColors.inkSecondary,
                                 lineHeight = 16.sp,
@@ -1522,7 +1546,7 @@ private fun AdjustmentsAndClosureTab(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Rounded.Info, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(14.dp))
                     Text(
-                        "Mantiene el saldo exigible de ${formatter.format(debt.remainingPrincipalMinor / 100.0)} pero se oculta del panel de cobro activo.",
+                        "Mantiene el saldo exigible de ${formatMoneyTextDisplay(formatMinorUnits(debt.remainingPrincipalMinor), kipuCurrency.symbol(), isMasked)} pero se oculta del panel de cobro activo.",
                         style = MaterialTheme.typography.labelSmall,
                         color = themeColors.inkSecondary,
                     )

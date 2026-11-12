@@ -63,6 +63,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.Money
@@ -375,14 +377,25 @@ private fun AccountPicker(
     testTag: String,
     onSelected: (String) -> Unit,
 ) {
+    val isMasked = LocalBalanceMasked.current
     val selected = accounts.firstOrNull { it.id == selectedId }?.name ?: "Elige una cuenta"
     Column {
         OutlinedButton(onClick = { onExpandedChange(true) }, modifier = Modifier.fillMaxWidth().testTag(testTag)) { Text(selected) }
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
             accounts.forEach { account ->
+                val amountDisplay = formatMoneyTextDisplay(
+                    amount = account.available.minorUnits.moneyText(),
+                    currencySymbol = account.available.currency.symbol(),
+                    isMasked = isMasked,
+                )
                 DropdownMenuItem(
-                    text = { Text("${account.name} · libre ${account.available.minorUnits.moneyText()}") },
+                    text = { Text("${account.name} · libre $amountDisplay") },
                     onClick = { onSelected(account.id); onExpandedChange(false) },
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "${account.name} · libre oculto"
+                        }
+                    },
                 )
             }
         }

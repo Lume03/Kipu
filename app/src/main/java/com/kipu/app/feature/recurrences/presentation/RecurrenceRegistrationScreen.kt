@@ -48,14 +48,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.feature.recurrences.domain.RecurrenceDraft
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceSyncState
 import com.kipu.app.feature.recurrences.domain.schedule.RecurrenceScheduleCalculator
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMinorUnits
 import java.time.LocalDate
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -117,7 +121,16 @@ fun RecurrenceRegistrationScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Registrar pago recurrente", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        Text("Importe esperado: ${if (transaction.currency == "PEN") "S/" else if (transaction.currency == "USD") "$" else transaction.currency} ${com.kipu.app.ui.component.formatMinorUnits(transaction.amountMinor)}", style = MaterialTheme.typography.bodyMedium)
+        val currSymbol = if (transaction.currency == "PEN") "S/" else if (transaction.currency == "USD") "$" else transaction.currency
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Importe esperado: ", style = MaterialTheme.typography.bodyMedium)
+            MoneyText(
+                amount = formatMinorUnits(transaction.amountMinor),
+                currencySymbol = currSymbol,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
         OutlinedTextField(
             value = concept,
             onValueChange = { concept = it },

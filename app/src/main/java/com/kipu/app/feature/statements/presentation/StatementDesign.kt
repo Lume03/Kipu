@@ -65,7 +65,10 @@ internal fun statementPlainAmount(minor: Long): String = Money.format(BigDecimal
 internal fun statementSymbol(currency: Currency) = if (currency == Currency.PEN) "S/ " else "US$ "
 
 /** Net of the given lines in one currency: refunds and card payments lower the total. */
-internal fun statementCurrencyTotal(rows: List<StatementImportLine>, currency: Currency): String {
+internal fun statementCurrencyTotal(rows: List<StatementImportLine>, currency: Currency, isMasked: Boolean = false): String {
+    if (isMasked) {
+        return statementSymbol(currency) + "••••••"
+    }
     val net = rows.fold(BigDecimal.ZERO) { sum, line ->
         sum + BigDecimal.valueOf(line.amountMinor).let { if (line.isCredit()) -it else it }
     }
@@ -84,8 +87,9 @@ internal val StatementImport.isDeposit get() = source == StatementSource.DEPOSIT
 internal fun StatementImport.label() = if (isDeposit) "$issuer · Cuenta •••• ${accountReference.orEmpty()}" else "$issuer •••• $cardLastFour"
 
 /** Signed sum of one side of a savings statement: −S/ for cargos, +S/ for abonos. */
-internal fun statementFlowTotal(rows: List<StatementImportLine>, currency: Currency, credit: Boolean): String =
-    (if (credit) "+" else "−") + statementSymbol(currency) + statementPlainAmount(rows.filter { it.currency == currency && it.isCredit() == credit }.sumOf { it.amountMinor })
+internal fun statementFlowTotal(rows: List<StatementImportLine>, currency: Currency, credit: Boolean, isMasked: Boolean = false): String =
+    if (isMasked) (if (credit) "+" else "−") + statementSymbol(currency) + "••••••"
+    else (if (credit) "+" else "−") + statementSymbol(currency) + statementPlainAmount(rows.filter { it.currency == currency && it.isCredit() == credit }.sumOf { it.amountMinor })
 
 /** Parser-owned hint, preserved independently of the user's selection and duplicate decisions. */
 internal fun StatementImportLine.maybeOwnTransfer() = possibleOwnTransfer

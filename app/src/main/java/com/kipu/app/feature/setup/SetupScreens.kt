@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.model.Currency
+import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.auth.presentation.AuthCtaButton
 import com.kipu.app.feature.auth.presentation.AuthFloatingField
@@ -60,6 +61,7 @@ import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.feature.plans.domain.model.CommercialOption
 import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
+import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.util.Locale
 
@@ -486,7 +488,11 @@ private fun AccountSummary(account: SetupAccountDraft) {
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(formatMoney(account.balanceMinorUnits ?: 0L, account.currency), color = colors.primaryText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+            MoneyText(
+                money = Money(account.balanceMinorUnits ?: 0L, account.currency),
+                color = colors.primaryText,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+            )
             Text("saldo inicial", color = colors.secondaryMuted, style = MaterialTheme.typography.bodySmall)
         }
     }

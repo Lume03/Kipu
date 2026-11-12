@@ -89,6 +89,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Currency
+import com.kipu.app.core.finance.domain.model.Money
+import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.feature.accounts.domain.model.Card as DomainCard
 import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
@@ -2372,9 +2374,8 @@ fun CalmEmeraldSuccessBottomSheet(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = calmColors.secondaryMuted,
                             )
-                            Text(
-                                text = if (com.kipu.app.ui.component.LocalBalanceMasked.current) "••••"
-                                    else "${if (card.currency == Currency.PEN) "S/" else "$"} ${com.kipu.app.ui.component.formatMinorUnits(card.creditLimitMinorUnits)}",
+                            MoneyText(
+                                money = Money(card.creditLimitMinorUnits, card.currency),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = calmColors.primaryText,
                             )

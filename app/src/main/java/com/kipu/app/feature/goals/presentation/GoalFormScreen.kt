@@ -73,6 +73,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
@@ -349,10 +351,22 @@ fun GoalFormScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            val isMasked = LocalBalanceMasked.current
+                            val freeBalanceText = selectedAccount?.let {
+                                val amountDisplay = formatMoneyTextDisplay(
+                                    amount = it.available.minorUnits.formatAsMoney(),
+                                    currencySymbol = it.available.currency.symbol(),
+                                    isMasked = isMasked,
+                                )
+                                "${it.currency.name} · Saldo libre: $amountDisplay"
+                            } ?: "Meta virtual independiente"
                             Text(
-                                selectedAccount?.let {
-                                    "${it.currency.name} · Saldo libre: ${it.available.currency.symbol()} ${it.available.minorUnits.formatAsMoney()}"
-                                } ?: "Meta virtual independiente",
+                                freeBalanceText,
+                                modifier = Modifier.semantics {
+                                    if (isMasked && selectedAccount != null) {
+                                        contentDescription = "${selectedAccount.currency.name} · Saldo libre oculto"
+                                    }
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -461,9 +475,17 @@ fun GoalFormScreen(
                             )
                         }
                         items(compatibleAccounts, key = { it.id }) { account ->
+                            val isMasked = LocalBalanceMasked.current
+                            val balanceDisplay = formatMoneyTextDisplay(
+                                amount = account.confirmedBalance.minorUnits.formatAsMoney(),
+                                currencySymbol = account.confirmedBalance.currency.symbol(),
+                                isMasked = isMasked,
+                            )
                             AccountChoice(
                                 title = account.name,
-                                subtitle = "${account.currency.name} · Saldo: ${account.confirmedBalance.currency.symbol()} ${account.confirmedBalance.minorUnits.formatAsMoney()}",
+                                subtitle = "${account.currency.name} · Saldo: $balanceDisplay",
+                                isMasked = isMasked,
+                                maskedSubtitle = "${account.currency.name} · Saldo oculto",
                                 selected = sheetSelection == account.id,
                                 onClick = { sheetSelection = account.id },
                             )
@@ -566,14 +588,22 @@ private fun CurrencySegment(currency: Currency, modifier: Modifier = Modifier, o
 }
 
 @Composable
-private fun AccountChoice(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+private fun AccountChoice(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    isMasked: Boolean = false,
+    maskedSubtitle: String? = null,
+    onClick: () -> Unit,
+) {
     val colors = rememberKipuColors()
+    val desc = if (isMasked && maskedSubtitle != null) "$title. $maskedSubtitle" else "$title. $subtitle"
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .semantics { role = Role.RadioButton; contentDescription = "$title. $subtitle" },
+            .semantics { role = Role.RadioButton; contentDescription = desc },
         shape = RoundedCornerShape(16.dp),
         color = if (selected) colors.selectedSurface else MaterialTheme.colorScheme.surface,
         border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.primary else colors.border),

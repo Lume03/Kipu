@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.feature.movements.domain.model.TransactionItem
@@ -100,8 +103,23 @@ internal fun DeleteMovementDialog(
                     fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = palette.primaryText)
                 val counterpart = item.merchantName ?: item.categoryName ?: "Movimiento"
                 val currency = if (item.transaction.currency == "PEN") "S/" else item.transaction.currency
-                Text("$counterpart · $currency ${formatMinorUnits(item.transaction.amountMinor)}",
-                    style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, color = palette.primaryText)
+                val isMasked = LocalBalanceMasked.current
+                val amountDisplay = formatMoneyTextDisplay(
+                    amount = formatMinorUnits(item.transaction.amountMinor),
+                    currencySymbol = currency,
+                    isMasked = isMasked,
+                )
+                Text(
+                    text = "$counterpart · $amountDisplay",
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "$counterpart · Monto oculto"
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    color = palette.primaryText,
+                )
                 Text(if (voided) "Este movimiento ya está anulado. Se ocultará del historial en este dispositivo, sin cambiar nuevamente tu saldo."
                     else "Se anulará este movimiento y se revertirá su efecto en el saldo. Luego se ocultará del historial en este dispositivo.",
                     style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = palette.secondaryMuted)

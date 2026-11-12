@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -29,8 +30,10 @@ import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
@@ -283,11 +286,23 @@ fun MovementDetailSheet(
 
 
                     if (correctionRejected && !pending && !terminalError) {
+                        val isMasked = LocalBalanceMasked.current
+                        val retainedAmount = formatMoneyTextDisplay(
+                            amount = formatMinorUnits(tx.amountMinor),
+                            currencySymbol = currencySymbol,
+                            isMasked = isMasked,
+                        )
                         Text(
-                            text = "No se pudo aplicar la corrección. Se mantiene $currencySymbol ${formatMinorUnits(tx.amountMinor)}.",
+                            text = "No se pudo aplicar la corrección. Se mantiene $retainedAmount.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.testTag("detail_correction_rejected"),
+                            modifier = Modifier
+                                .testTag("detail_correction_rejected")
+                                .semantics {
+                                    if (isMasked) {
+                                        contentDescription = "No se pudo aplicar la corrección. Se mantiene monto oculto."
+                                    }
+                                },
                         )
                     }
 

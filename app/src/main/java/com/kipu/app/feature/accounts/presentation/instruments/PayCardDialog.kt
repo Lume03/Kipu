@@ -19,7 +19,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -34,6 +37,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectableGroup
 import com.kipu.app.ui.component.KipuBottomSheet
 import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.component.symbol
 import com.kipu.app.feature.movements.presentation.AccountSelectionRow
 import com.kipu.app.feature.movements.presentation.formatAccountSubtitle
@@ -59,6 +65,7 @@ fun PayCardDialog(
     val colors = com.kipu.app.ui.theme.rememberCalmEmeraldColors()
     val card = creditCardWithSummary.card
     val debt = creditCardWithSummary.debt
+    val isMasked = LocalBalanceMasked.current
 
     val matchingAccounts = remember(eligibleAccounts, card.currency) {
         eligibleCardPaymentAccounts(eligibleAccounts, card.currency)
@@ -91,9 +98,14 @@ fun PayCardDialog(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Deuda actual: ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}",
+                    text = if (isMasked) "Deuda actual: ••••••" else "Deuda actual: ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "Deuda actual: Monto oculto"
+                        }
+                    },
                 )
 
                 // Non-expense explanation
@@ -157,6 +169,7 @@ fun PayCardDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                val totalLabel = if (isMasked) "Pagar total ••••••" else "Pagar total ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}"
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     KipuFilterChip(
                         colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
@@ -170,7 +183,16 @@ fun PayCardDialog(
                             amountInput = formatMinorUnits(debt.minorUnits)
                             errorMessage = null
                         },
-                        label = { Text("Pagar total ${card.currency.symbol()} ${formatMinorUnits(debt.minorUnits)}") },
+                        label = {
+                            Text(
+                                totalLabel,
+                                modifier = Modifier.semantics {
+                                    if (isMasked) {
+                                        contentDescription = "Pagar deuda total oculta"
+                                    }
+                                },
+                            )
+                        },
                     )
                 }
             }
@@ -187,7 +209,8 @@ fun PayCardDialog(
                             return@Button
                         }
                         if (minorUnits > debt.minorUnits) {
-                            errorMessage = "El monto no puede exceder la deuda actual (${formatMinorUnits(debt.minorUnits)})"
+                            val debtDisplay = if (isMasked) "••••••" else formatMinorUnits(debt.minorUnits)
+                            errorMessage = "El monto no puede exceder la deuda actual ($debtDisplay)"
                             return@Button
                         }
                         val sourceAcc = selectedAccount
@@ -196,7 +219,8 @@ fun PayCardDialog(
                             return@Button
                         }
                         if (minorUnits > sourceAcc.balance.minorUnits) {
-                            errorMessage = "Fondos insuficientes en la cuenta origen (${formatMinorUnits(sourceAcc.balance.minorUnits)})"
+                            val balanceDisplay = if (isMasked) "••••••" else formatMinorUnits(sourceAcc.balance.minorUnits)
+                            errorMessage = "Fondos insuficientes en la cuenta origen ($balanceDisplay)"
                             return@Button
                         }
 

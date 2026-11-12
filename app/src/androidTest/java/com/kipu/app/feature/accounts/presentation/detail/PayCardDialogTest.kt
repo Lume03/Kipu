@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -18,6 +19,7 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.instruments.PayCardDialog
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -99,6 +101,27 @@ class PayCardDialogTest {
             assertEquals(second.account.id, confirmedSource)
             assertEquals(Money(9_000L, Currency.PEN), confirmedAmount)
         }
+    }
+
+    @Test
+    fun masksDebtAndTotalChipWhenBalanceMaskedIsTrue() {
+        compose.setContent {
+            CompositionLocalProvider(LocalBalanceMasked provides true) {
+                KipuTheme {
+                    PayCardDialog(
+                        creditCardWithSummary = summary(),
+                        eligibleAccounts = listOf(paymentAccount()),
+                        onPayCreditCard = { _, _, _, _, _ -> },
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+
+        compose.onNodeWithText("Deuda actual: ••••••").assertIsDisplayed()
+        compose.onNodeWithText("Pagar total ••••••").assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual: S/ 90.00").assertDoesNotExist()
+        compose.onNodeWithText("Pagar total S/ 90.00").assertDoesNotExist()
     }
 
     private fun summary(): CreditCardWithSummary {

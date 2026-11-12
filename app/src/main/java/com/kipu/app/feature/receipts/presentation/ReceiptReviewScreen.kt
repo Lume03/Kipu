@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -81,6 +82,9 @@ import com.kipu.app.feature.receipts.domain.RegisteredYapeReceipt
 import com.kipu.app.feature.receipts.domain.missingDataCount
 import com.kipu.app.feature.receipts.domain.pendingReceipts
 import com.kipu.app.feature.receipts.domain.receiptBalanceEffect
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.time.Instant
@@ -240,6 +244,7 @@ fun ReceiptReviewScreen(
 @Composable
 private fun ReceiptBalanceCard(ready: Int, effect: java.math.BigInteger) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
     val positive = effect.signum() >= 0
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(palette.tealTint(.07f)).border(1.dp, palette.tealTint(.22f), RoundedCornerShape(18.dp))
         .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -249,8 +254,20 @@ private fun ReceiptBalanceCard(ready: Int, effect: java.math.BigInteger) {
             Text("Si confirmas los $ready listos", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = palette.primaryText)
             Text("tu saldo cambiaría en", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
         }
-        Text((if (positive) "+" else "−") + "S/ " + BigDecimal(effect.abs(), 2).toPlainString(), style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold, color = if (positive) palette.incomeText else palette.expenseText, maxLines = 1)
+        val sign = if (positive) "+" else "−"
+        val displayAmount = formatMoneyTextDisplay(BigDecimal(effect.abs(), 2).toPlainString(), "${sign}S/", isMasked)
+        Text(
+            text = displayAmount,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = if (positive) palette.incomeText else palette.expenseText,
+            maxLines = 1,
+            modifier = Modifier.semantics {
+                if (isMasked) {
+                    contentDescription = "Cambio de saldo oculto"
+                }
+            },
+        )
     }
 }
 
@@ -289,8 +306,26 @@ internal fun ReceiptInboxRow(candidate: ReceiptCandidate, isNew: Boolean, onClic
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             candidate.amountMinor?.let {
-                Text((if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else "") + formatReceiptAmount(it),
-                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = tone, maxLines = 1)
+                val isMasked = LocalBalanceMasked.current
+                val sign = if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else ""
+                val sym = if (sign.isNotEmpty()) "${sign}S/" else "S/"
+                val amountDisplay = formatMoneyTextDisplay(
+                    BigDecimal.valueOf(it, 2).setScale(2).toPlainString(),
+                    sym,
+                    isMasked,
+                )
+                Text(
+                    text = amountDisplay,
+                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = tone,
+                    maxLines = 1,
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = if (candidate.isIncome == true) "Ingreso oculto" else "Gasto oculto"
+                        }
+                    },
+                )
             }
             if (!registered) when {
                 isNew -> ReceiptStateChip("Nuevo", ChipTone.Solid)
@@ -310,8 +345,9 @@ private fun ReceiptDiscardConfirmationDialog(
 ) {
     val palette = rememberCalmEmeraldColors()
     val scheme = MaterialTheme.colorScheme
+    val isMasked = LocalBalanceMasked.current
     val counterpart = candidate.recipient?.takeIf(String::isNotBlank) ?: "esta contraparte"
-    val amount = candidate.amountMinor?.let(::formatReceiptAmount)
+    val amount = candidate.amountMinor?.let { formatReceiptAmount(it, isMasked) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -372,6 +408,11 @@ private fun ReceiptDiscardConfirmationDialog(
                     style = MaterialTheme.typography.bodyLarge,
                     color = palette.secondaryMuted,
                     textAlign = TextAlign.Center,
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "Este comprobante de monto oculto de $counterpart se eliminará de la lista de pendientes."
+                        }
+                    },
                 )
                 Surface(
                     shape = RoundedCornerShape(50),
@@ -446,8 +487,8 @@ private fun receiptInitials(name: String?): String {
     }
 }
 
-private fun formatReceiptAmount(amountMinor: Long): String =
-    "S/ ${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}"
+private fun formatReceiptAmount(amountMinor: Long, isMasked: Boolean = false): String =
+    if (isMasked) "S/ ••••••" else "S/ ${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}"
 
 private val LIMA_ZONE: ZoneId = ZoneId.of("America/Lima")
 private val MONTHS = listOf("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")

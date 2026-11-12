@@ -106,6 +106,8 @@ class AccountDetailScreenTest {
         setCardScreen(creditCard(), masked = true)
         compose.onAllNodesWithText("1,000.00", substring = true).assertCountEquals(0)
         compose.onNodeWithContentDescription("1,000.00", substring = true).assertDoesNotExist()
+        compose.onAllNodesWithText("3 %", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("Uso oculto").assertIsDisplayed()
     }
 
     @Test

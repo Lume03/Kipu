@@ -50,7 +50,12 @@ internal fun DebtSectionLabel(text: String, modifier: Modifier = Modifier, optio
 
 internal fun debtCurrencySymbol(currencyCode: String): String = if (currencyCode == "USD") "US$" else "S/"
 
-internal fun debtMoney(currencyCode: String, minor: Long): String = "${debtCurrencySymbol(currencyCode)} ${formatMinorUnits(minor)}"
+@Composable
+internal fun debtMoney(
+    currencyCode: String,
+    minor: Long,
+    isMasked: Boolean = LocalBalanceMasked.current,
+): String = if (isMasked) "${debtCurrencySymbol(currencyCode)} ••••••" else "${debtCurrencySymbol(currencyCode)} ${formatMinorUnits(minor)}"
 
 /** Big amount entry on a card: label, optional PEN/USD toggle and the typed value with its symbol. */
 @Composable
@@ -171,7 +176,12 @@ internal fun DebtAccountOptionCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .semantics {
+                if (masked) {
+                    contentDescription = "$name. $detail. Monto oculto"
+                }
+            },
         shape = RoundedCornerShape(16.dp),
         color = if (selected) colors.incomeBg else MaterialTheme.colorScheme.surface,
         border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.primaryDeep else colors.borderSubtle),

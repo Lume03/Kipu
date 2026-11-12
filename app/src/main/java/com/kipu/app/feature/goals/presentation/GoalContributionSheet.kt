@@ -8,9 +8,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.text.font.FontWeight
 import com.kipu.app.ui.component.KipuCard
 import com.kipu.app.ui.component.KipuFilterChip
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.theme.rememberPlanningColors
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -289,7 +293,22 @@ fun GoalContributionSheet(
                         onSelect = { sourceAccountId = it },
                         testTag = "goal_transfer_source_picker",
                     )
-                    selectedSource?.let { Text("Saldo libre en origen: ${it.available.minorUnits.asCurrency()}") }
+                    selectedSource?.let {
+                        val isMasked = LocalBalanceMasked.current
+                        val amountDisplay = formatMoneyTextDisplay(
+                            amount = it.available.minorUnits.asCurrency(),
+                            currencySymbol = it.available.currency.symbol(),
+                            isMasked = isMasked,
+                        )
+                        Text(
+                            "Saldo libre en origen: $amountDisplay",
+                            modifier = Modifier.semantics {
+                                if (isMasked) {
+                                    contentDescription = "Saldo libre en origen oculto"
+                                }
+                            },
+                        )
+                    }
                     if (selectedSource == null) PlanningNotice("Elige la cuenta origen", "Selecciona desde qué cuenta se hará el traslado interno.")
                     else if (amount != null && selectedSource.available < amount) PlanningNotice("Saldo insuficiente en origen", "Reduce el importe o selecciona otra cuenta origen.", isError = true)
                 }
@@ -314,17 +333,46 @@ private fun AccountChoice(
     onSelect: (String) -> Unit,
     testTag: String,
 ) {
+    val isMasked = LocalBalanceMasked.current
     val selected = accounts.firstOrNull { it.id == selectedId }
+    val selectedText = selected?.let {
+        val amountDisplay = formatMoneyTextDisplay(
+            amount = it.available.minorUnits.asCurrency(),
+            currencySymbol = it.available.currency.symbol(),
+            isMasked = isMasked,
+        )
+        "${it.name} · libre $amountDisplay"
+    } ?: "Selecciona una cuenta"
     Column {
         Text(title, style = MaterialTheme.typography.labelLarge)
-        OutlinedButton(onClick = { onExpand(true) }, modifier = Modifier.fillMaxWidth().testTag(testTag)) {
-            Text(selected?.let { "${it.name} · libre ${it.available.minorUnits.asCurrency()}" } ?: "Selecciona una cuenta")
+        OutlinedButton(
+            onClick = { onExpand(true) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(testTag)
+                .semantics {
+                    if (isMasked && selected != null) {
+                        contentDescription = "${selected.name} · libre oculto"
+                    }
+                },
+        ) {
+            Text(selectedText)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpand(false) }) {
             accounts.forEach { account ->
+                val amountDisplay = formatMoneyTextDisplay(
+                    amount = account.available.minorUnits.asCurrency(),
+                    currencySymbol = account.available.currency.symbol(),
+                    isMasked = isMasked,
+                )
                 DropdownMenuItem(
-                    text = { Text("${account.name} · libre ${account.available.minorUnits.asCurrency()}") },
+                    text = { Text("${account.name} · libre $amountDisplay") },
                     onClick = { onSelect(account.id); onExpand(false) },
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "${account.name} · libre oculto"
+                        }
+                    },
                 )
             }
         }

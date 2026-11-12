@@ -81,6 +81,14 @@ import com.kipu.app.feature.debts.domain.model.DebtScheduleItem
 import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.theme.rememberPlanningColors
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.kipu.app.core.finance.domain.model.Currency as KipuCurrency
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMoneyTextDisplay
+import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.symbol
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -309,6 +317,8 @@ private fun ActiveDebtDetailView(
     onVoidPayment: (DebtSettlementActivity) -> Unit,
 ) {
     val payable = debt.obligationType.name == "PAYABLE"
+    val isMasked = LocalBalanceMasked.current
+    val currency = KipuCurrency.fromCode(debt.currencyCode)
     val amortizedMinor = (debt.principalMinor - debt.remainingPrincipalMinor).coerceAtLeast(0L)
     val amortizedFraction = if (debt.principalMinor > 0L) {
         (amortizedMinor.toFloat() / debt.principalMinor).coerceIn(0f, 1f)
@@ -342,21 +352,48 @@ private fun ActiveDebtDetailView(
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Saldo pendiente", style = MaterialTheme.typography.bodyMedium, color = emeraldColors.secondaryMuted)
-                Text(formatter.format(debt.remainingPrincipalMinor / 100.0),
-                    style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = emeraldColors.primaryText)
+                MoneyText(
+                    minorUnits = debt.remainingPrincipalMinor,
+                    currency = currency,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = emeraldColors.primaryText,
+                )
             }
-            LinearProgressIndicator(progress = { amortizedFraction }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
-                color = emeraldColors.incomeEmerald, trackColor = emeraldColors.incomeBg)
-            Text("$amortizedPercent% del principal resuelto", style = MaterialTheme.typography.labelLarge, color = emeraldColors.primaryDeep)
+            LinearProgressIndicator(
+                progress = { if (isMasked) 0f else amortizedFraction },
+                modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).semantics {
+                    if (isMasked) contentDescription = "Progreso del principal oculto"
+                },
+                color = emeraldColors.incomeEmerald,
+                trackColor = emeraldColors.incomeBg,
+            )
+            Text(
+                if (isMasked) "Principal resuelto" else "$amortizedPercent% del principal resuelto",
+                style = MaterialTheme.typography.labelLarge,
+                color = emeraldColors.primaryDeep,
+            )
             HorizontalDivider(color = emeraldColors.borderSubtle)
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Monto original", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
-                    Text(formatter.format(debt.principalMinor / 100.0), fontWeight = FontWeight.Bold, color = emeraldColors.primaryText)
+                    MoneyText(
+                        minorUnits = debt.principalMinor,
+                        currency = currency,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldColors.primaryText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Principal resuelto", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
-                    Text(formatter.format(amortizedMinor / 100.0), fontWeight = FontWeight.Bold, color = emeraldColors.primaryDeep)
+                    MoneyText(
+                        minorUnits = amortizedMinor,
+                        currency = currency,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldColors.primaryDeep,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
             Text("Registrada el ${formatSpanishDate(debt.openedOn)}", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
@@ -416,11 +453,21 @@ private fun ActiveDebtDetailView(
                         fontWeight = FontWeight.Bold,
                         color = accent,
                     )
+                    val nextAmt = formatMoneyTextDisplay(
+                        amount = formatMinorUnits(nextInstallment?.principalMinor ?: 0L),
+                        currencySymbol = currency.symbol(),
+                        isMasked = isMasked,
+                    )
                     Text(
                         if (nextInstallment != null) {
-                            "${formatter.format(nextInstallment.principalMinor / 100.0)} · $whenText"
+                            "$nextAmt · $whenText"
                         } else {
                             whenText.replaceFirstChar { it.uppercase() }
+                        },
+                        modifier = Modifier.semantics {
+                            if (isMasked && nextInstallment != null) {
+                                contentDescription = "Próxima cuota oculta · $whenText"
+                            }
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
@@ -481,7 +528,12 @@ private fun ActiveDebtDetailView(
                             Text("Cuota ${installment.installmentNumber} · ${formatSpanishDate(installment.dueDate)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                             Text(installmentStatusLabel(installment.status), style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                         }
-                        Text(formatter.format(installment.principalMinor / 100.0), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        MoneyText(
+                            minorUnits = installment.principalMinor,
+                            currency = currency,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -541,14 +593,20 @@ private fun ActiveDebtDetailView(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = emeraldColors.secondaryMuted,
                                 )
-                                Text(formatter.format(activity.interestMinor / 100.0), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                MoneyText(
+                                    minorUnits = activity.interestMinor,
+                                    currency = currency,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
                             }
                             if (activity.isVoided) {
                                 Text("Anulado · saldo restaurado", color = emeraldColors.expenseText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
                         }
-                        Text(
-                            "${if (reducesBalance) "−" else "+"} ${formatter.format(displayedPrincipal / 100.0)}",
+                        MoneyText(
+                            amount = "${if (reducesBalance) "−" else "+"} ${formatMinorUnits(displayedPrincipal)}",
+                            currencySymbol = currency.symbol(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (activity.isVoided) emeraldColors.secondaryMuted else if (payable) emeraldColors.expenseText else emeraldColors.incomeText,
@@ -630,14 +688,19 @@ private fun LiquidatedDebtSuccessView(
             modifier = Modifier.fillMaxWidth(), color = emeraldColors.surfaceCard,
             shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, emeraldColors.borderSubtle),
         ) {
+            val isMasked = LocalBalanceMasked.current
+            val currency = KipuCurrency.fromCode(debt.currencyCode)
+            fun formatSettlement(minor: Long): String =
+                formatMoneyTextDisplay(formatMinorUnits(minor), currency.symbol(), isMasked)
+
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SettlementRow("Monto original", formatter.format(java.math.BigDecimal.valueOf(debt.principalMinor, 2)))
-                SettlementRow(if (payable) "Pagado" else "Cobrado", formatter.format(java.math.BigDecimal.valueOf(closure.paidMinor, 2)))
-                if (closure.forgivenMinor != 0L) SettlementRow("Condonado", formatter.format(java.math.BigDecimal.valueOf(closure.forgivenMinor, 2)))
-                if (closure.adjustedMinor != 0L) SettlementRow("Ajustado", formatter.format(java.math.BigDecimal.valueOf(closure.adjustedMinor, 2)))
-                LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
+                SettlementRow("Monto original", formatSettlement(debt.principalMinor))
+                SettlementRow(if (payable) "Pagado" else "Cobrado", formatSettlement(closure.paidMinor))
+                if (closure.forgivenMinor != 0L) SettlementRow("Condonado", formatSettlement(closure.forgivenMinor))
+                if (closure.adjustedMinor != 0L) SettlementRow("Ajustado", formatSettlement(closure.adjustedMinor))
+                LinearProgressIndicator(progress = { if (isMasked) 0f else 1f }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
                     color = emeraldColors.primaryDeep, trackColor = emeraldColors.pillTrack)
-                Text("Saldo liquidado", style = MaterialTheme.typography.labelLarge,
+                Text(if (isMasked) "Obligación liquidada" else "Saldo liquidado", style = MaterialTheme.typography.labelLarge,
                     color = emeraldColors.primaryDeep, fontWeight = FontWeight.Bold)
             }
         }

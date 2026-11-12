@@ -1612,7 +1612,8 @@ private fun CreditCardPeriodPanel(
         ChronoUnit.DAYS.between(now, nextDue).coerceAtLeast(0)
     }
 
-    val targetProgress = (utilization / 100.0).toFloat().coerceIn(0f, 1f)
+    val isMasked = LocalBalanceMasked.current
+    val targetProgress = if (isMasked) 0f else (utilization / 100.0).toFloat().coerceIn(0f, 1f)
     val reducedMotion = rememberReducedMotionEnabled()
     val animatedProgress by animateFloatAsState(
         targetValue = targetProgress,
@@ -1627,7 +1628,9 @@ private fun CreditCardPeriodPanel(
         label = "creditUtilizationProgress",
     )
 
-    val progressColorTarget = when {
+    val progressColorTarget = if (isMasked) {
+        emeraldColors.secondaryMuted
+    } else when {
         utilization >= 80.0 -> emeraldColors.expenseText
         utilization >= 50.0 -> emeraldColors.warningText
         else -> emeraldColors.incomeText
@@ -1804,13 +1807,18 @@ private fun CreditCardPeriodPanel(
             // Utilization progress bar
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 LinearProgressIndicator(
-                    progress = { animatedProgress },
+                    progress = { if (isMasked) 0f else animatedProgress },
                     color = progressColor,
                     trackColor = emeraldColors.pillTrack,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                        .clip(RoundedCornerShape(4.dp))
+                        .semantics {
+                            if (isMasked) {
+                                contentDescription = "Uso de crédito oculto"
+                            }
+                        },
                 )
             }
 
@@ -1821,10 +1829,19 @@ private fun CreditCardPeriodPanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (card.creditLimitMinorUnits == 0L) "Uso no disponible" else "Uso %.0f %%".format(Locale.US, utilization),
+                    text = when {
+                        isMasked -> "Uso oculto"
+                        card.creditLimitMinorUnits == 0L -> "Uso no disponible"
+                        else -> "Uso %.0f %%".format(Locale.US, utilization)
+                    },
+                    modifier = Modifier.semantics {
+                        if (isMasked) {
+                            contentDescription = "Uso oculto"
+                        }
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = progressColor,
+                    color = if (isMasked) emeraldColors.secondaryMuted else progressColor,
                 )
 
                 Text(
@@ -1835,7 +1852,7 @@ private fun CreditCardPeriodPanel(
             }
 
             // High utilization financial risk banner (>= 80%)
-            if (utilization >= 80.0) {
+            if (!isMasked && utilization >= 80.0) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = emeraldColors.expenseBg),

@@ -51,6 +51,7 @@ import com.kipu.app.feature.movements.presentation.CategoryOption
 import com.kipu.app.feature.movements.presentation.PastelCategoryPickerBottomSheet
 import com.kipu.app.feature.receipts.presentation.tealTint
 import com.kipu.app.feature.statements.domain.*
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -230,11 +231,24 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
             }
             if (deposit) DepositTotals(statement, lines)
             else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val isMasked = LocalBalanceMasked.current
                 listOf(Currency.PEN to statement.reconciledPen, Currency.USD to statement.reconciledUsd).forEach { (currency, matches) ->
                     val rows = lines.filter { it.currency == currency && it.kind != StatementLineKind.INSTALLMENT_MONTHLY_CHARGE }
                     if (rows.isNotEmpty()) Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(currency.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, color = palette.secondaryMuted, letterSpacing = .6.sp)
-                        Text(statementCurrencyTotal(rows, currency), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = palette.primaryText, maxLines = 1)
+                        val totalDisplay = statementCurrencyTotal(rows, currency, isMasked = isMasked)
+                        Text(
+                            totalDisplay,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = palette.primaryText,
+                            maxLines = 1,
+                            modifier = Modifier.semantics {
+                                if (isMasked) {
+                                    contentDescription = "Total oculto en ${currency.name}"
+                                }
+                            },
+                        )
                         if (matches == true) StatementToneChip("Verificado", "ok", Icons.Filled.Check) else StatementToneChip("Totales no cuadran", "warn", Icons.Filled.WarningAmber)
                     }
                 }
@@ -278,6 +292,7 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
 @Composable
 private fun DepositTotals(statement: StatementImport, lines: List<StatementImportLine>) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf(Currency.PEN to statement.reconciledPen, Currency.USD to statement.reconciledUsd).forEach { (currency, matches) ->
             if (lines.any { it.currency == currency } || currency in statement.accountTotals) Column(Modifier.weight(1f).testTag("statement_deposit_totals_${currency.name}"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -285,17 +300,39 @@ private fun DepositTotals(statement: StatementImport, lines: List<StatementImpor
                 val totals = statement.accountTotals[currency]
                 if (totals != null) {
                     Text("Saldo anterior → Saldo final", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
-                    Text(listOf(totals.previousBalanceMinor, totals.closingBalanceMinor).joinToString(" → ") { balance ->
+                    val balancesDisplay = if (isMasked) "•••••• → ••••••" else listOf(totals.previousBalanceMinor, totals.closingBalanceMinor).joinToString(" → ") { balance ->
                         balance?.let { statementSymbol(currency) + statementPlainAmount(it) } ?: "—"
-                    }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = palette.primaryText)
+                    }
+                    Text(
+                        balancesDisplay,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.primaryText,
+                        modifier = Modifier.semantics {
+                            if (isMasked) {
+                                contentDescription = "Saldos ocultos"
+                            }
+                        },
+                    )
                 }
                 listOf(false, true).forEach { credit ->
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(if (credit) "Abonos" else "Cargos", Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
                         val total = if (credit) totals?.creditsMinor else totals?.debitsMinor
-                        Text(total?.let { (if (credit) "+" else "−") + statementSymbol(currency) + statementPlainAmount(it) }
-                            ?: statementFlowTotal(lines, currency, credit), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold,
-                            color = if (credit) palette.incomeText else palette.primaryText, maxLines = 1)
+                        val flowDisplay = total?.let { (if (credit) "+" else "−") + statementSymbol(currency) + (if (isMasked) "••••••" else statementPlainAmount(it)) }
+                            ?: statementFlowTotal(lines, currency, credit, isMasked = isMasked)
+                        Text(
+                            flowDisplay,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (credit) palette.incomeText else palette.primaryText,
+                            maxLines = 1,
+                            modifier = Modifier.semantics {
+                                if (isMasked) {
+                                    contentDescription = if (credit) "Abonos ocultos" else "Cargos ocultos"
+                                }
+                            },
+                        )
                     }
                 }
                 if (matches == true) StatementToneChip("Verificado", "ok", Icons.Filled.Check) else StatementToneChip("Totales no cuadran", "warn", Icons.Filled.WarningAmber)
@@ -424,9 +461,21 @@ private fun StatementLineRow(line: StatementImportLine, state: StatementReviewUi
             if (line.status == StatementImportLineStatus.REGISTERED) StatementToneChip("Registrado", "ok", Icons.Filled.Check)
             if (error != null) Text(error, color = statementTone("bad").fg, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         }
+        val isMasked = LocalBalanceMasked.current
+        val plainAmountDisplay = if (isMasked) "••••••" else statementPlainAmount(line.amountMinor)
         Column(horizontalAlignment = Alignment.End) {
-            Text("${if (credit) "+" else "−"}${statementSymbol(line.currency)}${statementPlainAmount(line.amountMinor)}", fontWeight = FontWeight.ExtraBold,
-                color = if (credit) palette.incomeText else palette.primaryText, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            Text(
+                "${if (credit) "+" else "−"}${statementSymbol(line.currency)}$plainAmountDisplay",
+                fontWeight = FontWeight.ExtraBold,
+                color = if (credit) palette.incomeText else palette.primaryText,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                modifier = Modifier.semantics {
+                    if (isMasked) {
+                        contentDescription = if (credit) "Abono oculto" else "Cargo oculto"
+                    }
+                },
+            )
         }
     }
 }
@@ -455,8 +504,10 @@ private fun ReviewBottomBar(state: StatementReviewUiState, onRegister: () -> Uni
     Surface(color = palette.surfaceCard, shadowElevation = 8.dp) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
             Row(Modifier.padding(bottom = 10.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val isMasked = LocalBalanceMasked.current
                 Text("${state.selected.size} seleccionados", fontWeight = FontWeight.ExtraBold, color = palette.primaryText, modifier = Modifier.testTag("statement_selected_count"))
-                Text(if (deposit) statementFlowTotals(state.selected) else statementTotals(state.selected), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted, modifier = Modifier.testTag("statement_selected_summary"))
+                val summaryText = if (isMasked) "Importes ocultos" else if (deposit) statementFlowTotals(state.selected) else statementTotals(state.selected)
+                Text(summaryText, style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted, modifier = Modifier.testTag("statement_selected_summary"))
             }
             Button(onClick = onRegister, enabled = state.canConfirm, shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
@@ -483,15 +534,16 @@ private fun StatementConfirmSheet(state: StatementReviewUiState, onDismiss: () -
     val missing = selected.count { it.categoryId == null && it.needsPurchaseCategory() }
     val deposit = state.snapshot?.statement?.isDeposit == true
     val linkedAccount = (state.selectedCard as? DebitCard)?.let { card -> state.accounts.find { it.id == card.linkedAccountId } }
+    val isMasked = LocalBalanceMasked.current
     fun group(title: String, kinds: Set<StatementLineKind>): Triple<String, Int, String>? {
         val rows = selected.filter { it.kind in kinds }
         if (rows.isEmpty()) return null
-        return Triple(title, rows.size, rows.groupBy { it.currency }.entries.joinToString(" · ") { (c, r) -> statementCurrencyTotal(r, c) })
+        return Triple(title, rows.size, rows.groupBy { it.currency }.entries.joinToString(" · ") { (c, r) -> statementCurrencyTotal(r, c, isMasked = isMasked) })
     }
     fun flow(title: String, credit: Boolean): Triple<String, Int, String>? {
         val rows = selected.filter { it.isCredit() == credit }
         if (rows.isEmpty()) return null
-        return Triple(title, rows.size, rows.map { it.currency }.distinct().joinToString(" · ") { statementFlowTotal(rows, it, credit) })
+        return Triple(title, rows.size, rows.map { it.currency }.distinct().joinToString(" · ") { statementFlowTotal(rows, it, credit, isMasked = isMasked) })
     }
     val groups = if (deposit) listOfNotNull(flow("Cargos", false), flow("Abonos", true)) else listOfNotNull(
         group("Compras", setOf(StatementLineKind.PURCHASE, StatementLineKind.INSTALLMENT_PURCHASE)),

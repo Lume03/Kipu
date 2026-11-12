@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,6 +73,7 @@ import com.kipu.app.feature.movements.presentation.AccountSelectorBottomSheet
 import com.kipu.app.feature.movements.presentation.AccountSelectorPurpose
 import com.kipu.app.feature.statements.domain.*
 import com.kipu.app.ui.component.KipuBottomSheet
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -189,8 +192,21 @@ internal fun StatementLineEditSheet(
                                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, errorIndicatorColor = Color.Transparent,
                                 errorContainerColor = Color.Transparent))
                     }
+                    val isMasked = LocalBalanceMasked.current
                     if (attempted && parsedAmount == null) ErrorLine("Escribe un importe mayor a 0")
-                    else Text("Leído del PDF: ${BigDecimal.valueOf(line.amountMinor, 2).toPlainString()}", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                    else {
+                        val pdfAmountDisplay = if (isMasked) "••••••" else BigDecimal.valueOf(line.amountMinor, 2).toPlainString()
+                        Text(
+                            "Leído del PDF: $pdfAmountDisplay",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.secondaryMuted,
+                            modifier = Modifier.semantics {
+                                if (isMasked) {
+                                    contentDescription = "Leído del PDF: Monto oculto"
+                                }
+                            },
+                        )
+                    }
                 }
                 OutlinedTextField(description, { description = it }, label = { Text("Descripción") }, enabled = !state.busy, singleLine = false, maxLines = 2,
                     leadingIcon = { Icon(Icons.Filled.Storefront, null, tint = palette.secondaryMuted) }, shape = RoundedCornerShape(16.dp),

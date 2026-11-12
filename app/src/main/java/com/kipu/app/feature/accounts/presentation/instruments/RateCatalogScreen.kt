@@ -86,7 +86,10 @@ import com.kipu.app.feature.accounts.presentation.FinancialTerminology
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.RateReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.formatMinorUnits
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.flow.Flow
 import java.util.Locale
@@ -862,10 +865,17 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                         tint = Color(0xFF14B8A6),
                         modifier = Modifier.size(14.dp),
                     )
+                    val isMasked = LocalBalanceMasked.current
+                    val limitDisplay = if (isMasked) "••••••" else "${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}"
                     Text(
-                        text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}",
+                        text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: $limitDisplay",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFCBD5E1),
+                        modifier = Modifier.semantics {
+                            if (isMasked) {
+                                contentDescription = "${FinancialTerminology.TOTAL_CREDIT_LINE}: Monto oculto"
+                            }
+                        },
                     )
                 }
 
