@@ -1460,7 +1460,7 @@ fun ensureCreditInstallmentStatusGuards(db: SupportSQLiteDatabase) {
         "credit_payment_allocations" to "UPDATE",
         "transactions" to "UPDATE OF status, sync_status",
         "transaction_links" to "UPDATE",
-        "credit_installments" to "UPDATE OF principal_minor, interest_minor, deleted_at",
+        "credit_installments" to "UPDATE OF principal_minor, interest_minor, financing, deleted_at",
     )) {
         val operations = if (table == "transactions") listOf(columns) else listOf("INSERT", columns, "DELETE")
         for (operation in operations) {
@@ -1610,5 +1610,19 @@ val MIGRATION_39_40 = object : Migration(39, 40) {
             }
         }
         db.execSQL("CREATE INDEX index_transactions_user_id_capture_source_occurred_at_id ON transactions (user_id, capture_source, occurred_at, id)")
+    }
+}
+
+/** Replace SQL captured by old triggers and reopen installments with unpaid interest. */
+val MIGRATION_40_41 = object : Migration(40, 41) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (table in listOf("credit_payment_allocations", "transactions", "transaction_links", "credit_installments")) {
+            for (operation in listOf("insert", "update", "delete")) {
+                db.execSQL("DROP TRIGGER IF EXISTS credit_installment_status_${table}_${operation}")
+            }
+        }
+        ensureCreditInstallmentStatusGuards(db)
+        db.execSQL(com.kipu.app.feature.accounts.data.local.REFRESH_CREDIT_INSTALLMENT_STATUSES_SQL
+            .replace("WHERE user_id = :userId AND", "WHERE 1 = 1 AND"))
     }
 }

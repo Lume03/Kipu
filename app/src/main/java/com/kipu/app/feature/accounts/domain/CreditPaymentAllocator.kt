@@ -15,7 +15,7 @@ data class PrincipalPaymentAllocation(
     val fullyPaid: Boolean,
 )
 
-/** Applies a payment to the outstanding installment total (principal + interest) in strict due-date FIFO order. */
+/** Applies a payment to the outstanding installment total (principal + interest) in strict due-date FIFO order, principal first then interest within each installment. */
 object CreditPaymentAllocator {
     fun allocate(paymentMinor: Long, installments: List<DuePrincipalInstallment>): List<PrincipalPaymentAllocation> {
         require(paymentMinor > 0L) { "Payment must be positive" }

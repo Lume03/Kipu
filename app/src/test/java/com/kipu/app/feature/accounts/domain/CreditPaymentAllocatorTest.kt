@@ -60,4 +60,15 @@ class CreditPaymentAllocatorTest {
             .exceptionOrNull() is IllegalArgumentException)
     }
 
+    @Test
+    fun `total payment clears principal and interest before moving to next installment`() {
+        val rows = listOf(DuePrincipalInstallment("first", 1, 1, 1, 1200),
+            DuePrincipalInstallment("second", 2, 1, 2, 1100))
+        val partial = CreditPaymentAllocator.allocate(1100, rows)
+        assertEquals(listOf("first"), partial.map { it.installmentId })
+        assertFalse(partial.single().fullyPaid)
+        val total = CreditPaymentAllocator.allocate(2300, rows)
+        assertEquals(listOf(1200L, 1100L), total.map { it.allocatedMinor })
+        assertTrue(total.all { it.fullyPaid })
+    }
 }
