@@ -136,13 +136,18 @@ internal fun AddFormTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     errorMessage: String? = null,
     hint: String? = null,
+    maxLength: Int = 80,
 ) {
     val calmColors = rememberCalmEmeraldColors()
     val isError = errorMessage != null
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { newValue ->
+                if (newValue.length <= maxLength) {
+                    onValueChange(newValue)
+                }
+            },
             placeholder = { Text(placeholder, color = calmColors.secondaryMuted) },
             prefix = prefix?.let { { Text(it, fontWeight = FontWeight.Bold, color = calmColors.secondaryMuted, modifier = Modifier.padding(end = 8.dp)) } },
             isError = isError,

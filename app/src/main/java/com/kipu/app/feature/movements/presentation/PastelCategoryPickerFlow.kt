@@ -268,7 +268,7 @@ internal object PastelDesignTokens {
             n.contains("ingres") || n.contains("sueld") || n.contains("sala") || n.contains("ahorr") -> BaseMint
             n.contains("depor") || n.contains("gym") || n.contains("bien") || i.contains("fitness") -> BaseLavender
             else -> {
-                val index = Math.abs(name.hashCode()) % BaseRecommendedPastelChips.size
+                val index = Math.floorMod(name.hashCode(), BaseRecommendedPastelChips.size)
                 BaseRecommendedPastelChips[index]
             }
         }
@@ -462,13 +462,13 @@ fun PastelCategoryPickerBottomSheet(
     selectedCategoryId: String?,
     categoryType: CategoryType = CategoryType.EXPENSE,
     onSelect: (CategoryOption) -> Unit,
-    onCreateCategory: suspend (
+    onCreateCategory: (suspend (
         parentId: String?,
         name: String,
         iconId: String,
         colorHex: String,
         rememberFrequentMerchant: Boolean,
-    ) -> Result<CategoryOption>,
+    ) -> Result<CategoryOption>)? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     initialParentCategoryId: String? = null,
@@ -618,13 +618,13 @@ fun PastelCategoryPickerBottomSheet(
                                 coroutineScope.launch {
                                     localIsCreating = true
                                     localCreationError = null
-                                    val result = onCreateCategory(
+                                    val result = onCreateCategory?.invoke(
                                         selectedParentId.takeIf { it.isNotBlank() },
                                         newSubcategoryName.trim(),
                                         selectedIconId,
                                         selectedColorHex,
                                         rememberFrequentMerchant,
-                                    )
+                                    ) ?: Result.failure(UnsupportedOperationException("Creación de categorías no disponible"))
                                     localIsCreating = false
                                     result.fold(
                                         onSuccess = { createdOption ->
@@ -923,7 +923,7 @@ private fun BrowseCategoriesView(
                         val children = categories.filter { it.parentCategoryId == root.id }
                         val isExpanded = root.id in expandedRootIds
                         val isRootSelected = root.id in selectedIds
-                        val isRootCurrent = root.id in currentIds || (!multiSelect && isRootSelected)
+                        val isRootCurrent = root.id in currentIds
                         val holdsSelection = root.id in rootsWithSelection
                         val pastel = PastelDesignTokens.resolvePastelToken(root.name, root.icon)
 
@@ -953,11 +953,13 @@ private fun BrowseCategoriesView(
                                     .fillMaxWidth()
                                     .heightIn(min = 64.dp)
                                     .clickable {
-                                        onSelectCategory(root)
-                                        if (directSelectionMode) {
-                                            onConfirmSelection(root)
-                                        } else if (children.isNotEmpty() && !multiSelect) {
+                                        if (children.isNotEmpty()) {
                                             onToggleRootExpand(root.id)
+                                        } else {
+                                            onSelectCategory(root)
+                                            if (directSelectionMode) {
+                                                onConfirmSelection(root)
+                                            }
                                         }
                                     }
                                     .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -1067,9 +1069,58 @@ private fun BrowseCategoriesView(
                                         .padding(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
+                                    // Row to use root category itself
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(
+                                                width = if (isRootSelected) 1.5.dp else 1.dp,
+                                                color = if (isRootSelected) PastelDesignTokens.TealPrimary else PastelDesignTokens.BorderSubtle,
+                                                shape = RoundedCornerShape(12.dp),
+                                            )
+                                            .background(if (isRootSelected) PastelDesignTokens.TealLightBg else PastelDesignTokens.SurfaceWhite)
+                                            .clickable {
+                                                onSelectCategory(root)
+                                                if (directSelectionMode) onConfirmSelection(root)
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                            .semantics { selected = isRootSelected }
+                                            .testTag("category_use_root_${root.id}"),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        PastelIconBadge(
+                                            icon = resolveCatalogIcon(root.icon),
+                                            containerColor = pastel.containerColor,
+                                            iconTint = pastel.contentColor,
+                                            size = 36.dp,
+                                            shapeRadius = 10.dp,
+                                        )
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Text(
+                                            text = "Usar \"${root.name}\"",
+                                            fontWeight = if (isRootSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 14.sp,
+                                            color = PastelDesignTokens.TextMain,
+                                            modifier = Modifier.weight(1f),
+                                        )
+
+                                        if (isRootSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = PastelDesignTokens.TealPrimary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    }
+
                                     children.forEach { child ->
                                         val isChildSelected = child.id in selectedIds
-                                        val isChildCurrent = child.id in currentIds || (!multiSelect && isChildSelected)
+                                        val isChildCurrent = child.id in currentIds
                                         val childPastel = PastelDesignTokens.resolvePastelToken(child.name, child.icon)
 
                                         Row(
@@ -2355,7 +2406,8 @@ internal fun CustomPastelColorDialog(
                                             shape = CircleShape,
                                         )
                                         .clickable {
-                                            val hsv = PastelColorUtils.colorToHsv(token.containerColor)
+                                            val baseColor = PastelColorUtils.hexToColor(token.hexCode)
+                                            val hsv = PastelColorUtils.colorToHsv(baseColor)
                                             currentHue = hsv[0]
                                             currentSaturation = hsv[1]
                                             currentValue = hsv[2]

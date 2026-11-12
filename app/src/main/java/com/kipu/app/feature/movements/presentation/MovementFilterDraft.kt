@@ -23,7 +23,6 @@ data class MovementFilterDraft(
     val fromDate: String = "",
     val toDate: String = "",
     val movementType: MovementType? = null,
-    val comparePreviousMonth: Boolean = false,
     val sources: Set<com.kipu.app.feature.movements.domain.model.MovementSource> = emptySet(),
 ) {
     fun validate(zone: ZoneId = ZoneId.systemDefault()): FilterDraftValidation {
@@ -58,7 +57,6 @@ data class MovementFilterDraft(
             filters: AdvancedFiltersState,
             zone: ZoneId = ZoneId.systemDefault(),
             movementType: MovementType? = null,
-            comparePreviousMonth: Boolean = false,
         ) = MovementFilterDraft(
             accountIds = filters.accountIds, categoryIds = filters.categoryIds,
             cardIds = filters.cardIds, merchantIds = filters.merchantIds,
@@ -71,7 +69,6 @@ data class MovementFilterDraft(
             fromDate = filters.fromDate?.let { java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate().toString() }.orEmpty(),
             toDate = filters.toDate?.let { java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate().minusDays(1).toString() }.orEmpty(),
             movementType = movementType,
-            comparePreviousMonth = comparePreviousMonth,
         )
     }
 }

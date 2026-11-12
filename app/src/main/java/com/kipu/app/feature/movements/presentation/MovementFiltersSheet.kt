@@ -147,7 +147,6 @@ private fun MovementFiltersSheetContent(
         var count = 0
         if (draft.fromDate.isNotBlank() || draft.toDate.isNotBlank()) count++
         if (draft.movementType != null) count++
-        if (draft.comparePreviousMonth) count++
         if (draft.accountIds.isNotEmpty()) count++
         if (draft.categoryIds.isNotEmpty()) count++
         if (draft.cardIds.isNotEmpty()) count++
@@ -331,17 +330,6 @@ private fun MovementFiltersSheetContent(
                             )
                         }
 
-                        // Compare month chip
-                        if (draft.comparePreviousMonth) {
-                            ActiveFilterDismissChip(
-                                text = "Comparar mes",
-                                bgColor = themeColors.surfaceVariant,
-                                borderColor = themeColors.border,
-                                textColor = themeColors.inkSecondary,
-                                onDismiss = { updateDraft(draft.copy(comparePreviousMonth = false)) }
-                            )
-                        }
-
                         // Account chips
                         draft.accountIds.forEach { accId ->
                             val accName = accounts.firstOrNull { it.id == accId }?.label ?: "Cuenta"
@@ -387,10 +375,11 @@ private fun MovementFiltersSheetContent(
 
                         // Amount chip
                         if (draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()) {
+                            val currSym = if (draft.currency == "USD") "$ " else "S/ "
                             val amountLabel = if (LocalBalanceMasked.current) {
                                 "Importe oculto"
                             } else {
-                                "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}"
+                                "$currSym${draft.minAmount.ifBlank { "0" }} – $currSym${draft.maxAmount.ifBlank { "∞" }}"
                             }
                             ActiveFilterDismissChip(
                                 text = amountLabel,
@@ -712,35 +701,6 @@ private fun MovementFiltersSheetContent(
                                 }
                             }
 
-                            // Comparison Switch
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.SwapHoriz,
-                                        contentDescription = null,
-                                        tint = themeColors.inkSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = "Comparar con mes anterior",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = themeColors.inkPrimary
-                                    )
-                                }
-                                Switch(
-                                    checked = draft.comparePreviousMonth,
-                                    onCheckedChange = { updateDraft(draft.copy(comparePreviousMonth = it)) },
-                                    colors = SwitchDefaults.colors()
-                                )
-                            }
-
                             // Errors
                             FilterFieldError("from", errors["from"])
                             FilterFieldError("to", errors["to"])
@@ -1030,7 +990,6 @@ private fun MovementFiltersSheetContent(
                                 fromDate = draft.fromDate,
                                 toDate = draft.toDate,
                                 movementType = draft.movementType,
-                                comparePreviousMonth = draft.comparePreviousMonth,
                                 accountIds = prev.accountIds,
                                 categoryIds = prev.categoryIds,
                                 cardIds = prev.cardIds,
@@ -1502,11 +1461,12 @@ private fun AdvancedFiltersControls(
                     }
 
                     val hasCustomAmount = draft.minAmount.isNotBlank() || draft.maxAmount.isNotBlank()
+                    val currSym = if (draft.currency == "USD") "$ " else "S/ "
                     Text(
                         text = when {
                             !hasCustomAmount -> "Monto mín. y máx."
                             LocalBalanceMasked.current -> "Importe oculto"
-                            else -> "S/ ${draft.minAmount.ifBlank { "0" }} – S/ ${draft.maxAmount.ifBlank { "∞" }}"
+                            else -> "$currSym${draft.minAmount.ifBlank { "0" }} – $currSym${draft.maxAmount.ifBlank { "∞" }}"
                         },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = if (hasCustomAmount) FontWeight.SemiBold else FontWeight.Normal

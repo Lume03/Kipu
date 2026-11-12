@@ -49,7 +49,11 @@ fun resolveRateCatalogContext(
     products: List<CreditProductReference>,
 ): RateCatalogContext {
     if (card == null) return RateCatalogContext.LoadingCard
+    val issuerCode = bankChoices.firstOrNull {
+        it.name.equals(card.issuer, ignoreCase = true) || it.code.equals(card.issuer, ignoreCase = true)
+    }?.code ?: card.issuer
     val preset = (CardStylePresets.byId(card.stylePresetId)
+        ?: card.alias?.let { CardStylePresets.forProduct(issuerCode, it, card.network.name) }
         ?: card.alias?.let { CardStylePresets.forProduct(card.issuer, it, card.network.name) })
         ?.takeIf { it.institutionCode.isNotBlank() && it.productName.isNotBlank() }
         ?: return RateCatalogContext.MissingProductIdentity(card)
@@ -57,7 +61,7 @@ fun resolveRateCatalogContext(
     val canonicalProductName = OfficialCreditProductMappings.canonicalCatalogNameFor(preset.id) ?: preset.productName
     val matchingProducts = products.filter { product ->
         product.institutionCode.equals(preset.institutionCode, ignoreCase = true) &&
-            product.institutionCode.equals(card.issuer, ignoreCase = true) &&
+            product.institutionCode.equals(issuerCode, ignoreCase = true) &&
             product.cardNetwork.equals(preset.network, ignoreCase = true) &&
             product.cardNetwork.equals(card.network.name, ignoreCase = true) &&
             normalizeOfficialProductName(product.productName) == normalizeOfficialProductName(canonicalProductName)

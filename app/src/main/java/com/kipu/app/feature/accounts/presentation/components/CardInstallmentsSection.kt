@@ -48,6 +48,8 @@ import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.CardInstallment
 import com.kipu.app.feature.accounts.domain.model.CardInstallmentStatus
 import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.theme.CalmEmeraldColors
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.feature.accounts.domain.model.CardInstallmentsSummary
@@ -267,8 +269,11 @@ fun CardInstallmentRow(item: CardInstallment, modifier: Modifier = Modifier) {
                 )
             }
             val closingText = item.billingClosingDate?.let { stringResource(R.string.credit_purchase_closing, it.format(DUE_FORMAT)) }
-            val details = listOfNotNull(item.description?.takeIf(String::isNotBlank), closingText)
-            if (details.isNotEmpty() || item.interest.minorUnits > 0L) {
+            val interestText = if (item.interest.minorUnits > 0L) {
+                "Interés: ${item.interest.currency.symbol()} ${formatMinorUnits(item.interest.minorUnits)}"
+            } else null
+            val details = listOfNotNull(item.description?.takeIf(String::isNotBlank), closingText, interestText)
+            if (details.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         details.joinToString(" · "),

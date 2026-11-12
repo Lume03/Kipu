@@ -215,6 +215,37 @@ class RateCatalogContextTest {
         assertTrue(result is RateCatalogContext.Resolved)
     }
 
+    @Test
+    fun `resolves retail cards by bank name via bank code lookup for Falabella Ripley and Cencosud`() {
+        val falabellaCard = card(
+            stylePresetId = "falabella-cmr-visa-classic",
+            issuer = "Tarjeta CMR Falabella",
+            network = CardNetwork.VISA,
+        )
+        val falabellaProduct = product(
+            name = "CMR Visa",
+            institutionCode = "BANCO_FALABELLA",
+            network = "VISA",
+        )
+        val falabellaResult = resolveRateCatalogContext(falabellaCard, listOf(falabellaProduct))
+        assertTrue(falabellaResult is RateCatalogContext.Resolved)
+        assertEquals("CMR Visa", (falabellaResult as RateCatalogContext.Resolved).product.productName)
+
+        val ripleyCard = card(
+            stylePresetId = "ripley-mastercard-classic",
+            issuer = "Tarjeta Ripley",
+            network = CardNetwork.MASTERCARD,
+        )
+        val ripleyProduct = product(
+            name = "Tarjeta Crédito Ripley MC",
+            institutionCode = "RIPLEY",
+            network = "MASTERCARD",
+        )
+        val ripleyResult = resolveRateCatalogContext(ripleyCard, listOf(ripleyProduct))
+        assertTrue(ripleyResult is RateCatalogContext.Resolved)
+        assertEquals("Tarjeta Crédito Ripley MC", (ripleyResult as RateCatalogContext.Resolved).product.productName)
+    }
+
     private fun card(
         stylePresetId: String?,
         issuer: String = "BCP",

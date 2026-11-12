@@ -1425,9 +1425,9 @@ internal fun CalmEmeraldCreditProductTree(
 ) {
     val calmColors = rememberCalmEmeraldColors()
     val byNetwork = remember(products) { products.groupBy { it.network } }
-    val expanded = remember { mutableStateOf(setOf<String>()) }
-    fun toggle(key: String) {
-        expanded.value = if (key in expanded.value) expanded.value - key else expanded.value + key
+    val openOverrides = rememberSaveable { mutableStateOf(mapOf<String, Boolean>()) }
+    fun toggle(key: String, currentOpen: Boolean) {
+        openOverrides.value = openOverrides.value + (key to !currentOpen)
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -1438,7 +1438,8 @@ internal fun CalmEmeraldCreditProductTree(
         byNetwork.forEach { (network, networkProducts) ->
             val netKey = "n:${network.name}"
             val hasSelection = networkProducts.any { it.name == selectedProductName }
-            val netOpen = netKey in expanded.value || hasSelection || byNetwork.size == 1
+            val defaultNetOpen = hasSelection || byNetwork.size == 1
+            val netOpen = openOverrides.value[netKey] ?: defaultNetOpen
             val byTier = networkProducts.groupBy { it.stylePreset?.tierLabel ?: "Otros" }
             Surface(
                 shape = RoundedCornerShape(20.dp),
@@ -1451,7 +1452,7 @@ internal fun CalmEmeraldCreditProductTree(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = 68.dp)
-                            .clickable(role = Role.Button) { toggle(netKey) }
+                            .clickable(role = Role.Button) { toggle(netKey, netOpen) }
                             .semantics { stateDescription = if (netOpen) "Expandido" else "Contraído" }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1485,14 +1486,15 @@ internal fun CalmEmeraldCreditProductTree(
                             byTier.forEach { (tier, tierProducts) ->
                                 val tierKey = "t:${network.name}:$tier"
                                 val tierHasSelection = tierProducts.any { it.name == selectedProductName }
-                                val tierOpen = tierKey in expanded.value || tierHasSelection || byTier.size == 1
+                                val defaultTierOpen = tierHasSelection || byTier.size == 1
+                                val tierOpen = openOverrides.value[tierKey] ?: defaultTierOpen
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
                                     color = calmColors.pillTrack,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 52.dp)
-                                        .clickable(role = Role.Button) { toggle(tierKey) }
+                                        .clickable(role = Role.Button) { toggle(tierKey, tierOpen) }
                                         .semantics { stateDescription = if (tierOpen) "Expandido" else "Contraído" },
                                 ) {
                                     Row(

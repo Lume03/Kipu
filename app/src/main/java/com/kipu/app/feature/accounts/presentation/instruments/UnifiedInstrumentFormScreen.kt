@@ -497,6 +497,18 @@ fun UnifiedInstrumentFormScreen(
             "Ingresa una TEA válida, con hasta dos decimales." else null
         if (teaError != null) hasError = true
 
+        val chosenTitle = (selectedProductName ?: alias.ifBlank { "Tarjeta ${bank.name}" }).trim()
+        if (chosenTitle.isBlank()) {
+            aliasError = "Escribe un nombre para reconocerla"
+            hasError = true
+        } else if (Card.isForbiddenSensitiveCardInput(chosenTitle)) {
+            aliasError = "No ingreses el número completo de la tarjeta ni el CVV."
+            hasError = true
+        } else if (chosenTitle.length > 80) {
+            aliasError = "El nombre no puede tener más de 80 caracteres."
+            hasError = true
+        }
+
         if (hasError) {
             showStep3ErrorBanner = true
             return
@@ -507,7 +519,6 @@ fun UnifiedInstrumentFormScreen(
 
         val colorToken = if (selectedColor == "kipu") "custom_kipu_teal" else bank.accountPreset.defaultColorToken
         val iconToken = "credit_card"
-        val chosenTitle = (selectedProductName ?: alias.ifBlank { "Tarjeta ${bank.name}" }).trim()
 
         val parsedTeaBps = teaMinor?.toInt()
 
@@ -544,6 +555,10 @@ fun UnifiedInstrumentFormScreen(
             if (firstInvalidRequester == null) firstInvalidRequester = aliasBringIntoViewRequester
         } else if (Card.isForbiddenSensitiveCardInput(alias)) {
             aliasError = "No ingreses el número completo de la tarjeta ni el CVV."
+            valid = false
+            if (firstInvalidRequester == null) firstInvalidRequester = aliasBringIntoViewRequester
+        } else if (alias.trim().length > 80) {
+            aliasError = "El nombre no puede tener más de 80 caracteres."
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = aliasBringIntoViewRequester
         }
@@ -982,7 +997,7 @@ fun UnifiedInstrumentFormScreen(
                     )
 
                     if (selectedProductName == null) {
-                        OutlinedTextField(value = alias, onValueChange = { alias = it; hasAliasBeenEdited = true },
+                        OutlinedTextField(value = alias, onValueChange = { alias = it.take(80); hasAliasBeenEdited = true },
                             label = { Text("Nombre de tu tarjeta") }, modifier = Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             networkOptions.forEach { option ->

@@ -1,4 +1,4 @@
-﻿package com.kipu.app.feature.accounts.presentation
+package com.kipu.app.feature.accounts.presentation
 
 import com.kipu.app.core.finance.domain.model.*
 import com.kipu.app.feature.accounts.domain.model.*
@@ -45,5 +45,58 @@ class EditAccountDebitRegistrationTest {
         }
         assertTrue(result.isFailure)
         assertEquals(0, calls)
+    }
+
+    @Test fun `banbif account registers debit with banbif issuer and style preset instead of other`() = runBlocking {
+        val banbifAccount = Account(
+            AccountId.generate(), UserId.generate(), "Cuenta Sueldo BanBif", AccountType.SAVINGS, Currency.PEN,
+            preset = AccountPreset.GENERIC, initialBalance = Money(0, Currency.PEN), openedAt = Instant.EPOCH,
+            colorToken = "banbif_cyan"
+        )
+        var registered: DebitCard? = null
+        val result = registerDebitForEditedAccount(banbifAccount, "Cuenta Sueldo BanBif", AccountPreset.GENERIC, "banbif_cyan", null, "4321") {
+            registered = it
+            Result.success(Unit)
+        }
+        assertTrue(result.isSuccess)
+        val card = requireNotNull(registered)
+        assertEquals("BanBif", card.issuer)
+        assertEquals("banbif-debit-classic", card.stylePresetId)
+        assertEquals("4321", card.lastFourDigits)
+    }
+
+    @Test fun `scotiabank account defaults to mastercard network`() = runBlocking {
+        val scoAccount = Account(
+            AccountId.generate(), UserId.generate(), "Ahorro Scotiabank", AccountType.SAVINGS, Currency.PEN,
+            preset = AccountPreset.SCOTIABANK, initialBalance = Money(0, Currency.PEN), openedAt = Instant.EPOCH
+        )
+        var registered: DebitCard? = null
+        val result = registerDebitForEditedAccount(scoAccount, "Ahorro Scotiabank", AccountPreset.SCOTIABANK, null, null, "9876") {
+            registered = it
+            Result.success(Unit)
+        }
+        assertTrue(result.isSuccess)
+        val card = requireNotNull(registered)
+        assertEquals("Scotiabank", card.issuer)
+        assertEquals(CardNetwork.MASTERCARD, card.network)
+        assertEquals("9876", card.lastFourDigits)
+    }
+
+    @Test fun `explicit network parameter overrides default bank network`() = runBlocking {
+        val scoAccount = Account(
+            AccountId.generate(), UserId.generate(), "Ahorro Scotiabank", AccountType.SAVINGS, Currency.PEN,
+            preset = AccountPreset.SCOTIABANK, initialBalance = Money(0, Currency.PEN), openedAt = Instant.EPOCH
+        )
+        var registered: DebitCard? = null
+        val result = registerDebitForEditedAccount(
+            scoAccount, "Ahorro Scotiabank", AccountPreset.SCOTIABANK, null, null, "9876",
+            network = CardNetwork.VISA
+        ) {
+            registered = it
+            Result.success(Unit)
+        }
+        assertTrue(result.isSuccess)
+        val card = requireNotNull(registered)
+        assertEquals(CardNetwork.VISA, card.network)
     }
 }

@@ -129,12 +129,12 @@ class AccountsViewModel @Inject constructor(
                     _creditNotifications.value = result.getOrThrow()
                     _creditNotificationsError.value = null
                 } else {
-                    _creditNotificationsError.value = "No se pudieron cargar los avisos de cr?dito."
+                    _creditNotificationsError.value = "No se pudieron cargar los avisos de crédito."
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _creditNotificationsError.value = "No se pudieron cargar los avisos de cr?dito."
+                _creditNotificationsError.value = "No se pudieron cargar los avisos de crédito."
             } finally {
                 _creditNotificationsSettled.value = true
             }
@@ -308,21 +308,27 @@ class AccountsViewModel @Inject constructor(
         onSuccess: (Account) -> Unit = {},
     ) {
         viewModelScope.launch {
-            val accountId = AccountId.generate()
-            val dummyUserId = UserId.generate() // Replaced by repo from sessionCoordinator
-            val account = Account(
-                id = accountId,
-                userId = dummyUserId,
-                alias = alias,
-                type = type,
-                currency = currency,
-                preset = preset,
-                colorToken = colorToken ?: preset?.defaultColorToken,
-                iconToken = iconToken ?: preset?.defaultIconToken,
-                initialBalance = Money(initialBalanceMinorUnits, currency),
-                openedAt = Instant.now(),
-                linkedAccountId = linkedAccountId?.let(::AccountId),
-            )
+            val accountResult = runCatching {
+                val accountId = AccountId.generate()
+                val dummyUserId = UserId.generate() // Replaced by repo from sessionCoordinator
+                Account(
+                    id = accountId,
+                    userId = dummyUserId,
+                    alias = alias,
+                    type = type,
+                    currency = currency,
+                    preset = preset,
+                    colorToken = colorToken ?: preset?.defaultColorToken,
+                    iconToken = iconToken ?: preset?.defaultIconToken,
+                    initialBalance = Money(initialBalanceMinorUnits, currency),
+                    openedAt = Instant.now(),
+                    linkedAccountId = linkedAccountId?.let(::AccountId),
+                )
+            }
+            val account = accountResult.getOrElse { error ->
+                _eventChannel.send(AccountUiEvent.Error(error.message ?: "Error al crear la cuenta"))
+                return@launch
+            }
 
             createLiquidAccountUseCase(account).fold(
                 onSuccess = { created ->
@@ -359,11 +365,21 @@ class AccountsViewModel @Inject constructor(
         }
     }
 
-    fun updateAccountAndDebitIdentity(account: Account, alias: String, preset: AccountPreset?, colorToken: String?, iconToken: String?, card: com.kipu.app.feature.accounts.domain.model.DebitCard?, digits: String) {
+    fun updateAccountAndDebitIdentity(
+        account: Account,
+        alias: String,
+        preset: AccountPreset?,
+        colorToken: String?,
+        iconToken: String?,
+        card: com.kipu.app.feature.accounts.domain.model.DebitCard?,
+        digits: String,
+        bankCode: String? = null,
+        network: com.kipu.app.feature.accounts.domain.model.CardNetwork? = null,
+    ) {
         viewModelScope.launch {
             val cardResult = when {
                 card != null && digits != card.lastFourDigits -> financialInstrumentsRepository.updateDebitCardIdentity(card.id, digits, OperationId.generate())
-                card == null -> registerDebitForEditedAccount(account, alias, preset, colorToken, iconToken, digits) { registerDebitCardUseCase(it).map { Unit } }
+                card == null -> registerDebitForEditedAccount(account, alias, preset, colorToken, iconToken, digits, bankCode, network) { registerDebitCardUseCase(it).map { } }
                 else -> Result.success(Unit)
             }
             if (cardResult.isFailure) {
@@ -462,20 +478,26 @@ class AccountsViewModel @Inject constructor(
         onSuccess: (com.kipu.app.feature.accounts.domain.model.DebitCard) -> Unit = {},
     ) {
         viewModelScope.launch {
-            val card = com.kipu.app.feature.accounts.domain.model.DebitCard(
-                id = com.kipu.app.core.finance.domain.model.CardId.generate(),
-                userId = com.kipu.app.core.finance.domain.model.UserId.generate(),
-                alias = alias?.takeIf { it.isNotBlank() },
-                issuer = issuer.trim(),
-                network = network,
-                lastFourDigits = lastFourDigits.trim(),
-                currency = linkedAccount.currency,
-                linkedAccountId = linkedAccount.id,
-                preset = preset,
-                stylePresetId = stylePresetId,
-                colorToken = colorToken ?: preset?.defaultColorToken,
-                iconToken = iconToken ?: preset?.defaultIconToken,
-            )
+            val cardResult = runCatching {
+                com.kipu.app.feature.accounts.domain.model.DebitCard(
+                    id = com.kipu.app.core.finance.domain.model.CardId.generate(),
+                    userId = com.kipu.app.core.finance.domain.model.UserId.generate(),
+                    alias = alias?.takeIf { it.isNotBlank() },
+                    issuer = issuer.trim(),
+                    network = network,
+                    lastFourDigits = lastFourDigits.trim(),
+                    currency = linkedAccount.currency,
+                    linkedAccountId = linkedAccount.id,
+                    preset = preset,
+                    stylePresetId = stylePresetId,
+                    colorToken = colorToken ?: preset?.defaultColorToken,
+                    iconToken = iconToken ?: preset?.defaultIconToken,
+                )
+            }
+            val card = cardResult.getOrElse { error ->
+                _eventChannel.send(AccountUiEvent.Error(error.message ?: "Error al registrar la tarjeta"))
+                return@launch
+            }
 
             registerDebitCardUseCase(card).fold(
                 onSuccess = { created ->
@@ -513,23 +535,29 @@ class AccountsViewModel @Inject constructor(
                 _eventChannel.send(AccountUiEvent.Error("Inicia sesión para registrar la tarjeta"))
                 return@launch
             }
-            val card = com.kipu.app.feature.accounts.domain.model.CreditCard(
-                id = com.kipu.app.core.finance.domain.model.CardId.generate(),
-                userId = ownerId,
-                alias = alias?.takeIf { it.isNotBlank() },
-                issuer = issuer.trim(),
-                network = network,
-                lastFourDigits = lastFourDigits.trim(),
-                currency = currency,
-                creditLimitMinorUnits = creditLimitMinorUnits,
-                billingDay = billingDay,
-                dueDay = dueDay,
-                personalTeaBps = personalTeaBps,
-                preset = preset,
-                stylePresetId = stylePresetId,
-                colorToken = colorToken ?: preset?.defaultColorToken,
-                iconToken = iconToken ?: preset?.defaultIconToken,
-            )
+            val cardResult = runCatching {
+                com.kipu.app.feature.accounts.domain.model.CreditCard(
+                    id = com.kipu.app.core.finance.domain.model.CardId.generate(),
+                    userId = ownerId,
+                    alias = alias?.takeIf { it.isNotBlank() },
+                    issuer = issuer.trim(),
+                    network = network,
+                    lastFourDigits = lastFourDigits.trim(),
+                    currency = currency,
+                    creditLimitMinorUnits = creditLimitMinorUnits,
+                    billingDay = billingDay,
+                    dueDay = dueDay,
+                    personalTeaBps = personalTeaBps,
+                    preset = preset,
+                    stylePresetId = stylePresetId,
+                    colorToken = colorToken ?: preset?.defaultColorToken,
+                    iconToken = iconToken ?: preset?.defaultIconToken,
+                )
+            }
+            val card = cardResult.getOrElse { error ->
+                _eventChannel.send(AccountUiEvent.Error(error.message ?: "Error al registrar la tarjeta"))
+                return@launch
+            }
 
             registerCreditCardUseCase(card).fold(
                 onSuccess = { created ->
@@ -587,18 +615,67 @@ internal suspend fun registerDebitForEditedAccount(
     colorToken: String?,
     iconToken: String?,
     digits: String,
+    bankCode: String? = null,
+    network: com.kipu.app.feature.accounts.domain.model.CardNetwork? = null,
     register: suspend (com.kipu.app.feature.accounts.domain.model.DebitCard) -> Result<Unit>,
 ): Result<Unit> {
     if (digits.isEmpty()) return Result.success(Unit)
-    if (!com.kipu.app.feature.accounts.domain.model.Card.isValidLastFourDigits(digits)) return Result.failure(IllegalArgumentException("Ingresa exactamente 4 dígitos"))
-    val bank = com.kipu.app.feature.accounts.presentation.instruments.bankChoices.firstOrNull { it.accountPreset == preset && it.code != "BANBIF" }
+    if (!com.kipu.app.feature.accounts.domain.model.Card.isValidLastFourDigits(digits)) {
+        return Result.failure(IllegalArgumentException("Ingresa exactamente 4 dígitos"))
+    }
+
+    val codeToMatch = bankCode
+        ?: if (colorToken?.contains("banbif", ignoreCase = true) == true ||
+            account.colorToken?.contains("banbif", ignoreCase = true) == true ||
+            account.alias.contains("BanBif", ignoreCase = true)
+        ) {
+            "BANBIF"
+        } else {
+            account.preset?.name
+        }
+
+    val bank = (if (!codeToMatch.isNullOrBlank()) {
+        com.kipu.app.feature.accounts.presentation.instruments.bankChoices.firstOrNull {
+            it.code.equals(codeToMatch, ignoreCase = true) || it.name.equals(codeToMatch, ignoreCase = true)
+        }
+    } else null)
+        ?: com.kipu.app.feature.accounts.presentation.instruments.bankChoices.firstOrNull {
+            it.code.equals(preset?.name, ignoreCase = true)
+        }
+        ?: com.kipu.app.feature.accounts.presentation.instruments.bankChoices.firstOrNull {
+            it.accountPreset == preset
+        }
         ?: com.kipu.app.feature.accounts.presentation.instruments.bankChoices.first { it.code == "OTHER" }
+
+    val defaultNetwork = if (bank.cardPreset.name.contains("MASTERCARD", ignoreCase = true)) {
+        com.kipu.app.feature.accounts.domain.model.CardNetwork.MASTERCARD
+    } else {
+        com.kipu.app.feature.accounts.domain.model.CardNetwork.VISA
+    }
+    val resolvedNetwork = network ?: defaultNetwork
+
+    val stylePresetId = com.kipu.app.feature.accounts.presentation.components.CardStylePresets.forInstitution(
+        bank.code,
+        com.kipu.app.feature.accounts.presentation.components.CardStyleType.DEBIT
+    ).firstOrNull { it.network.equals(resolvedNetwork.name, ignoreCase = true) }?.id
+        ?: com.kipu.app.feature.accounts.presentation.components.CardStylePresets.forInstitution(
+            bank.code,
+            com.kipu.app.feature.accounts.presentation.components.CardStyleType.DEBIT
+        ).firstOrNull()?.id
+
     val card = com.kipu.app.feature.accounts.domain.model.DebitCard(
-        id = com.kipu.app.core.finance.domain.model.CardId.generate(), userId = account.userId,
-        alias = alias, issuer = bank.name, network = com.kipu.app.feature.accounts.domain.model.CardNetwork.VISA,
-        lastFourDigits = digits, currency = account.currency, linkedAccountId = account.id, preset = bank.cardPreset,
-        stylePresetId = com.kipu.app.feature.accounts.presentation.components.CardStylePresets.forInstitution(bank.code, com.kipu.app.feature.accounts.presentation.components.CardStyleType.DEBIT).firstOrNull()?.id,
-        colorToken = colorToken ?: bank.cardPreset.defaultColorToken, iconToken = iconToken ?: bank.cardPreset.defaultIconToken,
+        id = com.kipu.app.core.finance.domain.model.CardId.generate(),
+        userId = account.userId,
+        alias = alias,
+        issuer = bank.name,
+        network = resolvedNetwork,
+        lastFourDigits = digits,
+        currency = account.currency,
+        linkedAccountId = account.id,
+        preset = bank.cardPreset,
+        stylePresetId = stylePresetId,
+        colorToken = colorToken ?: bank.cardPreset.defaultColorToken,
+        iconToken = iconToken ?: bank.cardPreset.defaultIconToken,
     )
     return register(card)
 }

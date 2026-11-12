@@ -434,7 +434,7 @@ private fun MovementVoidBalancePreview(
 
             if (!tx.sourceAccountId.isNullOrBlank()) {
                 BalanceImpactRow(
-                    accountLabel = if (tx.type == MovementType.INCOME) "${item.destinationAccountAlias ?: "Cuenta"} · ingreso" else item.sourceAccountAlias ?: "Cuenta de origen",
+                    accountLabel = if (tx.type == MovementType.INCOME) "${item.sourceAccountAlias ?: item.destinationAccountAlias ?: "Cuenta"} · ingreso" else item.sourceAccountAlias ?: "Cuenta de origen",
                     current = sourceBalanceMinor,
                     projected = sourceProjected,
                     currencySymbol = currencySymbol,

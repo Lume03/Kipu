@@ -17,7 +17,6 @@ internal val MovementFilterDraftSaver = mapSaver(
         "min" to draft.minAmount, "max" to draft.maxAmount, "currency" to draft.currency.orEmpty(),
         "from" to draft.fromDate, "to" to draft.toDate,
         "type" to draft.movementType?.name,
-        "compare" to draft.comparePreviousMonth,
     ) },
     restore = { values ->
         fun names(key: String) = (values[key] as? List<*>)?.filterIsInstance<String>().orEmpty().toSet()
@@ -30,7 +29,6 @@ internal val MovementFilterDraftSaver = mapSaver(
             minAmount = values["min"] as? String ?: "", maxAmount = values["max"] as? String ?: "",
             currency = (values["currency"] as? String)?.takeIf(String::isNotBlank),
             fromDate = values["from"] as? String ?: "", toDate = values["to"] as? String ?: "",
-            movementType = (values["type"] as? String)?.let { runCatching { MovementType.valueOf(it) }.getOrNull() },
-            comparePreviousMonth = values["compare"] as? Boolean ?: false)
+            movementType = (values["type"] as? String)?.let { runCatching { MovementType.valueOf(it) }.getOrNull() })
     },
 )

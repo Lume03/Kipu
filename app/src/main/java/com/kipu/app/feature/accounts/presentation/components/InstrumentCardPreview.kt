@@ -5,7 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,7 +106,7 @@ fun InstrumentCardPreview(
             .onSizeChanged { size = it }
             .pointerInput(reducedMotion, size) {
                 if (!reducedMotion) {
-                    detectDragGestures(
+                    detectHorizontalDragGestures(
                         onDragEnd = {
                             scope.launch {
                                 rotationX.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 420f))
@@ -121,18 +121,19 @@ fun InstrumentCardPreview(
                             }
                             glarePosition = Offset(0.5f, 0.5f)
                         },
-                    ) { change, _ ->
-                        val width = size.width.coerceAtLeast(1).toFloat()
-                        val height = size.height.coerceAtLeast(1).toFloat()
-                        val x = (change.position.x / width).coerceIn(0f, 1f)
-                        val y = (change.position.y / height).coerceIn(0f, 1f)
-                        scope.launch {
-                            rotationY.snapTo((x - 0.5f) * 14f)
-                            rotationX.snapTo((0.5f - y) * 14f)
-                        }
-                        glarePosition = Offset(x, y)
-                        change.consume()
-                    }
+                        onHorizontalDrag = { change, _ ->
+                            val width = size.width.coerceAtLeast(1).toFloat()
+                            val height = size.height.coerceAtLeast(1).toFloat()
+                            val x = (change.position.x / width).coerceIn(0f, 1f)
+                            val y = (change.position.y / height).coerceIn(0f, 1f)
+                            scope.launch {
+                                rotationY.snapTo((x - 0.5f) * 14f)
+                                rotationX.snapTo((0.5f - y) * 14f)
+                            }
+                            glarePosition = Offset(x, y)
+                            change.consume()
+                        },
+                    )
                 }
             },
     ) {

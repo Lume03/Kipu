@@ -59,7 +59,7 @@ class AccountSelectorBottomSheetTest {
             }
         }
 
-        compose.onNodeWithText("Créd. disp.:", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Crédito disponible:", substring = true).assertIsDisplayed()
         compose.onNodeWithContentDescription(
             "Crédito disponible, no es dinero propio:",
             substring = true,

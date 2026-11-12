@@ -133,7 +133,7 @@ fun RateCatalogScreen(
                 restoredDraft = personalTeaInput,
                 persistedTeaBps = creditCard.personalTeaBps,
             )
-            personalTeaInput = if (draft.isNotBlank()) draft else "42.00"
+            personalTeaInput = draft
             personalTeaError = null
             initializedCardId = cardId
         }
@@ -905,6 +905,7 @@ private fun PersonalTeaComparisonCard(
     val outsideRange = teaBps != null &&
         ((minBps != null && teaBps < minBps) || (maxBps != null && teaBps > maxBps))
 
+    val hasSbsRange = minBps != null && maxBps != null
     val teaFloat = (teaBps ?: 0) / 100f
     val minFloat = (minBps ?: 0) / 100f
     val maxFloat = (maxBps ?: 10000) / 100f
@@ -914,6 +915,7 @@ private fun PersonalTeaComparisonCard(
     } else 0.5f
 
     val positionLabel = when {
+        !hasSbsRange -> "Sin dato SBS"
         outsideRange && maxBps != null && teaBps > maxBps -> "Excede tope SBS (+${"%.2f".format(Locale.US, (teaBps - maxBps) / 100.0)}%)"
         outsideRange -> "Fuera de rango SBS"
         positionFraction <= 0.33f -> "Favorable (Tercio Inferior)"
@@ -922,7 +924,7 @@ private fun PersonalTeaComparisonCard(
     }
 
     val deltaMaxPercent = if (maxFloat > 0f) (((teaFloat - maxFloat) / maxFloat) * 100.0).roundToInt() else 0
-    val chipText = if (deltaMaxPercent <= 0) "$deltaMaxPercent% del máximo" else "+$deltaMaxPercent% del máximo"
+    val chipText = if (!hasSbsRange) "Sin dato SBS" else if (deltaMaxPercent <= 0) "$deltaMaxPercent% del máximo" else "+$deltaMaxPercent% del máximo"
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(
@@ -968,111 +970,128 @@ private fun PersonalTeaComparisonCard(
                 )
 
                 if (teaBps != null) {
-                    // Multi-color SBS Thermometer Bar with Speech Bubble & Thumb
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Indicator tag above track
-                        Box(modifier = Modifier.fillMaxWidth()) {
+                    if (hasSbsRange) {
+                        // Multi-color SBS Thermometer Bar with Speech Bubble & Thumb
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Indicator tag above track
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = (positionFraction * 200).dp.coerceIn(0.dp, 180.dp)),
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = themeColors.primary,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(5.dp)
+                                                    .clip(CircleShape)
+                                                    .background(semanticColors.incomeText)
+                                            )
+                                            Text(
+                                                text = "Tu tasa: ${"%.2f".format(Locale.US, teaFloat)}%",
+                                                color = themeColors.onPrimary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Bar with thumb circle
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = (positionFraction * 200).dp.coerceIn(0.dp, 180.dp)),
+                                    .fillMaxWidth()
+                                    .height(18.dp),
+                                contentAlignment = Alignment.CenterStart,
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = themeColors.primary,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(5.dp)
-                                                .clip(CircleShape)
-                                                .background(semanticColors.incomeText)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(
+                                                    semanticColors.incomeText,
+                                                    semanticColors.warningText,
+                                                    semanticColors.expenseText,
+                                                )
+                                            )
                                         )
-                                        Text(
-                                            text = "Tu tasa: ${"%.2f".format(Locale.US, teaFloat)}%",
-                                            color = themeColors.onPrimary,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .padding(start = (positionFraction * 260).dp.coerceIn(0.dp, 250.dp))
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(themeColors.surface)
+                                        .border(3.dp, themeColors.primary, CircleShape)
+                                )
+                            }
+
+                            // Labels below track
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column {
+                                    Text("${"%.2f".format(Locale.US, minFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                                    Text("Tasa mínima ${card.issuer}", fontSize = 10.sp, color = themeColors.inkSecondary)
+                                }
+                                Text(
+                                    "Media: ${"%.2f".format(Locale.US, (minFloat + maxFloat) / 2f)}%",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = themeColors.inkSecondary,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("${"%.2f".format(Locale.US, maxFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                                    Text("Tasa máxima SBS", fontSize = 10.sp, color = themeColors.inkSecondary)
                                 }
                             }
                         }
 
-                        // Bar with thumb circle
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(18.dp),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                semanticColors.incomeText,
-                                                semanticColors.warningText,
-                                                semanticColors.expenseText,
-                                            )
-                                        )
-                                    )
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = (positionFraction * 260).dp.coerceIn(0.dp, 250.dp))
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(themeColors.surface)
-                                    .border(3.dp, themeColors.primary, CircleShape)
-                            )
-                        }
-
-                        // Labels below track
-                        Row(
+                        // Position in market card
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = themeColors.surfaceSubtle,
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top,
                         ) {
-                            Column {
-                                Text("${"%.2f".format(Locale.US, minFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
-                                Text("Tasa mínima ${card.issuer}", fontSize = 10.sp, color = themeColors.inkSecondary)
-                            }
-                            Text(
-                                "Media: ${"%.2f".format(Locale.US, (minFloat + maxFloat) / 2f)}%",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = themeColors.inkSecondary,
-                                modifier = Modifier.padding(top = 2.dp),
-                            )
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("${"%.2f".format(Locale.US, maxFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
-                                Text("Tasa máxima SBS", fontSize = 10.sp, color = themeColors.inkSecondary)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Posición en el mercado:", fontSize = 12.sp, color = themeColors.inkSecondary)
+                                Text(positionLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
                             }
                         }
-                    }
-
-                    // Position in market card
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = themeColors.surfaceSubtle,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = themeColors.surfaceSubtle,
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text("Posición en el mercado:", fontSize = 12.sp, color = themeColors.inkSecondary)
-                            Text(positionLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("Rango tarifario SBS:", fontSize = 12.sp, color = themeColors.inkSecondary)
+                                Text("Sin dato SBS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
+                            }
                         }
                     }
                 }
@@ -1199,7 +1218,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     val raw = rate.publishedTceaSummary
                     if (raw != null) {
                         Regex("""(\d+(?:\.\d+)?%)""").find(raw)?.value ?: raw
-                    } else "161.74%"
+                    } else "Sin dato SBS"
                 }
                 Column(
                     modifier = Modifier.widthIn(max = 112.dp),
@@ -1267,7 +1286,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
 
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "81.50%",
+                        text = "Sin dato SBS",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = themeColors.inkPrimary,
@@ -1328,8 +1347,10 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                     }
 
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        val feeMinor = if (currency == Currency.PEN) rate.membershipFeePenMinor else rate.membershipFeeUsdMinor
+                        val feeSym = if (currency == Currency.PEN) "S/ " else "$ "
                         Text(
-                            text = formatCatalogFee(rate.membershipFeePenMinor, "S/ "),
+                            text = formatCatalogFee(feeMinor, feeSym),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = themeColors.inkPrimary,
@@ -1361,7 +1382,11 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = "100% Exonerable: " + (rate.membershipCondition ?: "Consumo mínimo mensual de S/ 1,200 en cada uno de los 12 ciclos de facturación previos."),
+                            text = if (rate.membershipCondition != null) {
+                                "100% Exonerable: " + rate.membershipCondition
+                            } else {
+                                "Sin dato SBS"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = semanticColors.incomeText,
                             fontSize = 11.sp,
@@ -1396,7 +1421,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         color = themeColors.inkPrimary,
                     )
                     Text(
-                        text = "Datos oficiales verificados al ${rate.catalogAsOf ?: "24/09/2026"}",
+                        text = rate.catalogAsOf?.let { "Datos oficiales verificados al $it" } ?: "Sin dato SBS",
                         style = MaterialTheme.typography.bodySmall,
                         color = themeColors.inkSecondary,
                         fontSize = 11.sp,
@@ -1453,4 +1478,4 @@ private fun formatTeaRange(minBps: Int?, maxBps: Int?): String = when {
 }
 
 private fun formatCatalogFee(amountMinor: Long?, symbol: String): String =
-    amountMinor?.let { "$symbol${"%.2f".format(Locale.US, it / 100.0)}" } ?: "No publicado"
+    amountMinor?.let { "$symbol${"%.2f".format(Locale.US, it / 100.0)}" } ?: "Sin dato SBS"

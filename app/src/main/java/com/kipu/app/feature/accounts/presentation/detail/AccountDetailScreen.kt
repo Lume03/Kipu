@@ -120,6 +120,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.Card as FinancialCard
 import com.kipu.app.feature.accounts.domain.model.CardMovementDisplay
+import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
@@ -274,13 +275,13 @@ fun AccountDetailScreen(
         account = account,
         card = card,
         linkedDebitCard = account?.let { target -> instruments.activeCards.filterIsInstance<DebitCard>().firstOrNull { it.linkedAccountId == target.id } },
-        onSaveDebitIdentity = { alias, preset, debit, digits ->
+        onSaveDebitIdentity = { alias, preset, debit, digits, network ->
             account?.let { target ->
                 isSubmitting = true
                 viewModel.updateAccountAndDebitIdentity(target, alias, preset,
                     if (preset == target.preset) target.colorToken else preset?.defaultColorToken,
                     if (preset == target.preset) target.iconToken else preset?.defaultIconToken,
-                    debit, digits)
+                    debit, digits, network = network)
             }
         },
         currentBalance = currentBalance,
@@ -371,10 +372,12 @@ fun AccountDetailScreen(
                 Text("Nueva compra", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text("Ingresa el importe. En el simulador podrás elegir el comercio, la categoría y las condiciones.",
                     style = MaterialTheme.typography.bodySmall)
+                val isMasked = LocalBalanceMasked.current
                 OutlinedTextField(
                     value = purchaseAmount, onValueChange = { purchaseAmount = it },
                     label = { Text("Importe (${card.currency.symbol()})") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                    visualTransformation = if (isMasked) androidx.compose.ui.text.input.PasswordVisualTransformation('•') else androidx.compose.ui.text.input.VisualTransformation.None,
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     isError = purchaseAmount.isNotBlank() && (parsedMinor == null || parsedMinor <= 0L),
                     supportingText = { Text("Ingresa un monto mayor a cero.") },
@@ -528,7 +531,7 @@ fun AccountDetailContent(
     onRetryCardInstallments: () -> Unit = {},
     focusInstallments: Boolean = false,
     linkedDebitCard: DebitCard? = null,
-    onSaveDebitIdentity: (String, AccountPreset?, DebitCard?, String) -> Unit = { _, _, _, _ -> },
+    onSaveDebitIdentity: (String, AccountPreset?, DebitCard?, String, CardNetwork?) -> Unit = { _, _, _, _, _ -> },
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -543,6 +546,12 @@ fun AccountDetailContent(
     var showOpeningCorrection by remember(instrumentKey) { mutableStateOf(false) }
     var openingAmount by remember(instrumentKey, account?.initialBalance?.minorUnits) {
         mutableStateOf(account?.initialBalance?.minorUnits?.let(::formatMinorUnits).orEmpty())
+    }
+    val defaultDebitNetwork = remember(account) {
+        if (account?.preset == AccountPreset.SCOTIABANK) CardNetwork.MASTERCARD else CardNetwork.VISA
+    }
+    var selectedDebitNetwork by remember(instrumentKey, linkedDebitCard?.network) {
+        mutableStateOf(linkedDebitCard?.network)
     }
     var debitDigits by remember(instrumentKey, linkedDebitCard?.id, linkedDebitCard?.lastFourDigits) { mutableStateOf(linkedDebitCard?.lastFourDigits.orEmpty()) }
     var debitDigitsError by remember(instrumentKey) { mutableStateOf<String?>(null) }
@@ -911,6 +920,23 @@ fun AccountDetailContent(
                                     debitDigitsError = if (debitDigits.isNotEmpty() && !FinancialCard.isValidLastFourDigits(debitDigits)) "Deben ser exactamente 4 números" else null
                                 }, placeholder = "Últimos 4 dígitos", keyboardType = KeyboardType.Number,
                                     errorMessage = debitDigitsError, hint = "Solo se guardan los últimos 4 dígitos.")
+                                AddFormLabel("Red de la tarjeta")
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    val currentNet = selectedDebitNetwork ?: defaultDebitNetwork
+                                    FilterChip(
+                                        selected = currentNet == CardNetwork.VISA,
+                                        onClick = { selectedDebitNetwork = CardNetwork.VISA },
+                                        label = { Text("Visa") },
+                                    )
+                                    FilterChip(
+                                        selected = currentNet == CardNetwork.MASTERCARD,
+                                        onClick = { selectedDebitNetwork = CardNetwork.MASTERCARD },
+                                        label = { Text("Mastercard") },
+                                    )
+                                }
                             }
                         }
                     },
@@ -920,9 +946,9 @@ fun AccountDetailContent(
                         } else if ((linkedDebitCard != null || debitDigits.isNotEmpty()) && !FinancialCard.isValidLastFourDigits(debitDigits)) {
                             debitDigitsError = "Deben ser exactamente 4 números"
                         } else if ((account.type == AccountType.SAVINGS || account.type == AccountType.BANK) &&
-                            debitDigits.isNotEmpty() && debitDigits != linkedDebitCard?.lastFourDigits) {
+                            debitDigits.isNotEmpty() && (debitDigits != linkedDebitCard?.lastFourDigits || (selectedDebitNetwork != null && selectedDebitNetwork != linkedDebitCard?.network))) {
                             // Only a new or changed card identity needs the combined command; plain edits keep the appearance path.
-                            onSaveDebitIdentity(alias.trim(), selectedPreset, linkedDebitCard, debitDigits)
+                            onSaveDebitIdentity(alias.trim(), selectedPreset, linkedDebitCard, debitDigits, selectedDebitNetwork ?: defaultDebitNetwork)
                         } else {
                             onSaveAppearance(alias.trim(), selectedPreset)
                         }
