@@ -33,6 +33,17 @@ class GoalLocalDataSource @Inject constructor(
     private val movementDao: MovementDao,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    /** A failed step rolls back every staged release, receipt and optimistic projection. */
+    suspend fun atomicCommand(block: suspend () -> GoalCommandResult): GoalCommandResult = try {
+        database.withTransaction {
+            val result = block()
+            if (result !is GoalCommandResult.Applied && result !is GoalCommandResult.Duplicate) throw Rollback(result)
+            result
+        }
+    } catch (rollback: Rollback) { rollback.result }
+
+    private class Rollback(val result: GoalCommandResult) : RuntimeException()
+
     fun observeGoals(userId: String): Flow<List<GoalEntity>> = goalDao.observeGoals(userId)
 
     fun observeGoal(userId: String, goalId: String): Flow<GoalEntity?> = goalDao.observeGoal(userId, goalId)
@@ -166,6 +177,15 @@ class GoalLocalDataSource @Inject constructor(
         ) {
             return@withTransaction false
         }
+        if (state in setOf("CONFLICT", "REJECTED")) {
+            val successors = outboxDao.getPendingForUser(command.userId).filter { pending ->
+                pending.operationId != command.operationId && pending.goalId in affectedGoalIds && pending.createdAt >= command.createdAt
+            }
+            successors.forEach { pending ->
+                outboxDao.updateResult(command.userId, pending.operationId, "BLOCKED", null, "BLOCKED_BY_PREVIOUS", pending.resultPayload, now)
+                com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(command.userId, pending.operationId, "BLOCKED_BY_PREVIOUS")
+            }
+        }
         when (state) {
             "APPLIED", "DUPLICATE" -> {
                 if (command.commandType == GoalCommandType.DELETE_EMPTY_GOAL.name) {
@@ -208,10 +228,12 @@ class GoalLocalDataSource @Inject constructor(
                 movementDao.updateCommandReceiptStatus(command.userId, command.operationId, "SYNCED", now)
             }
             "CONFLICT" -> {
+                com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(command.userId, command.operationId, errorCode ?: "GOAL_CONFLICT")
                 affectedGoalIds.forEach { goalDao.updateSyncState(command.userId, it, "CONFLICT") }
                 movementDao.updateCommandReceiptStatus(command.userId, command.operationId, "CONFLICT", now)
             }
             "REJECTED" -> {
+                com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(command.userId, command.operationId, errorCode ?: "GOAL_REJECTED")
                 affectedGoalIds.forEach { goalDao.updateSyncState(command.userId, it, "FAILED") }
                 movementDao.updateCommandReceiptStatus(command.userId, command.operationId, "REJECTED", now)
             }

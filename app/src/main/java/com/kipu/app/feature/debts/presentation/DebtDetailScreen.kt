@@ -222,6 +222,7 @@ fun DebtDetailScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = if (isLiquidated) Arrangement.Center else Arrangement.spacedBy(14.dp),
         ) {
+            com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.DEBT, debt.debtId)
             if (isLiquidated) {
                 // ==========================================
                 // VISTA: OBLIGACIÓN LIQUIDADA CON ÉXITO

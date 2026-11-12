@@ -15,6 +15,7 @@ enum class MovementKind {
 }
 
 enum class MovementStatus {
+    REJECTED,
     POSTED,
     PENDING,
 }

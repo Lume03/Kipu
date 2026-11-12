@@ -149,6 +149,7 @@ fun MovementDetailSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.MOVEMENT, tx.id)
             // === 1. HERO CARD PRINCIPAL ===
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -264,7 +265,7 @@ fun MovementDetailSheet(
                                         )
                                         Text(
                                             text = when {
-                                                terminalError -> "No se pudo sincronizar"
+                                                terminalError -> "No sincronizado"
                                                 pending -> "Pendiente de sincronizar"
                                                 correctionRejected -> "Corrección no aplicada"
                                                 tx.syncStatus == MovementSyncStatus.SYNCED -> "Sincronizado"
@@ -280,10 +281,7 @@ fun MovementDetailSheet(
                         }
                     }
 
-                    if (terminalError) {
-                        Text("Descartar restaura la versión confirmada o retira el movimiento no aceptado.")
-                        TextButton(onClick = onDiscardRejected) { Text("Descartar") }
-                    }
+
                     if (correctionRejected && !pending && !terminalError) {
                         Text(
                             text = "No se pudo aplicar la corrección. Se mantiene $currencySymbol ${formatMinorUnits(tx.amountMinor)}.",

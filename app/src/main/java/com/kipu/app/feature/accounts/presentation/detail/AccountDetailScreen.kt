@@ -679,6 +679,8 @@ fun AccountDetailContent(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                if (card != null) com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CARD, card.id.value)
+                if (account != null) com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.ACCOUNT, account.id.value)
                 if (card is CreditCard) {
                     // R10 3D Kibo Credit Card
                     Kibo3DCreditCard(card = card)
@@ -2599,6 +2601,7 @@ private fun CreditCardMovementRow(
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            if (movement.status == com.kipu.app.core.finance.domain.model.MovementStatus.REJECTED) com.kipu.app.ui.component.UnsyncedNotice(compact = true)
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,

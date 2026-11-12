@@ -880,6 +880,7 @@ fun TransactionRow(
             Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.MOVEMENT, tx.id, compact = true)
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge.copy(

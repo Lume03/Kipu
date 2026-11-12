@@ -41,6 +41,14 @@ class MovementLocalDataSource @Inject constructor(
     suspend fun discardLocal(userId: String, commandId: String): Boolean = database.withTransaction {
         val cmd = movementDao.getOutboxById(userId, commandId) ?: return@withTransaction false
         if (!com.kipu.app.core.sync.OutboxPolicy.isTerminal(cmd.state)) return@withTransaction false
+        val transaction = movementDao.getTransactionById(userId, cmd.aggregateId)
+        if (cmd.commandType == "REGISTER" && transaction?.source == "LOCAL_REJECTION") {
+            movementDao.getAllOutboxForTransaction(userId, cmd.aggregateId).filter { com.kipu.app.core.sync.OutboxPolicy.isTerminal(it.state) }.forEach {
+                movementDao.updateOutboxResult(userId, it.id, "DISCARDED", null, it.lastErrorCode)
+            }
+            movementDao.updateTransaction(transaction.copy(status = "FAILED"))
+            return@withTransaction true
+        }
         if (!MovementRejectionResolver(database, movementDao).discardTerminal(userId, cmd.aggregateId)) return@withTransaction false
         movementDao.unblock(userId, cmd.aggregateId)
         true

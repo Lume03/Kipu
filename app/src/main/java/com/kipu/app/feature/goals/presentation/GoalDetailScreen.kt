@@ -129,6 +129,7 @@ fun GoalDetailScreen(
         }.toMap()
     }
     val releasableAccounts = state.backingAccounts.filter { (goalReservedAccounts[it.id] ?: 0L) > 0L }
+    val replacementGoals = state.otherGoals.filter { it.status == GoalStatus.ACTIVE }
     val candidateGoals = state.otherGoals.filter {
         it.currency == goal?.currency && it.status == GoalStatus.ACTIVE
     }
@@ -202,14 +203,7 @@ fun GoalDetailScreen(
             ) {
                 state.errorMessage?.let { PlanningNotice("No se pudo completar la acción", it, isError = true) }
                 state.message?.let { PlanningNotice("Cambios guardados", it) }
-                if (goal.syncState == com.kipu.app.feature.goals.domain.model.GoalSyncState.CONFLICT) {
-                    PlanningNotice("Conflicto de sincronización", "Los cambios locales y los de otro dispositivo necesitan revisión. Tu reserva e historial se conservan.", isError = true)
-                    Row {
-                        TextButton(onClick = { confirmDiscardConflict = true }, enabled = !state.isSaving) { Text("Descartar") }
-                        TextButton(onClick = { showConflict = true }, enabled = !state.isSaving) { Text("Ajustar") }
-                        TextButton(onClick = { showConflict = true }, enabled = !state.isSaving) { Text("Resolver") }
-                    }
-                }
+                com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.GOAL, goal.id)
                 if (state.isPaused) PlanningNotice("Meta pausada", "Tu dinero sigue reservado. Reanuda la meta desde el menú para volver a aportar.")
                 KipuCard(shape = RoundedCornerShape(24.dp), containerColor = colors.surfaceCard, borderColor = null, elevation = 1.dp) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -261,17 +255,9 @@ fun GoalDetailScreen(
     )
     if (showConflict && goal != null) AlertDialog(
         onDismissRequest = { showConflict = false },
-        title = { Text("Resolver conflicto de ${goal.name}") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Revisión local ${goal.revision}. Revisa el historial antes de elegir cómo continuar. No se modificará ninguna reserva automáticamente.")
-                TextButton(onClick = { showConflict = false; showHistory = true }) { Text("Ver historial") }
-                TextButton(onClick = { showConflict = false; onAdjustConflict?.invoke() }, enabled = !state.isSaving) { Text("Ajustar desde la versión actual") }
-                TextButton(onClick = { showConflict = false; confirmDiscardConflict = true }, enabled = !state.isSaving) { Text("Descartar cambios locales") }
-            }
-        },
-        confirmButton = { TextButton(onClick = { showConflict = false; onRetryConflict?.invoke() }, enabled = !state.isSaving) { Text("Reintentar sincronización") } },
-        dismissButton = { TextButton(onClick = { showConflict = false }) { Text("Volver") } },
+        title = { Text(goal.name) },
+        text = { com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.GOAL, goal.id) },
+        confirmButton = { TextButton(onClick = { showConflict = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver") } },
     )
 
     if (optionsExpanded && goal != null && progress != null) {
@@ -308,7 +294,7 @@ fun GoalDetailScreen(
         GoalDetailDialog.DELETE -> if (goal != null) GoalDeleteDialog(goal, (progress?.reserved?.minorUnits ?: 0L) > 0L, state.isSaving,
             onDismiss = { openDialog = null }, onDelete = { openDialog = null; onDelete?.invoke() },
             onArchive = { openDialog = GoalDetailDialog.ARCHIVE }, reserved = progress?.reserved,
-            replacementCandidates = if (goal.status == GoalStatus.COMPLETED && !state.hasPremiumAccess && candidateGoals.size >= 2 && (progress?.reserved?.minorUnits ?: 0L) > 0L) candidateGoals.map { it.id to it.name } else emptyList(),
+            replacementCandidates = if (goal.status == GoalStatus.COMPLETED && !state.hasPremiumAccess && replacementGoals.size >= 2 && (progress?.reserved?.minorUnits ?: 0L) > 0L) replacementGoals.map { it.id to it.name } else emptyList(),
             onDeleteWithReplacement = onDeleteWithReplacement, errorMessage = state.errorMessage)
         GoalDetailDialog.RELEASE -> Unit // The shared funds screen above owns withdrawal.
         GoalDetailDialog.REASSIGN -> {

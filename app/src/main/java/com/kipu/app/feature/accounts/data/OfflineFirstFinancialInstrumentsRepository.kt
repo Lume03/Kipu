@@ -121,7 +121,31 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
             val cmd = syncDao.getByOperationId(userId, commandId) ?: return@withTransaction false
             if (!com.kipu.app.core.sync.OutboxPolicy.isTerminal(cmd.state)) return@withTransaction false
             syncDao.updateState(userId, commandId, "DISCARDED", null, cmd.errorCode, System.currentTimeMillis() * 1_000L)
-            syncDao.unblock(userId, cmd.aggregateType, cmd.aggregateId)
+            if (cmd.commandType in setOf("CREATE_ACCOUNT", "REGISTER_CARD")) {
+                database.openHelper.writableDatabase.execSQL(
+                    "UPDATE instrument_sync_outbox SET state='DISCARDED', lease_expires_at=NULL WHERE user_id=? AND aggregate_type=? AND aggregate_id=? AND state!='SYNCED'",
+                    arrayOf(userId, cmd.aggregateType, cmd.aggregateId))
+                if (cmd.commandType == "REGISTER_CARD") {
+                    val card = cardDao.getById(userId, cmd.aggregateId)
+                    cardDao.delete(userId, cmd.aggregateId)
+                    card?.accountId?.let { id ->
+                        if (accountDao.getById(userId, id)?.type == "CREDIT_LIABILITY" && movementDao.countByCard(userId, cmd.aggregateId) == 0) accountDao.delete(userId, id)
+                    }
+                } else {
+                    // Preserve immutable ledger/revision evidence; detach nullable live references before removing the account.
+                    val referencedByGoal = database.openHelper.writableDatabase.query(
+                        "SELECT 1 FROM goal_events WHERE user_id=? AND backing_account_id=? UNION SELECT 1 FROM goals WHERE user_id=? AND linked_account_id=? LIMIT 1",
+                        arrayOf(userId, cmd.aggregateId, userId, cmd.aggregateId)).use { it.moveToFirst() }
+                    val hasDependentHistory = database.openHelper.writableDatabase.query(
+                        "SELECT 1 FROM financial_movements WHERE user_id=? AND account_id=? AND kind!='OPENING' LIMIT 1",
+                        arrayOf(userId, cmd.aggregateId)).use { it.moveToFirst() }
+                    if (referencedByGoal || hasDependentHistory) accountDao.setArchived(userId, cmd.aggregateId, true, System.currentTimeMillis() * 1_000L)
+                    else {
+                        database.openHelper.writableDatabase.execSQL("UPDATE transactions SET source_account_id=NULL WHERE user_id=? AND source_account_id=?", arrayOf(userId,cmd.aggregateId))
+                        accountDao.delete(userId, cmd.aggregateId)
+                    }
+                }
+            } else syncDao.unblock(userId, cmd.aggregateType, cmd.aggregateId)
             true
         }
         if (changed) scheduleSyncBestEffort(userId)
@@ -1003,9 +1027,28 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
         return runCatching {
             database.withTransaction {
                 val movementsCount = movementDao.countByCard(userId, cardId.value)
-                require(movementsCount == 0) { "Cannot delete card with existing movements" }
+                require(movementsCount == 0 && cardDao.countTransactionsForCard(userId, cardId.value) == 0) { "Cannot delete card with existing movements" }
 
-                cardDao.delete(userId, cardId.value)
+                val card = requireNotNull(cardDao.getById(userId, cardId.value))
+                val commands = mutableListOf<InstrumentSyncOutboxEntity>()
+                database.openHelper.writableDatabase.query(
+                    "SELECT operation_id FROM instrument_sync_outbox WHERE user_id=? AND aggregate_type='CARD' AND aggregate_id=?",
+                    arrayOf(userId, cardId.value),
+                ).use { cursor -> while (cursor.moveToNext()) {
+                    syncDao.getByOperationId(userId, cursor.getString(0))?.let(commands::add)
+                } }
+                if (commands.any { it.commandType == "REGISTER_CARD" } &&
+                    commands.all { it.attemptCount == 0 && it.state == "PENDING" }) {
+                    commands.forEach { syncDao.updateState(userId, it.operationId, "DISCARDED", null, "CANCELLED_BEFORE_SEND", nowMicros) }
+                    cardDao.delete(userId, cardId.value)
+                    card.accountId?.let { accountId ->
+                        val liability = accountDao.getById(userId, accountId)
+                        if (liability?.type == "CREDIT_LIABILITY") accountDao.delete(userId, accountId)
+                    }
+                    return@withTransaction
+                }
+                // A sent registration still needs its card/liability projection to finish the protocol.
+                cardDao.setArchived(userId, cardId.value, true, nowMicros)
 
                 val payload = DeleteUnusedCardRequestDto(
                     cardId = cardId.value,

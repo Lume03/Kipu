@@ -402,6 +402,7 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.ACCOUNT, account.id.value, compact = true)
             // One short line: the issuer only when the alias does not already name it, the type,
             // and the currency only when it is not soles.
             val issuer = preset?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
@@ -593,6 +594,7 @@ internal fun DashboardCreditCardRow(item: CreditCardWithSummary, onClick: () -> 
                         width = 64.dp,
                     )
                     Column(Modifier.weight(1f)) {
+                        com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CARD, card.id.value, compact = true)
                         Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp), fontWeight = FontWeight.ExtraBold, color = colors.primaryText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("${card.issuer} · ${card.network} ·", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.secondaryMuted)

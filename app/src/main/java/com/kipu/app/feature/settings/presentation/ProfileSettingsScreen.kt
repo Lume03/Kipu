@@ -176,6 +176,7 @@ fun ProfileSettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.PROFILE, "")
                 SyncStateBanner(state.syncState)
 
                 // 1. Divisa principal

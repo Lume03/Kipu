@@ -44,6 +44,26 @@ class GoalChangeFeedApplier @Inject constructor(
     private val movementDao: MovementDao,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    suspend fun discardTerminalGoals(userId: String, snapshots: Map<String, JsonObject>, operationIds: Set<String>): GoalChangeApplyResult = try {
+        database.withTransaction {
+            val unresolved = outboxDao.getUnresolvedForUser(userId).filter { it.operationId in operationIds }
+            if (unresolved.map { it.operationId }.toSet() != operationIds || unresolved.any { it.state == "LEASED" })
+                throw InvalidGoalChangePage("SYNC_CHECKPOINT_CHANGED")
+            unresolved.forEach { command ->
+                com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(userId, command.operationId, "USER_USED_SERVER_VERSION")
+                outboxDao.updateResult(userId, command.operationId, "DISCARDED", null, "USER_USED_SERVER_VERSION", command.resultPayload, clock.millis())
+                movementDao.updateCommandReceiptStatus(userId, command.operationId, "DISCARDED", clock.millis())
+            }
+            snapshots.forEach { (id, snapshot) ->
+                val revision = snapshot["revision"]?.jsonPrimitive?.longOrNull ?: throw InvalidGoalChangePage("INVALID_GOAL_VALUE")
+                applyGoalUpsert(userId, SyncChangeItemDto(sequence = 0L, entityType = "GOAL", entityId = id, operation = "UPSERT", revision = revision, payload = snapshot), acceptMetadata = true)
+            }
+            GoalChangeApplyResult.Applied(goalDao.getSyncCheckpoint(userId)?.sequence ?: 0L, snapshots.size)
+        }
+    } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
+    } catch (invalid: InvalidGoalChangePage) { GoalChangeApplyResult.Rejected(invalid.code)
+    } catch (_: Exception) { GoalChangeApplyResult.Rejected("INVALID_REMOTE_GOAL_CHANGE") }
+
     /** Explicitly accept the server's metadata; financial commands always retain their history for review. */
     suspend fun discardMetadataConflict(userId: String, goalId: String, expectedRevision: Long, remote: JsonObject): GoalChangeApplyResult = try {
         database.withTransaction {

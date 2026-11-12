@@ -314,6 +314,13 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     return false
                 }
                 ownerTransaction(cmd.userId) {
+                    if (cmd.commandType == "DELETE_UNUSED_CARD") {
+                        val card = cardDao.getById(cmd.userId, cmd.aggregateId)
+                        cardDao.delete(cmd.userId, cmd.aggregateId)
+                        card?.accountId?.let { id ->
+                            if (accountDao.getById(cmd.userId, id)?.type == "CREDIT_LIABILITY") accountDao.delete(cmd.userId, id)
+                        }
+                    }
                     when (cmd.aggregateType) {
                         "CARD" -> response.revision?.let {
                             ownerTransaction(cmd.userId) { cardDao.updateRemoteRevision(cmd.userId, response.cardId ?: cmd.aggregateId, it, System.currentTimeMillis() * 1_000L) }
@@ -591,7 +598,38 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         nextAttemptAt: Long?,
         errorCode: String?,
     ) {
-        ownerTransaction(cmd.userId) { syncDao.updateState(
+        ownerTransaction(cmd.userId) {
+            val current = syncDao.getByOperationId(cmd.userId, cmd.operationId) ?: return@ownerTransaction
+            if (current.state != "IN_FLIGHT" || current.attemptCount != cmd.attemptCount + 1) return@ownerTransaction
+            if (state in setOf("CONFLICT", "FAILED_PERMANENT") && cmd.commandType == "CREATE_ACCOUNT") {
+                val ids = mutableListOf<String>()
+                database.openHelper.writableDatabase.query(
+                    "SELECT id FROM transactions WHERE user_id=? AND (source_account_id=? OR destination_account_id=?)",
+                    arrayOf(cmd.userId, cmd.aggregateId, cmd.aggregateId),
+                ).use { cursor -> while (cursor.moveToNext()) ids += cursor.getString(0) }
+                val compensator = com.kipu.app.core.sync.LocalRejectionCompensator(database)
+                ids.forEach { compensator.neutralize(cmd.userId, it, "ACCOUNT_SYNC_FAILED") }
+                database.openHelper.writableDatabase.execSQL(
+                    "UPDATE financial_movements SET status='REJECTED' WHERE user_id=? AND account_id=?",
+                    arrayOf(cmd.userId, cmd.aggregateId))
+                accountDao.getById(cmd.userId, cmd.aggregateId)?.let { account ->
+                    accountDao.update(account.copy(initialBalanceMinorUnits = 0L, isArchived = true))
+                }
+                database.openHelper.writableDatabase.execSQL(
+                    "UPDATE movement_outbox SET state='BLOCKED', last_error_code='ACCOUNT_SYNC_FAILED' WHERE user_id=? AND aggregate_id IN (SELECT id FROM transactions WHERE user_id=? AND (source_account_id=? OR destination_account_id=?)) AND state NOT IN ('SYNCED','DISCARDED')",
+                    arrayOf(cmd.userId, cmd.userId, cmd.aggregateId, cmd.aggregateId))
+            }
+            if (state in setOf("CONFLICT", "FAILED_PERMANENT") && cmd.commandType == "REGISTER_CARD") {
+                cardDao.setArchived(cmd.userId, cmd.aggregateId, true, System.currentTimeMillis() * 1_000L)
+                val ids = mutableListOf<String>()
+                database.openHelper.writableDatabase.query("SELECT id FROM transactions WHERE user_id=? AND card_id=?", arrayOf(cmd.userId, cmd.aggregateId)).use {
+                    while (it.moveToNext()) ids += it.getString(0)
+                }
+                ids.forEach { com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(cmd.userId, it, "CARD_SYNC_FAILED") }
+                database.openHelper.writableDatabase.execSQL("UPDATE financial_movements SET status='REJECTED' WHERE user_id=? AND card_id=?", arrayOf(cmd.userId,cmd.aggregateId))
+                database.openHelper.writableDatabase.execSQL("UPDATE credit_installments SET status='VOIDED' WHERE user_id=? AND transaction_id IN (SELECT id FROM transactions WHERE user_id=? AND card_id=?)", arrayOf(cmd.userId,cmd.userId,cmd.aggregateId))
+            }
+            syncDao.updateState(
             userId = cmd.userId,
             operationId = cmd.operationId,
             newState = state,
@@ -608,8 +646,11 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     ) {
         val nowMillis = System.currentTimeMillis()
         ownerTransaction(cmd.userId) {
+            val claimed = syncDao.getByOperationId(cmd.userId, cmd.operationId) ?: return@ownerTransaction
+            if (claimed.state != "IN_FLIGHT" || claimed.attemptCount != cmd.attemptCount + 1) return@ownerTransaction
             val transaction = movementDao.getTransactionById(cmd.userId, transactionId)
             val creditDao = database.creditDao()
+            database.financialMovementDao().updateOperationStatus(cmd.userId, cmd.operationId, "REJECTED")
             val paymentAllocations = if (cmd.commandType in setOf("PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
                 creditDao.getAllocationsForPayment(cmd.userId, transactionId)
             } else emptyList()

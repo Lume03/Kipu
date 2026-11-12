@@ -421,6 +421,7 @@ fun CategoriesScreen(
     // Modern Form Dialog (Category / Subcategory creation & editing)
     if (state.isCreateDialogOpen) {
         CategoryFormDialog(
+            categoryId = state.editingCategoryId?.value,
             isEditing = state.isEditing,
             categoryType = state.createCategoryType,
             name = state.createCategoryName,
@@ -738,6 +739,7 @@ fun CategoryRootCard(
                         overflow = TextOverflow.Ellipsis,
                     )
 
+                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CATEGORY, item.category.id.value, compact = true)
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
@@ -889,6 +891,7 @@ fun CategoryRootCard(
                                 Spacer(modifier = Modifier.width(12.dp))
 
                                 Column(modifier = Modifier.weight(1f)) {
+                                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CATEGORY, subItem.category.id.value, compact = true)
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,

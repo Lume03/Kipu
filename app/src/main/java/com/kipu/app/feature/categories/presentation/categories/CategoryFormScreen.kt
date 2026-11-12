@@ -104,6 +104,7 @@ fun CategoryFormDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
+    categoryId: String? = null,
 ) {
     val colors = rememberKipuColors()
     val categoryOptions = remember(availableRoots) {
@@ -129,6 +130,7 @@ fun CategoryFormDialog(
         containerColor = colors.surface,
         modifier = modifier,
     ) {
+        categoryId?.let { com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CATEGORY, it, Modifier.padding(horizontal = 20.dp)) }
         KipuModalSystemBars()
         CategoryFormContent(
             isEditing = isEditing,

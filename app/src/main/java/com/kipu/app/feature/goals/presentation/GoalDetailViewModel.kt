@@ -143,26 +143,9 @@ class GoalDetailViewModel @Inject constructor(
 
     fun delete(replacementGoalId: String?) = mutate(deleting = true) { userId, goal ->
         val preferences = displayPreferences
-            ?: return@mutate repository.deleteEmptyGoal(userId, goal.id, goal.revision)
-        val current = _state.value
-        val reserves = current.events.filterNot { it.transactionVoided }.groupBy { it.backingAccountId }
-            .mapValues { (_, events) -> events.fold(0L) { sum, event -> Math.addExact(sum, event.delta.minorUnits) } }
-        if ((reserves[null] ?: 0L) > 0L) return@mutate GoalCommandResult.Rejected("BACKING_RECONCILIATION_REQUIRED")
-        for ((backing, amount) in reserves) {
-            if (backing == null || amount <= 0L) continue
-            val replacement = replacementGoalId?.let { id -> repository.observeGoal(userId, id).first() }
-            val result = repository.releaseGoalReserve(userId, goal.id, backing, Money(amount, goal.currency),
-                replacementGoalId = replacement?.id, replacementExpectedRevision = replacement?.revision,
-                hasPremiumAccess = current.hasPremiumAccess)
-            if (result !is GoalCommandResult.Applied && result !is GoalCommandResult.Duplicate) return@mutate result
-        }
-        val fresh = repository.observeGoal(userId, goal.id).first() ?: return@mutate GoalCommandResult.Rejected("GOAL_NOT_FOUND")
-        if (fresh.status != com.kipu.app.feature.goals.domain.model.GoalStatus.ARCHIVED) {
-            val result = repository.archiveGoal(userId, goal.id, fresh.revision)
-            if (result !is GoalCommandResult.Applied && result !is GoalCommandResult.Duplicate) return@mutate result
-        }
-        preferences.remove(userId, goal.id)
-        GoalCommandResult.Applied(goal.id, fresh.revision)
+        val result = repository.deleteWithReserves(userId, goal.id, replacementGoalId, _state.value.hasPremiumAccess)
+        if (result is GoalCommandResult.Applied || result is GoalCommandResult.Duplicate) preferences?.remove(userId, goal.id)
+        result
     }
 
     fun clearFeedback() {

@@ -187,6 +187,15 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         database.withTransaction {
             val completed = outboxDao.completeClaimed(command, state, nextAttemptAt, errorCode, now)
             if (!completed) return@withTransaction
+            if (command.commandType == "OPEN_DEBT" && state in setOf("CONFLICT", "FAILED_PERMANENT")) {
+                val transactionIds = mutableSetOf<String>()
+                database.openHelper.writableDatabase.query(
+                    "SELECT transaction_id FROM debt_events WHERE user_id=? AND debt_id=? UNION SELECT interest_transaction_id FROM debt_events WHERE user_id=? AND debt_id=?",
+                    arrayOf(command.userId, command.debtId, command.userId, command.debtId)).use {
+                    while (it.moveToNext()) if (!it.isNull(0)) transactionIds += it.getString(0)
+                }
+                transactionIds.forEach { com.kipu.app.core.sync.LocalRejectionCompensator(database).neutralize(command.userId, it, "DEBT_SYNC_FAILED") }
+            }
             val debtSyncState = when (state) {
                 "SYNCED" -> "SYNCED"
                 "CONFLICT" -> "CONFLICT"

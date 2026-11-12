@@ -45,6 +45,7 @@ fun RecurrenceLifecycleScreen(
     expectedPayments: List<ExpectedPayment> = emptyList(),
     onBack: () -> Unit,
 ) {
+    var reviewTarget by remember { mutableStateOf<RecurrenceRule?>(null) }
     var cancelTarget by remember { mutableStateOf<RecurrenceRule?>(null) }
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -62,12 +63,8 @@ fun RecurrenceLifecycleScreen(
                         ?: expectedPayments.filter { it.recurrenceId == rule.id }.maxByOrNull { it.dueDate })?.let { payment ->
                         if (payment.status != ExpectedPaymentStatus.SKIPPED) Text(if (payment.status == ExpectedPaymentStatus.ATTENDED) "Pago atendido" else "Pago esperado")
                     }
-                    when (rule.syncState) {
-                        RecurrenceSyncState.PENDING -> Text("Pendiente de sincronización local", modifier = Modifier.testTag("recurrence_offline_${rule.id}"))
-                        RecurrenceSyncState.CONFLICT -> Text("Conflicto de sincronización · requiere revisión", color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_conflict_${rule.id}"))
-                        RecurrenceSyncState.FAILED -> Text("No se pudo sincronizar · vuelve a intentarlo", color = MaterialTheme.colorScheme.error)
-                        RecurrenceSyncState.SYNCED -> Unit
-                    }
+                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.RECURRENCE, rule.id, compact = true)
+                    TextButton(onClick = { reviewTarget = rule }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Ver detalle") }
                     if (rule.status == RecurrenceStatus.ACTIVE) TextButton(onClick = { onPause(rule) }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_pause_${rule.id}")) { Text("Pausar") }
                     if (rule.status == RecurrenceStatus.PAUSED) TextButton(onClick = { onRequestResume(rule) }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_resume_${rule.id}")) { Text("Reanudar") }
                     if (rule.status != RecurrenceStatus.CANCELLED) TextButton(onClick = { cancelTarget = rule }, modifier = Modifier.heightIn(min = 48.dp).testTag("recurrence_cancel_${rule.id}")) { Text("Cancelar recurrencia") }
@@ -78,6 +75,15 @@ fun RecurrenceLifecycleScreen(
         if (pendingOperation) CircularProgressIndicator(Modifier.testTag("recurrence_lifecycle_loading"))
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver") }
     }
+    reviewTarget?.let { rule -> AlertDialog(
+        onDismissRequest = { reviewTarget = null },
+        title = { Text("Detalle de recurrencia") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(recurrenceStateLabel(rule.status, rule.nextDueDate))
+            com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.RECURRENCE, rule.id)
+        } },
+        confirmButton = { TextButton(onClick = { reviewTarget = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cerrar") } },
+    ) }
     if (resumeDate != null) AlertDialog(
         onDismissRequest = onDismissConfirmation,
         title = { Text("Confirmar reanudación") },

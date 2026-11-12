@@ -71,14 +71,14 @@ interface DebtDao {
     @Query("""
         SELECT d.id AS debtId, d.user_id AS userId, d.obligation_type AS obligationType,
                d.counterparty_name AS counterpartyName, d.total_minor AS principalMinor,
-               MAX(0, d.total_minor + COALESCE(SUM(
+               CASE WHEN EXISTS (SELECT 1 FROM debt_command_outbox o WHERE o.user_id=d.user_id AND o.debt_id=d.id AND o.command_type='OPEN_DEBT' AND o.state IN ('CONFLICT','FAILED_PERMANENT','BLOCKED','DISCARDED')) THEN 0 ELSE MAX(0, d.total_minor + COALESCE(SUM(
                    CASE
                        WHEN e.id IS NULL OR t.status = 'VOIDED' THEN 0
                        WHEN e.principal_delta_minor IS NOT NULL THEN e.principal_delta_minor
                        WHEN e.event_type = 'PAYMENT' THEN -e.amount_minor
                        ELSE 0
                    END
-               ), 0)) AS remainingPrincipalMinor,
+               ), 0)) END AS remainingPrincipalMinor,
                d.currency_code AS currencyCode, d.opened_on AS openedOn, d.opening_mode AS openingMode,
                d.due_date AS dueDate, d.reminder_lead_days AS reminderLeadDays,
                d.notes AS notes, d.status AS status, d.sync_state AS syncState, d.revision AS revision
@@ -94,14 +94,14 @@ interface DebtDao {
     @Query("""
         SELECT d.id AS debtId, d.user_id AS userId, d.obligation_type AS obligationType,
                d.counterparty_name AS counterpartyName, d.total_minor AS principalMinor,
-               MAX(0, d.total_minor + COALESCE(SUM(
+               CASE WHEN EXISTS (SELECT 1 FROM debt_command_outbox o WHERE o.user_id=d.user_id AND o.debt_id=d.id AND o.command_type='OPEN_DEBT' AND o.state IN ('CONFLICT','FAILED_PERMANENT','BLOCKED','DISCARDED')) THEN 0 ELSE MAX(0, d.total_minor + COALESCE(SUM(
                    CASE
                        WHEN e.id IS NULL OR t.status = 'VOIDED' THEN 0
                        WHEN e.principal_delta_minor IS NOT NULL THEN e.principal_delta_minor
                        WHEN e.event_type = 'PAYMENT' THEN -e.amount_minor
                        ELSE 0
                    END
-               ), 0)) AS remainingPrincipalMinor,
+               ), 0)) END AS remainingPrincipalMinor,
                d.currency_code AS currencyCode, d.opened_on AS openedOn, d.opening_mode AS openingMode,
                d.due_date AS dueDate, d.reminder_lead_days AS reminderLeadDays,
                d.notes AS notes, d.status AS status, d.sync_state AS syncState, d.revision AS revision

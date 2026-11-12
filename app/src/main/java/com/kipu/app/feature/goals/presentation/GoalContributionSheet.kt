@@ -116,7 +116,7 @@ fun GoalContributionSheet(
         }
 
     val maxRelease = reserves[releaseAccount?.id] ?: 0L
-    val candidates = withdrawalState?.otherGoals.orEmpty().filter { it.currency == goal?.currency && it.status == GoalStatus.ACTIVE }
+    val candidates = withdrawalState?.otherGoals.orEmpty().filter { it.status == GoalStatus.ACTIVE }
     val needsReplacement = goal?.status == GoalStatus.COMPLETED && amount != null &&
         (withdrawalState?.progress?.reserved?.minorUnits ?: 0L) - amount.minorUnits < goal.target.minorUnits &&
         withdrawalState?.hasPremiumAccess == false && candidates.size >= 2

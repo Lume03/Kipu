@@ -47,6 +47,24 @@ class OfflineFirstGoalRepository @Inject constructor(
     private val syncScheduler: GoalsSyncScheduler,
     private val clock: Clock = Clock.systemUTC(),
 ) : GoalRepository {
+    override suspend fun deleteWithReserves(userId: String, goalId: String, replacementGoalId: String?, hasPremiumAccess: Boolean): GoalCommandResult = local.atomicCommand {
+        val goal = local.getGoal(userId, goalId)?.toDomain() ?: return@atomicCommand GoalCommandResult.Rejected("GOAL_NOT_FOUND")
+        val reserves = local.getEvents(userId, goalId).map { it.toDomain() }.filterNot { it.transactionVoided }
+            .groupBy { it.backingAccountId }.mapValues { (_, events) -> events.fold(0L) { sum, event -> Math.addExact(sum, event.delta.minorUnits) } }
+        if ((reserves[null] ?: 0L) > 0L) return@atomicCommand GoalCommandResult.Rejected("BACKING_RECONCILIATION_REQUIRED")
+        for ((account, amount) in reserves) {
+            if (account == null || amount <= 0L) continue
+            val replacement = replacementGoalId?.takeIf { local.getGoal(userId, goalId)?.status == "COMPLETED" }
+                ?.let { local.getGoal(userId, it)?.toDomain() }
+            val result = releaseGoalReserve(userId, goalId, account, Money(amount, goal.currency),
+                replacement?.id, replacement?.revision, hasPremiumAccess)
+            if (result !is GoalCommandResult.Applied && result !is GoalCommandResult.Duplicate) return@atomicCommand result
+        }
+        val fresh = checkNotNull(local.getGoal(userId, goalId)).toDomain()
+        if (fresh.status == GoalStatus.ARCHIVED) GoalCommandResult.Applied(goalId, fresh.revision)
+        else archiveGoal(userId, goalId, fresh.revision)
+    }
+
     // Called only after the presentation boundary verifies the owner's Premium lease.
     override suspend fun restorePlanLockedGoals(userId: String) {
         local.observeGoals(userId).first().filter { it.status == "LOCKED_BY_PLAN" && it.syncState == "SYNCED" }.forEach { row ->

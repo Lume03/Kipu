@@ -493,6 +493,7 @@ private fun DebtListItem(
                     background = if (isPayable) colors.expenseBg else colors.incomeBg,
                 )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.DEBT, debt.debtId, compact = true)
                     Text(debt.counterpartyName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
                     Text(
                         debtPaymentKind(debt, scheduledInstallment),

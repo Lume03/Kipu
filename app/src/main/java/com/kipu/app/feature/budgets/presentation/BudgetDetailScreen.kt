@@ -162,6 +162,7 @@ private fun DetailContent(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.BUDGET, budget.id)
         KipuCard(
             Modifier.fillMaxWidth().testTag("budget_current_card"),
             shape = RoundedCornerShape(18.dp), borderColor = null, elevation = 1.dp,

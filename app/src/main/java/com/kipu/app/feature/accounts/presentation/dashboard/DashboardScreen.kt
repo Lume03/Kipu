@@ -470,6 +470,12 @@ private fun DashboardContent(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item(key = "rejected_instruments") {
+            com.kipu.app.ui.component.RejectedInstrumentList { id, card ->
+                if (card) onCardClick(id)
+                else onAccountClick(id)
+            }
+        }
         item(key = "dashboard_hero") {
             DashboardHero(
                 totalPen = Money(availableByCurrency[Currency.PEN] ?: 0L, Currency.PEN),

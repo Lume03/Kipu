@@ -326,6 +326,7 @@ internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptio
                 Column(Modifier.weight(1f)) {
                     // Name with the period as a quiet tag; scope and dates on one short line below.
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.BUDGET, item.id, compact = true)
                         Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f, fill = false), maxLines = 1)
                         Surface(shape = RoundedCornerShape(8.dp), color = colors.pillTrack) {
@@ -360,9 +361,7 @@ internal fun BudgetSummaryCard(item: BudgetListItem, onOpen: () -> Unit, onOptio
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            item.syncIssue?.let { issue ->
-                Text(issue, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
+
         }
     }
 }

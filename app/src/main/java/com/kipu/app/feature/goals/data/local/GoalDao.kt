@@ -29,6 +29,7 @@ private const val BACKING_ACCOUNT_POSITION_QUERY = """
         LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
         WHERE e.backing_account_id IS NOT NULL
           AND (e.transaction_id IS NULL OR t.status IN ('ACTIVE', 'CONFIRMED', 'REVISED'))
+          AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=e.user_id AND o.operation_id=e.operation_id AND o.state IN ('CONFLICT','REJECTED','FAILED_PERMANENT','BLOCKED','DISCARDED'))
         GROUP BY e.user_id, e.backing_account_id
     ) r ON r.user_id = a.user_id AND r.account_id = a.id
     WHERE a.user_id = :userId
@@ -39,10 +40,10 @@ private const val BACKING_ACCOUNT_POSITION_QUERY = """
 
 @Dao
 interface GoalDao {
-    @Query("SELECT * FROM goals WHERE user_id = :userId ORDER BY updated_at DESC, id ASC")
+    @Query("SELECT * FROM goals WHERE user_id = :userId AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=goals.user_id AND o.goal_id=goals.id AND o.command_type='CREATE_GOAL' AND o.state='DISCARDED') ORDER BY updated_at DESC, id ASC")
     fun observeGoals(userId: String): Flow<List<GoalEntity>>
 
-    @Query("SELECT * FROM goals WHERE user_id = :userId AND id = :goalId LIMIT 1")
+    @Query("SELECT * FROM goals WHERE user_id = :userId AND id = :goalId AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=goals.user_id AND o.goal_id=goals.id AND o.command_type='CREATE_GOAL' AND o.state='DISCARDED') LIMIT 1")
     fun observeGoal(userId: String, goalId: String): Flow<GoalEntity?>
 
     @Query("SELECT * FROM goals WHERE user_id = :userId AND id = :goalId LIMIT 1")
@@ -56,7 +57,7 @@ interface GoalDao {
 
     @Query(
         """
-        SELECT e.*, t.status AS linked_transaction_status
+        SELECT e.*, CASE WHEN EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=e.user_id AND o.operation_id=e.operation_id AND o.state IN ('CONFLICT','REJECTED','FAILED_PERMANENT','BLOCKED','DISCARDED')) THEN 'VOIDED' ELSE t.status END AS linked_transaction_status
         FROM goal_events e
         LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
         WHERE e.user_id = :userId AND e.goal_id = :goalId
@@ -67,7 +68,7 @@ interface GoalDao {
 
     @Query(
         """
-        SELECT e.*, t.status AS linked_transaction_status
+        SELECT e.*, CASE WHEN EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=e.user_id AND o.operation_id=e.operation_id AND o.state IN ('CONFLICT','REJECTED','FAILED_PERMANENT','BLOCKED','DISCARDED')) THEN 'VOIDED' ELSE t.status END AS linked_transaction_status
         FROM goal_events e
         LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
         WHERE e.user_id = :userId AND e.goal_id = :goalId
@@ -86,6 +87,7 @@ interface GoalDao {
         LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
         WHERE e.user_id = :userId AND e.goal_id = :goalId
           AND (e.transaction_id IS NULL OR t.status IN ('ACTIVE', 'CONFIRMED', 'REVISED'))
+          AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=e.user_id AND o.operation_id=e.operation_id AND o.state IN ('CONFLICT','REJECTED','FAILED_PERMANENT','BLOCKED','DISCARDED'))
         """,
     )
     suspend fun getReservedMinor(userId: String, goalId: String): Long
@@ -97,6 +99,7 @@ interface GoalDao {
         LEFT JOIN transactions t ON t.user_id = e.user_id AND t.id = e.transaction_id
         WHERE e.user_id = :userId AND e.backing_account_id = :accountId
           AND (e.transaction_id IS NULL OR t.status IN ('ACTIVE', 'CONFIRMED', 'REVISED'))
+          AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id=e.user_id AND o.operation_id=e.operation_id AND o.state IN ('CONFLICT','REJECTED','FAILED_PERMANENT','BLOCKED','DISCARDED'))
         """,
     )
     suspend fun getReservedForAccountMinor(userId: String, accountId: String): Long

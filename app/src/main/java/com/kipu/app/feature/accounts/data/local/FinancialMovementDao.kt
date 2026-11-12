@@ -125,7 +125,7 @@ interface FinancialMovementDao {
 
     @Query("""
         SELECT * FROM financial_movements 
-        WHERE user_id = :userId AND card_id = :cardId AND status = 'POSTED'
+        WHERE user_id = :userId AND card_id = :cardId AND status IN ('POSTED','REJECTED')
         ORDER BY effective_at DESC, operation_sequence DESC
     """)
     fun observeByCard(userId: String, cardId: String): Flow<List<FinancialMovementEntity>>

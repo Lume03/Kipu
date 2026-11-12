@@ -28,10 +28,10 @@ interface AccountDao {
     @Query("SELECT EXISTS(SELECT 1 FROM accounts WHERE user_id = :userId AND type = 'DIGITAL_WALLET' AND preset_id = :presetId AND is_archived = 0 AND (:excludedAccountId IS NULL OR id != :excludedAccountId))")
     suspend fun hasOtherActiveWalletForChannel(userId: String, presetId: String, excludedAccountId: String? = null): Boolean
 
-    @Query("SELECT * FROM accounts WHERE user_id = :userId AND id = :id")
+    @Query("SELECT * FROM accounts WHERE user_id = :userId AND id = :id AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox o WHERE o.user_id=accounts.user_id AND o.aggregate_id=accounts.id AND o.command_type='CREATE_ACCOUNT' AND o.state='DISCARDED')")
     fun observeById(userId: String, id: String): Flow<AccountEntity?>
 
-    @Query("SELECT * FROM accounts WHERE user_id = :userId ORDER BY is_archived ASC, created_at DESC")
+    @Query("SELECT * FROM accounts WHERE user_id = :userId AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox o WHERE o.user_id=accounts.user_id AND o.aggregate_id=accounts.id AND o.command_type='CREATE_ACCOUNT' AND o.state IN ('CONFLICT','FAILED_PERMANENT','BLOCKED','DISCARDED')) ORDER BY is_archived ASC, created_at DESC")
     fun observeAll(userId: String): Flow<List<AccountEntity>>
 
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND is_archived = 0 ORDER BY created_at DESC")
@@ -40,7 +40,7 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE user_id = :userId AND is_archived = 0 AND type NOT IN ('CASH', 'GOALS_VIRTUAL', 'CREDIT_LIABILITY')")
     suspend fun getActiveComputable(userId: String): List<AccountEntity>
 
-    @Query("SELECT * FROM accounts WHERE user_id = :userId AND is_archived = 1 ORDER BY created_at DESC")
+    @Query("SELECT * FROM accounts WHERE user_id = :userId AND is_archived = 1 AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox o WHERE o.user_id=accounts.user_id AND o.aggregate_id=accounts.id AND o.command_type='CREATE_ACCOUNT' AND o.state IN ('CONFLICT','FAILED_PERMANENT','BLOCKED','DISCARDED')) ORDER BY created_at DESC")
     fun observeArchived(userId: String): Flow<List<AccountEntity>>
 
 

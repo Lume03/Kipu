@@ -191,18 +191,6 @@ fun GoalListScreen(
                 state.errorMessage?.let { message ->
                     item { com.kipu.app.ui.component.PlanningNotice("No se pudo completar la acción", message, isError = true) }
                 }
-                state.goals.filter { it.goal.syncState == GoalSyncState.CONFLICT }.forEach { item ->
-                    item(key = "conflict_${item.goal.id}") {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("${item.goal.name}: cambios en conflicto", color = MaterialTheme.colorScheme.error)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                androidx.compose.material3.TextButton(enabled = !state.isSaving, onClick = { conflictToDiscard = item.goal.id }) { Text("Descartar") }
-                                androidx.compose.material3.TextButton(enabled = !state.isSaving, onClick = { onAdjustGoalConflict(item.goal.id) }) { Text("Ajustar") }
-                                androidx.compose.material3.TextButton(enabled = !state.isSaving, onClick = { onResolveGoalConflict(item.goal.id) }) { Text("Resolver") }
-                            }
-                        }
-                    }
-                }
                 if (allVisibleGoals.isEmpty()) {
                     item { EmptyGoalsCard() }
                     item { GoalIdeasSection(onPick = requestIdea) }
@@ -435,6 +423,7 @@ private fun GoalSummaryCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 GoalIconBadge(goal.iconKey)
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.GOAL, goal.id, compact = true)
                     Text(goal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
                         listOfNotNull(

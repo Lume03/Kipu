@@ -22,7 +22,7 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE user_id = :userId AND id = :id")
     fun observeById(userId: String, id: String): Flow<CardEntity?>
 
-    @Query("SELECT * FROM cards WHERE user_id = :userId ORDER BY is_archived ASC, created_at DESC")
+    @Query("SELECT * FROM cards WHERE user_id = :userId AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox o WHERE o.user_id=cards.user_id AND o.aggregate_id=cards.id AND o.command_type='REGISTER_CARD' AND o.state IN ('CONFLICT','FAILED_PERMANENT','BLOCKED','DISCARDED')) ORDER BY is_archived ASC, created_at DESC")
     fun observeAll(userId: String): Flow<List<CardEntity>>
 
     @Query("SELECT * FROM cards WHERE user_id = :userId AND is_archived = 0 ORDER BY created_at DESC")
