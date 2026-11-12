@@ -53,4 +53,9 @@ interface SessionCoordinator {
      * Updates the local lock state. When locked, [LocalAccess] transitions to [LocalAccess.Protected].
      */
     suspend fun updateLockState(isLocked: Boolean, reason: String = "LOCKED")
+
+    /** Resolves the initial lock preference for the current owner. */
+    suspend fun resolveLocalProtection(userId: String, isLocked: Boolean) {
+        if (currentOwner?.verifiedUserId == userId) updateLockState(isLocked, "APP_LOCKED")
+    }
 }

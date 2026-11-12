@@ -8,6 +8,7 @@ import java.time.LocalDate
 /** What a home screen widget renders. Built once per refresh from the same sources the app screens use. */
 sealed interface WidgetState {
     /** No verified owner on this phone: the widget invites to open Kipu. */
+    data object Locked : WidgetState
     data object SignedOut : WidgetState
 
     /** The local data could not be read right now; the widget keeps a neutral message instead of zeros. */

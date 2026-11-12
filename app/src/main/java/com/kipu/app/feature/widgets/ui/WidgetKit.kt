@@ -153,6 +153,7 @@ internal fun WidgetFrame(state: WidgetState, target: String, content: @Composabl
     ) {
         when (state) {
             is WidgetState.Ready -> content(state.data)
+            WidgetState.Locked -> Notice("Kipu bloqueado", "Abre Kipu para desbloquear.")
             WidgetState.SignedOut -> Notice("Abre Kipu", "Inicia sesión para ver tu dinero aquí.")
             WidgetState.Unavailable -> Notice("No pudimos leer tus datos", "Toca para abrir Kipu.")
         }

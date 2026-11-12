@@ -245,16 +245,22 @@ class SupabaseAuthRepository @Inject constructor(
     }
 
     override suspend fun signOut(explicit: Boolean): Result<Unit> =
-        sessionGate.exclusive { signOutExclusive(explicit) }
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            sessionGate.exclusive { signOutExclusive(explicit) }
+        }
 
-    private suspend fun signOutExclusive(explicit: Boolean): Result<Unit> {
+    private suspend fun signOutExclusive(explicit: Boolean): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
         revalidationJob?.cancel()
         revalidationJob = null
-        return try {
+        try {
             val ownerId = sessionCoordinator.currentOwner?.verifiedUserId
             if (ownerId != null) {
                 runCatching { UUID.fromString(ownerId) }.getOrNull()?.let { userId ->
-                    pendingChangesRepository.markWaitingForAuth(userId)
+                    try {
+                        pendingChangesRepository.markWaitingForAuth(userId)
+                    } catch (_: Exception) {
+                        com.kipu.app.core.logging.SecureLog.w("AuthRepository", "Could not mark pending changes for authentication")
+                    }
                 }
             }
             sessionCoordinator.clearActiveOwner(explicit)

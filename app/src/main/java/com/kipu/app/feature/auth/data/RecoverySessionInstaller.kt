@@ -15,14 +15,24 @@ class RecoverySessionInstaller @Inject constructor(
     private val sessionStorage: KeystoreEncryptedSessionStorage,
     private val sessionCoordinator: SessionCoordinator,
     private val sessionGate: AuthSessionGate,
+    private val deepLinks: com.kipu.app.navigation.AuthDeepLinkHandler? = null,
 ) {
     private var ready = false
 
-    suspend fun install(callbackUrl: String): Result<Unit> = sessionGate.exclusive { installExclusive(callbackUrl) }
+    suspend fun install(callbackUrl: String): Result<Unit> {
+        var succeeded = false
+        try {
+            val result = sessionGate.exclusive { installExclusive(callbackUrl) }
+            succeeded = result.isSuccess
+            return result
+        } finally {
+            deepLinks?.finishRecovery(callbackUrl, succeeded)
+        }
+    }
 
     private suspend fun installExclusive(callbackUrl: String): Result<Unit> {
         ready = false
-        return runCatching {
+        val result = runCatching {
             val uri = URI(callbackUrl)
             require(uri.scheme == "https" && uri.host == "kipu.app" && uri.path == "/auth/recovery")
             val code = uri.rawQuery.orEmpty().split("&")
@@ -40,6 +50,7 @@ class RecoverySessionInstaller @Inject constructor(
             supabaseClient.auth.importSession(session.copy(user = verifiedUser), autoRefresh = false)
             ready = true
         }
+        return result
     }
 
     fun isReady(): Boolean = ready

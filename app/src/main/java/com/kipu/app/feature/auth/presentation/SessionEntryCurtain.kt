@@ -108,6 +108,12 @@ fun SessionEntryCurtainHost(
         if (!reducedMotion) delay(SessionEntryTiming.MIN_VISIBLE_MILLIS)
         minElapsed = true
     }
+    LaunchedEffect(current.id) {
+        delay(10_000L)
+        if (curtain.state.value?.id == current.id) {
+            if (curtain.state.value?.errorExiting == true) curtain.finishErrorExit() else curtain.dismiss()
+        }
+    }
     // Non-dashboard destinations (plan onboarding or explicit reminders) resolve behind the same opaque curtain.
     LaunchedEffect(current.id, current.destinationRoute, currentRoute) {
         if (current.destinationRoute != null && current.destinationRoute != dashboardRoute &&
@@ -124,9 +130,12 @@ fun SessionEntryCurtainHost(
     val errorAlpha = remember(current.id) { androidx.compose.animation.core.Animatable(1f) }
     LaunchedEffect(current.id, current.errorExiting, reducedMotion) {
         if (current.errorExiting) {
-            if (!reducedMotion) errorAlpha.animateTo(0f,
-                androidx.compose.animation.core.tween(SessionEntryTiming.ERROR_EXIT_MILLIS))
-            curtain.finishErrorExit()
+            try {
+                if (!reducedMotion) errorAlpha.animateTo(0f,
+                    androidx.compose.animation.core.tween(SessionEntryTiming.ERROR_EXIT_MILLIS))
+            } finally {
+                curtain.finishErrorExit()
+            }
         }
     }
     key(current.id) {

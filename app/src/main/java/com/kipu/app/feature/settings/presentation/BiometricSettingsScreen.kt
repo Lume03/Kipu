@@ -36,6 +36,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +66,16 @@ fun BiometricSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var confirmDisable by remember { mutableStateOf(false) }
+    if (confirmDisable) {
+        AlertDialog(
+            onDismissRequest = { confirmDisable = false },
+            title = { Text("Desactivar bloqueo local") },
+            text = { Text("El dispositivo ya no puede autenticarte. ¿Quieres desactivar la protección local?") },
+            confirmButton = { TextButton(onClick = { confirmDisable = false; viewModel.disableWithoutAuthenticator() }) { Text("Desactivar") } },
+            dismissButton = { TextButton(onClick = { confirmDisable = false }) { Text("Cancelar") } },
+        )
+    }
 
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let {
@@ -122,7 +135,8 @@ fun BiometricSettingsScreen(
                 state = state,
                 onToggleLocalUnlock = {
                     val activity = context as? FragmentActivity
-                    if (activity != null) viewModel.toggleLocalUnlock(activity)
+                    if (state.isLocalUnlockEnabled && !state.canAuthenticate) confirmDisable = true
+                    else if (activity != null) viewModel.toggleLocalUnlock(activity)
                 },
                 onContinue = onContinue,
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -211,7 +225,7 @@ internal fun BiometricSettingsContent(
                 Switch(
                     checked = state.isLocalUnlockEnabled,
                     onCheckedChange = { onToggleLocalUnlock() },
-                    enabled = state.canAuthenticate,
+                    enabled = state.canAuthenticate || state.isLocalUnlockEnabled,
                 )
             }
         }

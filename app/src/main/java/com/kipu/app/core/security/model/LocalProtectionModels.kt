@@ -1,6 +1,7 @@
 package com.kipu.app.core.security.model
 
 enum class LocalLockState {
+    UNKNOWN,
     DISABLED,
     LOCKED,
     UNLOCKING,

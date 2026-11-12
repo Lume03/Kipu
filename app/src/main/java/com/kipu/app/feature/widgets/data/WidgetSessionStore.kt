@@ -15,6 +15,8 @@ class WidgetSessionStore @Inject constructor(@ApplicationContext context: Contex
     private val preferences = context.getSharedPreferences("kipu_widget_session_v1", Context.MODE_PRIVATE)
 
     val ownerId: String? get() = preferences.getString(KEY_OWNER, null)
+    val locked: Boolean get() = preferences.getBoolean("locked", false)
+    fun setLocked(value: Boolean) { preferences.edit().putBoolean("locked", value).commit() }
 
     fun remember(ownerId: String) {
         if (this.ownerId != ownerId) preferences.edit().putString(KEY_OWNER, ownerId).apply()

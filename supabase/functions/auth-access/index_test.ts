@@ -1,6 +1,6 @@
 // Test doubles implement asynchronous dependency interfaces.
 // deno-lint-ignore-file require-await
-import { createAuthAccessHandler, createDefaultDeps, Dependencies } from "./index.ts";
+import { createAuthAccessHandler, createDefaultDeps, validatePassword, Dependencies } from "./index.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -600,4 +600,29 @@ Deno.test("combined verify releases once after provider rejection, expiry or tra
     assertEquals(calls.length, 3);
     assertEquals(outcome, "release");
   }
+});
+
+Deno.test("password validation supports Unicode and NFC", () => {
+  assert(validatePassword("\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u00e1\u0661"), "Unicode letter and number");
+  assert(!validatePassword("e\u0301".repeat(6) + "1"), "NFC length is checked");
+  assert(!validatePassword("12345678"), "missing letter");
+});
+
+Deno.test("failed logins consume the IP failure budget", async () => {
+  let ipFailures = 0;
+  const handler = createTestHandler({ ...defaultDeps,
+    signInWithAuth: async () => ({ error: { message: "rejected" } }),
+    consumeRateBucket: async (key) => {
+      if (key.startsWith("login:ip:")) ipFailures++;
+      return { allowed: ipFailures <= 5, retryAfterSeconds: ipFailures <= 5 ? 0 : 60 };
+    },
+  });
+  for (let i = 0; i < 6; i++) {
+    const response = await handler(new Request("https://example.test/login", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: `user${i}@example.com`, password: "Password123" }),
+    }));
+    assertEquals(response.status, i < 5 ? 401 : 429);
+  }
+  assertEquals(ipFailures, 6);
 });

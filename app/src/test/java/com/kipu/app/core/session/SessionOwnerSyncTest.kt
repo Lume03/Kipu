@@ -40,4 +40,17 @@ class SessionOwnerSyncTest {
         coordinator.setActiveOwner("A")
         verify(exactly = 0) { scheduler.cancelSync(any()); instruments.cancelSync(any()) }
     }
+    @Test fun `owner remains protected until its preference is resolved`() = runTest {
+        val coordinator = SessionCoordinatorImpl()
+        coordinator.setActiveOwner("A")
+        assertTrue(coordinator.localAccess.value is LocalAccess.Protected)
+        coordinator.updateLockState(false)
+        assertTrue(coordinator.localAccess.value is LocalAccess.Protected)
+        coordinator.resolveLocalProtection("other", false)
+        assertTrue(coordinator.localAccess.value is LocalAccess.Protected)
+        coordinator.resolveLocalProtection("A", false)
+        assertTrue(coordinator.localAccess.value is LocalAccess.Available)
+        coordinator.setActiveOwner("B")
+        assertTrue(coordinator.localAccess.value is LocalAccess.Protected)
+    }
 }

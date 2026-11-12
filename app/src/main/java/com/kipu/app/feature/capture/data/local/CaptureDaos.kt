@@ -111,7 +111,7 @@ interface CaptureCandidateDao {
     ): Int
 
     @Query(
-        """UPDATE capture_candidates SET status='DISCARDED', evidence_snippet=NULL, evidence_expires_at=NULL,
+        """UPDATE capture_candidates SET status='DISCARDED', merchant_source_text=NULL, evidence_snippet=NULL, evidence_expires_at=NULL,
         resolved_at=:now, updated_at=:now, followups_pending=8 WHERE owner_id=:ownerId AND id=:id AND status='PENDING'""",
     )
     suspend fun discard(ownerId: String, id: String, now: Long): Int

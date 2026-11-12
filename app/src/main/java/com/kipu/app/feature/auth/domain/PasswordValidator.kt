@@ -6,6 +6,9 @@ package com.kipu.app.feature.auth.domain
  */
 object PasswordValidator {
 
+    private fun normalized(value: String) = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFC)
+    private fun codePoints(value: String): IntArray = normalized(value).codePoints().toArray()
+
     private const val MIN_LENGTH = 8
     private const val MAX_LENGTH = 72
 
@@ -13,9 +16,9 @@ object PasswordValidator {
         "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
     )
 
-    fun hasMinLength(password: String): Boolean = password.length >= MIN_LENGTH
-    fun hasLetter(password: String): Boolean = password.any { it.isLetter() }
-    fun hasNumber(password: String): Boolean = password.any { it.isDigit() }
+    fun hasMinLength(password: String): Boolean = normalized(password).length >= MIN_LENGTH
+    fun hasLetter(password: String): Boolean = codePoints(password).any { Character.isLetter(it) }
+    fun hasNumber(password: String): Boolean = codePoints(password).any { Character.getType(it) in listOf(Character.DECIMAL_DIGIT_NUMBER.toInt(), Character.LETTER_NUMBER.toInt(), Character.OTHER_NUMBER.toInt()) }
     fun hasSpecialChar(password: String): Boolean = password.any { !it.isLetterOrDigit() }
     fun passwordsMatch(password: String, confirm: String): Boolean = password.isNotEmpty() && password == confirm
 
@@ -23,7 +26,7 @@ object PasswordValidator {
         if (!hasMinLength(password)) {
             return ValidationResult.Invalid("La contraseña debe tener al menos 8 caracteres.")
         }
-        if (password.length > MAX_LENGTH) {
+        if (normalized(password).length > MAX_LENGTH) {
             return ValidationResult.Invalid("La contraseña no debe superar los 72 caracteres.")
         }
         if (!hasLetter(password)) {

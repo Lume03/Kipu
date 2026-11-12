@@ -23,10 +23,12 @@ class SessionCoordinatorImpl @Inject constructor(
     @Volatile private var _currentOwner: LocalOwner? = null
     override val currentOwner: LocalOwner? get() = _currentOwner
 
-    private var isLocked: Boolean = false
+    private var isLocked: Boolean = true
+    private var protectionResolved = false
 
     override suspend fun setActiveOwner(userId: String) {
         val previous = _currentOwner?.verifiedUserId
+        if (previous != userId) { isLocked = true; protectionResolved = false }
         _currentOwner = LocalOwner(userId, explicitlySignedOut = false)
         if (previous != null && previous != userId) cancelOwnerSync(previous)
         if (isLocked) {
@@ -41,6 +43,8 @@ class SessionCoordinatorImpl @Inject constructor(
         val previous = _currentOwner?.verifiedUserId
         // Revoke visibility before cancellation: a late response must fail its owner guard.
         _currentOwner = null
+        isLocked = true
+        protectionResolved = false
         if (previous != null) cancelOwnerSync(previous)
         _localAccess.value = LocalAccess.NoOwner
         SecureLog.i("SessionCoordinator", "Active owner cleared (explicit=$explicit)")
@@ -73,7 +77,14 @@ class SessionCoordinatorImpl @Inject constructor(
         }
     }
 
+    override suspend fun resolveLocalProtection(userId: String, isLocked: Boolean) {
+        if (_currentOwner?.verifiedUserId != userId) return
+        protectionResolved = true
+        updateLockState(isLocked, "APP_LOCKED")
+    }
+
     override suspend fun updateLockState(isLocked: Boolean, reason: String) {
+        if (!isLocked && !protectionResolved) return
         this.isLocked = isLocked
         val owner = _currentOwner
         if (owner != null && !owner.explicitlySignedOut) {

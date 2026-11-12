@@ -35,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -83,10 +84,10 @@ class WidgetRefresher @Inject constructor(
     /** Remember the verified owner so widgets can be redrawn when the app is closed; forget it on sign-out. */
     private suspend fun trackOwner() {
         var seenOwner = false
-        session.localAccess.collect { access ->
+        session.localAccess.collectLatest { access ->
             when (access) {
-                is LocalAccess.Available -> { seenOwner = true; store.remember(access.userId) }
-                is LocalAccess.Protected -> { seenOwner = true; store.remember(access.userId) }
+                is LocalAccess.Available -> { seenOwner = true; store.remember(access.userId); store.setLocked(false); updateAll() }
+                is LocalAccess.Protected -> { seenOwner = true; store.remember(access.userId); store.setLocked(true); updateAll() }
                 LocalAccess.NoOwner -> if (seenOwner) { seenOwner = false; store.forget(); updateAll() }
             }
         }

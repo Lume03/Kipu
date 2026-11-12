@@ -1,6 +1,7 @@
 package com.kipu.app.core.security
 
 import android.content.Context
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -18,10 +19,12 @@ class AndroidXBiometricGateway @Inject constructor(
 
     override fun getCapability(): LocalAuthenticatorCapability {
         val manager = BiometricManager.from(context)
-        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        val canAuth = manager.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
         val hasBiometrics = manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
-        val hasCredential = manager.canAuthenticate(BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+        val hasCredential = if (Build.VERSION.SDK_INT < 30) {
+            (context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isDeviceSecure
+        } else {
+            manager.canAuthenticate(BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+        }
 
         val types = mutableSetOf<AuthenticatorType>()
         if (hasBiometrics) types.add(AuthenticatorType.BIOMETRIC_STRONG)
@@ -30,7 +33,7 @@ class AndroidXBiometricGateway @Inject constructor(
         return LocalAuthenticatorCapability(
             hasBiometrics = hasBiometrics,
             hasDeviceCredential = hasCredential,
-            canAuthenticate = canAuth,
+            canAuthenticate = hasBiometrics || hasCredential,
             supportedTypes = types,
         )
     }
@@ -63,11 +66,25 @@ class AndroidXBiometricGateway @Inject constructor(
             },
         )
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        val capability = getCapability()
+        if (!capability.canAuthenticate) {
+            onResult(false, "No hay autenticación disponible")
+            return
+        }
+        val legacyBiometric = Build.VERSION.SDK_INT < 30 && capability.hasBiometrics
+        val authenticators = if (Build.VERSION.SDK_INT >= 30) {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        } else if (legacyBiometric) {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        } else {
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        }
+        val builder = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-            .build()
+            .setAllowedAuthenticators(authenticators)
+        if (legacyBiometric) builder.setNegativeButtonText("Cancelar")
+        val promptInfo = builder.build()
 
         prompt.authenticate(promptInfo)
     }

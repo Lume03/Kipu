@@ -66,19 +66,29 @@ class BiometricSettingsViewModel @Inject constructor(
         }
     }
 
+    fun disableWithoutAuthenticator() {
+        val userId = currentUserId ?: return
+        if (gateway.getCapability().canAuthenticate) return
+        disable(userId)
+    }
+
+    private fun disable(userId: UUID) {
+        viewModelScope.launch {
+            lockCoordinator.setLocalUnlockEnabled(userId, false)
+            _uiState.update { it.copy(isLocalUnlockEnabled = false, infoMessage = "Desbloqueo local desactivado") }
+        }
+    }
+
     fun toggleLocalUnlock(activity: FragmentActivity? = null) {
         val userId = currentUserId ?: return
         val currentEnabled = _uiState.value.isLocalUnlockEnabled
 
         if (currentEnabled) {
-            viewModelScope.launch {
-                lockCoordinator.setLocalUnlockEnabled(userId, false)
-                _uiState.update {
-                    it.copy(
-                        isLocalUnlockEnabled = false,
-                        infoMessage = "Desbloqueo biométrico desactivado",
-                    )
-                }
+            if (!gateway.getCapability().canAuthenticate) return
+            val act = activity ?: return
+            gateway.authenticate(act, "Desactivar bloqueo local", "Confirma tu identidad") { success, error ->
+                if (success) disable(userId)
+                else _uiState.update { it.copy(errorMessage = error ?: "Autenticacion cancelada o fallida") }
             }
         } else {
             if (!_uiState.value.canAuthenticate) {

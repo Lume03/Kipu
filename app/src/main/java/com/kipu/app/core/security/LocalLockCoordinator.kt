@@ -16,6 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Singleton
@@ -41,7 +44,7 @@ class LocalLockCoordinator(
         const val BACKGROUND_TIMEOUT_MS = 60_000L // 60 seconds monotonic
     }
 
-    private val _lockState = MutableStateFlow(LocalLockState.DISABLED)
+    private val _lockState = MutableStateFlow(LocalLockState.UNKNOWN)
     val lockState: StateFlow<LocalLockState> = _lockState.asStateFlow()
 
     private val _lastLockReason = MutableStateFlow<LockReason?>(null)
@@ -52,15 +55,23 @@ class LocalLockCoordinator(
 
     init {
         scope.launch {
-            sessionCoordinator.localAccess.collect { access ->
-                val userIdStr = when (access) {
+            lockState.collect { state ->
+                sessionCoordinator.updateLockState(state == LocalLockState.LOCKED || state == LocalLockState.UNKNOWN, "APP_LOCKED")
+            }
+        }
+        scope.launch {
+            sessionCoordinator.localAccess.map { access ->
+                when (access) {
                     is LocalAccess.Available -> access.userId
                     is LocalAccess.Protected -> access.userId
                     is LocalAccess.NoOwner -> null
                 }
+            }.distinctUntilChanged().collectLatest { userIdStr ->
+                _lockState.value = LocalLockState.UNKNOWN
                 val userId = userIdStr?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 if (userId != null) {
                     val settings = dao.findSettings(userId)
+                    if (sessionCoordinator.currentOwner?.verifiedUserId != userIdStr) return@collectLatest
                     isEnabledForCurrentOwner = settings?.localUnlockEnabled == true
                     if (isEnabledForCurrentOwner) {
                         if (_lockState.value != LocalLockState.UNLOCKED) {
@@ -72,9 +83,10 @@ class LocalLockCoordinator(
                     } else {
                         _lockState.value = LocalLockState.DISABLED
                     }
+                    sessionCoordinator.resolveLocalProtection(userIdStr, isEnabledForCurrentOwner)
                 } else {
                     isEnabledForCurrentOwner = false
-                    _lockState.value = LocalLockState.DISABLED
+                    _lockState.value = LocalLockState.UNKNOWN
                 }
             }
         }

@@ -82,11 +82,12 @@ function validateEmail(email: unknown): boolean {
   return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(trimmed);
 }
 
-function validatePassword(password: unknown): boolean {
+export function validatePassword(password: unknown): boolean {
   if (typeof password !== "string") return false;
-  if (password.length < 8 || password.length > 72) return false;
-  const hasLetter = /[A-Za-z]/.test(password);
-  const hasDigit = /[0-9]/.test(password);
+  const normalized = password.normalize("NFC");
+  if (normalized.length < 8 || normalized.length > 72) return false;
+  const hasLetter = /\p{L}/u.test(normalized);
+  const hasDigit = /\p{N}/u.test(normalized);
   return hasLetter && hasDigit;
 }
 
@@ -277,6 +278,8 @@ export function createAuthAccessHandler(deps: Dependencies) {
         );
       }
 
+      // shortcut: successful logins still consume the shared-IP budget (SEC1-07); limiting
+      // only failures needs a non-consuming bucket check, add one before relaxing this.
       const rate = await checkRateLimits("login");
       if (!rate.allowed) {
         return json(

@@ -15,6 +15,22 @@ sealed interface DeepLinkResult {
 class AuthDeepLinkHandler @Inject constructor() {
 
     private val consumedTokens = mutableSetOf<String>()
+    private val recoveryInFlight = mutableSetOf<String>()
+
+    @Synchronized
+    fun finishRecovery(callbackUrl: String, success: Boolean) {
+        val key = replayKey(callbackUrl) ?: return
+        recoveryInFlight.remove(key)
+        if (success) consumedTokens.add(key)
+    }
+
+    private fun replayKey(callbackUrl: String): String? {
+        val uri = java.net.URI(callbackUrl)
+        val params = listOf(uri.rawQuery, uri.rawFragment).filterNotNull().flatMap { it.split("&") }
+            .mapNotNull { val parts = it.split("=", limit = 2); if (parts.size == 2) parts[0] to parts[1] else null }.toMap()
+        val token = params["code"] ?: params["token_hash"] ?: params["access_token"] ?: return null
+        return MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    }
 
     /**
      * Parses and validates deep links according to auth-session-contract.
@@ -26,6 +42,7 @@ class AuthDeepLinkHandler @Inject constructor() {
         return handleDeepLink(uri.toString())
     }
 
+    @Synchronized
     fun handleDeepLink(uriString: String?): DeepLinkResult {
         if (uriString.isNullOrBlank()) return DeepLinkResult.InvalidOrConsumed
         return try {
@@ -62,7 +79,7 @@ class AuthDeepLinkHandler @Inject constructor() {
                         (fragmentParams["type"] == "recovery" &&
                             fragmentParams["access_token"]?.isNotBlank() == true &&
                             fragmentParams["refresh_token"]?.isNotBlank() == true)
-                    if (!hasRecoverySession || replayKey.isNullOrEmpty() || !consumedTokens.add(replayKey)) {
+                    if (!hasRecoverySession || replayKey.isNullOrEmpty() || replayKey in consumedTokens || !recoveryInFlight.add(replayKey)) {
                         DeepLinkResult.InvalidOrConsumed
                     } else {
                         DeepLinkResult.ResetPassword(uriString)

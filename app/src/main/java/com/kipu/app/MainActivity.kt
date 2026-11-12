@@ -24,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.core.view.WindowCompat
@@ -200,6 +201,14 @@ class MainActivity : FragmentActivity() {
 
             val accessState by sessionCoordinator.localAccess.collectAsStateWithLifecycle()
             val lockState by localLockCoordinator.lockState.collectAsStateWithLifecycle()
+            LaunchedEffect(lockState, accessState) {
+                val secure = !BuildConfig.DEBUG && (lockState == LocalLockState.LOCKED ||
+                    lockState == LocalLockState.UNLOCKING || lockState == LocalLockState.UNLOCKED ||
+                    (lockState == LocalLockState.UNKNOWN && accessState is LocalAccess.Protected))
+                if (secure) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                if (android.os.Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(!secure)
+            }
 
             LaunchedEffect(accessState) {
                 (accessState as? LocalAccess.Available)?.let { access ->
@@ -525,6 +534,9 @@ class MainActivity : FragmentActivity() {
                             // Covers the first load after a sign-in; the lock screen still goes above it.
                             SessionEntryCurtainHost(sessionEntryCurtain, currentRoute, ACCOUNTS_DASHBOARD_ROUTE)
 
+                            if (lockState != LocalLockState.LOCKED && accessState is LocalAccess.Protected) {
+                                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(androidx.compose.material3.MaterialTheme.colorScheme.surface))
+                            }
                             if (lockState == LocalLockState.LOCKED) {
                                 LockScreenOverlay(
                                     gateway = localAuthenticatorGateway,

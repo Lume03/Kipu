@@ -71,7 +71,8 @@ fun CreditCardTermsSheet(
     val validLimit = parsedLimit != null && parsedLimit >= 0L
     val validBillingDay = parsedBillingDay != null && parsedBillingDay in 1..31
     val validDueDay = parsedDueDay != null && parsedDueDay in 1..31
-    val canSave = validLimit && validBillingDay && validDueDay && validDigits && !isSaving
+    val validAlias = alias.isBlank() || !FinancialCard.isForbiddenSensitiveCardInput(alias)
+    val canSave = validLimit && validBillingDay && validDueDay && validDigits && validAlias && !isSaving
 
     // Swipe-down must respect the same rule as the close button: no dismiss while saving.
     val currentIsSaving by rememberUpdatedState(isSaving)
@@ -120,6 +121,7 @@ fun CreditCardTermsSheet(
                             value = alias,
                             onValueChange = { alias = it.take(40) },
                             placeholder = card.alias ?: "${card.issuer} ${card.network}",
+                            errorMessage = "No ingreses el número completo de la tarjeta ni el CVV.".takeIf { !validAlias },
                             modifier = Modifier.testTag("credit_card_terms_alias"),
                         )
                     }

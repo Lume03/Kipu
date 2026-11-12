@@ -53,4 +53,15 @@ class AuthDeepLinkHandlerTest {
         assertTrue(handler.handleDeepLink(null as String?) is DeepLinkResult.InvalidOrConsumed)
         assertTrue(handler.handleDeepLink("") is DeepLinkResult.InvalidOrConsumed)
     }
+    @Test
+    fun `recovery can retry after failure and is consumed after success`() {
+        val handler = AuthDeepLinkHandler()
+        val url = "https://kipu.app/auth/recovery?code=test-code"
+        assertTrue(handler.handleDeepLink(url) is DeepLinkResult.ResetPassword)
+        assertTrue(handler.handleDeepLink(url) is DeepLinkResult.InvalidOrConsumed)
+        handler.finishRecovery(url, false)
+        assertTrue(handler.handleDeepLink(url) is DeepLinkResult.ResetPassword)
+        handler.finishRecovery(url, true)
+        assertTrue(handler.handleDeepLink(url) is DeepLinkResult.InvalidOrConsumed)
+    }
 }

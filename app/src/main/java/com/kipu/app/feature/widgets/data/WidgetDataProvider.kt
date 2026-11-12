@@ -71,9 +71,11 @@ class WidgetDataProvider @Inject constructor(
     private val zone: ZoneId,
 ) {
     suspend fun load(): WidgetState {
+        if (session.locked) return WidgetState.Locked
         val owner = session.ownerId ?: return WidgetState.SignedOut
         return try {
-            withTimeoutOrNull(LOAD_TIMEOUT_MILLIS) { build(owner) } ?: WidgetState.Unavailable
+            val result = withTimeoutOrNull(LOAD_TIMEOUT_MILLIS) { build(owner) } ?: WidgetState.Unavailable
+            if (session.locked) WidgetState.Locked else result
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
