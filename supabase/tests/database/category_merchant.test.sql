@@ -182,30 +182,32 @@ SELECT throws_ok(
     'update_movement_classification_v1 rejects coexisting merchant_id and provisional text'
 );
 
--- Test 19: update_category_presentation_v1 updates presentation when revision matches
+-- Test 19: update_category_presentation_v1 applies the edit
 SELECT is(
     (public.update_category_presentation_v1(jsonb_build_object(
+        'operation_id', '77777777-7777-7777-7777-000000000019',
         'category_id', 'dddddddd-1111-1111-1111-000000000001',
         'name', 'Educación y Cultura',
         'icon', 'school',
         'color', '#336699',
         'expected_revision', 1
     ))->>'status'),
-    'UPDATED',
-    'update_category_presentation_v1 updates presentation when expected revision matches'
+    'APPLIED',
+    'update_category_presentation_v1 applies the presentation edit'
 );
 
--- Test 20: update_category_presentation_v1 with revision mismatch creates conflict
+-- Test 20: a stale expected revision still applies (last write wins, decision 12)
 SELECT is(
     (public.update_category_presentation_v1(jsonb_build_object(
+        'operation_id', '77777777-7777-7777-7777-000000000020',
         'category_id', 'dddddddd-1111-1111-1111-000000000001',
         'name', 'Educación Superior',
         'icon', 'school',
         'color', '#336699',
         'expected_revision', 1 -- current is 2 now
     ))->>'status'),
-    'CONFLICT',
-    'update_category_presentation_v1 produces CONFLICT status on revision mismatch'
+    'APPLIED',
+    'update_category_presentation_v1 applies a stale revision as last write wins'
 );
 
 -- Setup conflict record for resolution test

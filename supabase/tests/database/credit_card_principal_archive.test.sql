@@ -31,7 +31,7 @@ VALUES ('44444444-4444-4444-4444-444444444444','44444444-4444-4444-4444-00000000
 
 SELECT set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444',true);
 SELECT throws_like($$SELECT public.set_instrument_archived_v1(jsonb_build_object(
- 'instrument_id','44444444-4444-4444-4444-000000000002','instrument_type','CARD','is_archived',true))$$,
+ 'operation_id','44444444-4444-4444-4444-000000000099','instrument_id','44444444-4444-4444-4444-000000000002','instrument_type','CARD','is_archived',true))$$,
  '%CARD_HAS_OUTSTANDING_DEBT%','card with principal debt cannot be archived');
 SELECT is(public.pay_credit_card_v1(jsonb_build_object(
  'operation_id','a4444444-4444-4444-4444-444444444441',

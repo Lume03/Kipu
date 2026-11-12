@@ -11,7 +11,7 @@ VALUES ('a0333333-3333-4333-8333-333333333333','a0311111-1111-4111-8111-11111111
 'a0322222-2222-4222-8222-222222222222','VISA','VISA','1234',true,100000,15,5,'PEN','BCP');
 SELECT set_config('request.jwt.claim.sub','a0311111-1111-4111-8111-111111111111',true);
 INSERT INTO archive_tap SELECT lives_ok($$SELECT public.set_instrument_archived_v1(jsonb_build_object(
-'instrument_id','a0333333-3333-4333-8333-333333333333','instrument_type','CARD','is_archived',true))$$,'card archive succeeds with its established snapshot operation');
+'operation_id','a0355555-5555-4555-8555-555555555555','instrument_id','a0333333-3333-4333-8333-333333333333','instrument_type','CARD','is_archived',true))$$,'card archive succeeds with its established snapshot operation');
 INSERT INTO archive_tap SELECT ok(EXISTS(SELECT 1 FROM internal.sync_changes WHERE entity_id='a0333333-3333-4333-8333-333333333333' AND operation='ARCHIVE' AND (payload->>'is_archived')::boolean),'archive is visible to other devices');
 INSERT INTO archive_tap SELECT * FROM finish();
 SELECT line FROM archive_tap;

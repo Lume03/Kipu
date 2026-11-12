@@ -60,6 +60,15 @@ BEGIN
         WHERE id=(p_payload->>'conflict_id')::uuid AND user_id=u FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Conflict not found' USING ERRCODE='P0002'; END IF;
     chosen := CASE WHEN p_payload->>'chosen_version'='LOCAL' THEN conflict.local_version::jsonb ELSE conflict.remote_version::jsonb END;
+    -- A stored version may be partial: keep the current value, then the category default.
+    SELECT pg_catalog.jsonb_build_object(
+        'name',COALESCE(chosen->>'name',p.name,c.name),
+        'icon',COALESCE(chosen->>'icon',p.icon,c.icon_key,'category'),
+        'color',COALESCE(chosen->>'color',p.color,c.color_token,'#9E9E9E'))
+      INTO chosen
+      FROM public.categories c
+      LEFT JOIN public.category_presentations p ON p.category_id=c.id AND p.user_id=u
+      WHERE c.id=conflict.category_id;
     response := public.update_category_presentation_v1(pg_catalog.jsonb_build_object(
         'operation_id',p_payload->>'operation_id','category_id',conflict.category_id,
         'name',chosen->>'name','icon',chosen->>'icon','color',chosen->>'color'));
@@ -77,9 +86,18 @@ DECLARE c record; chosen jsonb;
 BEGIN
     FOR c IN SELECT * FROM public.category_conflicts WHERE status='OPEN' AND conflict_type='PRESENTATION'
         ORDER BY created_at,id FOR UPDATE LOOP
-        chosen := c.local_version::jsonb;
         PERFORM 1 FROM public.categories WHERE id=c.category_id FOR UPDATE;
         PERFORM 1 FROM public.category_presentations WHERE category_id=c.category_id AND user_id=c.user_id FOR UPDATE;
+        -- Partial stored versions keep the current value, then the category default.
+        SELECT pg_catalog.jsonb_build_object(
+            'name',COALESCE(c.local_version::jsonb->>'name',p.name,cat.name),
+            'icon',COALESCE(c.local_version::jsonb->>'icon',p.icon,cat.icon_key,'category'),
+            'color',COALESCE(c.local_version::jsonb->>'color',p.color,cat.color_token,'#9E9E9E'))
+          INTO chosen
+          FROM public.categories cat
+          LEFT JOIN public.category_presentations p ON p.category_id=cat.id AND p.user_id=c.user_id
+          WHERE cat.id=c.category_id;
+        CONTINUE WHEN chosen IS NULL;
         INSERT INTO public.category_presentations(category_id,user_id,name,icon,color,remote_revision,updated_at)
         VALUES(c.category_id,c.user_id,chosen->>'name',chosen->>'icon',chosen->>'color',1,c.created_at)
         ON CONFLICT(category_id,user_id) DO UPDATE SET
