@@ -786,7 +786,7 @@ class MovementHistoryViewModel @Inject constructor(
                 }
                 check(head.userId == owner && head.transactionId == item.transaction.id) { "Movimiento no disponible" }
                 if (head.financialState != MovementFinancialState.VOIDED) {
-                    check(!isSpecializedMovement(item)) { "Anula este movimiento desde su sección de origen" }
+                    check(canVoidMovement(item)) { "Anula este movimiento desde su sección de origen" }
                     val command = deletion.command ?: MovementRevisionCommand.Void(
                         idempotencyKey = UUID.randomUUID().toString(), transactionId = item.transaction.id,
                         expectedRevision = head.commandBaseRevision, reason = "Eliminar del historial",
@@ -798,7 +798,7 @@ class MovementHistoryViewModel @Inject constructor(
                             deleteState.update { it.copy(command = null) }
                             error("El movimiento cambió. Revisa y reintenta.")
                         }
-                        is MovementMutationResult.Rejected -> error("No se pudo anular el movimiento (${result.code})")
+                        is MovementMutationResult.Rejected -> error(movementVoidError(result.code))
                         null -> error("No se pudo anular el movimiento")
                     }
                 }
@@ -873,6 +873,7 @@ class MovementHistoryViewModel @Inject constructor(
                     }
                     is MovementMutationResult.Rejected -> {
                         val message = when (result.code) {
+                            "CARD_PURCHASE_HAS_PAYMENTS", "PURCHASE_HAS_ACTIVE_REFUNDS" -> movementVoidError(result.code)
                             "OPERATION_SPECIALIZED" -> "No se puede anular un movimiento especializado desde el historial genérico"
                             "ALREADY_VOIDED_FOR_EDIT" -> "El movimiento ya se encuentra anulado"
                             else -> "No se pudo anular el movimiento (${result.code})"
@@ -1112,6 +1113,7 @@ private fun refundErrorMessage(error: RefundTransactionError): String = when (er
     RefundTransactionError.INVALID_AMOUNT -> "Ingresa un importe mayor que cero y no mayor al remanente."
     RefundTransactionError.REFUND_NOT_REJECTED -> "Este reembolso no está rechazado y no se puede anular desde aquí."
     RefundTransactionError.RECEIPT_INCONSISTENT -> "No se pudo verificar el registro del reembolso."
+    RefundTransactionError.INVALID_REFUND_DATE -> "La fecha debe estar entre la compra y hoy."
     RefundTransactionError.INVALID_COMMAND -> "No se pudo registrar el reembolso. Inténtalo de nuevo."
 }
 
@@ -1120,4 +1122,10 @@ private fun refundRejectionMessage(code: String): String = when (code.uppercase(
     "PURCHASE_NOT_FOUND" -> "No se encontró la compra original. Puedes anular el reembolso rechazado."
     "PURCHASE_NOT_ELIGIBLE" -> "La compra no cumple las condiciones para reembolso. Puedes anular el reembolso rechazado."
     else -> "El servidor rechazó este reembolso. Puedes anularlo sin cambiar la compra original."
+}
+
+internal fun movementVoidError(code: String): String = when (code) {
+    "CARD_PURCHASE_HAS_PAYMENTS" -> "Esta compra ya tiene pagos aplicados. Si el banco te la devolvió, registra un reembolso"
+    "PURCHASE_HAS_ACTIVE_REFUNDS" -> "Elimina primero los reembolsos de esta compra."
+    else -> "No se pudo anular el movimiento ($code)"
 }

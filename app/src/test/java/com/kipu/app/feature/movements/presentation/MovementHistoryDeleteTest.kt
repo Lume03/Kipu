@@ -104,6 +104,17 @@ class MovementHistoryDeleteTest {
         coVerify(exactly = 0) { maintenance.void(any(), any()) }
         coVerify(exactly = 0) { display.hide(any(), any()) }
     }
+    @Test fun cardPurchaseAndRefundCanDeleteUnlessLocallyBlocked() {
+        for (kind in listOf("CARD_PURCHASE", "REFUND")) {
+            val candidate = item.copy(transaction = item.transaction.copy(operationKind = kind))
+            assertTrue(canDeleteFromHistory(candidate))
+            assertTrue(canVoidMovement(candidate))
+            assertFalse(canDeleteFromHistory(candidate.copy(voidBlockCode = "CARD_PURCHASE_HAS_PAYMENTS")))
+            assertFalse(canVoidMovement(candidate.copy(voidBlockCode = "PURCHASE_HAS_ACTIVE_REFUNDS")))
+        }
+        assertEquals("Esta compra ya tiene pagos aplicados. Si el banco te la devolvió, registra un reembolso",
+            movementVoidError("CARD_PURCHASE_HAS_PAYMENTS"))
+    }
     @Test fun revisedAndLegacyActiveStandardRemainEligible() {
         assertTrue(canDeleteFromHistory(item))
         assertTrue(canDeleteFromHistory(item.copy(transaction = item.transaction.copy(status = TransactionStatus.REVISED))))

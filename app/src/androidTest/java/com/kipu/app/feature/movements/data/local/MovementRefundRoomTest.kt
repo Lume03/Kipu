@@ -50,7 +50,7 @@ class MovementRefundRoomTest {
                 userId = userId,
                 creationOperationId = UUID.randomUUID().toString(),
                 alias = "Efectivo",
-                type = "CASH",
+                type = "CREDIT_LIABILITY",
                 currency = "PEN",
                 presetId = null,
                 color = null,
@@ -61,14 +61,20 @@ class MovementRefundRoomTest {
                 updatedAt = 1L,
             ),
         )
+        database.cardDao().insert(com.kipu.app.feature.accounts.data.local.CardEntity(
+            id="refund-card",userId=userId,creationOperationId="card-op",accountId=accountId,type="CREDIT",currency="PEN",
+            network="VISA",issuer="BCP",lastFourDigits="1234",createdAt=1,updatedAt=1))
         movementDao.insertTransaction(
             TransactionEntity(
                 id = purchaseId,
                 userId = userId,
                 type = "EXPENSE",
+                cardId = "refund-card",
+                installmentCount = 1,
+                operationKind = "CARD_PURCHASE",
                 amountMinor = 10_000L,
                 currencyCode = "PEN",
-                sourceAccountId = accountId,
+                sourceAccountId = null,
                 categoryId = "food",
                 occurredAt = 1_000L,
                 status = "CONFIRMED",

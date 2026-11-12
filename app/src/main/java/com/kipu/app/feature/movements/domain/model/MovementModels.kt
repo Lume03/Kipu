@@ -163,6 +163,7 @@ enum class RefundTransactionError {
     IDEMPOTENCY_CONFLICT,
     RECEIPT_INCONSISTENT,
     REFUND_NOT_REJECTED,
+    INVALID_REFUND_DATE,
 }
 
 sealed interface RefundTransactionResult {
@@ -206,6 +207,7 @@ data class TransactionItem(
     val merchantLogoUrl: String? = null,
     val merchantLogoDarkUrl: String? = null,
     val merchantBrandColor: String? = null,
+    val voidBlockCode: String? = null,
     val cardAlias: String? = null,
     val cardLastFourDigits: String? = null,
 )

@@ -70,7 +70,8 @@ internal fun isDebtSettlementMovement(item: TransactionItem): Boolean =
         setOf("DEBT_PAYMENT", "DEBT_AMORTIZATION")
 
 internal fun canVoidMovement(item: TransactionItem): Boolean =
-    !isSpecializedMovement(item) || isDebtSettlementMovement(item)
+    item.voidBlockCode == null && (!isSpecializedMovement(item) || isDebtSettlementMovement(item) ||
+        item.transaction.operationKind in setOf("CARD_PURCHASE", "REFUND"))
 
 @Composable
 fun VoidMovementDialog(
@@ -226,7 +227,7 @@ fun VoidMovementDialog(
                                 modifier = Modifier.size(24.dp),
                             )
                             Text(
-                                text = stringResource(R.string.movement_void_specialized_warning),
+                                text = item.voidBlockCode?.let(::movementVoidError) ?: stringResource(R.string.movement_void_specialized_warning),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = emeraldColors.expenseText,
                                 modifier = Modifier.testTag("text_void_specialized_warning"),

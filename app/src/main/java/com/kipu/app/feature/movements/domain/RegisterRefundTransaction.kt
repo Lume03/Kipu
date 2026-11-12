@@ -39,6 +39,9 @@ class RegisterRefundTransaction @Inject constructor(
             return RefundTransactionResult.Rejected(RefundTransactionError.CURRENCY_MISMATCH)
         }
 
+        if (!isValidRefundDate(purchase.occurredAt, command.occurredAt)) {
+            return RefundTransactionResult.Rejected(RefundTransactionError.INVALID_REFUND_DATE)
+        }
         val previousRefunds = repository.getRefundedAmount(command.userId, purchase.id)
         val remaining = try {
             Math.subtractExact(purchase.amountMinor, previousRefunds)
@@ -101,10 +104,14 @@ fun Transaction.isRefundEligible(): Boolean {
 
     return when (operationKind?.uppercase(Locale.ROOT)) {
         "CARD_PURCHASE" -> cardId != null && sourceAccountId == null && destinationAccountId == null &&
-            installmentCount == 1 && legacyKind == null
-        null, "STANDARD" -> status != TransactionStatus.ACTIVE &&
-            !sourceAccountId.isNullOrBlank() && destinationAccountId == null && cardId == null &&
-            installmentCount == null && legacyKind == null
+            installmentCount in 1..36 && legacyKind == null
         else -> false
     }
+}
+
+internal fun isValidRefundDate(purchaseAt: Long, refundAt: Long): Boolean {
+    val zone = java.time.ZoneId.of("America/Lima")
+    val date = java.time.Instant.ofEpochMilli(refundAt).atZone(zone).toLocalDate()
+    return !date.isBefore(java.time.Instant.ofEpochMilli(purchaseAt).atZone(zone).toLocalDate()) &&
+        !date.isAfter(java.time.LocalDate.now(zone))
 }

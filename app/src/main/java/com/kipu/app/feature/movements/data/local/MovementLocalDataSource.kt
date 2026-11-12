@@ -102,6 +102,9 @@ class MovementLocalDataSource @Inject constructor(
             return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.INVALID_COMMAND)
         }
 
+        if (!com.kipu.app.feature.movements.domain.isValidRefundDate(purchase.occurredAt, command.occurredAt)) {
+            return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.INVALID_REFUND_DATE)
+        }
         val refunded = getRefundedAmount(command.userId, purchase.id)
         val remaining = try {
             Math.subtractExact(purchase.amountMinor, refunded)
@@ -115,8 +118,8 @@ class MovementLocalDataSource @Inject constructor(
             )
         }
 
-        val (receivingAccountId, ledgerRole) = if (purchase.cardId != null) {
-            val card = database.cardDao().getById(command.userId, purchase.cardId)
+        val (receivingAccountId, ledgerRole) = run {
+            val card = database.cardDao().getById(command.userId, requireNotNull(purchase.cardId))
                 ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
             val liabilityId = card.accountId
                 ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
@@ -126,17 +129,7 @@ class MovementLocalDataSource @Inject constructor(
                 liability.type != "CREDIT_LIABILITY" || !liability.currency.equals(command.currency, true)
             ) return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
             liabilityId to LedgerRole.LIABILITY
-        } else {
-            val accountId = purchase.sourceAccountId
-                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE)
-            val account = database.accountDao().getById(command.userId, accountId)
-                ?: return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.OWNER_MISMATCH)
-            if (!account.currency.equals(command.currency, true)) {
-                return@withTransaction RefundTransactionResult.Rejected(RefundTransactionError.CURRENCY_MISMATCH)
-            }
-            accountId to LedgerRole.DESTINATION
         }
-
         val now = System.currentTimeMillis()
         val refundEntity = TransactionEntity(
             id = refund.id,
@@ -633,6 +626,14 @@ class MovementLocalDataSource @Inject constructor(
         )
     }
 
+    suspend fun getVoidBlockCode(userId: String, transactionId: String): String? {
+        if (getRefundedAmount(userId, transactionId) > 0L) return "PURCHASE_HAS_ACTIVE_REFUNDS"
+        val tx = movementDao.getTransactionById(userId, transactionId) ?: return null
+        if (tx.operationKind == "CARD_PURCHASE" && database.creditDao().getInstallmentsForTransaction(userId,transactionId)
+            .any { database.creditDao().getAllocatedMinorForInstallment(userId,it.id) > 0L }) return "CARD_PURCHASE_HAS_PAYMENTS"
+        return null
+    }
+
     suspend fun getRevisionHead(userId: String, transactionId: String): MovementRevisionHead? {
         val txEntity = movementDao.getTransactionById(userId, transactionId) ?: return null
         val pendingOutbox = movementDao.getPendingOutboxForTransaction(userId, txEntity.id)
@@ -963,6 +964,9 @@ class MovementLocalDataSource @Inject constructor(
                 )
             }
 
+            if (currentHead.financialState == MovementFinancialState.VOIDED) {
+                return@withTransaction MovementMutationResult.Success(currentHead, isDuplicate = true)
+            }
             val settlementEvent = if (txEntity.operationKind in setOf("DEBT_PAYMENT", "DEBT_AMORTIZATION")) {
                 database.debtDao().getSettlementEventForTransaction(userId, txEntity.id)
                     ?.takeIf { it.eventType == "PAYMENT" }
@@ -978,6 +982,15 @@ class MovementLocalDataSource @Inject constructor(
                 )
             }
 
+            if (txEntity.status != "VOIDED" && getRefundedAmount(userId, txEntity.id) > 0L) {
+                return@withTransaction MovementMutationResult.Rejected("PURCHASE_HAS_ACTIVE_REFUNDS")
+            }
+            val cardVoid = txEntity.operationKind == "CARD_PURCHASE"
+            val refundVoid = txEntity.operationKind == "REFUND"
+            val installments = database.creditDao().getInstallmentsForTransaction(userId, txEntity.id)
+            if (cardVoid && installments.any { database.creditDao().getAllocatedMinorForInstallment(userId, it.id) > 0L }) {
+                return@withTransaction MovementMutationResult.Rejected("CARD_PURCHASE_HAS_PAYMENTS")
+            }
             val hasSpecializedRelations = txEntity.cardId != null ||
                 txEntity.installmentCount != null ||
                 !txEntity.legacyKind.isNullOrBlank()
@@ -1006,7 +1019,28 @@ class MovementLocalDataSource @Inject constructor(
                 )
             }
 
-            val planResult = revisionPlanner.plan(
+            if (cardVoid || refundVoid) {
+                if (txEntity.status !in setOf("ACTIVE", "CONFIRMED", "REVISED")) {
+                    return@withTransaction MovementMutationResult.Rejected("FINANCIAL_EVIDENCE_REQUIRED")
+                }
+                val expectedNet = if (cardVoid) -txEntity.amountMinor else txEntity.amountMinor
+                if (existingEntries.isEmpty() || existingEntries.any { it.currencyCode != txEntity.currencyCode } ||
+                    existingEntries.sumOf { it.signedAmountMinor } != expectedNet) {
+                    return@withTransaction MovementMutationResult.Rejected("LEDGER_MISMATCH")
+                }
+            }
+            val planResult = if ((cardVoid || refundVoid) && txEntity.status != "VOIDED") {
+                MovementRevisionPlanningResult.Ready(MovementMutationPlan(
+                    payload = currentHead.payload,
+                    financialState = MovementFinancialState.VOIDED,
+                    proposedRevision = currentHead.commandBaseRevision + 1L,
+                    effects = existingEntries.mapIndexed { index, entry ->
+                        MovementPlannedEffect(index, entry.accountId,
+                            localLedgerRole(entry.role, txEntity.type, entry.accountId, txEntity.sourceAccountId),
+                            Math.negateExact(entry.signedAmountMinor), entry.currencyCode)
+                    },
+                ))
+            } else revisionPlanner.plan(
                 owner = userId,
                 head = currentHead,
                 command = command,
@@ -1088,8 +1122,12 @@ class MovementLocalDataSource @Inject constructor(
             }
 
             movementDao.updateTransaction(updatedEntity)
+            if (cardVoid) installments.forEach {
+                database.creditDao().updateInstallmentStatus(userId, it.id, "VOIDED", it.revision + 1L, now)
+            }
+            database.creditDao().refreshInstallmentStatuses(userId)
 
-            val touchedAccounts = mutableSetOf<Pair<String, String>>()
+            val touchedAccounts = existingEntries.map { it.accountId to it.currencyCode }.toMutableSet()
             txEntity.sourceAccountId?.let { touchedAccounts.add(it to txEntity.currencyCode) }
             txEntity.destinationAccountId?.let { touchedAccounts.add(it to txEntity.currencyCode) }
             for ((accId, curr) in touchedAccounts) {
@@ -1541,10 +1579,7 @@ private fun TransactionEntity.isLocallyRefundEligible(): Boolean {
     ) return false
     return when (operationKind?.uppercase()) {
         "CARD_PURCHASE" -> cardId != null && sourceAccountId == null && destinationAccountId == null &&
-            installmentCount == 1 && legacyKind == null
-        null, "STANDARD" -> status in setOf(TransactionStatus.CONFIRMED.name, TransactionStatus.REVISED.name) &&
-            !sourceAccountId.isNullOrBlank() && destinationAccountId == null && cardId == null &&
-            installmentCount == null && legacyKind == null
+            installmentCount in 1..36 && legacyKind == null
         else -> false
     }
 }

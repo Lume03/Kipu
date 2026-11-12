@@ -621,6 +621,9 @@ fun MovementDetailSheet(
                     Text("Registrar pago recurrente")
                 }
             }
+            if (!voided && item.voidBlockCode != null) {
+                Text(movementVoidError(item.voidBlockCode), style = MaterialTheme.typography.bodyMedium)
+            }
             if (!voided && canVoidMovement(item)) {
                 Row(
                     modifier = Modifier

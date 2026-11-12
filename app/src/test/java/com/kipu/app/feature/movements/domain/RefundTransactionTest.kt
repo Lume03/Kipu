@@ -124,7 +124,7 @@ class RefundTransactionTest {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `single payment credit card purchase is eligible but installments are not`() = runTest {
+    fun `credit card purchases including installments are eligible`() = runTest {
         val cardPurchase = purchase(
             sourceAccountId = null,
             cardId = "card-1",
@@ -137,10 +137,7 @@ class RefundTransactionTest {
         assertEquals(null, accepted.committed.single().sourceAccountId)
 
         val installments = InMemoryRefundRepository(cardPurchase.copy(installmentCount = 3))
-        assertEquals(
-            RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE),
-            registerRefund(installments, amountMinor = 100L),
-        )
+        assertTrue(registerRefund(installments, amountMinor = 100L) is RefundTransactionResult.Success)
     }
 
     @Test
@@ -173,6 +170,20 @@ class RefundTransactionTest {
         assertEquals(1, repository.committed.size)
     }
 
+    @Test fun `standard expenses cannot be refunded`() = runTest {
+        val repository = InMemoryRefundRepository(purchase(sourceAccountId = "cash", cardId = null, operationKind = null, installmentCount = null))
+        assertEquals(RefundTransactionResult.Rejected(RefundTransactionError.PURCHASE_NOT_ELIGIBLE), registerRefund(repository, 100))
+    }
+    @Test fun `refund date is bounded by purchase and today in Lima`() = runTest {
+        val repository = InMemoryRefundRepository(purchase())
+        val useCase = RegisterRefundTransaction(repository)
+        assertEquals(RefundTransactionResult.Rejected(RefundTransactionError.INVALID_REFUND_DATE),
+            useCase(command(100).copy(occurredAt = repository.purchase.occurredAt - 86400000)))
+        val tomorrow = java.time.LocalDate.now(java.time.ZoneId.of("America/Lima")).plusDays(1)
+            .atStartOfDay(java.time.ZoneId.of("America/Lima")).toInstant().toEpochMilli()
+        assertEquals(RefundTransactionResult.Rejected(RefundTransactionError.INVALID_REFUND_DATE), useCase(command(100).copy(occurredAt = tomorrow)))
+    }
+
     private suspend fun registerRefund(
         repository: InMemoryRefundRepository,
         amountMinor: Long,
@@ -201,10 +212,10 @@ class RefundTransactionTest {
     private fun purchase(
         userId: String = "owner-1",
         type: MovementType = MovementType.EXPENSE,
-        sourceAccountId: String? = "cash-1",
-        cardId: String? = null,
-        operationKind: String? = null,
-        installmentCount: Int? = null,
+        sourceAccountId: String? = null,
+        cardId: String? = "card-1",
+        operationKind: String? = "CARD_PURCHASE",
+        installmentCount: Int? = 1,
     ) = Transaction(
         id = "purchase-1",
         userId = userId,

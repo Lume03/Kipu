@@ -59,6 +59,11 @@ INSERT INTO public.credit_installments(id,user_id,transaction_id,installment_num
   '8f400000-0000-4000-8000-000000000004',1,'2026-10-05',10000,0,'PENDING')
 ON CONFLICT(id) DO NOTHING;
 
+-- L2: the happy-path fixtures are now card purchases; standard refunds are rejected.
+UPDATE public.transactions SET account_id='8f100000-0000-4000-8000-000000000003',
+card_id='8f200000-0000-4000-8000-000000000001',operation_kind='CARD_PURCHASE'
+WHERE id IN ('8f400000-0000-4000-8000-000000000001','8f400000-0000-4000-8000-000000000005');
+
 CREATE FUNCTION pg_temp.make_refund_command(
     p_key uuid,p_purchase uuid,p_refund uuid,p_amount bigint,p_currency text,p_occurred timestamptz
 ) RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path = pg_temp,public,internal,extensions AS $$
@@ -105,13 +110,13 @@ SELECT is(internal.refund_transaction_hash_v1(jsonb_build_object(
 SET LOCAL ROLE authenticated;
 SET LOCAL "request.jwt.claim.sub"='8f000000-0000-4000-8000-000000000001';
 
-SELECT is(public.refund_transaction_v1((SELECT partial FROM refund_commands))->>'status','APPLIED','partial standard refund applies');
+SELECT is(public.refund_transaction_v1((SELECT partial FROM refund_commands))->>'status','APPLIED','partial card refund applies');
 SELECT is(public.refund_transaction_v1((SELECT partial FROM refund_commands))->>'status','DUPLICATE','exact retry is idempotent');
 SELECT is(public.refund_transaction_v1((SELECT idempotency_conflict FROM refund_commands))->>'status','CONFLICT','same key with changed command is rejected');
 SELECT is(public.refund_transaction_v1((SELECT final FROM refund_commands))->>'status','APPLIED','remaining balance can be refunded exactly');
 SELECT is(public.refund_transaction_v1((SELECT excess FROM refund_commands))->'error'->>'code','REFUND_EXCEEDS_REMAINDER','excess is rejected with a stable code');
 SELECT is(public.refund_transaction_v1((SELECT foreign_purchase FROM refund_commands))->'error'->>'code','PURCHASE_NOT_FOUND','another owners purchase is not disclosed');
-SELECT is(public.refund_transaction_v1((SELECT installments FROM refund_commands))->'error'->>'code','PURCHASE_NOT_ELIGIBLE','purchase with installments is rejected');
+SELECT is(public.refund_transaction_v1((SELECT installments FROM refund_commands))->'error'->>'code','REFUND_REQUIRES_CARD_PURCHASE','standard purchase with installments is rejected');
 SELECT is(public.refund_transaction_v1((SELECT card_refund FROM refund_commands))->>'status','APPLIED','one-installment credit-card purchase can be refunded to its liability account');
 RESET ROLE;
 CREATE FUNCTION public.refund_test_reject_ledger() RETURNS trigger
@@ -143,7 +148,7 @@ SELECT ok((SELECT bool_and(t.transaction_type='INCOME' AND t.operation_kind='REF
     AND t.refund_of_transaction_id IS NULL AND t.category_id IS NULL)
     FROM public.transactions t WHERE t.id IN ('8f700000-0000-4000-8000-000000000001','8f700000-0000-4000-8000-000000000002')),
     'refunds are INCOME/REFUND and do not set the legacy refund pointer or an incompatible expense category');
-SELECT is((SELECT signed_amount_minor FROM internal.ledger_entries WHERE transaction_id='8f700000-0000-4000-8000-000000000001'),4000::bigint,'cash refund posts a positive ledger entry');
+SELECT is((SELECT signed_amount_minor FROM internal.ledger_entries WHERE transaction_id='8f700000-0000-4000-8000-000000000001'),4000::bigint,'refund posts a positive ledger entry');
 SELECT is((SELECT entry_role::text FROM internal.ledger_entries WHERE transaction_id='8f700000-0000-4000-8000-000000000006'),'LIABILITY','credit-card refund posts against the original liability account');
 SELECT is((SELECT account_id FROM internal.ledger_entries WHERE transaction_id='8f700000-0000-4000-8000-000000000006'),'8f100000-0000-4000-8000-000000000003'::uuid,'card refund uses the original card account');
 SELECT is((SELECT count(*)::integer FROM public.transactions WHERE id='8f700000-0000-4000-8000-000000000003'),0,'rejected excess creates no transaction');

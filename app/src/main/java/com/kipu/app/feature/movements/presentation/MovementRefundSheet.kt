@@ -78,12 +78,21 @@ fun MovementRefundSheet(
     var occurredAt by remember { mutableLongStateOf(today) }
     var amountInput by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
-    val localZone = remember { ZoneId.systemDefault() }
+    val localZone = remember { ZoneId.of("America/Lima") }
     val pickerToday = remember(today, localZone) {
         Instant.ofEpochMilli(today).atZone(localZone).toLocalDate()
             .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = pickerToday)
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = pickerToday,
+        selectableDates = remember(purchaseOccurredAt, pickerToday) {
+            object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val day = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                    val purchaseDay = Instant.ofEpochMilli(purchaseOccurredAt).atZone(localZone).toLocalDate()
+                    return !day.isBefore(purchaseDay) && utcTimeMillis <= pickerToday
+                }
+            }
+        })
     val amountMinor = remember(amountInput) { parseRefundAmount(amountInput) }
     val validAmount = amountMinor != null && amountMinor in 1..remainingMinor
     val currencySymbol = when (currency.uppercase(Locale.ROOT)) {

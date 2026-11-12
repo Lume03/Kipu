@@ -30,7 +30,7 @@ import com.kipu.app.feature.movements.domain.model.TransactionStatus
 /** Specialized active operations retain their domain-specific reversal flows. */
 internal fun canDeleteFromHistory(item: TransactionItem): Boolean =
     item.transaction.status == TransactionStatus.VOIDED ||
-        (item.transaction.status in setOf(TransactionStatus.ACTIVE, TransactionStatus.CONFIRMED, TransactionStatus.REVISED) && !isSpecializedMovement(item))
+        (item.transaction.status in setOf(TransactionStatus.ACTIVE, TransactionStatus.CONFIRMED, TransactionStatus.REVISED) && item.voidBlockCode == null && (!isSpecializedMovement(item) || item.transaction.operationKind in setOf("CARD_PURCHASE", "REFUND")))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

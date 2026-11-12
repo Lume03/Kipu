@@ -102,7 +102,7 @@ class MovementRefundBudgetIntegrationTest {
                 userId = ownerId,
                 creationOperationId = UUID.randomUUID().toString(),
                 alias = "Efectivo",
-                type = "CASH",
+                type = "CREDIT_LIABILITY",
                 currency = "PEN",
                 presetId = null,
                 color = null,
@@ -119,21 +119,26 @@ class MovementRefundBudgetIntegrationTest {
                 CategoryEntity("restaurants", ownerId, "food", "CUSTOM", createdAt = 2L, updatedAt = 2L),
             ),
         )
+        database.cardDao().insert(com.kipu.app.feature.accounts.data.local.CardEntity(
+            id="refund-card",userId=ownerId,creationOperationId="card-op",accountId=accountId,type="CREDIT",currency="PEN",
+            network="VISA",issuer="BCP",lastFourDigits="1234",createdAt=1,updatedAt=1))
         database.movementDao().insertTransaction(
             TransactionEntity(
                 id = purchaseId,
                 userId = ownerId,
                 type = "EXPENSE",
+                cardId = "refund-card",
+                installmentCount = 1,
                 amountMinor = 10_000L,
                 currencyCode = "PEN",
-                sourceAccountId = accountId,
+                sourceAccountId = null,
                 categoryId = "restaurants",
                 occurredAt = at("2026-09-15"),
                 status = "CONFIRMED",
                 syncStatus = "SYNCED",
                 createdAt = at("2026-09-15"),
                 updatedAt = at("2026-09-15"),
-                operationKind = "STANDARD",
+                operationKind = "CARD_PURCHASE",
             ),
         )
         database.movementDao().insertLedgerEntries(

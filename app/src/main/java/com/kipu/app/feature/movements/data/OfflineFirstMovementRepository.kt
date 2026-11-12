@@ -72,6 +72,7 @@ class OfflineFirstMovementRepository @Inject constructor(
                     val merchant = domain.merchantId?.let(merchantsById::get)
                     TransactionItem(
                         transaction = domain,
+                        voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
                         sourceAccountAlias = sourceAlias,
                         destinationAccountAlias = destAlias,
                         cardAlias = card?.alias,
@@ -301,6 +302,7 @@ class OfflineFirstMovementRepository @Inject constructor(
             val merchant = domain.merchantId?.let(merchants::get)
             TransactionItem(
                 transaction = domain,
+                        voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
                 sourceAccountAlias = sourceAlias,
                 destinationAccountAlias = destAlias,
                 cardAlias = card?.alias,

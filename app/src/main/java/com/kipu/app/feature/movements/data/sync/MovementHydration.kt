@@ -403,6 +403,7 @@ class MovementHydration @javax.inject.Inject constructor(
         val existing = movementDao.getTransactionById(userId, remote.id)
         val accountIds = remote.ledgerEntries.map { it.accountId }.distinct()
         if (accountIds.any { accountDao.getById(userId, it) == null }) return@ownerTransaction false
+        val isRefund = remoteKind.equals("REFUND", true)
         val isCardPurchase = remoteKind.equals("CARD_PURCHASE", true)
         val isCardPayment = remoteKind.equals("CARD_PAYMENT", true)
         if (isCardPurchase || isCardPayment) {
@@ -411,16 +412,21 @@ class MovementHydration @javax.inject.Inject constructor(
             if (card.type != "CREDIT" || card.currency != remote.currencyCode) return@ownerTransaction false
             if (isCardPurchase && (remote.type != "EXPENSE" || remote.sourceAccountId != null || remote.installmentCount?.let { it in 1..36 } != true || remote.categoryId.isNullOrBlank())) return@ownerTransaction false
             if (isCardPayment && (remote.type != "TRANSFER" || remote.sourceAccountId == null || remote.destinationAccountId != null)) return@ownerTransaction false
-        } else if (remote.cardId != null || remote.installments.isNotEmpty() || remote.allocations.isNotEmpty()) {
+        } else if ((!isRefund && remote.cardId != null) || remote.installments.isNotEmpty() || remote.allocations.isNotEmpty()) {
             return@ownerTransaction false
         }
         if (isCardPurchase) {
             val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@ownerTransaction false
             val liabilityId = card.accountId ?: return@ownerTransaction false
-            val liability = remote.ledgerEntries.singleOrNull() ?: return@ownerTransaction false
-            if (liability.accountId != liabilityId || liability.role != "LIABILITY" ||
-                liability.signedAmountMinor != -remote.amountMinor || liability.currencyCode != remote.currencyCode
-            ) return@ownerTransaction false
+            if (remote.status == "VOIDED") {
+                if (remote.ledgerEntries.isEmpty() || remote.ledgerEntries.any { it.accountId != liabilityId || it.currencyCode != remote.currencyCode } ||
+                    remote.ledgerEntries.sumOf { it.signedAmountMinor } != 0L) return@ownerTransaction false
+            } else {
+                val liability = remote.ledgerEntries.singleOrNull() ?: return@ownerTransaction false
+                if (liability.accountId != liabilityId || liability.role != "LIABILITY" ||
+                    liability.signedAmountMinor != -remote.amountMinor || liability.currencyCode != remote.currencyCode
+                ) return@ownerTransaction false
+            }
         }
         if (isCardPayment) {
             val card = cardDao.getById(userId, requireNotNull(remote.cardId)) ?: return@ownerTransaction false
@@ -438,7 +444,7 @@ class MovementHydration @javax.inject.Inject constructor(
             if (revision < existing.revision) {
                 return@ownerTransaction true
             }
-            if (existing.cardId != remote.cardId || existing.operationKind != remoteKind ||
+            if ((!isRefund && existing.cardId != remote.cardId) || existing.operationKind != remoteKind ||
                 existing.installmentCount != remote.installmentCount
             ) return@ownerTransaction false
 
@@ -454,10 +460,10 @@ class MovementHydration @javax.inject.Inject constructor(
                             userId = userId,
                             proposalId = java.util.UUID.randomUUID().toString(),
                             transactionId = remote.id,
-                            commandId = pending.id,
+                            commandId = pending.idempotencyKey,
                             baseRevision = rev.baseRevision,
                             proposedRevisionId = rev.revisionId,
-                            proposedSnapshot = rev.newPayload,
+                            proposedSnapshot = pending.payload,
                             localRevisionIds = rev.revisionId,
                             remoteRevisionId = null,
                             resolution = "UNRESOLVED",
@@ -493,6 +499,7 @@ class MovementHydration @javax.inject.Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             )
 
+            if (isRefund) database.creditDao().refreshInstallmentStatuses(userId)
             val allAccountIds = (accountIds + listOfNotNull(existing.sourceAccountId, existing.destinationAccountId)).distinct()
             allAccountIds.forEach { accountId ->
                 val account = accountDao.getById(userId, accountId) ?: return@forEach
@@ -523,6 +530,7 @@ class MovementHydration @javax.inject.Inject constructor(
         if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@ownerTransaction false
         if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@ownerTransaction false
         if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@ownerTransaction false
+        if (isRefund) database.creditDao().refreshInstallmentStatuses(userId)
         accountIds.forEach { accountId ->
             val account = accountDao.getById(userId, accountId) ?: return@ownerTransaction false
             val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
@@ -624,6 +632,7 @@ class MovementHydration @javax.inject.Inject constructor(
                 )
             }
             creditDao.insertPulledInstallments(rows)
+            if (remote.status == "VOIDED") rows.forEach { creditDao.updateInstallmentStatus(userId, it.id, "VOIDED", 1L, now) }
             return true
         }
         if (current.size != count) return false
@@ -632,6 +641,7 @@ class MovementHydration @javax.inject.Inject constructor(
             if (installment.id.isBlank() || installment.principalMinor < 0L || installment.interestMinor < 0L) return false
             val allocated = creditDao.getAllocatedMinorForInstallment(userId, local.id)
             val status = when {
+                remote.status == "VOIDED" -> "VOIDED"
                 allocated == 0L -> "PENDING"
                 allocated >= Math.addExact(local.principalMinor, local.interestMinor) -> "PAID"
                 else -> "PARTIAL"
