@@ -1,5 +1,6 @@
 package com.kipu.app.feature.goals.data.sync
 
+import androidx.room.withTransaction
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
@@ -79,6 +80,7 @@ class SyncGoalsWorker @AssistedInject constructor(
         localDataSource.repairUnsentLegacyRevisions(userId)
         var failed = false
         for (index in 0 until MAX_COMMANDS_PER_RUN) {
+            if (sessionCoordinator.currentOwner?.verifiedUserId != userId) return Result.retry()
             val now = System.currentTimeMillis()
             val command = outboxDao.claimPending(userId, now, limit = 1).firstOrNull() ?: break
             if (!sendCommand(command)) {
@@ -92,27 +94,29 @@ class SyncGoalsWorker @AssistedInject constructor(
 
     private suspend fun sendCommand(command: com.kipu.app.feature.goals.data.local.GoalOutboxEntity): Boolean {
         val type = runCatching { GoalCommandType.valueOf(command.commandType) }.getOrNull()
-            ?: return localDataSource.finishRemoteCommand(command, "REJECTED", "UNKNOWN_GOAL_COMMAND", null)
+            ?: return finishRemoteCommand(command, "REJECTED", "UNKNOWN_GOAL_COMMAND", null)
 
         val payload = runCatching { Json.parseToJsonElement(command.payload).jsonObject }.getOrNull()
-            ?: return localDataSource.finishRemoteCommand(command, "REJECTED", "INVALID_LOCAL_COMMAND", null)
+            ?: return finishRemoteCommand(command, "REJECTED", "INVALID_LOCAL_COMMAND", null)
 
-        return when (val response = goalsApi.execute(type, payload)) {
+        val response = goalsApi.execute(command.userId, type, payload)
+        if (sessionCoordinator.currentOwner?.verifiedUserId != command.userId) return true
+        return when (response) {
             is GoalsApiResponse.Success -> applyCommandResult(command, response.data)
             is GoalsApiResponse.Error -> {
                 when {
-                    response.statusCode == 409 -> localDataSource.finishRemoteCommand(
+                    response.statusCode == 409 -> finishRemoteCommand(
                         command, "CONFLICT", "HTTP_409", null,
                     )
-                    response.statusCode in setOf(400, 422) -> localDataSource.finishRemoteCommand(
+                    response.statusCode in setOf(400, 422) -> finishRemoteCommand(
                         command, "REJECTED", "HTTP_${response.statusCode}", null,
                     )
-                    else -> localDataSource.finishRemoteCommand(
+                    else -> finishRemoteCommand(
                         command, "RETRYABLE", "HTTP_${response.statusCode}", null,
                     )
                 }
             }
-            is GoalsApiResponse.NetworkFailure -> localDataSource.finishRemoteCommand(
+            is GoalsApiResponse.NetworkFailure -> finishRemoteCommand(
                 command, "RETRYABLE", response.exception.javaClass.simpleName.take(64), null,
             )
         }
@@ -133,7 +137,24 @@ class SyncGoalsWorker @AssistedInject constructor(
         val error = result.error?.take(96)
             ?: result.result?.take(96)
             ?: if (state == "RETRYABLE") "UNKNOWN_REMOTE_RESULT" else null
-        return localDataSource.finishRemoteCommand(command, state, error, result.revision, result.goals.orEmpty())
+        return finishRemoteCommand(command, state, error, result.revision, result.goals.orEmpty())
+    }
+
+    private suspend fun finishRemoteCommand(
+        command: com.kipu.app.feature.goals.data.local.GoalOutboxEntity,
+        state: String,
+        errorCode: String?,
+        remoteRevision: Long?,
+        remoteGoals: List<com.kipu.app.feature.goals.data.remote.GoalCommandGoalRemoteResult> = emptyList(),
+    ): Boolean = database.withTransaction {
+        checkCommandOwner(command.userId)
+        val result = localDataSource.finishRemoteCommand(command, state, errorCode, remoteRevision, remoteGoals)
+        checkCommandOwner(command.userId)
+        result
+    }
+
+    private fun checkCommandOwner(userId: String) {
+        if (sessionCoordinator.currentOwner?.verifiedUserId != userId) throw kotlinx.coroutines.CancellationException("Inactive goal owner")
     }
 
     companion object {

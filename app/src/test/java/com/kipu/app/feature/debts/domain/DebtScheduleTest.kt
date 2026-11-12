@@ -16,6 +16,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DebtScheduleTest {
+    @Test fun tooManyInstallmentsForPrincipalIsInvalid() {
+        val planner = SetDebtSchedule()
+        assertEquals(DebtPlanResult.Invalid("INSUFFICIENT_PRINCIPAL_FOR_INSTALLMENTS"),
+            planner.plan(debt(remaining = 2), 3, LocalDate.parse("2026-11-10"), 2, 1, OPERATION_ID))
+        val valid = planner.plan(debt(remaining = 2), 2, LocalDate.parse("2026-11-10"), 2, 1, OPERATION_ID) as DebtPlanResult.Valid
+        assertEquals(listOf(1L, 1L), valid.value.installments.map { it.principalMinor })
+    }
+
     @Test
     fun monthlyScheduleSplitsMinorUnitRemainderDeterministicallyWithoutFinancialEffect() {
         val result = SetDebtSchedule().plan(

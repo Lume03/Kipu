@@ -104,13 +104,16 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             val now = System.currentTimeMillis()
             when (outcome) {
                 is CommandOutcome.Applied -> transactionRunner {
+                    if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != cmd.userId) throw CancellationException("Inactive category owner")
                     val stored = categoryDao.getCommand(cmd.userId, cmd.operationId)
                     if (stored?.state != "IN_FLIGHT" || stored.updatedAt != cmd.updatedAt || stored.nextAttemptAt != cmd.nextAttemptAt) return@transactionRunner
                     categoryDao.complete(cmd,"COMPLETED",null,null,now)
                     reconcileApplied(cmd, outcome.revision)
+                    if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != cmd.userId) throw CancellationException("Inactive category owner")
                 }
                 is CommandOutcome.Conflict -> {
                     transactionRunner {
+                        if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != cmd.userId) throw CancellationException("Inactive category owner")
                         val stored = categoryDao.getCommand(cmd.userId, cmd.operationId)
                         if (stored?.state != "IN_FLIGHT" || stored.updatedAt != cmd.updatedAt || stored.nextAttemptAt != cmd.nextAttemptAt) return@transactionRunner
                         categoryDao.complete(cmd,outcome.state,outcome.code,null,now)
@@ -119,6 +122,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                             "MERCHANT_ALIAS_RULE" -> merchantRulesDao.setAliasSyncState(cmd.userId, cmd.aggregateId, state, null, outcome.code)
                             "MERCHANT_CATEGORY_PREFERENCE" -> merchantRulesDao.setPreferenceSyncState(cmd.userId, cmd.aggregateId, state, null, outcome.code)
                         }
+                        if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != cmd.userId) throw CancellationException("Inactive category owner")
                     }
                 }
                 CommandOutcome.Retry -> {
@@ -136,48 +140,48 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             when (cmd.commandType) {
                 "CREATE_CATEGORY" -> {
                     val dto = json.decodeFromString<CreateCategoryRequestDto>(cmd.payloadJson)
-                    api.createCategory(dto).asCommandOutcome()
+                    api.createCategory(cmd.userId, dto).asCommandOutcome()
                 }
                 "UPDATE_PRESENTATION" -> {
                     val dto = json.decodeFromString<UpdateCategoryPresentationRequestDto>(cmd.payloadJson)
-                    api.updatePresentation(dto).asCommandOutcome()
+                    api.updatePresentation(cmd.userId, dto).asCommandOutcome()
                 }
 
                 "SET_CATEGORY_ACTIVE" -> {
                     val dto = json.decodeFromString<SetCategoryActiveRequestDto>(cmd.payloadJson)
-                    api.setCategoryActive(dto).asCommandOutcome()
+                    api.setCategoryActive(cmd.userId, dto).asCommandOutcome()
                 }
                 "UPDATE_MOVEMENT_CLASSIFICATION" -> {
                     val dto = json.decodeFromString<UpdateMovementClassificationRequestDto>(cmd.payloadJson)
-                    api.updateMovementClassification(dto).asCommandOutcome()
+                    api.updateMovementClassification(cmd.userId, dto).asCommandOutcome()
                 }
                 "PRESERVE_MERCHANT_SOURCE_TEXT" -> {
                     val dto = json.decodeFromString<PreserveMerchantSourceTextRequestDto>(cmd.payloadJson)
-                    api.preserveMerchantSourceText(dto).asCommandOutcome()
+                    api.preserveMerchantSourceText(cmd.userId, dto).asCommandOutcome()
                 }
                 "UPSERT_MERCHANT_ALIAS_RULE" -> {
                     val dto = json.decodeFromString<UpsertMerchantAliasRuleRequestDto>(cmd.payloadJson)
-                    val outcome = api.upsertMerchantAliasRule(dto).asCommandOutcome()
+                    val outcome = api.upsertMerchantAliasRule(cmd.userId, dto).asCommandOutcome()
                     outcome
                 }
                 "DELETE_MERCHANT_ALIAS_RULE" -> {
                     val dto = json.decodeFromString<DeleteMerchantAliasRuleRequestDto>(cmd.payloadJson)
-                    val outcome = api.deleteMerchantAliasRule(dto).asCommandOutcome()
+                    val outcome = api.deleteMerchantAliasRule(cmd.userId, dto).asCommandOutcome()
                     outcome
                 }
                 "UPSERT_MERCHANT_CATEGORY_PREFERENCE" -> {
                     val dto = json.decodeFromString<UpsertMerchantCategoryPreferenceRequestDto>(cmd.payloadJson)
-                    val outcome = api.upsertMerchantCategoryPreference(dto).asCommandOutcome()
+                    val outcome = api.upsertMerchantCategoryPreference(cmd.userId, dto).asCommandOutcome()
                     outcome
                 }
                 "DELETE_MERCHANT_CATEGORY_PREFERENCE" -> {
                     val dto = json.decodeFromString<DeleteMerchantCategoryPreferenceRequestDto>(cmd.payloadJson)
-                    val outcome = api.deleteMerchantCategoryPreference(dto).asCommandOutcome()
+                    val outcome = api.deleteMerchantCategoryPreference(cmd.userId, dto).asCommandOutcome()
                     outcome
                 }
                 "RESOLVE_CONFLICT" -> {
                     val dto = json.decodeFromString<ResolveCategoryConflictRequestDto>(cmd.payloadJson)
-                    api.resolveConflict(dto).asCommandOutcome()
+                    api.resolveConflict(cmd.userId, dto).asCommandOutcome()
                 }
                 else -> failureOutcome(OutboxPolicy.classify(invalidPayload=true), "INVALID_COMMAND")
             }

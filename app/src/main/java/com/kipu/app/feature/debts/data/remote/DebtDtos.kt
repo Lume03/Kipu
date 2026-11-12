@@ -19,5 +19,8 @@ data class DebtCommandRemoteResult(
     @SerialName("current_revision") val currentRevision: Long? = null,
     @SerialName("remaining_minor") val remainingMinor: Long? = null,
     @SerialName("result") val result: String? = null,
-    @SerialName("error") val error: String? = null,
+    @SerialName("error") val error: DebtRemoteError? = null,
 )
+
+@Serializable
+data class DebtRemoteError(val code: String)

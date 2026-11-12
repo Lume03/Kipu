@@ -24,6 +24,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DebtApiTest {
+    @Test fun `real RPC conflict error object remains a conflict response`() = runTest {
+        val client = client(MockEngine { respond(
+            """{"status":"CONFLICT","debt_id":"debt-id","current_revision":2,"error":{"code":"DEBT_REVISION_CONFLICT"}}""",
+            HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) })
+        try {
+            val response = DebtApi(client, Sessions()).execute(OWNER, "SETTLE_DEBT", buildJsonObject {})
+            assertTrue(response is DebtApiResponse.Success)
+            val data = (response as DebtApiResponse.Success).data
+            assertEquals("CONFLICT", data.status)
+            assertEquals("DEBT_REVISION_CONFLICT", data.error?.code)
+        } finally { client.close() }
+    }
+
     @Test
     fun `opening command posts owner scoped payload to the versioned debt RPC`() = runTest {
         val payload = buildJsonObject {
@@ -46,7 +59,7 @@ class DebtApiTest {
         })
 
         try {
-            val response = DebtApi(client, Sessions()).execute("OPEN_DEBT", payload)
+            val response = DebtApi(client, Sessions()).execute(OWNER, "OPEN_DEBT", payload)
             assertTrue(response is DebtApiResponse.Success)
             val result = (response as DebtApiResponse.Success).data
             assertEquals("APPLIED", result.status)
@@ -67,7 +80,7 @@ class DebtApiTest {
             override suspend fun refreshSession(): AuthenticatedSession? = null
         }
         try {
-            val response = DebtApi(client, sessions).execute("OPEN_DEBT", buildJsonObject {})
+            val response = DebtApi(client, sessions).execute(OWNER, "OPEN_DEBT", buildJsonObject {})
             assertEquals(401, (response as DebtApiResponse.Error).statusCode)
             assertEquals(0, requests)
         } finally {
@@ -80,7 +93,7 @@ class DebtApiTest {
         var requests = 0
         val client = client(MockEngine { requests++; error("No request expected") })
         try {
-            val response = DebtApi(client, Sessions()).execute("UNKNOWN", buildJsonObject {})
+            val response = DebtApi(client, Sessions()).execute(OWNER, "UNKNOWN", buildJsonObject {})
             assertEquals(400, (response as DebtApiResponse.Error).statusCode)
             assertEquals(0, requests)
         } finally {
@@ -93,8 +106,10 @@ class DebtApiTest {
         defaultRequest { url("https://kipu.test/") }
     }
 
+    private companion object { const val OWNER = "11111111-1111-4111-8111-111111111111" }
+
     private class Sessions : AuthenticatedSessionProvider {
-        private val session = AuthenticatedSession(UUID.randomUUID(), "session-token")
+        private val session = AuthenticatedSession(UUID.fromString(OWNER), "session-token")
         override suspend fun currentSession(): AuthenticatedSession = session
         override suspend fun refreshSession(): AuthenticatedSession = session
     }

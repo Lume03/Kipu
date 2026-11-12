@@ -75,7 +75,7 @@ class SyncCategoryCommandsWorkerTest {
         )
 
         coEvery { categoryDao.getPendingOutboxCommands(testUserId) } returns listOf(pendingCmd)
-        coEvery { api.createCategory(any()) } returns CategoryApiResponse.Success(
+        coEvery { api.createCategory(any(), any()) } returns CategoryApiResponse.Success(
             CategoryCommandResponseDto(success = true)
         )
         coEvery { merchantDao.getLatestVersion() } returns 0L
@@ -154,20 +154,20 @@ class SyncCategoryCommandsWorkerTest {
             remoteRevision = 1,
             updatedAt = 1000L,
         )
-        coEvery { api.preserveMerchantSourceText(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
-        coEvery { api.upsertMerchantAliasRule(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
-        coEvery { api.deleteMerchantAliasRule(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
-        coEvery { api.upsertMerchantCategoryPreference(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
-        coEvery { api.deleteMerchantCategoryPreference(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
+        coEvery { api.preserveMerchantSourceText(testUserId, any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
+        coEvery { api.upsertMerchantAliasRule(testUserId, any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
+        coEvery { api.deleteMerchantAliasRule(testUserId, any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
+        coEvery { api.upsertMerchantCategoryPreference(testUserId, any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
+        coEvery { api.deleteMerchantCategoryPreference(testUserId, any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
 
         val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         assertEquals(ListenableWorker.Result.success(), worker.doWork())
 
-        coVerify { api.preserveMerchantSourceText(match { it.merchantRawText == "  IZIPAY*TÁMBO  " }) }
-        coVerify { api.upsertMerchantAliasRule(match { it.ruleId == "rule-1" }) }
-        coVerify { api.deleteMerchantAliasRule(match { it.ruleId == "rule-1" }) }
-        coVerify { api.upsertMerchantCategoryPreference(match { it.merchantId == "merchant-1" }) }
-        coVerify { api.deleteMerchantCategoryPreference(match { it.preferenceId == "preference-1" }) }
+        coVerify { api.preserveMerchantSourceText(testUserId, match { it.merchantRawText == "  IZIPAY*TÁMBO  " }) }
+        coVerify { api.upsertMerchantAliasRule(testUserId, match { it.ruleId == "rule-1" }) }
+        coVerify { api.deleteMerchantAliasRule(testUserId, match { it.ruleId == "rule-1" }) }
+        coVerify { api.upsertMerchantCategoryPreference(testUserId, match { it.merchantId == "merchant-1" }) }
+        coVerify { api.deleteMerchantCategoryPreference(testUserId, match { it.preferenceId == "preference-1" }) }
         coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 1L, null) }
         coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 2L, null) }
         coVerify { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 1L, null) }
@@ -189,7 +189,7 @@ class SyncCategoryCommandsWorkerTest {
         coEvery { api.fetchCategoryPresentations() } returns CategoryApiResponse.Success(emptyList())
         coEvery { merchantDao.getLatestVersion() } returns 0L
         coEvery { api.fetchMerchantCatalog(any()) } returns CategoryApiResponse.Success(emptyList())
-        coEvery { api.upsertMerchantAliasRule(any()) } returns CategoryApiResponse.Error(400, "PREMIUM_REQUIRED")
+        coEvery { api.upsertMerchantAliasRule(testUserId, any()) } returns CategoryApiResponse.Error(400, "PREMIUM_REQUIRED")
 
         val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         assertEquals(ListenableWorker.Result.success(), worker.doWork())

@@ -100,17 +100,17 @@ class PlanningRemoteAcceptanceTest {
                 put("reminder_lead_days",debt.reminderLeadDays?.let(::JsonPrimitive) ?: JsonNull)
             })
             val edited = request(debt.revision, "QA Sync demo")
-            val result = api.execute("EDIT_DEBT_DETAILS",edited)
+            val result = api.execute(owner, "EDIT_DEBT_DETAILS",edited)
             assertTrue("Demo edit failed",result is DebtApiResponse.Success && result.data.status == "APPLIED")
             try {
-                val duplicate = api.execute("EDIT_DEBT_DETAILS",edited)
+                val duplicate = api.execute(owner, "EDIT_DEBT_DETAILS",edited)
                 assertTrue("Debt retry duplicated the edit",duplicate is DebtApiResponse.Success && duplicate.data.status == "DUPLICATE")
-                val deletion = api.execute("DELETE_DEBT_IF_UNREFERENCED",signedDebt(buildJsonObject {
+                val deletion = api.execute(owner, "DELETE_DEBT_IF_UNREFERENCED",signedDebt(buildJsonObject {
                     put("contract_version",1); put("operation_id",UUID.randomUUID().toString()); put("debt_id",debt.id)
                 }))
                 assertTrue("Debt history was not protected",deletion is DebtApiResponse.Error && deletion.message.orEmpty().contains("HISTORY_PRESERVED"))
             } finally {
-                val restored = api.execute("EDIT_DEBT_DETAILS",request(debt.revision+1,debt.counterpartyName))
+                val restored = api.execute(owner, "EDIT_DEBT_DETAILS",request(debt.revision+1,debt.counterpartyName))
                 assertTrue("Demo metadata cleanup failed",restored is DebtApiResponse.Success && restored.data.status == "APPLIED")
             }
             liveWorker<SyncDebtChangesWorker>(owner).doWork()

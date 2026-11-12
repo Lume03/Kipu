@@ -101,6 +101,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         var needsRetry = false
         while (!isStopped) {
             currentCoroutineContext().ensureActive()
+            if (sessionCoordinator.currentOwner?.verifiedUserId != targetOwner) return Result.retry()
             val now = System.currentTimeMillis()
             val command = outboxDao.claimPending(targetOwner, now, limit = 1).firstOrNull() ?: break
             if (processCommand(command)) needsRetry = true
@@ -119,7 +120,9 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             finishCommand(command, "FAILED_PERMANENT", "INVALID_LOCAL_PAYLOAD", null)
             return false
         }
-        return when (val response = debtApi.execute(command.commandType, payload)) {
+        val response = debtApi.execute(command.userId, command.commandType, payload)
+        if (sessionCoordinator.currentOwner?.verifiedUserId != command.userId) return true
+        return when (response) {
             is DebtApiResponse.Success -> processRemoteResult(command, response.data)
             is DebtApiResponse.Error -> {
                 // 404 means the debt RPC is not deployed yet (same policy as goals): keep the command queued.
@@ -165,7 +168,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
                 false
             }
             "REJECTED" -> {
-                finishCommand(command, "FAILED_PERMANENT", response.error ?: "REJECTED", null)
+                finishCommand(command, "FAILED_PERMANENT", response.error?.code ?: "REJECTED", null)
                 false
             }
             else -> {
@@ -185,6 +188,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         val attempt = command.attemptCount + 1
         val nextAttemptAt = if (state == "RETRY") now + retryDelay(attempt) else null
         database.withTransaction {
+            if (sessionCoordinator.currentOwner?.verifiedUserId != command.userId) return@withTransaction
             val completed = outboxDao.completeClaimed(command, state, nextAttemptAt, errorCode, now)
             if (!completed) return@withTransaction
             if (command.commandType == "OPEN_DEBT" && state in setOf("CONFLICT", "FAILED_PERMANENT")) {
@@ -216,6 +220,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
                 else -> "PENDING"
             }
             movementDao.updateCommandReceiptStatus(command.userId, command.operationId, receiptStatus, now)
+            if (sessionCoordinator.currentOwner?.verifiedUserId != command.userId) throw kotlinx.coroutines.CancellationException("Inactive debt owner")
         }
     }
 

@@ -22,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CategoriesApiTest {
+    private companion object { const val OWNER = "11111111-1111-4111-8111-111111111111" }
     private val postgrestError = """{"code":"23505","details":null,"hint":null,"message":"duplicate key value"}"""
 
     private fun api(engine: MockEngine): CategoriesApi {
@@ -31,7 +32,7 @@ class CategoriesApiTest {
             expectSuccess = false
         }
         val sessions = object : AuthenticatedSessionProvider {
-            override suspend fun currentSession() = AuthenticatedSession(UUID.randomUUID(), "token")
+            override suspend fun currentSession() = AuthenticatedSession(UUID.fromString(OWNER), "token")
             override suspend fun refreshSession() = currentSession()
         }
         return CategoriesApi(client, sessions)
@@ -45,7 +46,7 @@ class CategoriesApiTest {
         for (status in listOf(400, 401, 409, 429, 500)) {
             val result = api(MockEngine {
                 respond(postgrestError, HttpStatusCode.fromValue(status), headersOf(HttpHeaders.ContentType, "application/json"))
-            }).resolveConflict(request())
+            }).resolveConflict(OWNER, request())
             assertTrue("status $status", result is CategoryApiResponse.Error)
             assertEquals(status, (result as CategoryApiResponse.Error).statusCode)
         }
@@ -60,24 +61,24 @@ class CategoriesApiTest {
 
     @Test fun `2xx rpc response without success flag is not a success`() = runTest {
         val result = api(MockEngine { respond("{}", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) })
-            .resolveConflict(request())
+            .resolveConflict(OWNER, request())
         assertFalse(((result as CategoryApiResponse.Success).data).success)
     }
 
     @Test fun `2xx rpc response keeps the server flag`() = runTest {
         val result = api(MockEngine { respond("""{"success":true,"status":"APPLIED"}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) })
-            .resolveConflict(request())
+            .resolveConflict(OWNER, request())
         assertTrue((result as CategoryApiResponse.Success).data.success)
     }
 
     @Test fun `cancellation during the request is propagated`() = runTest {
         val api = api(MockEngine { throw CancellationException("cancelled") })
-        assertThrows(CancellationException::class.java) { kotlinx.coroutines.runBlocking { api.resolveConflict(request()) } }
+        assertThrows(CancellationException::class.java) { kotlinx.coroutines.runBlocking { api.resolveConflict(OWNER, request()) } }
         assertThrows(CancellationException::class.java) { kotlinx.coroutines.runBlocking { api.fetchCategories() } }
     }
 
     @Test fun `ordinary transport failure is a network failure`() = runTest {
-        val result = api(MockEngine { throw java.io.IOException("offline") }).resolveConflict(request())
+        val result = api(MockEngine { throw java.io.IOException("offline") }).resolveConflict(OWNER, request())
         assertTrue(result is CategoryApiResponse.NetworkFailure)
     }
 }

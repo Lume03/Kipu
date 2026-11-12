@@ -34,6 +34,23 @@ class DebtReminderWorkerTest {
     private val localReminderEventDao = mockk<LocalReminderEventDao>(relaxed = true)
 
     @Test
+    fun deliveredTupleIsNeverReplacedOrPublishedAgain() = runTest {
+        every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER_ID)
+        coEvery { debtDao.getDebt(OWNER_ID, DEBT_ID) } returns debt()
+        coEvery { debtDao.getInstallment(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns installment()
+        coEvery { debtDao.getInstallmentRemaining(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns 10_000L
+        val record = com.kipu.app.feature.notifications.data.local.ReminderScheduleEntity(
+            userId = OWNER_ID, sourceId = INSTALLMENT_ID, dueDate = DUE_DATE, leadDays = LEAD_DAYS,
+            status = "DELIVERED", updatedAt = java.time.Instant.now())
+        coEvery { reminderScheduleDao.getForSource(OWNER_ID, INSTALLMENT_ID) } returns listOf(record)
+        val checker = mockk<DebtNotificationPermissionChecker>()
+        assertTrue(worker(checker).doWork() is ListenableWorker.Result.Success)
+        coVerify(exactly = 0) { reminderScheduleDao.upsert(any()) }
+        coVerify(exactly = 0) { localReminderEventDao.upsert(any()) }
+        io.mockk.verify(exactly = 0) { checker.canPostDebtReminder() }
+    }
+
+    @Test
     fun deniedPermissionPersistsLocalReminderWithoutFailingWorker() = runTest {
         every { sessionCoordinator.currentOwner } returns LocalOwner(OWNER_ID)
         coEvery { debtDao.getDebt(OWNER_ID, DEBT_ID) } returns debt()

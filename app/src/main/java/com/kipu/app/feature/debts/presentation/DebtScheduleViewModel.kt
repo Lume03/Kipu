@@ -214,6 +214,7 @@ class DebtScheduleViewModel @Inject constructor(
     private fun scheduleError(code: String): String = when (code) {
         "DEBT_NOT_ACTIVE" -> "Solo puedes planificar cuotas para una deuda activa."
         "SCHEDULE_TOTAL_MISMATCH" -> "Las cuotas deben sumar exactamente el saldo pendiente."
+        "INSUFFICIENT_PRINCIPAL_FOR_INSTALLMENTS" -> "El saldo no alcanza para asignar al menos un c\u00e9ntimo a cada cuota."
         "INVALID_REMINDER_LEAD_DAYS" -> "El anticipo del recordatorio debe estar entre 0 y 365 d\u00edas."
         else -> "No se pudo guardar el cronograma ($code)."
     }
@@ -232,4 +233,16 @@ class DebtScheduleViewModel @Inject constructor(
         val magnitude = DebtAmountParser.toMinorUnits(trimmed.removePrefix("-").removePrefix("+")) ?: return null
         return if (negative) -magnitude else magnitude
     }
+}
+
+internal fun signedDebtAdjustment(value: String, reduce: Boolean): String =
+    (if (reduce) "-" else "") + value.removePrefix("-").removePrefix("+")
+
+internal fun DebtScheduleUiState.previewSchedule(): DebtPlanResult<com.kipu.app.feature.debts.domain.model.DebtSchedulePlan> {
+    val currentDebt = debt ?: return DebtPlanResult.Invalid("DEBT_NOT_FOUND")
+    val count = installmentCount.toIntOrNull() ?: return DebtPlanResult.Invalid("INVALID_INSTALLMENT_COUNT")
+    val date = runCatching { LocalDate.parse(firstDueDate) }.getOrNull()
+        ?: return DebtPlanResult.Invalid("INVALID_INSTALLMENT_DATE")
+    return SetDebtSchedule().plan(currentDebt, count, date, reminderLeadDays ?: 2,
+        (installments.maxOfOrNull { it.installmentNumber } ?: 0) + 1, "schedule-preview")
 }

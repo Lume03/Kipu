@@ -68,6 +68,10 @@ class DebtReminderWorker @AssistedInject constructor(
         val remaining = debtDao.getInstallmentRemaining(userId, debtId, installmentId)
         if (remaining <= 0L) return Result.success()
 
+        if (reminderScheduleDao.getForSource(userId, installmentId).any {
+                it.dueDate == dueDate.toString() && it.eventType == ReminderScheduleEntity.BILLING_DUE && it.status == ReminderScheduleEntity.STATUS_DELIVERED
+            }) return Result.success()
+
         val now = Instant.now()
         reminderScheduleDao.cancelReplacedSchedules(userId, installmentId, dueDate.toString(), now)
         reminderScheduleDao.upsert(

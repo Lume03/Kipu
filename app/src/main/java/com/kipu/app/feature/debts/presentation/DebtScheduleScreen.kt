@@ -637,8 +637,8 @@ private fun ScheduleProjectionTab(
     }
 
     // List of projected or saved cuotas
-    val projectedItems = remember(debt.remainingPrincipalMinor, count, state.firstDueDate) {
-        calculateProjections(debt.remainingPrincipalMinor, count, state.firstDueDate)
+    val projectedItems = remember(debt, count, state.firstDueDate, state.installments, state.reminderLeadDays) {
+        calculateProjections(state)
     }
 
     projectedItems.forEachIndexed { index, item ->
@@ -1072,7 +1072,7 @@ private fun AdjustmentsAndClosureTab(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(if (isReduce) emeraldColors.primaryDeep else Color.Transparent)
-                                        .clickable { isReduce = true }
+                                        .clickable { isReduce = true; onAdjustmentAmountChange(signedDebtAdjustment(state.adjustmentAmount, true)) }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                 ) {
                                     Text(
@@ -1085,7 +1085,7 @@ private fun AdjustmentsAndClosureTab(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(if (!isReduce) emeraldColors.primaryDeep else Color.Transparent)
-                                        .clickable { isReduce = false }
+                                        .clickable { isReduce = false; onAdjustmentAmountChange(signedDebtAdjustment(state.adjustmentAmount, false)) }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                 ) {
                                     Text(
@@ -1099,7 +1099,7 @@ private fun AdjustmentsAndClosureTab(
 
                         OutlinedTextField(
                             value = state.adjustmentAmount.removePrefix("-").removePrefix("+"),
-                            onValueChange = { onAdjustmentAmountChange(if (isReduce) "-$it" else it) },
+                            onValueChange = { onAdjustmentAmountChange(signedDebtAdjustment(it, isReduce)) },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Ej: 10.00") },
                             prefix = { Text(if (debt.currencyCode == "PEN") "S/ " else "${debt.currencyCode} ") },
@@ -1543,26 +1543,10 @@ private data class ProjectedQuota(
     val caption: String,
 )
 
-private fun calculateProjections(totalMinor: Long, count: Int, firstDueDateStr: String): List<ProjectedQuota> {
-    if (count <= 0 || totalMinor <= 0L) return emptyList()
-    val base = totalMinor / count
-    val remainder = totalMinor % count
-    val startDate = runCatching { LocalDate.parse(firstDueDateStr) }.getOrDefault(LocalDate.now().plusMonths(1))
-
-    return (1..count).map { num ->
-        val amount = if (num == 1) base + remainder else base
-        val date = startDate.plusMonths((num - 1).toLong())
-        val caption = when {
-            num == 1 && remainder > 0L -> "Ajuste de céntimos"
-            num == count -> "Cuota final"
-            else -> "Cuota base"
-        }
-        ProjectedQuota(
-            installmentNumber = num,
-            amountMinor = amount,
-            formattedDate = formatShortSpanishDate(date),
-            caption = caption,
-        )
+private fun calculateProjections(state: DebtScheduleUiState): List<ProjectedQuota> {
+    val plan = state.previewSchedule() as? com.kipu.app.feature.debts.domain.model.DebtPlanResult.Valid ?: return emptyList()
+    return plan.value.installments.map { item ->
+        ProjectedQuota(item.installmentNumber, item.principalMinor, formatShortSpanishDate(item.dueDate), "Cuota planificada")
     }
 }
 

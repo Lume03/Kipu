@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.domain.usecase
 
+import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
 import com.kipu.app.feature.debts.domain.model.DebtPlanResult
@@ -25,7 +26,7 @@ class SettleDebt @Inject constructor() {
             return DebtPlanResult.Invalid("ACCOUNT_REQUIRED")
         }
         if (accountCurrencyCode != debt.currencyCode) return DebtPlanResult.Invalid("ACCOUNT_CURRENCY_MISMATCH")
-        if (command.principalMinor <= 0L || command.interestMinor < 0L) {
+        if (command.principalMinor !in 1L..Money.MAX_MONEY_MINOR || command.interestMinor !in 0L..Money.MAX_MONEY_MINOR) {
             return DebtPlanResult.Invalid("INVALID_SETTLEMENT_AMOUNT")
         }
         if (command.principalMinor > debt.remainingPrincipalMinor) {

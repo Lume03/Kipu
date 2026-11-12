@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.data.local
 
+import com.kipu.app.core.finance.domain.model.Money
 import androidx.room.withTransaction
 import com.kipu.app.feature.plans.domain.model.FreePlanLimits
 import com.kipu.app.core.database.KipuDatabase
@@ -89,7 +90,7 @@ class DebtLocalDataSource @Inject constructor(
         if (userId.isBlank() || !isUuid(command.debtId) || !isUuid(command.identity.operationId)) {
             return@withTransaction DebtCommandResult.Rejected("INVALID_COMMAND_ID")
         }
-        if (command.principalMinor <= 0L || command.currencyCode !in setOf("PEN", "USD")) {
+        if (command.principalMinor !in 1L..Money.MAX_MONEY_MINOR || command.currencyCode !in setOf("PEN", "USD")) {
             return@withTransaction DebtCommandResult.Rejected("INVALID_AMOUNT_OR_CURRENCY")
         }
         if (command.reminderLeadDays != null && command.reminderLeadDays !in 0..365) {
@@ -643,7 +644,7 @@ class DebtLocalDataSource @Inject constructor(
             ) != 1
         ) return@withTransaction DebtCommandResult.Conflict(current.revision)
 
-        val payload = closurePayload(command)
+        val payload = closurePayload(command, now)
         debtOutboxDao.insert(
             DebtOutboxEntity(
                 userId = userId,
@@ -845,13 +846,14 @@ class DebtLocalDataSource @Inject constructor(
         })
     }
 
-    private fun closurePayload(command: DebtClosureCommand) = buildJsonObject {
+    private fun closurePayload(command: DebtClosureCommand, occurredAt: Long) = buildJsonObject {
         put("contract_version", command.identity.contractVersion)
         put("operation_id", command.identity.operationId)
         put("request_hash", command.identity.requestHash)
         put("debt_id", command.debtId)
         put("expected_revision", command.expectedRevision)
         put("action", command.action.name)
+        put("occurred_at", Instant.ofEpochMilli(occurredAt).toString())
         command.amountMinor?.let { put("amount_minor", it) }
         command.principalDeltaMinor?.let { put("principal_delta_minor", it) }
         command.reason?.trim()?.takeIf(String::isNotEmpty)?.let { put("reason", it) }

@@ -53,21 +53,23 @@ class GoalsApi @Inject constructor(
         GoalsApiResponse.NetworkFailure(error)
     }
 
-    suspend fun execute(commandType: GoalCommandType, payload: JsonObject): GoalsApiResponse<GoalCommandRemoteResult> {
+    suspend fun execute(expectedOwner: String, commandType: GoalCommandType, payload: JsonObject): GoalsApiResponse<GoalCommandRemoteResult> {
         val rpc = RPC_BY_COMMAND[commandType]
             ?: return GoalsApiResponse.Error(400, "Unsupported goal command")
         return try {
             val session = sessionProvider.currentSession()
                 ?: return GoalsApiResponse.Error(401, "No active session")
+            if (session.userId.toString() != expectedOwner) return GoalsApiResponse.Error(401, "Inactive owner")
             val response = httpClient.post("rest/v1/rpc/$rpc") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer " + session.accessToken)
                 setBody(GoalRpcRequestDto(payload))
             }
-            when (response.status) {
+            val result = when (response.status) {
                 HttpStatusCode.OK -> GoalsApiResponse.Success(response.body<GoalCommandRemoteResult>())
                 else -> GoalsApiResponse.Error(response.status.value, response.body<String>())
             }
+            if (sessionProvider.currentSession()?.userId.toString() != expectedOwner) GoalsApiResponse.Error(401, "Inactive owner") else result
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

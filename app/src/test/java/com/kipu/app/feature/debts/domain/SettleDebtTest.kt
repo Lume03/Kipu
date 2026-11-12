@@ -15,6 +15,13 @@ import org.junit.Test
 
 class SettleDebtTest {
     private val useCase = SettleDebt()
+    @Test fun amountsAboveMoneyLimitAreRejectedIncludingInterest() {
+        val max = com.kipu.app.core.finance.domain.model.Money.MAX_MONEY_MINOR
+        assertEquals("INVALID_SETTLEMENT_AMOUNT", invalidCode(plan(DebtObligationType.PAYABLE, principal = max + 1)))
+        assertEquals("INVALID_SETTLEMENT_AMOUNT", invalidCode(plan(DebtObligationType.PAYABLE, interest = max + 1)))
+        assertTrue(plan(DebtObligationType.PAYABLE, interest = max) is DebtPlanResult.Valid)
+    }
+
 
     @Test
     fun `payable principal-only settlement from 10000 leaves 7000 without operating expense`() {

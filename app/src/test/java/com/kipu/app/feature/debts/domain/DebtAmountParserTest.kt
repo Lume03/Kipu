@@ -5,6 +5,12 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DebtAmountParserTest {
+    @Test fun moneyMaximumIsInclusive() {
+        assertEquals(com.kipu.app.core.finance.domain.model.Money.MAX_MONEY_MINOR, DebtAmountParser.toMinorUnits("999999999999.99"))
+        assertNull(DebtAmountParser.toMinorUnits("1000000000000.00"))
+        assertNull(DebtAmountParser.toNonNegativeMinorUnits("1000000000000.00"))
+    }
+
     @Test
     fun parsesDecimalAndSpanishCommaIntoMinorUnits() {
         assertEquals(12_500L, DebtAmountParser.toMinorUnits("125.00"))

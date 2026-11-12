@@ -26,21 +26,23 @@ class DebtApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
-    suspend fun execute(commandType: String, payload: JsonObject): DebtApiResponse<DebtCommandRemoteResult> {
+    suspend fun execute(expectedOwner: String, commandType: String, payload: JsonObject): DebtApiResponse<DebtCommandRemoteResult> {
         val rpc = RPC_BY_COMMAND[commandType]
             ?: return DebtApiResponse.Error(400, "Unsupported debt command")
         return try {
             val session = sessionProvider.currentSession()
                 ?: return DebtApiResponse.Error(401, "No active session")
+            if (session.userId.toString() != expectedOwner) return DebtApiResponse.Error(401, "Inactive owner")
             val response = httpClient.post("rest/v1/rpc/$rpc") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer ${session.accessToken}")
                 setBody(DebtRpcRequestDto(payload))
             }
-            when (response.status) {
+            val result = when (response.status) {
                 HttpStatusCode.OK -> DebtApiResponse.Success(response.body<DebtCommandRemoteResult>())
                 else -> DebtApiResponse.Error(response.status.value, response.body<String>())
             }
+            if (sessionProvider.currentSession()?.userId.toString() != expectedOwner) DebtApiResponse.Error(401, "Inactive owner") else result
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

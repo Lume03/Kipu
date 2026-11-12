@@ -25,6 +25,7 @@ class SetDebtSchedule @Inject constructor() {
         if (installmentCount !in 1..MAX_INSTALLMENTS || operationId.isBlank()) {
             return DebtPlanResult.Invalid("INVALID_INSTALLMENT_COUNT")
         }
+        if (installmentCount.toLong() > debt.remainingPrincipalMinor) return DebtPlanResult.Invalid("INSUFFICIENT_PRINCIPAL_FOR_INSTALLMENTS")
         if (firstInstallmentNumber <= 0 || firstInstallmentNumber > MAX_INSTALLMENT_NUMBER - installmentCount + 1) {
             return DebtPlanResult.Invalid("INVALID_INSTALLMENT_SEQUENCE")
         }

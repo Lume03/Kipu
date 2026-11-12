@@ -1,5 +1,6 @@
 package com.kipu.app.feature.debts.domain
 
+import com.kipu.app.core.finance.domain.model.Money
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -14,7 +15,7 @@ object DebtAmountParser {
                 .setScale(2, RoundingMode.UNNECESSARY)
                 .movePointRight(2)
                 .longValueExact()
-                .takeIf { it > 0L }
+                .takeIf { it in 1L..Money.MAX_MONEY_MINOR }
         }.getOrNull()
     }
 

@@ -27,45 +27,46 @@ class CategoriesApi @Inject constructor(
     private val httpClient: HttpClient,
     private val sessionProvider: AuthenticatedSessionProvider,
 ) {
-    private suspend fun getAuthHeader(): String? {
+    private suspend fun getAuthHeader(expectedOwner: String? = null): String? {
         val session = sessionProvider.currentSession() ?: return null
+        if (expectedOwner != null && session.userId.toString() != expectedOwner) return null
         return "Bearer ${session.accessToken}"
     }
 
-    suspend fun createCategory(request: CreateCategoryRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("create_category_v1", request)
+    suspend fun createCategory(expectedOwner: String, request: CreateCategoryRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("create_category_v1", request, expectedOwner)
     }
 
-    suspend fun updatePresentation(request: UpdateCategoryPresentationRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("update_category_presentation_v1", request)
+    suspend fun updatePresentation(expectedOwner: String, request: UpdateCategoryPresentationRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("update_category_presentation_v1", request, expectedOwner)
     }
 
-    suspend fun setCategoryActive(request: SetCategoryActiveRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("set_category_active_v1", request)
+    suspend fun setCategoryActive(expectedOwner: String, request: SetCategoryActiveRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("set_category_active_v1", request, expectedOwner)
     }
 
-    suspend fun updateMovementClassification(request: UpdateMovementClassificationRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("update_movement_classification_v1", request)
+    suspend fun updateMovementClassification(expectedOwner: String, request: UpdateMovementClassificationRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("update_movement_classification_v1", request, expectedOwner)
     }
 
-    suspend fun preserveMerchantSourceText(request: PreserveMerchantSourceTextRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("preserve_merchant_source_text_v1", request)
+    suspend fun preserveMerchantSourceText(expectedOwner: String, request: PreserveMerchantSourceTextRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("preserve_merchant_source_text_v1", request, expectedOwner)
     }
 
-    suspend fun upsertMerchantAliasRule(request: UpsertMerchantAliasRuleRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
-        callRpc("upsert_merchant_alias_rule_v1", request)
+    suspend fun upsertMerchantAliasRule(expectedOwner: String, request: UpsertMerchantAliasRuleRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
+        callRpc("upsert_merchant_alias_rule_v1", request, expectedOwner)
 
-    suspend fun deleteMerchantAliasRule(request: DeleteMerchantAliasRuleRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
-        callRpc("delete_merchant_alias_rule_v1", request)
+    suspend fun deleteMerchantAliasRule(expectedOwner: String, request: DeleteMerchantAliasRuleRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
+        callRpc("delete_merchant_alias_rule_v1", request, expectedOwner)
 
-    suspend fun upsertMerchantCategoryPreference(request: UpsertMerchantCategoryPreferenceRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
-        callRpc("upsert_merchant_category_preference_v1", request)
+    suspend fun upsertMerchantCategoryPreference(expectedOwner: String, request: UpsertMerchantCategoryPreferenceRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
+        callRpc("upsert_merchant_category_preference_v1", request, expectedOwner)
 
-    suspend fun deleteMerchantCategoryPreference(request: DeleteMerchantCategoryPreferenceRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
-        callRpc("delete_merchant_category_preference_v1", request)
+    suspend fun deleteMerchantCategoryPreference(expectedOwner: String, request: DeleteMerchantCategoryPreferenceRequestDto): CategoryApiResponse<CategoryCommandResponseDto> =
+        callRpc("delete_merchant_category_preference_v1", request, expectedOwner)
 
-    suspend fun resolveConflict(request: ResolveCategoryConflictRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
-        return callRpc("resolve_category_conflict_v1", request)
+    suspend fun resolveConflict(expectedOwner: String, request: ResolveCategoryConflictRequestDto): CategoryApiResponse<CategoryCommandResponseDto> {
+        return callRpc("resolve_category_conflict_v1", request, expectedOwner)
     }
 
     suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
@@ -105,16 +106,18 @@ class CategoriesApi @Inject constructor(
 
     private suspend inline fun <reified REQ : Any> callRpc(
         rpcName: String,
-        body: REQ
+        body: REQ,
+        expectedOwner: String,
     ): CategoryApiResponse<CategoryCommandResponseDto> {
         return remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
-            val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
+            val auth = getAuthHeader(expectedOwner) ?: return CategoryApiResponse.Error(401, "No active owner session")
             val response = httpClient.post("rest/v1/rpc/$rpcName") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, auth)
                 setBody(CategoryRpcPayload(body))
             }
-            response.toCategoryApiResponse()
+            val result = response.toCategoryApiResponse<CategoryCommandResponseDto>()
+            if (getAuthHeader(expectedOwner) == null) CategoryApiResponse.Error(401, "Inactive owner") else result
         }
     }
 

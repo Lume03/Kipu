@@ -34,6 +34,19 @@ import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DebtScheduleViewModelTest {
+    @Test fun adjustmentSelectorRewritesExistingAmount() {
+        org.junit.Assert.assertEquals("-25.50", signedDebtAdjustment("25.50", true))
+        org.junit.Assert.assertEquals("25.50", signedDebtAdjustment("-25.50", false))
+        org.junit.Assert.assertEquals("-25.50", signedDebtAdjustment("+25.50", true))
+    }
+
+    @Test fun previewUsesTheSameRemainderDistributionAsSavedPlan() {
+        val state = DebtScheduleUiState(debt = debt("owner").copy(remainingPrincipalMinor = 10001),
+            installmentCount = "3", firstDueDate = "2026-11-10")
+        val preview = state.previewSchedule() as com.kipu.app.feature.debts.domain.model.DebtPlanResult.Valid
+        org.junit.Assert.assertEquals(listOf(3334L, 3334L, 3333L), preview.value.installments.map { it.principalMinor })
+    }
+
     private val dispatcher = StandardTestDispatcher()
 
     @Before
