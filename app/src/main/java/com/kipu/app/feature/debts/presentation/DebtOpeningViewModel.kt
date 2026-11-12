@@ -49,6 +49,8 @@ class DebtOpeningViewModel @Inject constructor(
         DebtObligationType.valueOf(savedStateHandle.get<String>("obligationType") ?: "PAYABLE")
     }.getOrDefault(DebtObligationType.PAYABLE)
 
+    private var draftOperationId = UUID.randomUUID().toString()
+    private var draftDebtId = UUID.randomUUID().toString()
     private val _state = MutableStateFlow(DebtFormUiState())
     val state = _state.asStateFlow()
     private val _events = Channel<DebtOpeningUiEvent>(Channel.BUFFERED)
@@ -104,8 +106,8 @@ class DebtOpeningViewModel @Inject constructor(
         }
         _state.update { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
-            val operationId = UUID.randomUUID().toString()
-            val debtId = UUID.randomUUID().toString()
+            val operationId = draftOperationId
+            val debtId = draftDebtId
             val effectiveAccountId = current.availableAccounts.firstOrNull { it.id == current.selectedAccountId }?.effectiveAccountId
             val canonical = listOf(
                 obligationType.name,
@@ -175,6 +177,8 @@ class DebtOpeningViewModel @Inject constructor(
     }
 
     private fun resetAfterSave() {
+        draftOperationId = UUID.randomUUID().toString()
+        draftDebtId = UUID.randomUUID().toString()
         _state.update { current ->
             DebtFormUiState(
                 currencyCode = current.currencyCode,

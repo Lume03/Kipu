@@ -53,9 +53,27 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     private val syncScheduler: RecurrencesSyncScheduler,
     @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) : RecurrenceRepository {
+
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean = recoverCommand(userId, commandId, false)
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean = recoverCommand(userId, commandId, true)
+    private suspend fun recoverCommand(userId: String, id: String, discard: Boolean): Boolean {
+        val changed = transactionRunner {
+            val cmd = outboxDao.get(userId, id) ?: return@transactionRunner false
+            if (!discard && !com.kipu.app.core.sync.OutboxPolicy.canRetry(if(cmd.state=="RETRYABLE") "RETRY" else cmd.state)) return@transactionRunner false
+            if (discard && cmd.state !in setOf("CONFLICT","FAILED","BLOCKED","RETRYABLE","WAITING_FOR_AUTH")) return@transactionRunner false
+            outboxDao.updateResult(userId,id,if(discard) "DISCARDED" else "PENDING",null,null,cmd.resultPayload,clock.millis())
+            outboxDao.unblock(userId,cmd.recurrenceId)
+            recurrenceDao.get(userId,cmd.recurrenceId)?.let { current ->
+                recurrenceDao.setSyncState(userId,cmd.recurrenceId,current.revision,if(outboxDao.countPending(userId,cmd.recurrenceId)>0) "PENDING" else "SYNCED",null,clock.millis())
+            }
+            true
+        }
+        if(changed) scheduleSync(userId)
+        return changed
+    }
+
     private val reconciliationMutex = Mutex()
     override fun observeAll(userId: String): Flow<List<RecurrenceRule>> {
-        scheduleSync(userId)
         return recurrenceDao.observeAll(userId).map { rows -> rows.map { it.toDomain() } }
     }
     override fun observe(userId: String, recurrenceId: String): Flow<RecurrenceRule?> = recurrenceDao.observe(userId, recurrenceId).map { it?.toDomain() }
@@ -192,7 +210,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
     override suspend fun reconcileReceipt(receipt: RecurrenceCommandReceipt) = reconciliationMutex.withLock {
         require(receipt.userId.isNotBlank() && receipt.operationId.isNotBlank())
         val command = outboxDao.get(receipt.userId, receipt.operationId) ?: return@withLock
-        if (command.state in setOf("APPLIED", "DUPLICATE", "CONFLICT", "FAILED")) return@withLock
+        if (command.state in setOf("APPLIED", "DUPLICATE", "CONFLICT", "FAILED", "DISCARDED")) return@withLock
         val now = clock.millis()
         when (receipt.outcome) {
             "APPLIED", "DUPLICATE" -> {
@@ -212,15 +230,20 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
             }
             "CONFLICT" -> transactionRunner {
                 outboxDao.updateResult(receipt.userId, receipt.operationId, "CONFLICT", null, receipt.errorCode ?: "REVISION_MISMATCH", receipt.resultPayload, now)
+                outboxDao.blockSuccessors(receipt.userId,command.recurrenceId,command.createdAt,command.operationId)
                 recurrenceDao.get(receipt.userId, command.recurrenceId)?.let { current ->
                     recurrenceDao.setSyncState(receipt.userId, command.recurrenceId, current.revision, "CONFLICT", receipt.errorCode ?: "REVISION_MISMATCH", now)
                 }
+            }
+            "WAITING_FOR_AUTH" -> transactionRunner {
+                outboxDao.updateResult(receipt.userId, receipt.operationId, "WAITING_FOR_AUTH", null, receipt.errorCode, receipt.resultPayload, now)
             }
             "RETRYABLE" -> transactionRunner {
                 outboxDao.updateResult(receipt.userId, receipt.operationId, "RETRYABLE", receipt.retryAt, receipt.errorCode, receipt.resultPayload, now)
             }
             "REJECTED" -> transactionRunner {
                 outboxDao.updateResult(receipt.userId, receipt.operationId, "FAILED", null, receipt.errorCode ?: "VALIDATION_FAILED", receipt.resultPayload, now)
+                outboxDao.blockSuccessors(receipt.userId,command.recurrenceId,command.createdAt,command.operationId)
                 recurrenceDao.get(receipt.userId, command.recurrenceId)?.let { current ->
                     recurrenceDao.setSyncState(receipt.userId, command.recurrenceId, current.revision, "FAILED", receipt.errorCode, now)
                 }
@@ -241,7 +264,7 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
                 val current = recurrenceDao.get(userId, remote.id)
                 if (current == null) {
                     recurrenceDao.upsert(remote.toEntity().copy(syncState = "SYNCED", syncError = null))
-                } else if (remote.revision > current.revision && current.syncState !in setOf("CONFLICT", "FAILED")) {
+                } else if (remote.revision >= current.revision && current.syncState !in setOf("CONFLICT", "FAILED")) {
                     if (outboxDao.countPending(userId, remote.id) > 0) {
                         recurrenceDao.setSyncState(userId, remote.id, current.revision, "CONFLICT", "REMOTE_REVISION_AHEAD", now)
                     } else {

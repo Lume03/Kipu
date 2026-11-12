@@ -34,7 +34,7 @@ class CategoryHydration @javax.inject.Inject constructor(
     }
     suspend fun hydrateCategories(userId: String) {
         try {
-            val pendingCommands = categoryDao.getPendingOutboxCommands(userId)
+            val pendingCommands = categoryDao.getUnresolvedCommands(userId)
             val pendingCategoryIds = pendingCommands.map { it.aggregateId }.toSet()
 
             val categories = when (val response = api.fetchCategories()) {

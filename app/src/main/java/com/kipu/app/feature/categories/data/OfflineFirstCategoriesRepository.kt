@@ -81,6 +81,23 @@ class OfflineFirstCategoriesRepository @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : CategoriesRepository {
 
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean = recoverCommand(userId, commandId, false)
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean = recoverCommand(userId, commandId, true)
+    private suspend fun recoverCommand(userId: String, id: String, discard: Boolean): Boolean {
+        if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != userId) return false
+        val recovered = transactionRunner {
+            val cmd = categoryDao.getCommand(userId, id) ?: return@transactionRunner false
+            if (!discard && !com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@transactionRunner false
+            if (discard && cmd.state !in setOf("FAILED","FAILED_PERMANENT","CONFLICT","BLOCKED","ERROR","WAITING_FOR_AUTH")) return@transactionRunner false
+            categoryDao.updateOutboxCommand(cmd.copy(state=if(discard) "DISCARDED" else "PENDING", nextAttemptAt=null, errorCode=null))
+            categoryDao.unblock(userId, cmd.aggregateType, cmd.aggregateId)
+            true
+        }
+        if (recovered) syncScheduler.scheduleSync(userId)
+        return recovered
+    }
+
+
     private companion object {
         val initialSystemCategories = com.kipu.app.feature.categories.domain.model.InitialCategoryCatalog.allEntries
     }

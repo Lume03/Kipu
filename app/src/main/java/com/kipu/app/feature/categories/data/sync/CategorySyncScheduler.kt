@@ -36,7 +36,7 @@ class WorkManagerCategorySyncScheduler @Inject constructor(
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             "${WORK_PREFIX}_$userId",
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             workRequest,
         )
     }

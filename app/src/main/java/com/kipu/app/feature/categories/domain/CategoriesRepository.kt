@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.Flow
 
 interface CategoriesRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = false
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = false
+
     suspend fun ensureInitialCatalog(userId: UserId): Result<Unit> =
         Result.failure(UnsupportedOperationException("Initial category catalog is unavailable"))
     fun observeCategories(userId: UserId): Flow<List<Category>>

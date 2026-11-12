@@ -43,6 +43,17 @@ import org.junit.Before
 import org.junit.Test
 
 class FakeCategoryDao : CategoryDao {
+    override suspend fun getUnresolvedCommands(userId: String) = outbox.filter { it.userId==userId && it.state !in setOf("COMPLETED","DISCARDED") }
+
+    override suspend fun getCommand(userId: String,id: String) = outbox.firstOrNull { it.userId==userId && it.operationId==id }
+    override suspend fun getReadyCommands(userId: String,now: Long) = outbox.filter { it.userId==userId && it.state in setOf("PENDING","ERROR","IN_FLIGHT") && (it.nextAttemptAt==null || it.nextAttemptAt<=now) }.take(1)
+    override suspend fun blockSuccessors(userId: String,type: String,aggregateId: String,createdAt: Long,id: String) = Unit
+    override suspend fun unblock(userId: String,type: String,aggregateId: String) = Unit
+    override suspend fun resumeAuth(userId: String) = Unit
+    override suspend fun waitForAuth(userId: String) = Unit
+    override suspend fun blockBehindFailures(userId: String) = Unit
+    override suspend fun hasOutstanding(userId: String) = outbox.any { it.userId==userId && it.state in setOf("PENDING","ERROR","IN_FLIGHT") }
+
     val categories = mutableMapOf<String, CategoryEntity>()
     val presentations = mutableMapOf<String, CategoryPresentationEntity>()
     val conflicts = mutableMapOf<String, CategoryConflictEntity>()

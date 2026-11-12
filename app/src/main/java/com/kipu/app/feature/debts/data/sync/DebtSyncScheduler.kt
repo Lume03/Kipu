@@ -15,6 +15,9 @@ import androidx.room.withTransaction
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.SessionCoordinator
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import com.kipu.app.feature.accounts.data.remote.FinancialApiResponse
 import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
 import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
@@ -86,11 +89,20 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             return Result.retry()
         }
 
+        val remoteSession=sessionCoordinator.remoteSession.value
+        if(remoteSession !is com.kipu.app.core.session.RemoteSession.Valid || remoteSession.userId!=targetOwner || !remoteSession.expiresAt.isAfter(java.time.Instant.now())) {
+            outboxDao.waitForAuth(targetOwner)
+            return Result.success()
+        }
+
+        outboxDao.requeueWaitingForAuth(targetOwner)
+        outboxDao.blockBehindFailures(targetOwner)
         outboxDao.requeueMissingEndpoint(targetOwner, System.currentTimeMillis())
         var needsRetry = false
-        repeat(MAX_COMMANDS_PER_RUN) {
+        while (!isStopped) {
+            currentCoroutineContext().ensureActive()
             val now = System.currentTimeMillis()
-            val command = outboxDao.claimPending(targetOwner, now, limit = 1).firstOrNull() ?: return@repeat
+            val command = outboxDao.claimPending(targetOwner, now, limit = 1).firstOrNull() ?: break
             if (processCommand(command)) needsRetry = true
         }
 
@@ -111,17 +123,24 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             is DebtApiResponse.Success -> processRemoteResult(command, response.data)
             is DebtApiResponse.Error -> {
                 // 404 means the debt RPC is not deployed yet (same policy as goals): keep the command queued.
-                val retryable = response.statusCode == 401 || response.statusCode == 404 || response.statusCode == 408 ||
-                    response.statusCode == 429 || response.statusCode >= 500
+                val failure = OutboxPolicy.classify(httpStatus = response.statusCode)
+                val state = when (failure) {
+                    OutboxPolicy.Failure.RETRYABLE -> "RETRY"
+                    OutboxPolicy.Failure.WAITING_FOR_AUTH -> "WAITING_FOR_AUTH"
+                    OutboxPolicy.Failure.CONFLICT -> "CONFLICT"
+                    OutboxPolicy.Failure.PERMANENT -> "FAILED_PERMANENT"
+                }
+                val retryable = failure == OutboxPolicy.Failure.RETRYABLE || failure == OutboxPolicy.Failure.WAITING_FOR_AUTH
                 finishCommand(
                     command,
-                    if (retryable) "RETRY" else "FAILED_PERMANENT",
+                    state,
                     "HTTP_${response.statusCode}",
                     null,
                 )
                 retryable
             }
             is DebtApiResponse.NetworkFailure -> {
+                if(response.exception is kotlinx.coroutines.CancellationException) throw response.exception
                 finishCommand(command, "RETRY", response.exception.javaClass.simpleName, null)
                 true
             }
@@ -198,7 +217,6 @@ class SyncDebtChangesWorker @AssistedInject constructor(
         const val KEY_USER_ID = "debt_sync_user_id"
         const val WORK_PREFIX = "debt-sync"
         private const val TAG = "SyncDebtChangesWorker"
-        private const val MAX_COMMANDS_PER_RUN = 10
         private const val MAX_PAGES_PER_RUN = 10
         private const val BASE_RETRY_DELAY_MS = 30_000L
         private const val MAX_RETRY_DELAY_MS = 3_600_000L

@@ -1,6 +1,9 @@
 package com.kipu.app.feature.recurrences.data.sync
 
 import android.content.Context
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -49,7 +52,16 @@ class SyncRecurrenceCommandsWorker @AssistedInject constructor(
     private suspend fun sync(): Result {
         val userId = inputData.getString(KEY_USER_ID)?.takeIf(String::isNotBlank) ?: return Result.failure()
         if (!isCurrentOwner(userId)) return Result.retry()
-        for (index in 0 until MAX_COMMANDS_PER_RUN) {
+        val remoteSession=sessionCoordinator.remoteSession.value
+        if(remoteSession !is com.kipu.app.core.session.RemoteSession.Valid || remoteSession.userId!=userId || !remoteSession.expiresAt.isAfter(java.time.Instant.now())) {
+            outboxDao.waitForAuth(userId)
+            return Result.success()
+        }
+
+        outboxDao.resumeAuth(userId)
+        outboxDao.blockBehindFailures(userId)
+        while (!isStopped) {
+            currentCoroutineContext().ensureActive()
             val command = outboxDao.claimReady(userId, clock.millis(), limit = 1).firstOrNull() ?: break
             if (command.userId != userId || !isCurrentOwner(command.userId)) return Result.retry()
             send(command)
@@ -83,10 +95,11 @@ class SyncRecurrenceCommandsWorker @AssistedInject constructor(
                     finish(command, outcome, result.revision, result.error?.code)
                 } else finish(command, "RETRYABLE", error = "UNKNOWN_REMOTE_RESULT")
             }
-            is RecurrencesApiResponse.Error -> finish(command, when {
-                response.statusCode == 409 -> "CONFLICT"
-                shouldRetry(response.statusCode) -> "RETRYABLE"
-                else -> "REJECTED"
+            is RecurrencesApiResponse.Error -> finish(command, when (OutboxPolicy.classify(httpStatus=response.statusCode)) {
+                OutboxPolicy.Failure.CONFLICT -> "CONFLICT"
+                OutboxPolicy.Failure.WAITING_FOR_AUTH -> "WAITING_FOR_AUTH"
+                OutboxPolicy.Failure.RETRYABLE -> "RETRYABLE"
+                OutboxPolicy.Failure.PERMANENT -> "REJECTED"
             }, error = "HTTP_${response.statusCode}")
             is RecurrencesApiResponse.NetworkFailure -> finish(command, "RETRYABLE", error = "REMOTE_UNAVAILABLE")
         }
@@ -102,11 +115,9 @@ class SyncRecurrenceCommandsWorker @AssistedInject constructor(
     }
 
     private fun isCurrentOwner(userId: String) = sessionCoordinator.currentOwner?.verifiedUserId == userId
-    private fun shouldRetry(code: Int) = code in setOf(401, 408, 429) || code >= 500
 
     companion object {
         const val KEY_USER_ID = "recurrence_sync_user_id"
-        private const val MAX_COMMANDS_PER_RUN = 10
         private const val MAX_CHANGE_PAGES = 20
     }
 }

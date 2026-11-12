@@ -101,6 +101,10 @@ class OfflineFirstProfilePreferencesRepositoryTest {
 }
 
 private class FakeProfileDao : ProfilePreferencesDao() {
+    override suspend fun findReady(userId: UUID,now: Instant,leaseExpired: Instant) = outbox.firstOrNull {
+        it.userId==userId && (it.status in setOf("PENDING","ERROR","WAITING_FOR_AUTH") && (it.nextAttemptAt==null || it.nextAttemptAt<=now) || it.status=="IN_FLIGHT" && it.updatedAt<=leaseExpired)
+    }
+
     var profile: UserProfileCacheEntity? = null
     val outbox = mutableListOf<ProfilePreferenceOutboxEntity>()
     var failure: Throwable? = null

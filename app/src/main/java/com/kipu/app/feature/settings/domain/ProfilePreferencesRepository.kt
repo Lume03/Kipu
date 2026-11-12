@@ -6,6 +6,8 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
 interface ProfilePreferencesRepository {
+    suspend fun retryFailed(userId: UUID, commandId: UUID): Boolean = false
+    suspend fun discardLocal(userId: UUID, commandId: UUID): Boolean = false
     fun observeProfile(userId: UUID): Flow<UserProfile?>
     suspend fun getProfile(userId: UUID): UserProfile?
     suspend fun updatePreferences(userId: UUID, delta: ProfilePreferenceDelta): Result<UserProfile>

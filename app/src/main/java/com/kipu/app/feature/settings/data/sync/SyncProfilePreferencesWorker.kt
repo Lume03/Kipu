@@ -53,12 +53,7 @@ class SyncProfilePreferencesWorker @AssistedInject constructor(
             if (syncResult.isSuccess) {
                 Result.success()
             } else {
-                val exception = syncResult.exceptionOrNull()
-                if (exception is IllegalStateException && exception.message?.contains("conflict", ignoreCase = true) == true) {
-                    Result.failure()
-                } else {
-                    Result.retry()
-                }
+                Result.retry()
             }
         } catch (e: CancellationException) {
             throw e

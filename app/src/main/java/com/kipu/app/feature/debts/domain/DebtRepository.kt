@@ -14,6 +14,9 @@ import com.kipu.app.feature.debts.domain.model.SettleDebtCommand
 import kotlinx.coroutines.flow.Flow
 
 interface DebtRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = false
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = false
+
     fun observeDueBalances(userId: String): Flow<List<com.kipu.app.feature.debts.domain.model.DebtDueBalance>> =
         kotlinx.coroutines.flow.flowOf(emptyList())
 

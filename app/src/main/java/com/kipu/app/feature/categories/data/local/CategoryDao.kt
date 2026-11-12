@@ -18,6 +18,56 @@ data class MovementClassificationTuple(
 @Dao
 interface CategoryDao {
 
+    @Query("SELECT * FROM category_sync_outbox WHERE user_id=:userId AND state NOT IN ('COMPLETED','DISCARDED') ORDER BY created_at,rowid")
+    suspend fun getUnresolvedCommands(userId: String): List<CategorySyncOutboxEntity>
+
+
+    @androidx.room.Transaction
+    suspend fun complete(command: CategorySyncOutboxEntity, state: String, error: String?, nextAttemptAt: Long?, now: Long) {
+        val stored=getCommand(command.userId,command.operationId) ?: return
+        if(stored.state!="IN_FLIGHT" || stored.updatedAt!=command.updatedAt || stored.nextAttemptAt!=command.nextAttemptAt) return
+        updateOutboxCommand(command.copy(state=state,errorCode=error,nextAttemptAt=nextAttemptAt,attemptCount=command.attemptCount+1,updatedAt=now))
+        if(com.kipu.app.core.sync.OutboxPolicy.isTerminal(state)) blockSuccessors(command.userId,command.aggregateType,command.aggregateId,command.createdAt,command.operationId)
+    }
+
+
+    @Query("SELECT EXISTS(SELECT 1 FROM category_sync_outbox WHERE user_id=:userId AND state IN ('PENDING','ERROR','IN_FLIGHT'))")
+    suspend fun hasOutstanding(userId: String): Boolean
+
+
+    @Query("UPDATE category_sync_outbox SET state='BLOCKED', error_code='BLOCKED_BY_PREVIOUS' WHERE user_id=:userId AND state IN ('PENDING','ERROR','WAITING_FOR_AUTH') AND EXISTS (SELECT 1 FROM category_sync_outbox p WHERE p.user_id=category_sync_outbox.user_id AND p.aggregate_id=category_sync_outbox.aggregate_id AND p.aggregate_type=category_sync_outbox.aggregate_type AND (p.created_at<category_sync_outbox.created_at OR (p.created_at=category_sync_outbox.created_at AND p.rowid<category_sync_outbox.rowid)) AND p.state IN ('FAILED','FAILED_PERMANENT','CONFLICT'))")
+    suspend fun blockBehindFailures(userId: String)
+
+
+    @Query("UPDATE category_sync_outbox SET state='WAITING_FOR_AUTH' WHERE user_id=:userId AND state IN ('PENDING','ERROR')")
+    suspend fun waitForAuth(userId: String)
+
+
+    @Query("SELECT * FROM category_sync_outbox WHERE user_id=:userId AND state='PENDING' ORDER BY created_at,rowid")
+    suspend fun getPendingOutboxCommands(userId: String): List<CategorySyncOutboxEntity>
+
+
+    @Query("SELECT * FROM category_sync_outbox WHERE user_id=:userId AND operation_id=:id")
+    suspend fun getCommand(userId: String, id: String): CategorySyncOutboxEntity?
+
+    @androidx.room.Transaction
+    suspend fun claim(userId: String, now: Long): CategorySyncOutboxEntity? {
+        val command = getReadyCommands(userId, now).firstOrNull() ?: return null
+        val leased = command.copy(state="IN_FLIGHT", nextAttemptAt=now+60_000, updatedAt=now)
+        updateOutboxCommand(leased)
+        return leased
+    }
+
+    @Query("UPDATE category_sync_outbox SET state='BLOCKED', error_code='BLOCKED_BY_PREVIOUS', next_attempt_at=NULL WHERE user_id=:userId AND aggregate_type=:type AND aggregate_id=:aggregateId AND (created_at>:createdAt OR (created_at=:createdAt AND rowid>(SELECT rowid FROM category_sync_outbox WHERE user_id=:userId AND operation_id=:id))) AND state IN ('PENDING','ERROR','WAITING_FOR_AUTH')")
+    suspend fun blockSuccessors(userId: String, type: String, aggregateId: String, createdAt: Long, id: String)
+
+    @Query("UPDATE category_sync_outbox SET state='PENDING', error_code=NULL, next_attempt_at=NULL WHERE user_id=:userId AND aggregate_type=:type AND aggregate_id=:aggregateId AND state='BLOCKED' AND NOT EXISTS (SELECT 1 FROM category_sync_outbox p WHERE p.user_id=:userId AND p.aggregate_type=:type AND p.aggregate_id=:aggregateId AND p.state IN ('FAILED','FAILED_PERMANENT','CONFLICT'))")
+    suspend fun unblock(userId: String, type: String, aggregateId: String)
+
+    @Query("UPDATE category_sync_outbox SET state='PENDING', next_attempt_at=NULL WHERE user_id=:userId AND state='WAITING_FOR_AUTH'")
+    suspend fun resumeAuth(userId: String)
+
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: CategoryEntity)
 
@@ -106,8 +156,8 @@ interface CategoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOutboxCommand(command: CategorySyncOutboxEntity)
 
-    @Query("SELECT * FROM category_sync_outbox WHERE user_id = :userId AND state = 'PENDING' ORDER BY created_at ASC")
-    suspend fun getPendingOutboxCommands(userId: String): List<CategorySyncOutboxEntity>
+    @Query("SELECT c.* FROM category_sync_outbox c WHERE c.user_id=:userId AND c.state IN ('PENDING','ERROR','IN_FLIGHT') AND (c.next_attempt_at IS NULL OR c.next_attempt_at<=:now) AND NOT EXISTS (SELECT 1 FROM category_sync_outbox p WHERE p.user_id=c.user_id AND p.aggregate_type=c.aggregate_type AND p.aggregate_id=c.aggregate_id AND (p.created_at<c.created_at OR (p.created_at=c.created_at AND p.rowid<c.rowid)) AND p.state NOT IN ('COMPLETED','DISCARDED')) ORDER BY c.created_at,c.rowid LIMIT 1")
+    suspend fun getReadyCommands(userId: String, now: Long): List<CategorySyncOutboxEntity>
 
     @Update
     suspend fun updateOutboxCommand(command: CategorySyncOutboxEntity)

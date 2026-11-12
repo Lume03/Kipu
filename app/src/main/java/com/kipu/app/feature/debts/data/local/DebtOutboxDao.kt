@@ -8,11 +8,33 @@ import androidx.room.Transaction
 
 @Dao
 interface DebtOutboxDao {
+
+    @Query("UPDATE debt_command_outbox SET state='BLOCKED', last_error_code='BLOCKED_BY_PREVIOUS' WHERE user_id=:userId AND state IN ('PENDING','RETRY','WAITING_FOR_AUTH') AND EXISTS (SELECT 1 FROM debt_command_outbox p WHERE p.user_id=debt_command_outbox.user_id AND p.debt_id=debt_command_outbox.debt_id AND (p.created_at<debt_command_outbox.created_at OR (p.created_at=debt_command_outbox.created_at AND p.rowid<debt_command_outbox.rowid)) AND p.command_type<>'REMOTE_SNAPSHOT' AND p.state IN ('FAILED_PERMANENT','CONFLICT'))")
+    suspend fun blockBehindFailures(userId: String)
+
+
+    @Query("UPDATE debt_command_outbox SET state='WAITING_FOR_AUTH' WHERE user_id=:userId AND state IN ('PENDING','RETRY')")
+    suspend fun waitForAuth(userId: String)
+
+
+    /** Internal feed snapshots are retained for later reconciliation, never dispatched as commands. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveRemoteSnapshot(snapshot: DebtOutboxEntity)
+
+
+    @Query("UPDATE debt_command_outbox SET state='BLOCKED', last_error_code='BLOCKED_BY_PREVIOUS', next_attempt_at=NULL, lease_until=NULL WHERE user_id=:userId AND debt_id=:debtId AND (created_at>:createdAt OR (created_at=:createdAt AND rowid>(SELECT rowid FROM debt_command_outbox WHERE user_id=:userId AND operation_id=:id))) AND state IN ('PENDING','RETRY','WAITING_FOR_AUTH')")
+    suspend fun blockSuccessors(userId: String, debtId: String, createdAt: Long, id: String)
+    @Query("UPDATE debt_command_outbox SET state='PENDING', last_error_code=NULL WHERE user_id=:userId AND debt_id=:debtId AND state='BLOCKED' AND NOT EXISTS (SELECT 1 FROM debt_command_outbox p WHERE p.user_id=:userId AND p.debt_id=:debtId AND p.state IN ('CONFLICT','FAILED_PERMANENT') AND p.command_type<>'REMOTE_SNAPSHOT')")
+    suspend fun unblock(userId: String, debtId: String)
+
     @Query("SELECT * FROM debt_command_outbox WHERE user_id = :userId AND operation_id = :operationId LIMIT 1")
     suspend fun get(userId: String, operationId: String): DebtOutboxEntity?
 
-    @Query("SELECT c.* FROM debt_command_outbox c WHERE user_id = :userId AND (state IN ('PENDING','RETRY') OR (state='IN_FLIGHT' AND lease_until <= :now)) AND (next_attempt_at IS NULL OR next_attempt_at <= :now) AND (lease_until IS NULL OR lease_until <= :now) AND NOT EXISTS (SELECT 1 FROM debt_command_outbox prior WHERE prior.user_id=c.user_id AND prior.debt_id=c.debt_id AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND prior.operation_id<c.operation_id)) AND prior.state <> 'SYNCED') ORDER BY created_at ASC, operation_id ASC LIMIT :limit")
+    @Query("SELECT c.* FROM debt_command_outbox c WHERE user_id = :userId AND (state IN ('PENDING','RETRY') OR (state='IN_FLIGHT' AND lease_until <= :now)) AND (next_attempt_at IS NULL OR next_attempt_at <= :now) AND (lease_until IS NULL OR lease_until <= :now) AND NOT EXISTS (SELECT 1 FROM debt_command_outbox prior WHERE prior.user_id=c.user_id AND prior.debt_id=c.debt_id AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND prior.rowid<c.rowid)) AND prior.command_type<>'REMOTE_SNAPSHOT' AND prior.state NOT IN ('SYNCED','DISCARDED')) ORDER BY created_at ASC, c.rowid ASC LIMIT :limit")
     suspend fun getClaimable(userId: String, now: Long, limit: Int): List<DebtOutboxEntity>
+
+    @Query("UPDATE debt_command_outbox SET state = 'RETRY', next_attempt_at = NULL, lease_until = NULL WHERE user_id = :userId AND state = 'WAITING_FOR_AUTH'")
+    suspend fun requeueWaitingForAuth(userId: String): Int
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(command: DebtOutboxEntity)
@@ -69,7 +91,7 @@ interface DebtOutboxDao {
         if (stored.state != "IN_FLIGHT" || stored.leaseUntil != command.leaseUntil || stored.updatedAt != command.updatedAt) {
             return false
         }
-        return updateResult(
+        val completed = updateResult(
             userId = command.userId,
             operationId = command.operationId,
             state = state,
@@ -78,6 +100,8 @@ interface DebtOutboxDao {
             errorCode = errorCode,
             now = now,
         ) == 1
+        if(completed && com.kipu.app.core.sync.OutboxPolicy.isTerminal(state)) blockSuccessors(command.userId,command.debtId,command.createdAt,command.operationId)
+        return completed
     }
 
     @Query("SELECT COUNT(*) FROM debt_command_outbox WHERE user_id = :userId AND state IN ('PENDING','IN_FLIGHT','RETRY')")

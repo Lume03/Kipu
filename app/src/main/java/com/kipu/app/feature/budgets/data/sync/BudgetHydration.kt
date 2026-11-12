@@ -47,7 +47,7 @@ class BudgetHydration @javax.inject.Inject constructor(
         }
 
         val blockedBudgetIds = budgetDao.allOutbox(userId)
-            .filter { it.state == "PENDING" || it.state == "FAILED" }
+            .filter { it.state !in setOf("COMPLETED", "DISCARDED") }
             .mapTo(mutableSetOf()) { it.aggregateId }
         transactionRunner {
             for (remote in budgets) {

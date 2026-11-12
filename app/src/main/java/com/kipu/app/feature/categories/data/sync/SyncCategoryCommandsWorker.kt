@@ -1,6 +1,9 @@
 package com.kipu.app.feature.categories.data.sync
 
 import android.content.Context
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -49,15 +52,22 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
     private sealed interface CommandOutcome {
         data object Applied : CommandOutcome
         data object Retry : CommandOutcome
-        data class Conflict(val code: String) : CommandOutcome
+        data class Conflict(val code: String, val state: String = "CONFLICT") : CommandOutcome
     }
 
     companion object {
         const val KEY_USER_ID = "key_user_id"
-        private const val MAX_RETRIES = 5
     }
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    private fun failureOutcome(failure: OutboxPolicy.Failure, code: String): CommandOutcome = when(failure) {
+        OutboxPolicy.Failure.RETRYABLE -> CommandOutcome.Retry
+        OutboxPolicy.Failure.WAITING_FOR_AUTH -> CommandOutcome.Conflict(code, "WAITING_FOR_AUTH")
+        OutboxPolicy.Failure.CONFLICT -> CommandOutcome.Conflict(code)
+        OutboxPolicy.Failure.PERMANENT -> CommandOutcome.Conflict(code, "FAILED_PERMANENT")
+    }
+
 
     private fun parseRemoteInstant(value: String): Instant = OffsetDateTime.parse(value).toInstant()
 
@@ -69,6 +79,12 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             return Result.success()
         }
 
+        val remoteSession=sessionCoordinator.remoteSession.value
+        if(remoteSession !is com.kipu.app.core.session.RemoteSession.Valid || remoteSession.userId!=userId || !remoteSession.expiresAt.isAfter(java.time.Instant.now())) {
+            categoryDao.waitForAuth(userId)
+            return Result.success()
+        }
+
         // Fill missing server categories without overwriting pending local edits.
         val hydration = CategoryHydration(categoryDao, merchantDao, applicationContext, api)
         var needsRetry = false
@@ -77,32 +93,28 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             hydration.hydrateMerchantCatalog()
         } catch (e: CancellationException) { throw e } catch (_: Exception) { needsRetry = true }
 
-        // 1. Hydrate / refresh merchant catalog
-
-
-        // 2. Process pending outbox commands
-        val pendingCommands = categoryDao.getPendingOutboxCommands(userId)
-        for (cmd in pendingCommands) {
-            when (val outcome = processCommand(cmd)) {
-                CommandOutcome.Applied -> categoryDao.updateOutboxCommand(cmd.copy(state = "COMPLETED", errorCode = null))
-                is CommandOutcome.Conflict -> categoryDao.updateOutboxCommand(
-                    cmd.copy(state = "FAILED", errorCode = outcome.code),
-                )
+        categoryDao.resumeAuth(userId)
+        categoryDao.blockBehindFailures(userId)
+        while (!isStopped) {
+            currentCoroutineContext().ensureActive()
+            val cmd = categoryDao.claim(userId, System.currentTimeMillis()) ?: break
+            val outcome = processCommand(cmd)
+            currentCoroutineContext().ensureActive()
+            if((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId!=userId) return Result.retry()
+            val now = System.currentTimeMillis()
+            when (outcome) {
+                CommandOutcome.Applied -> categoryDao.complete(cmd,"COMPLETED",null,null,now)
+                is CommandOutcome.Conflict -> {
+                    categoryDao.complete(cmd,outcome.state,outcome.code,null,now)
+                }
                 CommandOutcome.Retry -> {
                     needsRetry = true
-                    if (cmd.attemptCount >= MAX_RETRIES) {
-                        markMerchantCommandFailed(cmd)
-                        categoryDao.updateOutboxCommand(cmd.copy(state = "FAILED", errorCode = "RETRY_LIMIT"))
-                    } else {
-                        categoryDao.updateOutboxCommand(
-                            cmd.copy(attemptCount = cmd.attemptCount + 1, state = "PENDING"),
-                        )
-                    }
+                    categoryDao.complete(cmd,"ERROR","REMOTE_UNAVAILABLE",now+30_000,now)
                 }
             }
         }
 
-        return if (needsRetry) Result.retry() else Result.success()
+        return if (needsRetry || categoryDao.hasOutstanding(userId)) Result.retry() else Result.success()
     }
 
     private suspend fun processCommand(cmd: com.kipu.app.feature.categories.data.local.CategorySyncOutboxEntity): CommandOutcome {
@@ -137,7 +149,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                                 CommandOutcome.Applied
                             }
                         }
-                        is CategoryApiResponse.Error -> if (res.statusCode == 409) CommandOutcome.Conflict("REVISION_CONFLICT") else CommandOutcome.Retry
+                        is CategoryApiResponse.Error -> failureOutcome(OutboxPolicy.classify(httpStatus=res.statusCode), "HTTP_${res.statusCode}")
                         is CategoryApiResponse.NetworkFailure -> CommandOutcome.Retry
                     }
                 }
@@ -182,10 +194,12 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                     val dto = json.decodeFromString<ResolveCategoryConflictRequestDto>(cmd.payloadJson)
                     api.resolveConflict(dto).asCommandOutcome()
                 }
-                else -> CommandOutcome.Applied
+                else -> failureOutcome(OutboxPolicy.classify(invalidPayload=true), "INVALID_COMMAND")
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: kotlinx.serialization.SerializationException) {
+            failureOutcome(OutboxPolicy.classify(invalidPayload=true), "INVALID_PAYLOAD")
         } catch (e: Exception) {
             if (cmd.commandType in setOf("PRESERVE_MERCHANT_SOURCE_TEXT", "UPSERT_MERCHANT_ALIAS_RULE", "DELETE_MERCHANT_ALIAS_RULE", "UPSERT_MERCHANT_CATEGORY_PREFERENCE", "DELETE_MERCHANT_CATEGORY_PREFERENCE")) {
                 SecureLog.e("SyncCategoryCommandsWorker", "Failed to sync a private merchant command")
@@ -198,15 +212,11 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
 
     private fun CategoryApiResponse<CategoryCommandResponseDto>.asCommandOutcome(): CommandOutcome = when (this) {
         is CategoryApiResponse.Success -> when {
-            data.status == "CONFLICT" || data.status == "REJECTED" -> CommandOutcome.Conflict(data.code ?: "REVISION_CONFLICT")
+            data.status == "CONFLICT" || data.status == "REJECTED" -> failureOutcome(OutboxPolicy.classify(status=data.status), data.code ?: data.status)
             data.success -> CommandOutcome.Applied
             else -> CommandOutcome.Retry
         }
-        is CategoryApiResponse.Error -> when {
-            statusCode == 409 -> CommandOutcome.Conflict("REVISION_CONFLICT")
-            statusCode in 400..499 && statusCode !in setOf(401, 408, 429) -> CommandOutcome.Conflict("COMMAND_REJECTED")
-            else -> CommandOutcome.Retry
-        }
+        is CategoryApiResponse.Error -> failureOutcome(OutboxPolicy.classify(httpStatus=statusCode), "HTTP_$statusCode")
         is CategoryApiResponse.NetworkFailure -> CommandOutcome.Retry
     }
 
@@ -218,7 +228,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
     ) {
         val state = when (outcome) {
             CommandOutcome.Applied -> "SYNCED"
-            is CommandOutcome.Conflict -> "CONFLICT"
+            is CommandOutcome.Conflict -> when(outcome.state) { "FAILED_PERMANENT" -> "FAILED"; "WAITING_FOR_AUTH" -> "PENDING"; else -> "CONFLICT" }
             CommandOutcome.Retry -> "PENDING"
         }
         merchantRulesDao.setAliasSyncState(
@@ -238,7 +248,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
     ) {
         val state = when (outcome) {
             CommandOutcome.Applied -> "SYNCED"
-            is CommandOutcome.Conflict -> "CONFLICT"
+            is CommandOutcome.Conflict -> when(outcome.state) { "FAILED_PERMANENT" -> "FAILED"; "WAITING_FOR_AUTH" -> "PENDING"; else -> "CONFLICT" }
             CommandOutcome.Retry -> "PENDING"
         }
         merchantRulesDao.setPreferenceSyncState(
@@ -250,12 +260,4 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
         )
     }
 
-    private suspend fun markMerchantCommandFailed(cmd: com.kipu.app.feature.categories.data.local.CategorySyncOutboxEntity) {
-        when (cmd.commandType) {
-            "UPSERT_MERCHANT_ALIAS_RULE", "DELETE_MERCHANT_ALIAS_RULE" ->
-                merchantRulesDao.setAliasSyncState(cmd.userId, cmd.aggregateId, "FAILED", null, "RETRY_LIMIT")
-            "UPSERT_MERCHANT_CATEGORY_PREFERENCE", "DELETE_MERCHANT_CATEGORY_PREFERENCE" ->
-                merchantRulesDao.setPreferenceSyncState(cmd.userId, cmd.aggregateId, "FAILED", null, "RETRY_LIMIT")
-        }
-    }
 }

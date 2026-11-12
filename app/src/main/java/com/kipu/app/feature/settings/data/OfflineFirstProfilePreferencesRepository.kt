@@ -1,6 +1,11 @@
 package com.kipu.app.feature.settings.data
 
 import com.kipu.app.core.logging.SecureLog
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
+import io.github.jan.supabase.exceptions.RestException
 import com.kipu.app.feature.settings.data.local.ProfilePreferenceOutboxEntity
 import com.kipu.app.feature.settings.data.local.ProfilePreferencesDao
 import com.kipu.app.feature.settings.data.local.UserProfileCacheEntity
@@ -62,7 +67,22 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
     private val profileDao: ProfilePreferencesDao,
     private val supabaseClient: SupabaseClient,
     private val sessionProvider: AuthenticatedSessionProvider,
+    private val syncScheduler: com.kipu.app.feature.settings.data.sync.ProfileSyncScheduler? = null,
 ) : ProfilePreferencesRepository {
+
+    override suspend fun retryFailed(userId: UUID, commandId: UUID): Boolean = recoverCommand(userId,commandId,false)
+    override suspend fun discardLocal(userId: UUID, commandId: UUID): Boolean = recoverCommand(userId,commandId,true)
+    private suspend fun recoverCommand(userId: UUID, id: UUID, discard: Boolean): Boolean {
+        if(sessionProvider.currentSession()?.userId!=userId) return false
+        val item=profileDao.findOutbox(id)?.takeIf { it.userId==userId } ?: return false
+        if(!discard && !OutboxPolicy.canRetry(item.status)) return false
+        if(discard && item.status !in setOf("CONFLICT","FAILED_PERMANENT","ERROR","WAITING_FOR_AUTH","BLOCKED")) return false
+        profileDao.updateOutbox(item.copy(status=if(discard) "DISCARDED" else "PENDING",nextAttemptAt=null,updatedAt=Instant.now()))
+        if(discard) refreshProfile(userId)
+        syncScheduler?.scheduleSync(userId)
+        return true
+    }
+
 
     override fun observeProfile(userId: UUID): Flow<UserProfile?> {
         return profileDao.observeProfile(userId).map { it?.toDomain() }
@@ -135,64 +155,76 @@ class OfflineFirstProfilePreferencesRepository @Inject constructor(
     }
 
     override suspend fun syncPendingPreferences(userId: UUID): Result<Unit> {
-        val pending = profileDao.findPendingOutbox(userId)
-        for (item in pending) {
-            // The session can change between RPCs: never send an owner's outbox with another owner's token.
-            if (!importSessionFor(userId)) {
+        if(!importSessionFor(userId)) {
+            profileDao.markOutboxWaitingForAuth(userId)
+            return Result.failure(IllegalStateException("Active session does not match the outbox owner"))
+        }
+        // A previous conflict may have survived process death before its refresh.
+        if(profileDao.findUnresolvedOutbox(userId).any { it.status=="CONFLICT" }) {
+            val refreshed=refreshProfile(userId)
+            if(refreshed.isFailure) return Result.failure(refreshed.exceptionOrNull()!!)
+        }
+        var transientFailure: Throwable? = null
+        val attempted=mutableSetOf<UUID>()
+        while(true) {
+            currentCoroutineContext().ensureActive()
+            val item=profileDao.claim(userId,Instant.now()) ?: break
+            if(!attempted.add(item.operationId)) break
+            if(!importSessionFor(userId)) {
+                profileDao.markOutboxWaitingForAuth(userId)
                 return Result.failure(IllegalStateException("Active session does not match the outbox owner"))
             }
-            remoteCall(onFailure = { e ->
-                SecureLog.e("ProfilePreferencesRepo", "Error syncing preferences outbox", e)
-                val msg = e.message.orEmpty()
-                if (msg.contains("401") || msg.contains("Not authenticated", ignoreCase = true)) {
-                    profileDao.markOutboxWaitingForAuth(userId)
-                } else {
-                    profileDao.updateOutbox(item.copy(attemptCount = item.attemptCount + 1, updatedAt = Instant.now()))
-                }
-                return Result.failure(e)
-            }) {
-                val payloadObj = Json.parseToJsonElement(item.payload) as JsonObject
-                val rpcParams = UpdateProfileRpcParams(
-                    operationId = item.operationId.toString(),
-                    expectedRevision = item.expectedRevision,
-                    payload = payloadObj,
-                )
-                val result = supabaseClient.postgrest.rpc(
-                    function = "update_profile_preferences",
-                    parameters = rpcParams,
-                ).decodeAs<UpdateProfileRpcResult>()
+            var invalidPayload=false
+            try {
+                val payloadObj=try { Json.parseToJsonElement(item.payload) as JsonObject }
+                    catch(e: Exception) { invalidPayload=true; throw e }
+                val result=supabaseClient.postgrest.rpc("update_profile_preferences",UpdateProfileRpcParams(
+                    item.operationId.toString(),item.expectedRevision,payloadObj)).decodeAs<UpdateProfileRpcResult>()
+                currentCoroutineContext().ensureActive()
+                val stored=profileDao.findOutbox(item.operationId)
+                if(stored?.status!="IN_FLIGHT" || stored.updatedAt!=item.updatedAt) continue
+                when(result.result) {
 
-                when (result.result) {
-                    "APPLIED", "DUPLICATE" -> {
-                        val acceptedRevision = result.acceptedRevision ?: (item.expectedRevision + 1)
-                        val currentProfile = profileDao.findProfile(userId)
-                        if (currentProfile != null) {
-                            profileDao.putProfile(
-                                currentProfile.copy(
-                                    remoteRevision = acceptedRevision,
-                                    syncState = SyncState.SYNCED.name,
-                                    remoteUpdatedAt = result.updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                                        ?: Instant.now(),
-                                )
-                            )
-                        }
+                    "APPLIED","DUPLICATE" -> {
+                        profileDao.findProfile(userId)?.let { current -> profileDao.putProfile(current.copy(
+                            remoteRevision=result.acceptedRevision ?: item.expectedRevision+1,
+                            syncState=if(profileDao.pendingOutboxCount(userId)>1) SyncState.PENDING.name else SyncState.SYNCED.name,
+                            remoteUpdatedAt=result.updatedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: Instant.now())) }
                         profileDao.deleteOutbox(item.operationId)
                     }
                     "CONFLICT" -> {
-                        val currentProfile = profileDao.findProfile(userId)
-                        if (currentProfile != null) {
-                            profileDao.putProfile(currentProfile.copy(syncState = SyncState.CONFLICT.name))
-                        }
-                        profileDao.updateOutbox(item.copy(status = "CONFLICT", updatedAt = Instant.now()))
-                        return Result.failure(IllegalStateException("Revision conflict detected during sync"))
+                        profileDao.updateOutbox(item.copy(status="CONFLICT",updatedAt=Instant.now()))
+                        val refreshed=refreshProfile(userId)
+                        if(refreshed.isFailure) return Result.failure(refreshed.exceptionOrNull()!!)
+                        // A fresh id and revision retain the latest local values (last writer wins).
+                        return Result.failure(IllegalStateException("Preferences refreshed; retry latest values"))
                     }
                     else -> {
-                        profileDao.updateOutbox(item.copy(attemptCount = item.attemptCount + 1, updatedAt = Instant.now()))
+                        val failure=OutboxPolicy.classify(status=result.result)
+                        profileDao.updateOutbox(item.copy(status=if(failure==OutboxPolicy.Failure.PERMANENT) "FAILED_PERMANENT" else "ERROR",
+                            attemptCount=item.attemptCount+1,nextAttemptAt=Instant.now().plusSeconds(30),updatedAt=Instant.now()))
+                        transientFailure=IllegalStateException("Unexpected preference response")
+                        break
                     }
                 }
+            } catch(e: CancellationException) { throw e
+            } catch(e: Exception) {
+                val failure=OutboxPolicy.classify(httpStatus=(e as? RestException)?.statusCode,invalidPayload=invalidPayload)
+                val state=when(failure) {
+                    OutboxPolicy.Failure.RETRYABLE -> "ERROR"
+                    OutboxPolicy.Failure.WAITING_FOR_AUTH -> "WAITING_FOR_AUTH"
+                    OutboxPolicy.Failure.CONFLICT -> "CONFLICT"
+                    OutboxPolicy.Failure.PERMANENT -> "FAILED_PERMANENT"
+                }
+                profileDao.updateOutbox(item.copy(status=state,attemptCount=item.attemptCount+1,
+                    nextAttemptAt=if(failure==OutboxPolicy.Failure.RETRYABLE) Instant.now().plusSeconds(30) else null,updatedAt=Instant.now()))
+                if(failure in setOf(OutboxPolicy.Failure.RETRYABLE,OutboxPolicy.Failure.WAITING_FOR_AUTH,OutboxPolicy.Failure.CONFLICT)) transientFailure=e
+                break
             }
         }
-        return Result.success(Unit)
+        return transientFailure?.let { Result.failure(it) }
+            ?: if(profileDao.pendingOutboxCount(userId)>0) Result.failure(IllegalStateException("Preferences waiting for retry"))
+            else Result.success(Unit)
     }
 
     /** Imports the token of the active session only when it belongs to [userId]. */

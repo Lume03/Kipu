@@ -65,6 +65,17 @@ class DebtLocalDataSource @Inject constructor(
     private val settleDebt: SettleDebt = SettleDebt(),
     private val clock: Clock = Clock.systemUTC(),
 ) {
+
+    suspend fun recoverCommand(userId: String, id: String, discard: Boolean): Boolean = database.withTransaction {
+        val cmd=debtOutboxDao.get(userId,id) ?: return@withTransaction false
+        if(cmd.commandType=="REMOTE_SNAPSHOT") return@withTransaction false
+        if(!discard && !com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@withTransaction false
+        if(discard && cmd.state !in setOf("FAILED_PERMANENT","CONFLICT","BLOCKED","RETRY","WAITING_FOR_AUTH")) return@withTransaction false
+        debtOutboxDao.updateResult(userId,id,if(discard) "DISCARDED" else "PENDING",0,null,null,clock.millis())
+        debtOutboxDao.unblock(userId,cmd.debtId)
+        debtDao.updateSyncState(userId,cmd.debtId,if(debtOutboxDao.countPendingForDebt(userId,cmd.debtId)>0) "PENDING" else "SYNCED")
+        true
+    }
     suspend fun openDebt(
         userId: String,
         command: OpenDebtCommand,

@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
 
 interface RecurrenceRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = false
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = false
+
     fun observeAll(userId: String): Flow<List<RecurrenceRule>>
     fun observe(userId: String, recurrenceId: String): Flow<RecurrenceRule?>
     suspend fun create(userId: String, draft: RecurrenceDraft): RecurrenceCommandResult

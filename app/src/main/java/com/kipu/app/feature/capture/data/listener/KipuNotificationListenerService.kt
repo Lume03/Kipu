@@ -1,5 +1,6 @@
 package com.kipu.app.feature.capture.data.listener
 
+import com.kipu.app.core.logging.SecureLog
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -14,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,26 +35,31 @@ class KipuNotificationListenerService : NotificationListenerService() {
         if (sourcePackage == packageName || !catalog.supportsPackage(sourcePackage)) return
         val ownerId = gate.currentOwnerId() ?: return
         scope.launch {
-            try {
-                serial.withLock {
-                    ingress.receive(sourcePackage, ownerId) {
-                        val notification = sbn.notification
-                        val excludedFlags = Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT
-                        if (notification.flags and excludedFlags != 0) return@receive null
-                        // Extras are accessed exclusively inside the authorized lazy reader.
-                        val extras = notification.extras
-                        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-                        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
-                        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty()
-                        val content = bigText.ifBlank { text }
-                        val provider = catalog.provider(sourcePackage, title, content) ?: return@receive null
-                        CaptureSignal(provider, sourcePackage, sbn.key, sbn.postTime, title, content)
+            repeat(3) { attempt ->
+                try {
+                    serial.withLock {
+                        ingress.receive(sourcePackage, ownerId) {
+                            val notification = sbn.notification
+                            val excludedFlags = Notification.FLAG_GROUP_SUMMARY or Notification.FLAG_ONGOING_EVENT
+                            if (notification.flags and excludedFlags != 0) return@receive null
+                            // Extras are accessed exclusively inside the authorized lazy reader.
+                            val extras = notification.extras
+                            val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+                            val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+                            val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty()
+                            val content = bigText.ifBlank { text }
+                            val provider = catalog.provider(sourcePackage, title, content) ?: return@receive null
+                            CaptureSignal(provider, sourcePackage, sbn.key, sbn.postTime, title, content)
+                        }
                     }
+                    return@launch
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Retry transient pre-persistence failures without logging notification contents.
+                    if (attempt < 2) delay(1_000L * (attempt + 1))
+                    else SecureLog.w("CaptureListener", "Capture ingress retry limit reached")
                 }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Fail closed. Never log notification contents or exception messages from parsing.
             }
         }
     }

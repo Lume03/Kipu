@@ -34,6 +34,10 @@ class OfflineFirstDebtRepository @Inject constructor(
     private val syncScheduler: DebtSyncScheduler,
     private val reminderReconciler: DebtReminderReconciler = NoOpDebtReminderReconciler,
 ) : DebtRepository {
+
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean = localDataSource.recoverCommand(userId,commandId,false).also { if(it) syncScheduler.schedule(userId) }
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean = localDataSource.recoverCommand(userId,commandId,true).also { if(it) syncScheduler.schedule(userId) }
+
     override fun observeDueBalances(userId: String): Flow<List<com.kipu.app.feature.debts.domain.model.DebtDueBalance>> =
         debtDao.observeDueBalances(userId).map { rows -> rows.map { row ->
             com.kipu.app.feature.debts.domain.model.DebtDueBalance(

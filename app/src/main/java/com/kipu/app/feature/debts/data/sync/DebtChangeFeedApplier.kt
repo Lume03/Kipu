@@ -22,6 +22,10 @@ import javax.inject.Singleton
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 
 sealed interface DebtChangeApplyResult {
@@ -50,17 +54,32 @@ class DebtChangeFeedApplier @Inject constructor(
                 if (currentCheckpoint != checkpoint) throw InvalidDebtChangePage("SYNC_CHECKPOINT_CHANGED")
 
                 var applied = 0
+                val conflicted = mutableSetOf<String>()
                 page.changes.forEach { change ->
-                    when (change.entityType.uppercase()) {
-                        "DEBT" -> if (change.operation.equals("DELETE", ignoreCase = true)) {
-                            applyDebtDeleteChange(userId, change)
-                        } else {
-                            applyDebtChange(userId, change)
-                        }
-                        "DEBT_EVENT" -> applyEventChange(userId, change)
-                        "DEBT_INSTALLMENT" -> applyInstallmentChange(userId, change)
+                    val debtId = if(change.entityType.equals("DEBT",true)) change.entityId
+                        else (change.payload as? kotlinx.serialization.json.JsonObject)?.get("debt_id")?.jsonPrimitive?.contentOrNull
+                    if(change.entityType.uppercase() in setOf("DEBT","DEBT_EVENT","DEBT_INSTALLMENT") && debtId != null && (debtId in conflicted || debtDao.getDebtIncludingDeleted(userId,debtId)?.syncState=="CONFLICT")) {
+                        conflicted += debtId
+                        saveConflictSnapshot(userId,debtId,change)
+                        return@forEach
                     }
-                    applied += 1
+                    try {
+                        when (change.entityType.uppercase()) {
+                            "DEBT" -> if (change.operation.equals("DELETE", ignoreCase = true)) {
+                                applyDebtDeleteChange(userId, change)
+                            } else {
+                                applyDebtChange(userId, change)
+                            }
+                            "DEBT_EVENT" -> applyEventChange(userId, change)
+                            "DEBT_INSTALLMENT" -> applyInstallmentChange(userId, change)
+                        }
+                        applied += 1
+                    } catch(stale: StaleDebtRevision) {
+                        debtDao.updateSyncState(userId,stale.debtId,"CONFLICT")
+                        database.debtOutboxDao().blockSuccessors(userId,stale.debtId,Long.MIN_VALUE,"")
+                        saveConflictSnapshot(userId,stale.debtId,change)
+                        conflicted += stale.debtId
+                    }
                 }
                 if (page.changes.isNotEmpty()) {
                     debtDao.upsertSyncCheckpoint(
@@ -69,17 +88,36 @@ class DebtChangeFeedApplier @Inject constructor(
                 }
                 DebtChangeApplyResult.Applied(page.nextSequence, applied)
             }
-        } catch (stale: StaleDebtRevision) {
-            database.withTransaction { debtDao.updateSyncState(userId, stale.debtId, "CONFLICT") }
-            DebtChangeApplyResult.Conflict(stale.debtId, stale.localRevision, stale.remoteRevision)
         } catch (invalid: InvalidDebtChangePage) {
             DebtChangeApplyResult.Rejected(invalid.code)
+        } catch(e: kotlinx.coroutines.CancellationException) { throw e
         } catch (_: Exception) {
             DebtChangeApplyResult.Rejected("INVALID_REMOTE_DEBT_CHANGE")
         }
     }
 
+    private suspend fun saveConflictSnapshot(userId: String, debtId: String, change: SyncChangeItemDto) {
+        val remote=change.payload as? kotlinx.serialization.json.JsonObject
+            ?: throw InvalidDebtChangePage("DEBT_PAYLOAD_REQUIRED")
+        if(remote["user_id"]?.jsonPrimitive?.contentOrNull!=userId || remote["id"]?.jsonPrimitive?.contentOrNull!=change.entityId) {
+            throw InvalidDebtChangePage("DEBT_SNAPSHOT_OWNER_MISMATCH")
+        }
+        val payload=buildJsonObject {
+            put("entity_type",change.entityType)
+            put("entity_id",change.entityId)
+            put("operation",change.operation)
+            put("revision",change.revision)
+            change.payload?.let { put("snapshot",it) }
+        }.toString()
+        database.debtOutboxDao().saveRemoteSnapshot(com.kipu.app.feature.debts.data.local.DebtOutboxEntity(
+            userId=userId,operationId="remote-snapshot:${change.entityType}:${change.entityId}:${change.revision}",debtId=debtId,
+            commandType="REMOTE_SNAPSHOT",requestHash="",payload=payload,state="CONFLICT",lastErrorCode="REMOTE_REVISION_CONFLICT",
+            createdAt=clock.millis(),updatedAt=clock.millis(),
+        ))
+    }
+
     private suspend fun applyDebtChange(userId: String, change: SyncChangeItemDto) {
+
         val payload = change.payload ?: throw InvalidDebtChangePage("DEBT_PAYLOAD_REQUIRED")
         val remote = json.decodeFromJsonElement<RemoteDebtDto>(payload)
         if (remote.userId != userId || remote.id != change.entityId || remote.revision != change.revision) {

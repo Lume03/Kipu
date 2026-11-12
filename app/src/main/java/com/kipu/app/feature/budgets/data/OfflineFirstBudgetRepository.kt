@@ -41,6 +41,23 @@ class OfflineFirstBudgetRepository @Inject constructor(
     private val zoneId: ZoneId,
 ) : BudgetRepository {
 
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean = recoverCommand(userId,commandId,false)
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean = recoverCommand(userId,commandId,true)
+    private suspend fun recoverCommand(userId: String, id: String, discard: Boolean): Boolean {
+        if(!isCurrentOwner(userId)) return false
+        val changed = transactionRunner {
+            val cmd=budgetDao.allOutbox(userId).firstOrNull { it.operationId==id } ?: return@transactionRunner false
+            if(!discard && !com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@transactionRunner false
+            if(discard && cmd.state !in setOf("FAILED","FAILED_PERMANENT","CONFLICT","BLOCKED","ERROR","WAITING_FOR_AUTH")) return@transactionRunner false
+            budgetDao.updateOutbox(cmd.copy(state=if(discard) "DISCARDED" else "PENDING",errorCode=null,updatedAt=clock.millis()))
+            budgetDao.unblock(userId,cmd.aggregateId)
+            true
+        }
+        if(changed) scheduleSync(userId)
+        return changed
+    }
+
+
     override fun observeSyncIssues(ownerId: String): Flow<Map<String, String>> =
         if (!isCurrentOwner(ownerId)) emptyFlow() else budgetDao.observeFailedCommands(ownerId).map { rows ->
             rows.groupBy { it.aggregateId }.mapValues { (_, commands) -> commands.first().errorCode ?: "REMOTE_REJECTED" }

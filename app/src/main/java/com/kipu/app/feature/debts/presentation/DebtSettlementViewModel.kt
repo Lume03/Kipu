@@ -139,6 +139,9 @@ class DebtSettlementViewModel @Inject constructor(
         } else current
     }
 
+    private var draftOperationId = UUID.randomUUID().toString()
+    private var draftOccurredAt = System.currentTimeMillis()
+
     fun save() {
         val current = _state.value
         val debt = current.debt ?: return
@@ -171,8 +174,8 @@ class DebtSettlementViewModel @Inject constructor(
             return
         }
 
-        val operationId = UUID.randomUUID().toString()
-        val occurredAt = System.currentTimeMillis()
+        val operationId = draftOperationId
+        val occurredAt = draftOccurredAt
         val canonical = listOf(
             "SETTLE_DEBT_V1", userId, debt.debtId, debt.revision.toString(), accountId,
             principal.toString(), interest.toString(), categoryId.orEmpty(), "", occurredAt.toString(),
@@ -194,6 +197,8 @@ class DebtSettlementViewModel @Inject constructor(
                 return@launch
             }) {
                 is DebtCommandResult.Applied, is DebtCommandResult.Duplicate -> {
+                    draftOperationId = UUID.randomUUID().toString()
+                    draftOccurredAt = System.currentTimeMillis()
                     _events.send(DebtSettlementUiEvent.Settled)
                 }
                 is DebtCommandResult.Conflict -> _state.update {
