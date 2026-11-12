@@ -29,6 +29,7 @@ class PlanPurchaseViewModel @Inject constructor(
 
     fun selectOffer(productId: String) {
         mutableState.update { state ->
+            if (state.status == PlanPurchaseStatus.LAUNCHING || state.status == PlanPurchaseStatus.VERIFYING) return@update state
             if (state.offers.any { it.product.storeProductId == productId }) {
                 state.copy(selectedProductId = productId, status = if (state.effectivePremium) PlanPurchaseStatus.VERIFIED else PlanPurchaseStatus.READY, errorCode = null)
             } else state

@@ -381,3 +381,20 @@ Deno.test("selection has no billing, purchase, subscription, entitlement or acce
     );
   }
 });
+
+Deno.test("category quota accepts five plus five roots and rejects eleven before RPC", async () => {
+  for (const count of [6, 10, 11]) {
+    const h = harness({ data: quotaSelectionResponse });
+    const items = Array.from({ length: count }, (_, i) => ({
+      resource_id: `62000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      resource_type: "CATEGORY_ROOT",
+    }));
+    const response = await h.handler(request("/quota-selection", {
+      method: "POST", headers: { authorization: `Bearer ${validJwt}`, "content-type": "application/json" },
+      body: JSON.stringify({ ...quotaSelectionRequest, feature_key: "CUSTOM_CATEGORIES", items }),
+    }));
+    assertEquals(response.status, count <= 10 ? 200 : 400);
+    assertEquals(h.calls.length, count <= 10 ? 1 : 0);
+    if (count <= 10) assertEquals(h.calls[0].args.items, items);
+  }
+});

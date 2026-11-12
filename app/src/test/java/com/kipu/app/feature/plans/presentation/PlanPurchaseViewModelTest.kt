@@ -95,6 +95,32 @@ class PlanPurchaseViewModelTest {
         assertEquals(GooglePlayPurchaseState.PENDING, viewModel.uiState.value.providerPurchaseState)
     }
 
+    @Test
+    fun `selecting another offer during launch or verification cannot enable concurrent purchase`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val annual = annualOffer()
+        val monthly = annual.copy(product = annual.product.copy(storeProductId = "monthly", option = CommercialOption.MONTHLY))
+        val repository = FakeRepository(listOf(annual, monthly))
+        val viewModel = PlanPurchaseViewModel(repository)
+        advanceUntilIdle()
+        val activity = mockk<Activity>(relaxed = true)
+        viewModel.startPurchase(activity)
+        viewModel.selectOffer("monthly")
+        assertEquals(PlanPurchaseStatus.LAUNCHING, viewModel.uiState.value.status)
+        assertEquals(annual.product.storeProductId, viewModel.uiState.value.selectedProductId)
+        viewModel.startPurchase(activity)
+        advanceUntilIdle()
+        assertEquals(1, repository.launchCount)
+        repository.results.emit(BillingVerificationResult.Verifying(annual.product.storeProductId))
+        advanceUntilIdle()
+        viewModel.selectOffer("monthly")
+        assertEquals(PlanPurchaseStatus.VERIFYING, viewModel.uiState.value.status)
+        assertEquals(annual.product.storeProductId, viewModel.uiState.value.selectedProductId)
+        viewModel.startPurchase(activity)
+        advanceUntilIdle()
+        assertEquals(1, repository.launchCount)
+    }
+
     private fun annualOffer() = LocalizedBillingOffer(
         product = BillingProduct("annual", "kipu_pro_annual", "annual", "Kipu Pro Anual", CommercialOption.ANNUAL, BillingProductKind.SUBSCRIPTION),
         formattedPrice = "S/ 27,10 al año",
@@ -107,9 +133,10 @@ class PlanPurchaseViewModelTest {
     private class FakeRepository(offers: List<LocalizedBillingOffer>) : BillingPurchaseRepository {
         val results = MutableSharedFlow<BillingVerificationResult>(extraBufferCapacity = 8)
         private val catalog = offers
+        var launchCount = 0
         override val purchaseResults = results
         override suspend fun loadOffers() = catalog
-        override suspend fun startPurchase(activity: Activity, offer: LocalizedBillingOffer) = Unit
+        override suspend fun startPurchase(activity: Activity, offer: LocalizedBillingOffer) { launchCount++ }
         override suspend fun refreshPurchases() = Unit
     }
 }

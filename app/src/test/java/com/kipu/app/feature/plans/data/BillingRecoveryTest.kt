@@ -15,6 +15,10 @@ import com.kipu.app.core.network.AuthenticatedSessionProvider
 import com.kipu.app.feature.plans.domain.model.*
 import io.mockk.*
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
@@ -89,6 +93,67 @@ class BillingRecoveryTest {
             sessions = sessions,
             accessCache = accessCache,
         )
+    }
+
+
+    @Test fun callbacksAreVerifiedWithoutScreenAndLateObserverOnlyReadsResult() = runTest {
+        val updates = MutableSharedFlow<StorePurchaseUpdate>(extraBufferCapacity = 8)
+        every { gateway.purchaseUpdates } returns updates
+        val fixture = premiumRestoreFixture()
+        fixture.repository.startProcessing(backgroundScope)
+        fixture.repository.startProcessing(backgroundScope) // Repeated startup must not create another processor.
+        updates.emit(StorePurchaseUpdate("premium", EphemeralPurchaseToken("pending-approved"), StorePurchaseState.PURCHASED))
+        runCurrent()
+        coVerify(exactly = 1) { fixture.api.verify(any(), any(), any()) }
+        coVerify(exactly = 1) { fixture.accessCache.putCommercialVerified(any(), any()) }
+        assertEquals(verifiedPremium(), fixture.repository.purchaseResults.first())
+        coVerify(exactly = 1) { fixture.api.verify(any(), any(), any()) }
+    }
+
+    @Test fun lateScreenDoesNotReplayPreviousAccountsPremiumResult() = runTest {
+        val updates = MutableSharedFlow<StorePurchaseUpdate>(extraBufferCapacity = 8)
+        every { gateway.purchaseUpdates } returns updates
+        val fixture = premiumRestoreFixture()
+        fixture.repository.startProcessing(backgroundScope)
+        updates.emit(StorePurchaseUpdate("premium", EphemeralPurchaseToken("owner-a"), StorePurchaseState.PURCHASED))
+        runCurrent()
+        coEvery { fixture.sessions.currentSession() } returns AuthenticatedSession(UUID.randomUUID(), "owner-b-token")
+        val observed = mutableListOf<BillingVerificationResult>()
+        backgroundScope.launch { fixture.repository.purchaseResults.collect { observed += it } }
+        runCurrent()
+        assertEquals(emptyList<BillingVerificationResult>(), observed)
+    }
+
+    @Test fun callbackFailureDoesNotStopApplicationProcessor() = runTest {
+        val updates = MutableSharedFlow<StorePurchaseUpdate>(extraBufferCapacity = 8)
+        every { gateway.purchaseUpdates } returns updates
+        val fixture = premiumRestoreFixture()
+        coEvery { fixture.api.verify(any(), any(), any()) } throws IllegalStateException("offline")
+        fixture.repository.startProcessing(backgroundScope)
+        updates.emit(StorePurchaseUpdate("premium", EphemeralPurchaseToken("first"), StorePurchaseState.PURCHASED))
+        runCurrent()
+        assertEquals(BillingVerificationResult.Retryable("VERIFICATION_UNAVAILABLE"), fixture.repository.purchaseResults.first())
+        coEvery { fixture.api.verify(any(), any(), any()) } returns verifiedPremium()
+        updates.emit(StorePurchaseUpdate("premium", EphemeralPurchaseToken("retry"), StorePurchaseState.PURCHASED))
+        runCurrent()
+        assertEquals(verifiedPremium(), fixture.repository.purchaseResults.first())
+        coVerify(exactly = 1) { fixture.accessCache.putCommercialVerified(any(), any()) }
+    }
+
+    @Test fun restoredCanceledPaidSubscriptionInstallsVerifiedOfflineGrant() = runTest {
+        val fixture = premiumRestoreFixture()
+        val canceled = verifiedPremium().copy(
+            providerPurchaseState = GooglePlayPurchaseState.CANCELLED,
+            lifecycle = PurchaseLifecycle.CANCELED_ACTIVE,
+        )
+        coEvery { fixture.api.verify(any(), any(), any()) } returns canceled
+        coEvery { gateway.recoverPurchaseUpdates() } returns listOf(
+            StorePurchaseUpdate("premium", EphemeralPurchaseToken("canceled-paid"), StorePurchaseState.PURCHASED),
+        )
+        assertEquals(canceled, fixture.repository.restoreAndVerifyAccess())
+        coVerify(exactly = 1) { fixture.accessCache.putCommercialVerified(match {
+            it.entitlementExpiresAt?.toEpochMilli() == canceled.effectiveExpiresAtEpochMillis
+        }, any()) }
     }
 
     @Test fun noPurchaseCompletesWithoutLoadingCatalogOrClearingAccess() = runTest {

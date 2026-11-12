@@ -38,6 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.feature.plans.presentation.PlanPurchaseViewModel
+import com.kipu.app.feature.plans.domain.model.CommercialOption
+import com.kipu.app.feature.plans.domain.model.LocalizedBillingOffer
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.feature.movements.domain.model.*
@@ -1158,7 +1163,13 @@ private fun MovementFiltersSheetContent(
 
     // MODAL UPSELL KIPU PRO
     if (showUpsell) {
+        val purchaseViewModel: PlanPurchaseViewModel = hiltViewModel()
+        val purchaseState by purchaseViewModel.uiState.collectAsStateWithLifecycle()
+        val annualOffer = purchaseState.offers.firstOrNull {
+            it.product.option == CommercialOption.ANNUAL && !it.product.storeProductId.startsWith("dev:")
+        }
         KipuProUpsellDialog(
+            annualOffer = annualOffer,
             onDismiss = { showUpsell = false },
             onGetPro = {
                 showUpsell = false
@@ -1681,6 +1692,7 @@ private fun AdvancedFiltersControls(
 private fun KipuProUpsellDialog(
     onDismiss: () -> Unit,
     onGetPro: () -> Unit,
+    annualOffer: LocalizedBillingOffer? = null,
 ) {
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
@@ -1774,72 +1786,31 @@ private fun KipuProUpsellDialog(
                 }
             }
 
-            // Pricing Option Card
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = semanticColors.incomeBg,
-                border = BorderStroke(1.5.dp, themeColors.primary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+            annualOffer?.let { offer ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.5.dp, themeColors.primary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = themeColors.primary
-                        ) {
-                            Text(
-                                text = "AHORRA 40%",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                ),
-                                color = themeColors.surface,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = true,
-                                onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = themeColors.primary)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = "Plan Anual",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = themeColors.inkPrimary
-                                )
-                                Text(
-                                    text = "Equivale a S/ 4.99 /mes",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = themeColors.inkSecondary
-                                )
-                            }
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "S/ 59.90",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = themeColors.primary
-                            )
-                            Text(
-                                text = "/año",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = themeColors.inkSecondary
-                            )
-                        }
+                        Text(
+                            text = "Plan Anual",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = themeColors.inkPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = offer.formattedPrice,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = themeColors.primary,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.End
+                        )
                     }
                 }
             }

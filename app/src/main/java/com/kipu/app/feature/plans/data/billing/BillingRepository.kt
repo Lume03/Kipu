@@ -17,9 +17,16 @@ import com.kipu.app.feature.plans.domain.model.LocalizedBillingOffer
 import com.kipu.app.feature.plans.domain.model.StorePurchaseState
 import com.kipu.app.feature.plans.purchase.BillingPurchaseRepository
 import java.security.MessageDigest
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.transform
 
 @Singleton
@@ -33,17 +40,41 @@ class BillingRepository @Inject constructor(
     private val grantVerifier: OfflineEntitlementGrantVerifier,
     private val entitlementEvaluator: EffectiveEntitlementEvaluator,
 ) : BillingPurchaseRepository {
-    override val purchaseResults: Flow<BillingVerificationResult> = gateway.purchaseUpdates.transform { update ->
-        if (update.state == StorePurchaseState.PURCHASED) emit(BillingVerificationResult.Verifying(update.productId))
-        emit(processPurchaseUpdate(update))
+    private data class OwnedResult(val userId: UUID?, val result: BillingVerificationResult)
+    private val results = MutableSharedFlow<OwnedResult>(replay = 1)
+    override val purchaseResults: Flow<BillingVerificationResult> = results.transform { update ->
+        // A late screen must never replay another signed-in account's result.
+        if (sessions.currentSession()?.userId == update.userId) emit(update.result)
+    }
+    private var processingJob: Job? = null
+
+    /** Started by Application: verification continues when the purchase screen closes. */
+    @Synchronized
+    fun startProcessing(scope: CoroutineScope) {
+        if (processingJob != null) return
+        processingJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            gateway.purchaseUpdates.collect { update ->
+                var owner: UUID? = null
+                val result = try {
+                    val session = sessions.currentSession()
+                    owner = session?.userId
+                    if (update.state == StorePurchaseState.PURCHASED) results.emit(OwnedResult(owner, BillingVerificationResult.Verifying(update.productId)))
+                    processPurchaseUpdate(update, expectedSession = session)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    BillingVerificationResult.Retryable("VERIFICATION_UNAVAILABLE")
+                }
+                results.emit(OwnedResult(owner, result))
+            }
+        }
     }
 
     override suspend fun loadOffers(): List<LocalizedBillingOffer> {
         val session = sessions.currentSession() ?: return emptyList()
         val catalog = api.loadProducts(session)
         val offers = gateway.queryOffers(catalog)
-        // Restore Play purchases after the result collector is active; restored and new purchases
-        // must use the same server verification and acknowledgement path.
+        // The application collector is already active, independently of UI observers.
         runCatching { gateway.requeryPurchases() }
         return offers
     }

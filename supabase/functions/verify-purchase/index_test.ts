@@ -25,6 +25,11 @@ const lifetime: ProductRecord = {
   planType: "PRO_LIFETIME",
 };
 
+function accountHash(owner: string): string {
+  // SHA-256 fixtures match BillingRepository's UTF-8 com.kipu.app:<UUID> binding.
+  return owner === ownerB ? "d07420365a0384c5fcbedb6989ca5b06e5cbdf33888a27eef66e2f165d5cd663" : "b8067f97613b84f866ea4674f87c662a07a9cc1dbca57a730219d15129fc4ac5";
+}
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -50,6 +55,7 @@ function request(payload: unknown, init: RequestInit = {}) {
 
 function harness(options: {
   owner?: string | null;
+  accountId?: string | null;
   product?: ProductRecord | null;
   provider?: ProviderPurchase;
   providerError?: Error;
@@ -89,7 +95,11 @@ function harness(options: {
     verifyPurchase: () => {
       calls.verify++;
       if (options.providerError) return Promise.reject(options.providerError);
-      return Promise.resolve(provider);
+      return Promise.resolve({
+        obfuscatedAccountId: options.accountId === undefined
+          ? accountHash(options.owner ?? ownerA) : options.accountId,
+        ...provider,
+      });
     },
     persistPurchase: (input) => Promise.resolve((() => {
       calls.persist++;
@@ -124,8 +134,8 @@ function harness(options: {
       return {
         result: input.purchaseState === "PENDING" ? "PENDING" : "VERIFIED",
         purchaseId: row.id,
-        effectivePremium: input.purchaseState === "PURCHASED" &&
-          input.entitlementState === "ACTIVE",
+        effectivePremium: (input.purchaseState === "PURCHASED" && ["ACTIVE", "IN_GRACE_PERIOD"].includes(input.entitlementState ?? "")) ||
+          (input.purchaseState === "CANCELLED" && input.entitlementState === "CANCELED_ACTIVE" && Date.parse(input.expiresAt ?? "") > Date.now()),
         effectiveExpiresAt: input.expiresAt,
       };
     })()),
@@ -499,4 +509,34 @@ Deno.test("audit events retain only allowlisted provider metadata", async () => 
     stored.includes("GOOGLE_PLAY") && stored.includes("PURCHASED"),
     "safe provider metadata remains for audit",
   );
+});
+
+Deno.test("missing or foreign Play account identity is rejected before first binding or acknowledgement", async () => {
+  for (const accountId of [null, "", accountHash(ownerB)]) {
+    const h = harness({ accountId });
+    const response = await h.handler(request({ productId: monthly.storeProductId, purchaseToken: "unbound-token" }));
+    assert(response.status === 400, "identity is mandatory even for a previously unseen token");
+    const result = await body(response);
+    assert(result.code === (accountId ? "PURCHASE_ACCOUNT_ID_MISMATCH" : "PURCHASE_ACCOUNT_ID_MISSING"), "clear rejection code");
+    assert(h.calls.persist === 0 && h.calls.acknowledge === 0 && h.calls.acknowledgementClaims === 0, "no write or acknowledgement before identity check");
+  }
+});
+
+Deno.test("restoring canceled paid access issues an offline grant bounded by aggregate expiry", async () => {
+  const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+  const issued: unknown[] = [];
+  const grant = { payload: "payload", signature: "signature", keyId: "key-1" };
+  const h = harness({
+    provider: {
+      purchaseState: "CANCELLED", entitlementState: "CANCELED_ACTIVE",
+      acknowledgementState: "ACKNOWLEDGED", startsAt: null, expiresAt,
+      orderId: "paid-canceled", willRenew: false, sanitizedPayload: {},
+    },
+    issueOfflineGrant: (input) => { issued.push(input); return Promise.resolve(grant); },
+  });
+  const response = await h.handler(request({ productId: monthly.storeProductId, purchaseToken: "paid-canceled-token", restoreCandidate: true, installationPublicKey: "device-public-key" }));
+  const result = await body(response);
+  assert(response.status === 200 && result.effectivePremium === true, "paid cancellation retains Premium");
+  assert(JSON.stringify(result.offlineEntitlementGrant) === JSON.stringify(grant), "grant reaches restored installation");
+  assert(issued.length === 1 && (issued[0] as { entitlementEndsAt: string }).entitlementEndsAt === expiresAt, "grant uses persisted paid end");
 });

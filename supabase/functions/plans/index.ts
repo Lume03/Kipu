@@ -69,7 +69,7 @@ function validSelection(value: unknown): value is Record<string, unknown> {
 
 const quotaLimits: Record<string, number> = {
   INSTRUMENTS: 4,
-  CUSTOM_CATEGORIES: 5,
+  CUSTOM_CATEGORIES: 10, // SQL enforces five EXPENSE + five INCOME roots.
   DEBTS: 2,
   GOALS: 2,
   BUDGETS: 2,

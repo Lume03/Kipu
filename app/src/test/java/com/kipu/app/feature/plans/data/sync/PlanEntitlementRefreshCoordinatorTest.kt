@@ -27,7 +27,8 @@ class PlanEntitlementRefreshCoordinatorTest {
         val refresh = mockk<PlanEntitlementRefresh>()
         coEvery { refresh.refreshIfNeeded(any()) } returns TestPlanRefreshResult(true)
         val scheduler = mockk<PlanEntitlementRefreshScheduler>(relaxed = true)
-        val coordinator = PlanEntitlementRefreshCoordinator(session, dagger.Lazy { refresh }, scheduler)
+        val billing = mockk<com.kipu.app.feature.plans.data.billing.BillingRepository>(relaxed = true)
+        val coordinator = PlanEntitlementRefreshCoordinator(session, dagger.Lazy { refresh }, scheduler, dagger.Lazy { billing })
         coordinator.start(backgroundScope)
         runCurrent()
         // A cold process must preserve work until encrypted-session restoration finishes.
@@ -39,6 +40,7 @@ class PlanEntitlementRefreshCoordinatorTest {
         coVerify(exactly = 1) { refresh.refreshIfNeeded("owner") }
         coordinator.onForeground()
         coVerify(exactly = 1) { refresh.refreshIfNeeded(null) }
+        coVerify(exactly = 2) { billing.refreshPurchases() }
 
         access.value = LocalAccess.Protected("owner", "LOCKED")
         runCurrent()

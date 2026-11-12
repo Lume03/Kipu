@@ -20,6 +20,7 @@ export type ProductRecord = GoogleProduct & {
 };
 
 export type ProviderPurchase = {
+  obfuscatedAccountId?: string | null;
   purchaseState: "PURCHASED" | "PENDING" | "CANCELLED";
   entitlementState: string | null;
   acknowledgementState: "PENDING" | "ACKNOWLEDGED";
@@ -215,6 +216,14 @@ export async function verifyCurrentPurchaseForOwner(
     throw new ProviderRejectedError("UNKNOWN_PRODUCT");
   }
   const provider = await dependencies.verifyPurchase(product, purchaseToken);
+  // shortcut: una compra antigua sin este dato quedaría rechazada; si apareciera alguna,
+  // habría que añadir una vinculación por posesión del token con fecha de corte.
+  if (!provider.obfuscatedAccountId) {
+    throw new ProviderRejectedError("PURCHASE_ACCOUNT_ID_MISSING");
+  }
+  if (provider.obfuscatedAccountId !== await sha256Hex(`com.kipu.app:${userId}`)) {
+    throw new ProviderRejectedError("PURCHASE_ACCOUNT_ID_MISMATCH");
+  }
   if (provider.entitlementState !== null && !SAFE_LIFECYCLE_STATES.has(provider.entitlementState)) {
     throw new ProviderRejectedError("PURCHASE_REJECTED");
   }
@@ -306,7 +315,7 @@ export async function verifyCurrentPurchaseForOwner(
   }
 
   const offlineEntitlementGrant = !rtdnContext &&
-      provider.purchaseState === "PURCHASED" && persisted.effectivePremium &&
+      persisted.effectivePremium &&
       typeof installationPublicKey === "string" && dependencies.issueOfflineGrant
     ? await dependencies.issueOfflineGrant({
       userId,
@@ -412,7 +421,9 @@ export function createVerifyPurchaseHandler(dependencies: Dependencies) {
       ));
     } catch (error) {
       if (error instanceof ProviderRejectedError) {
-        return errorResponse("PURCHASE_REJECTED", false, 400);
+        return errorResponse(
+          ["PURCHASE_ACCOUNT_ID_MISSING", "PURCHASE_ACCOUNT_ID_MISMATCH"].includes(error.message)
+            ? error.message : "PURCHASE_REJECTED", false, 400);
       }
       if (error instanceof ProviderUnavailableError) {
         return errorResponse("PROVIDER_UNAVAILABLE", true, 503);

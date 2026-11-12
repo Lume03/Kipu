@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 @HiltAndroidApp
 class KipuApplication : Application(), Configuration.Provider {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject lateinit var billing: com.kipu.app.feature.plans.data.billing.BillingRepository
     @Inject lateinit var planEntitlementRefresh: PlanEntitlementRefreshCoordinator
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -33,6 +34,7 @@ class KipuApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        billing.startProcessing(applicationScope)
         planEntitlementRefresh.start(applicationScope)
         budgetMaintenanceScheduler.ensurePeriodic()
         evidencePurgeScheduler.ensurePeriodic()

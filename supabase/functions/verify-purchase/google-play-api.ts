@@ -140,7 +140,7 @@ export function mapOneTimeLifecycle(state: string): string {
   }
 }
 
-export function createGooglePlayApi(env: Env) {
+export function createGooglePlayApi(env: Env, fetcher: typeof fetch = fetch) {
   const packageName = env.get("GOOGLE_PLAY_PACKAGE_NAME") ?? "com.kipu.app";
   let cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
@@ -167,7 +167,7 @@ export function createGooglePlayApi(env: Env) {
     const assertion = `${unsigned}.${base64Url(new Uint8Array(signature))}`;
     let response: Response;
     try {
-      response = await fetch(TOKEN_ENDPOINT, {
+      response = await fetcher(TOKEN_ENDPOINT, {
         method: "POST",
         signal: AbortSignal.timeout(10_000),
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -207,7 +207,7 @@ export function createGooglePlayApi(env: Env) {
   ): Promise<Record<string, unknown>> {
     let response: Response;
     try {
-      response = await fetch(url, {
+      response = await fetcher(url, {
         ...init,
         signal: init.signal ?? AbortSignal.timeout(10_000),
         headers: {
@@ -260,9 +260,13 @@ export function createGooglePlayApi(env: Env) {
           "Google Play product does not match the catalog item",
         );
       }
-      const purchaseState = typeof details.purchaseState === "string"
-        ? details.purchaseState
-        : "";
+      const context = details.purchaseStateContext as Record<string, unknown> | undefined;
+      const purchaseState = typeof context?.purchaseState === "string"
+        ? context.purchaseState
+        : typeof details.purchaseState === "string" ? details.purchaseState : "";
+      if (!["PURCHASED", "PENDING", "CANCELLED"].includes(purchaseState)) {
+        throw new ProviderRejectedError("Unknown Google Play product purchase state");
+      }
       const normalized = mapOneTimeLifecycle(purchaseState);
       const acknowledgmentState =
         details.acknowledgementState === "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED"
@@ -270,6 +274,8 @@ export function createGooglePlayApi(env: Env) {
           : "PENDING";
       const pending = normalized === "PENDING";
       return {
+        obfuscatedAccountId: typeof details.obfuscatedExternalAccountId === "string"
+          ? details.obfuscatedExternalAccountId : null,
         purchaseState: pending
           ? "PENDING"
           : purchaseState === "CANCELLED"
@@ -321,7 +327,10 @@ export function createGooglePlayApi(env: Env) {
       details.acknowledgementState === "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED"
         ? "ACKNOWLEDGED"
         : "PENDING";
+    const external = details.externalAccountIdentifiers as Record<string, unknown> | undefined;
     return {
+      obfuscatedAccountId: typeof external?.obfuscatedExternalAccountId === "string"
+        ? external.obfuscatedExternalAccountId : null,
       purchaseState: pending
         ? "PENDING"
         : state === "SUBSCRIPTION_STATE_CANCELED"
