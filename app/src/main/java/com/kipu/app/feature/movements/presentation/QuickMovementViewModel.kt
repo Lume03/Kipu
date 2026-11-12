@@ -1015,7 +1015,7 @@ class QuickMovementViewModel @Inject constructor(
             state.selectedSourceAccountId.orEmpty(), selectedWallet?.linkedAccountId?.value, selectedWallet?.preset?.name,
         )
         val command = RegisterTransactionCommand(
-            idempotencyKey = receiptDraftId?.let { "yape-candidate:$it" } ?: UUID.randomUUID().toString(),
+            idempotencyKey = receiptDraftId?.let { "yape-candidate:$it" } ?: draftIdempotencyKey,
             userId = userId,
             type = state.type,
             amountMinor = amountMinor,
@@ -1180,9 +1180,8 @@ class QuickMovementViewModel @Inject constructor(
     fun onConfirmDuplicate() {
         val pending = _uiState.value.pendingCommandForDuplicate ?: return
         if (_uiState.value.isSaving) return
-        // Generate new idempotencyKey to treat as separate legitimate purchase
+        // Confirming similarity keeps the identity of this draft.
         val newCommand = pending.copy(
-            idempotencyKey = if (receiptDraftId != null) pending.idempotencyKey else UUID.randomUUID().toString(),
             ignoreSimilarityWarning = true,
         )
         _uiState.update { it.copy(showDuplicateWarning = false, pendingCommandForDuplicate = null, duplicateExistingTransaction = null, isSaving = true) }
@@ -1253,7 +1252,10 @@ class QuickMovementViewModel @Inject constructor(
         }
     }
 
+    private var draftIdempotencyKey = UUID.randomUUID().toString()
+
     fun resetForm() {
+        draftIdempotencyKey = UUID.randomUUID().toString()
         receiptDraftId = null
         receiptConfirmation = null
         categorySelectionRevision++

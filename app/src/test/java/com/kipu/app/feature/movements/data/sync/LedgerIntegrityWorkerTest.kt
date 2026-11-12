@@ -50,7 +50,7 @@ class LedgerIntegrityWorkerTest {
         local = MovementLocalDataSource(database, dao, BalanceProjectionStore(dao))
         every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to userId)
         every { session.currentOwner } returns LocalOwner(userId)
-        every { session.remoteSession } returns MutableStateFlow(RemoteSession.Absent)
+        every { session.remoteSession } returns MutableStateFlow(RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
         coEvery { financialApi.pullChanges(any(), any()) } answers {
             FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), firstArg<PullChangesRequestDto>().afterSequence, false))
         }
@@ -82,14 +82,14 @@ class LedgerIntegrityWorkerTest {
     }
 
     @Test
-    fun permanentHttp422CompensatesBut401And403KeepCommittedMoney() = runBlocking {
+    fun permanentHttp422And403CompensateBut401KeepsCommittedMoney() = runBlocking {
         for (status in listOf(401, 403, 422)) {
             val tx = register(command())
             coEvery { api.registerTransaction(any(), any()) } returns MovementApiResponse.Error(status, null)
             worker().doWork()
             val stored = requireNotNull(dao.getTransactionById(userId, tx.id))
-            assertEquals(if (status == 422) "VOIDED" else "ACTIVE", stored.status)
-            assertEquals(if (status == 422) 0L else 2_000L,
+            assertEquals(if (status != 401) "VOIDED" else "ACTIVE", stored.status)
+            assertEquals(if (status != 401) 0L else 2_000L,
                 dao.getLedgerEntriesForTransaction(userId, tx.id).sumOf { it.signedAmountMinor })
             // Finish auth retries so each iteration exercises only its own command.
             dao.getPendingOutboxForTransaction(userId, tx.id).forEach {

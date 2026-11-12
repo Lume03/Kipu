@@ -143,6 +143,27 @@ class QuickMovementViewModelTest {
     }
 
     @Test
+    fun `two failed saves keep draft identity until reset`() = runTest {
+        advanceUntilIdle()
+        fakeMovementRepo.registrationFails = true
+        viewModel.onAmountChanged("12.50")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onSave()
+        advanceUntilIdle()
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertEquals(2, fakeMovementRepo.registeredCommands.size)
+        assertEquals(fakeMovementRepo.registeredCommands[0].idempotencyKey, fakeMovementRepo.registeredCommands[1].idempotencyKey)
+        val oldKey = fakeMovementRepo.registeredCommands.last().idempotencyKey
+        viewModel.resetForm()
+        viewModel.onAmountChanged("12.50")
+        viewModel.onCategorySelected(viewModel.uiState.value.availableCategories.first { it.id == testCategoryId.value })
+        viewModel.onSave()
+        advanceUntilIdle()
+        assertTrue(oldKey != fakeMovementRepo.registeredCommands.last().idempotencyKey)
+    }
+
+    @Test
     fun `successful card expense can hand off recurrence without a second account expense`() = runTest {
         advanceUntilIdle()
         val event = async { viewModel.events.first() }
@@ -544,7 +565,7 @@ class QuickMovementViewModelTest {
     }
 
     @Test
-    fun `duplicate warning shows dialog and confirm registers with new key`() = runTest {
+    fun `duplicate warning confirms with the same draft key`() = runTest {
         advanceUntilIdle()
         fakeMovementRepo.triggerDuplicateWarning = true
 
@@ -564,6 +585,7 @@ class QuickMovementViewModelTest {
         assertEquals(false, viewModel.uiState.value.showDuplicateWarning)
         assertEquals(1, fakeMovementRepo.registeredCommands.size)
         assertTrue(fakeMovementRepo.registeredCommands.first().ignoreSimilarityWarning)
+        assertEquals(initialKey, fakeMovementRepo.registeredCommands.first().idempotencyKey)
     }
 
     @Test
@@ -933,8 +955,8 @@ class QuickMovementViewModelTest {
         override suspend fun getTransactionById(userId: String, transactionId: String): Transaction? = null
 
         override suspend fun registerTransaction(command: RegisterTransactionCommand): RegisterTransactionResult {
-            if (registrationFails) return RegisterTransactionResult.Failure("test failure")
             registeredCommands.add(command)
+            if (registrationFails) return RegisterTransactionResult.Failure("test failure")
             return RegisterTransactionResult.Success(
                 Transaction(
                     id = UUID.randomUUID().toString(),

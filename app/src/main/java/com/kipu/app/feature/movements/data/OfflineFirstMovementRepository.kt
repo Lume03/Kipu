@@ -44,6 +44,18 @@ class OfflineFirstMovementRepository @Inject constructor(
     private val expenseChangeListener: ExpenseConsumptionChangeListener = NoOpExpenseConsumptionChangeListener,
 ) : MovementRepository, MovementMaintenanceRepository, MovementRefundRepository, ExpenseConsumptionRepository, MovementHistoryQueryRepository {
 
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean {
+        val changed = localDataSource.retryFailed(userId, commandId)
+        if (changed) syncScheduler.scheduleSync(userId)
+        return changed
+    }
+
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean {
+        val changed = localDataSource.discardLocal(userId, commandId)
+        if (changed) syncScheduler.scheduleSync(userId)
+        return changed
+    }
+
     override fun observeTransactions(userId: String): Flow<List<TransactionItem>> =
         observeItems(userId, localDataSource.observeTransactions(userId))
 

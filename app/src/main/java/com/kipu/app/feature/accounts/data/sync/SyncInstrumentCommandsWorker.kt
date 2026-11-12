@@ -1,5 +1,9 @@
 package com.kipu.app.feature.accounts.data.sync
 
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
+import com.kipu.app.core.session.RemoteSession
 import android.content.Context
 import androidx.room.withTransaction
 import com.kipu.app.feature.movements.data.sync.requireSyncOwner
@@ -66,7 +70,9 @@ class InstrumentSyncScheduler @Inject constructor(
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             "${SyncInstrumentCommandsWorker.WORK_PREFIX}_$userId",
-            ExistingWorkPolicy.KEEP,
+            // REPLACE, like movements: KEEP dropped a signal sent while the worker finished,
+            // and leases plus idempotency protect a cancelled in-flight command.
+            ExistingWorkPolicy.REPLACE,
             workRequest,
         )
     }
@@ -95,7 +101,6 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         const val KEY_USER_ID = "key_user_id"
         const val WORK_PREFIX = "instrument-sync"
         private const val COMMAND_LEASE_MICROS = 60_000_000L
-        private const val MAX_COMMAND_BATCHES = 100
         private val json = Json { ignoreUnknownKeys = true }
     }
 
@@ -120,6 +125,12 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             recovery.edit().putBoolean(recoveryKey, true).apply()
         }
 
+        val remote = sessionCoordinator.remoteSession.value
+        if (remote !is RemoteSession.Valid || remote.userId != targetUserId || !remote.expiresAt.isAfter(java.time.Instant.now())) {
+            ownerTransaction(targetUserId) { syncDao.waitForAuth(targetUserId) }
+            return Result.success()
+        }
+        ownerTransaction(targetUserId) { syncDao.resumeAuth(targetUserId) }
         val attemptedOperations = mutableSetOf<String>()
         var retryRequired = false
         suspend fun resultForRemainingCommands(): Result =
@@ -128,7 +139,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         // Re-query after each batch so a just-acknowledged predecessor can unlock its
         // successor in this run. Claim is a conditional Room update, so overlapping
         // workers cannot dispatch the same live lease.
-        repeat(MAX_COMMAND_BATCHES) {
+        while (!isStopped) {
+            currentCoroutineContext().ensureActive()
             // Revision zero is local-only. An edit queued before creation was
             // acknowledged must target its first official revision, never zero.
             // Revisit skipped edits after creation; the one-time contract marker
@@ -154,6 +166,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
 
             var claimedAny = false
             for (cmd in pendingCommands) {
+                currentCoroutineContext().ensureActive()
+                if (isStopped) return Result.retry()
                 val claimTime = System.currentTimeMillis() * 1_000L
                 val claimed = ownerTransaction(targetUserId) { syncDao.claimCommand(
                     userId = targetUserId,
@@ -180,7 +194,19 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             block().also { requireSyncOwner(sessionCoordinator, owner) }
         }
 
-    private suspend fun processCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean {
+    private suspend fun processCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean = try {
+        dispatchCommand(cmd, nowMicros)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: kotlinx.serialization.SerializationException) {
+        updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
+        true
+    } catch (_: Exception) {
+        updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "NETWORK_ERROR")
+        false
+    }
+
+    private suspend fun dispatchCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean {
         requireSyncOwner(sessionCoordinator, cmd.userId)
         if (cmd.commandType in setOf("CONFIRM_CREDIT_PURCHASE", "PAY_CREDIT_CARD", "ALLOCATE_CREDIT_PAYMENT")) {
             return processCanonicalCreditCommand(cmd, nowMicros)
@@ -241,6 +267,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
+        } catch (e: kotlinx.serialization.SerializationException) {
+            updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
+            return true
         } catch (e: Exception) {
             FinancialApiResponse.NetworkFailure(e)
         }
@@ -249,6 +278,11 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         return when (result) {
             is FinancialApiResponse.Success -> {
                 val response = result.data as? CommandResponseDto
+                if (response?.status in setOf("CONFLICT", "REJECTED")) {
+                    val failure = OutboxPolicy.classify(status = response?.status)
+                    updateCreditCommandState(cmd, stateFor(failure), if (failure == OutboxPolicy.Failure.RETRYABLE) nowMicros + 30_000_000L else null, response?.error ?: response?.status)
+                    return failure != OutboxPolicy.Failure.RETRYABLE
+                }
                 if (response == null || !response.status.equals("APPLIED", true) && !response.status.equals("DUPLICATE", true)) {
                     ownerTransaction(cmd.userId) { syncDao.updateState(cmd.userId, cmd.operationId, "ERROR", System.currentTimeMillis() * 1_000L + 10_000_000L, "INVALID_RESPONSE", System.currentTimeMillis() * 1_000L) }
                     return false
@@ -266,34 +300,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                 }
                 true
             }
-            is FinancialApiResponse.Error -> {
-                if (result.statusCode in 400..499 && result.statusCode != 401 && result.statusCode != 408 && result.statusCode != 429 && !(cmd.commandType == "UPDATE_DEBIT_CARD_IDENTITY" && result.statusCode == 404)) {
-                    val errorState = if (result.statusCode == 409) "CONFLICT" else "FAILED_PERMANENT"
-                    ownerTransaction(cmd.userId) { syncDao.updateState(
-                        userId = cmd.userId,
-                        operationId = cmd.operationId,
-                        newState = errorState,
-                        nextAttemptAt = null,
-                        errorCode = result.message,
-                        nowMicros = System.currentTimeMillis() * 1000L,
-                    ) }
-                    true
-                } else {
-                    // Retryable error
-                    val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
-                    val nextAttempt = (System.currentTimeMillis() + backoffSeconds * 1000L) * 1000L
-                    ownerTransaction(cmd.userId) { syncDao.updateState(
-                        userId = cmd.userId,
-                        operationId = cmd.operationId,
-                        newState = "ERROR",
-                        nextAttemptAt = nextAttempt,
-                        errorCode = result.message,
-                        nowMicros = System.currentTimeMillis() * 1000L,
-                    ) }
-                    false
-                }
-            }
+            is FinancialApiResponse.Error -> handleHttp(cmd, result.statusCode, nowMicros)
             is FinancialApiResponse.NetworkFailure -> {
+                if (result.exception is kotlinx.coroutines.CancellationException) throw result.exception
                 val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
                 val nextAttempt = (System.currentTimeMillis() + backoffSeconds * 1000L) * 1000L
                 ownerTransaction(cmd.userId) { syncDao.updateState(
@@ -381,6 +390,10 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     true
                 }
                 "REJECTED" -> {
+                    if (response.data.error?.retryable == true) {
+                        updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, response.data.error?.code)
+                        return false
+                    }
                     rejectCreditCommand(cmd, transactionId, response.data.error?.code ?: "REJECTED")
                     true
                 }
@@ -389,22 +402,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     false
                 }
             }
-            is FinancialApiResponse.Error -> {
-                if (response.statusCode in 400..499 && response.statusCode != 401 && response.statusCode != 408 && response.statusCode != 429) {
-                    if (response.statusCode == 409) {
-                        updateCreditCommandState(cmd, "CONFLICT", null, "HTTP_409")
-                        ownerTransaction(cmd.userId) { movementDao.updateTransactionSyncStatus(cmd.userId, transactionId, MovementSyncStatus.CONFLICT.name, System.currentTimeMillis()) }
-                    } else {
-                        rejectCreditCommand(cmd, transactionId, "HTTP_${response.statusCode}")
-                    }
-                    true
-                } else {
-                    val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
-                    updateCreditCommandState(cmd, "ERROR", nowMicros + backoffSeconds * 1_000_000L, "HTTP_" + response.statusCode)
-                    false
-                }
-            }
+            is FinancialApiResponse.Error -> handleHttp(cmd, response.statusCode, nowMicros, transactionId)
             is FinancialApiResponse.NetworkFailure -> {
+                if (response.exception is kotlinx.coroutines.CancellationException) throw response.exception
                 val backoffSeconds = (1L shl kotlin.math.min(cmd.attemptCount + 1, 6)) * 5L
                 updateCreditCommandState(
                     cmd,
@@ -442,7 +442,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     true
                 }
                 "CONFLICT", "REJECTED" -> {
-                    updateCreditCommandState(cmd, response.data.status, null, response.data.error?.code ?: response.data.status)
+                    val failure = OutboxPolicy.classify(status = response.data.status, retryable = response.data.error?.retryable)
+                    updateCreditCommandState(cmd, stateFor(failure), if (failure == OutboxPolicy.Failure.RETRYABLE) nowMicros + 30_000_000L else null, response.data.error?.code ?: response.data.status)
                     true
                 }
                 else -> {
@@ -450,14 +451,9 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     false
                 }
             }
-            is FinancialApiResponse.Error -> if (response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429) {
-                updateCreditCommandState(cmd, if (response.statusCode == 409) "CONFLICT" else "FAILED_PERMANENT", null, "HTTP_${response.statusCode}")
-                true
-            } else {
-                updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "HTTP_${response.statusCode}")
-                false
-            }
+            is FinancialApiResponse.Error -> handleHttp(cmd, response.statusCode, nowMicros)
             is FinancialApiResponse.NetworkFailure -> {
+                if (response.exception is kotlinx.coroutines.CancellationException) throw response.exception
                 updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "NETWORK_ERROR")
                 false
             }
@@ -470,6 +466,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     ): Boolean {
         val request = try {
             json.decodeFromString<UpdateCreditCardTermsRequestDto>(cmd.payloadJson)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (_: Exception) {
             updateCreditCommandState(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD")
             return true
@@ -486,7 +484,8 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     true
                 }
                 "CONFLICT", "REJECTED" -> {
-                    updateCreditCommandState(cmd, response.data.status, null, response.data.error?.code ?: response.data.status)
+                    val failure = OutboxPolicy.classify(status = response.data.status, retryable = response.data.error?.retryable)
+                    updateCreditCommandState(cmd, stateFor(failure), if (failure == OutboxPolicy.Failure.RETRYABLE) nowMicros + 30_000_000L else null, response.data.error?.code ?: response.data.status)
                     true
                 }
                 else -> {
@@ -494,18 +493,30 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
                     false
                 }
             }
-            is FinancialApiResponse.Error -> if (response.statusCode in 400..499 && response.statusCode != 408 && response.statusCode != 429) {
-                updateCreditCommandState(cmd, if (response.statusCode == 409) "CONFLICT" else "FAILED_PERMANENT", null, "HTTP_${response.statusCode}")
-                true
-            } else {
-                updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "HTTP_${response.statusCode}")
-                false
-            }
+            is FinancialApiResponse.Error -> handleHttp(cmd, response.statusCode, nowMicros)
             is FinancialApiResponse.NetworkFailure -> {
+                if (response.exception is kotlinx.coroutines.CancellationException) throw response.exception
                 updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "NETWORK_ERROR")
                 false
             }
         }
+    }
+
+    private fun stateFor(failure: OutboxPolicy.Failure): String = when (failure) {
+        OutboxPolicy.Failure.RETRYABLE -> "ERROR"
+        OutboxPolicy.Failure.WAITING_FOR_AUTH -> "WAITING_FOR_AUTH"
+        OutboxPolicy.Failure.CONFLICT -> "CONFLICT"
+        OutboxPolicy.Failure.PERMANENT -> "FAILED_PERMANENT"
+    }
+
+    private suspend fun handleHttp(cmd: InstrumentSyncOutboxEntity, code: Int, now: Long, transactionId: String? = null): Boolean {
+        val failure = OutboxPolicy.classify(httpStatus = code)
+        if (failure == OutboxPolicy.Failure.PERMANENT && transactionId != null) {
+            rejectCreditCommand(cmd, transactionId, "HTTP_$code")
+        } else {
+            updateCreditCommandState(cmd, stateFor(failure), if (failure == OutboxPolicy.Failure.RETRYABLE) now + 30_000_000L else null, "HTTP_$code")
+        }
+        return failure != OutboxPolicy.Failure.RETRYABLE
     }
 
     private suspend fun reconcilePurchaseInstallments(

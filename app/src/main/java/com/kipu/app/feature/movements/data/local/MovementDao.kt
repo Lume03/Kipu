@@ -32,14 +32,14 @@ interface MovementDao {
     @Query("""
         UPDATE movement_outbox SET state = 'PENDING', next_attempt_at = NULL,
             lease_until = NULL, last_error_code = NULL, updated_at = :now
-        WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND last_error_code IN ('HTTP_401', 'HTTP_403')
+        WHERE user_id = :userId AND state = 'FAILED_PERMANENT' AND last_error_code = 'HTTP_401'
     """)
     suspend fun recoverAuthRejectedOutbox(userId: String, now: Long): Int
 
     /** A renewed session makes the old authentication backoff obsolete. Active leases stay untouched. */
     @Query("""
-        UPDATE movement_outbox SET next_attempt_at = NULL, last_error_code = NULL, updated_at = :now
-        WHERE user_id = :userId AND state = 'RETRY' AND last_error_code IN ('HTTP_401', 'HTTP_403')
+        UPDATE movement_outbox SET state='PENDING', next_attempt_at = NULL, last_error_code = NULL, updated_at = :now
+        WHERE user_id = :userId AND (state = 'WAITING_FOR_AUTH' OR (state = 'RETRY' AND last_error_code = 'HTTP_401'))
             AND (lease_until IS NULL OR lease_until <= :now)
     """)
     suspend fun clearAuthRetryBackoff(userId: String, now: Long): Int
@@ -190,13 +190,17 @@ interface MovementDao {
 
     @Query(
         """
-        SELECT * FROM movement_outbox 
-        WHERE user_id = :userId 
+        SELECT command.* FROM movement_outbox AS command
+        WHERE command.user_id = :userId
           AND (state IN ('PENDING', 'RETRY') OR
                (state = 'IN_FLIGHT' AND lease_until IS NOT NULL AND lease_until <= :now))
           AND (next_attempt_at IS NULL OR next_attempt_at <= :now) 
           AND (lease_until IS NULL OR lease_until <= :now) 
-        ORDER BY created_at ASC, id ASC
+          AND NOT EXISTS (SELECT 1 FROM movement_outbox AS earlier
+            WHERE earlier.user_id=command.user_id AND earlier.aggregate_id=command.aggregate_id
+            AND (earlier.created_at < command.created_at OR (earlier.created_at=command.created_at AND earlier.rowid < command.rowid))
+            AND earlier.state IN ('PENDING','RETRY','IN_FLIGHT','WAITING_FOR_AUTH'))
+        ORDER BY created_at ASC, command.rowid ASC
         LIMIT :limit
         """
     )
@@ -206,7 +210,7 @@ interface MovementDao {
     suspend fun claimPendingOutbox(userId: String, now: Long, limit: Int = 10): List<MovementOutboxEntity> {
         require(limit > 0) { "Claim limit must be positive" }
         val leaseUntil = Math.addExact(now, 60_000L)
-        val candidates = findClaimableOutbox(userId, now, limit)
+        val candidates = findClaimableOutbox(userId, now, limit).distinctBy { it.aggregateId }
         candidates.forEach { command ->
             setOutboxLease(userId, command.id, "IN_FLIGHT", leaseUntil, now)
         }
@@ -232,11 +236,25 @@ interface MovementDao {
         if (stored.state != "IN_FLIGHT" || stored.leaseUntil != command.leaseUntil ||
             stored.updatedAt != command.updatedAt) return false
         updateOutboxResult(command.userId, command.id, state, nextAttemptAt, errorCode)
+        if (com.kipu.app.core.sync.OutboxPolicy.isTerminal(state)) blockSuccessors(command.userId, command.aggregateId, command.createdAt, command.id)
         if (transactionSyncStatus != null) {
             updateTransactionSyncStatus(command.userId, command.aggregateId, transactionSyncStatus)
         }
         return true
     }
+
+    @Query("""UPDATE movement_outbox SET state='BLOCKED', last_error_code='BLOCKED_BY_PREVIOUS', next_attempt_at=NULL, lease_until=NULL
+        WHERE user_id=:userId AND aggregate_id=:aggregateId
+        AND (created_at > :createdAt OR (created_at=:createdAt AND rowid > (SELECT rowid FROM movement_outbox WHERE user_id=:userId AND id=:id)))
+        AND state IN ('PENDING','RETRY','WAITING_FOR_AUTH')""")
+    suspend fun blockSuccessors(userId: String, aggregateId: String, createdAt: Long, id: String)
+
+    @Query("""UPDATE movement_outbox SET state='PENDING', next_attempt_at=NULL, last_error_code=NULL
+        WHERE user_id=:userId AND aggregate_id=:aggregateId AND state='BLOCKED'""")
+    suspend fun unblock(userId: String, aggregateId: String)
+
+    @Query("UPDATE movement_outbox SET state='WAITING_FOR_AUTH' WHERE user_id=:userId AND state IN ('PENDING','RETRY')")
+    suspend fun waitForAuth(userId: String)
 
     @Query("SELECT * FROM movement_outbox WHERE user_id = :userId AND id = :id")
     suspend fun getOutboxById(userId: String, id: String): MovementOutboxEntity?

@@ -55,10 +55,15 @@ interface InstrumentSyncDao {
               SELECT 1 FROM instrument_sync_outbox AS predecessor
               WHERE predecessor.user_id = command.user_id
                 AND predecessor.operation_id = command.predecessor_operation_id
-                AND predecessor.state = 'SYNCED'
+                AND predecessor.state IN ('SYNCED', 'DISCARDED')
             )
           )
-        ORDER BY command.created_at ASC, command.operation_id ASC
+          AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox AS earlier
+            WHERE earlier.user_id = command.user_id AND earlier.aggregate_type = command.aggregate_type
+            AND earlier.aggregate_id = command.aggregate_id
+            AND (earlier.created_at < command.created_at OR (earlier.created_at = command.created_at AND earlier.rowid < command.rowid))
+            AND earlier.state IN ('PENDING','ERROR','WAITING_FOR_AUTH','IN_FLIGHT'))
+        ORDER BY command.created_at ASC, command.rowid ASC
     """)
     suspend fun getPendingCommands(userId: String, nowMicros: Long): List<InstrumentSyncOutboxEntity>
 
@@ -76,16 +81,21 @@ interface InstrumentSyncDao {
               SELECT 1 FROM instrument_sync_outbox AS predecessor
               WHERE predecessor.user_id = instrument_sync_outbox.user_id
                 AND predecessor.operation_id = instrument_sync_outbox.predecessor_operation_id
-                AND predecessor.state = 'SYNCED'
+                AND predecessor.state IN ('SYNCED', 'DISCARDED')
             )
           )
+          AND NOT EXISTS (SELECT 1 FROM instrument_sync_outbox AS earlier
+            WHERE earlier.user_id = instrument_sync_outbox.user_id AND earlier.aggregate_type = instrument_sync_outbox.aggregate_type
+            AND earlier.aggregate_id = instrument_sync_outbox.aggregate_id
+            AND (earlier.created_at < instrument_sync_outbox.created_at OR (earlier.created_at = instrument_sync_outbox.created_at AND earlier.rowid < instrument_sync_outbox.rowid))
+            AND earlier.state IN ('PENDING','ERROR','WAITING_FOR_AUTH','IN_FLIGHT'))
     """)
     suspend fun claimCommand(userId: String, operationId: String, nowMicros: Long, leaseExpiresAt: Long): Int
 
     @Query("""
         SELECT * FROM instrument_sync_outbox 
         WHERE user_id = :userId AND aggregate_type = :aggregateType AND aggregate_id = :aggregateId
-        ORDER BY created_at DESC LIMIT 1
+        ORDER BY created_at DESC, rowid DESC LIMIT 1
     """)
     suspend fun getLatestForAggregate(userId: String, aggregateType: String, aggregateId: String): InstrumentSyncOutboxEntity?
 
@@ -95,7 +105,7 @@ interface InstrumentSyncDao {
             error_code = :errorCode, updated_at = :nowMicros
         WHERE user_id = :userId AND operation_id = :operationId
     """)
-    suspend fun updateState(
+    suspend fun writeState(
         userId: String,
         operationId: String,
         newState: String,
@@ -103,6 +113,34 @@ interface InstrumentSyncDao {
         errorCode: String?,
         nowMicros: Long,
     )
+
+    @androidx.room.Transaction
+    suspend fun updateState(userId: String, operationId: String, newState: String, nextAttemptAt: Long?, errorCode: String?, nowMicros: Long) {
+        writeState(userId, operationId, newState, nextAttemptAt, errorCode, nowMicros)
+        if (com.kipu.app.core.sync.OutboxPolicy.isTerminal(newState)) {
+            val failed = getByOperationId(userId, operationId) ?: return
+            blockSuccessors(userId, failed.aggregateType, failed.aggregateId, failed.createdAt, failed.operationId, nowMicros)
+        }
+    }
+
+    @Query("""UPDATE instrument_sync_outbox SET state='BLOCKED', error_code='BLOCKED_BY_PREVIOUS',
+        next_attempt_at=NULL, lease_expires_at=NULL, updated_at=:now
+        WHERE user_id=:userId AND aggregate_type=:type AND aggregate_id=:aggregateId
+        AND (created_at > :createdAt OR (created_at = :createdAt AND rowid > (SELECT rowid FROM instrument_sync_outbox WHERE user_id=:userId AND operation_id=:id)))
+        AND state IN ('PENDING','ERROR','WAITING_FOR_AUTH')""")
+    suspend fun blockSuccessors(userId: String, type: String, aggregateId: String, createdAt: Long, id: String, now: Long)
+
+    @Query("""UPDATE instrument_sync_outbox SET state='PENDING', next_attempt_at=NULL, error_code=NULL
+        WHERE user_id=:userId AND state='WAITING_FOR_AUTH'""")
+    suspend fun resumeAuth(userId: String)
+
+    @Query("""UPDATE instrument_sync_outbox SET state='WAITING_FOR_AUTH'
+        WHERE user_id=:userId AND state IN ('PENDING','ERROR')""")
+    suspend fun waitForAuth(userId: String)
+
+    @Query("""UPDATE instrument_sync_outbox SET state='PENDING', error_code=NULL, next_attempt_at=NULL
+        WHERE user_id=:userId AND aggregate_type=:type AND aggregate_id=:aggregateId AND state='BLOCKED'""")
+    suspend fun unblock(userId: String, type: String, aggregateId: String)
 
     @Query("""
         UPDATE instrument_sync_outbox

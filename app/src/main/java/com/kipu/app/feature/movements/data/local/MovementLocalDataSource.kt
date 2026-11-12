@@ -31,6 +31,21 @@ class MovementLocalDataSource @Inject constructor(
     private val revisionPlanner: MovementRevisionPlanner = MovementRevisionPlanner(),
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : MovementRefundRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = database.withTransaction {
+        val cmd = movementDao.getOutboxById(userId, commandId) ?: return@withTransaction false
+        if (!com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@withTransaction false
+        movementDao.updateOutboxResult(userId, commandId, "PENDING", null, null)
+        true
+    }
+
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = database.withTransaction {
+        val cmd = movementDao.getOutboxById(userId, commandId) ?: return@withTransaction false
+        if (!com.kipu.app.core.sync.OutboxPolicy.isTerminal(cmd.state)) return@withTransaction false
+        if (!MovementRejectionResolver(database, movementDao).discardTerminal(userId, cmd.aggregateId)) return@withTransaction false
+        movementDao.unblock(userId, cmd.aggregateId)
+        true
+    }
+
     fun observeTransactions(userId: String): Flow<List<TransactionEntity>> {
         return movementDao.observeTransactions(userId).map { rows -> rows.filter { it.status != "FAILED" }.map { withOutboxStatus(it) } }
     }

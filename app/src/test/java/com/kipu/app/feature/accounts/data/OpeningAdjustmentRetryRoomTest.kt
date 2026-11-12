@@ -31,6 +31,33 @@ class OpeningAdjustmentRetryRoomTest {
     @After fun tearDown() = f.close()
     private suspend fun create() = repository.createLiquidAccount(account, f.operation()).getOrThrow()
 
+    @Test fun `card commit succeeds when scheduler fails`() = runBlocking {
+        create()
+        every { scheduler.scheduleSync(any()) } throws IllegalStateException("scheduler unavailable")
+        val card = DebitCard(CardId.generate(), UserId(f.owner), issuer = "BCP", network = CardNetwork.VISA,
+            lastFourDigits = "4321", currency = Currency.PEN, linkedAccountId = account.id)
+        repository.registerDebitCard(card, f.operation()).getOrThrow()
+        assertNotNull(f.db.cardDao().getById(f.owner, card.id.value))
+        assertEquals(2, f.db.instrumentSyncDao().getPendingCount(f.owner))
+    }
+
+    @Test fun `retry only accepts transient failures and discard unblocks successors`() = runBlocking {
+        create()
+        val dao = f.db.instrumentSyncDao()
+        val command = dao.getLatestForAggregate(f.owner, "ACCOUNT", account.id.value)!!
+        dao.updateState(f.owner, command.operationId, "ERROR", 999999999999999L, "NETWORK_ERROR", 2)
+        assertTrue(repository.retryFailed(f.owner, command.operationId))
+        val child = command.copy(operationId = java.util.UUID.randomUUID().toString(), createdAt = command.createdAt + 1,
+            predecessorOperationId = command.operationId)
+        dao.insert(child)
+        dao.updateState(f.owner, command.operationId, "FAILED_PERMANENT", null, "REJECTED", 3)
+        assertFalse(repository.retryFailed(f.owner, command.operationId))
+        assertEquals("BLOCKED", dao.getByOperationId(f.owner, child.operationId)?.state)
+        assertTrue(repository.discardLocal(f.owner, command.operationId))
+        assertEquals("DISCARDED", dao.getByOperationId(f.owner, command.operationId)?.state)
+        assertEquals("PENDING", dao.getByOperationId(f.owner, child.operationId)?.state)
+    }
+
     @Test fun `replayed opening adjustment remains successful after outbox is removed`() = runBlocking {
         create(); val operation = f.operation()
         repository.recordOpeningAdjustment(account.id, Money(20000, Currency.PEN), date, operation).getOrThrow()

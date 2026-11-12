@@ -14,7 +14,7 @@ internal class MovementRejectionResolver(
     suspend fun discardTerminal(userId: String, transactionId: String): Boolean = database.withTransaction {
         val commands = dao.getAllOutboxForTransaction(userId, transactionId)
         if (commands.any { it.state in setOf("PENDING", "RETRY", "IN_FLIGHT") }) return@withTransaction false
-        val rejected = commands.filter { it.state == "FAILED_PERMANENT" }
+        val rejected = commands.filter { com.kipu.app.core.sync.OutboxPolicy.isTerminal(it.state) }
         val command = rejected.firstOrNull() ?: return@withTransaction false
         val tx = dao.getTransactionById(userId, transactionId) ?: return@withTransaction false
         // Previously compensated attempts already have immutable reconciliation evidence.
@@ -38,10 +38,10 @@ internal class MovementRejectionResolver(
 
     private suspend fun reject(command: MovementOutboxEntity, errorCode: String, terminal: Boolean = false): Boolean = database.withTransaction {
         // Authentication failures retain the local commit for reauthentication/retry.
-        require(errorCode !in setOf("HTTP_401", "HTTP_403"))
+        require(errorCode != "HTTP_401")
         val userId = command.userId
         val stored = dao.getOutboxById(userId, command.id) ?: return@withTransaction false
-        if (stored.state != (if (terminal) "FAILED_PERMANENT" else "IN_FLIGHT") || stored.leaseUntil != command.leaseUntil ||
+        if (stored.state != (if (terminal) command.state else "IN_FLIGHT") || stored.leaseUntil != command.leaseUntil ||
             stored.updatedAt != command.updatedAt) return@withTransaction false
         require(command.commandType in setOf("REGISTER", "REVISE_TRANSACTION", "VOID_TRANSACTION"))
         val transaction = checkNotNull(dao.getTransactionById(userId, command.aggregateId))
@@ -51,7 +51,7 @@ internal class MovementRejectionResolver(
             if (terminal) return@withTransaction false
             return@withTransaction dao.completeClaimedOutbox(command, "FAILED_PERMANENT", null, errorCode, "FAILED_PERMANENT")
         }
-        val pending = if (terminal) dao.getAllOutboxForTransaction(userId, transaction.id).filter { it.state == "FAILED_PERMANENT" }
+        val pending = if (terminal) dao.getAllOutboxForTransaction(userId, transaction.id).filter { com.kipu.app.core.sync.OutboxPolicy.isTerminal(it.state) || it.state == "BLOCKED" }
             else dao.getPendingOutboxForTransaction(userId, transaction.id)
         val revisions = dao.getRevisions(userId, transaction.id)
         val entries = dao.getLedgerEntriesForTransaction(userId, transaction.id)
@@ -139,8 +139,8 @@ internal class MovementRejectionResolver(
             BalanceProjectionStore(dao).rebuildBalanceFromLedger(userId, accountId, currency)
         }
         rejectedCommands.forEach { rejected ->
-            dao.updateOutboxResult(userId, rejected.id, "FAILED_PERMANENT", null,
-                if (rejected.id == command.id) errorCode else "DEPENDENCY_FAILED", now)
+            dao.updateOutboxResult(userId, rejected.id, if (rejected.id == command.id) "FAILED_PERMANENT" else "BLOCKED", null,
+                if (rejected.id == command.id) errorCode else "BLOCKED_BY_PREVIOUS", now)
             dao.updateCommandReceiptStatus(userId, rejected.idempotencyKey, "REJECTED", now)
         }
         true

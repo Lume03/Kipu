@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 interface FinancialInstrumentsRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = false
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = false
+
     companion object {
         const val FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS = FreePlanLimits.DEFAULT_INSTRUMENTS
     }

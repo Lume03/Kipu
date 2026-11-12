@@ -103,6 +103,31 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : FinancialInstrumentsRepository {
 
+    override suspend fun retryFailed(userId: String, commandId: String): Boolean {
+        if (currentUserId() != userId) return false
+        val changed = database.withTransaction {
+            val cmd = syncDao.getByOperationId(userId, commandId) ?: return@withTransaction false
+            if (!com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@withTransaction false
+            syncDao.updateState(userId, commandId, "PENDING", null, null, System.currentTimeMillis() * 1_000L)
+            true
+        }
+        if (changed) scheduleSyncBestEffort(userId)
+        return changed
+    }
+
+    override suspend fun discardLocal(userId: String, commandId: String): Boolean {
+        if (currentUserId() != userId) return false
+        val changed = database.withTransaction {
+            val cmd = syncDao.getByOperationId(userId, commandId) ?: return@withTransaction false
+            if (!com.kipu.app.core.sync.OutboxPolicy.isTerminal(cmd.state)) return@withTransaction false
+            syncDao.updateState(userId, commandId, "DISCARDED", null, cmd.errorCode, System.currentTimeMillis() * 1_000L)
+            syncDao.unblock(userId, cmd.aggregateType, cmd.aggregateId)
+            true
+        }
+        if (changed) scheduleSyncBestEffort(userId)
+        return changed
+    }
+
     private val json = Json { ignoreUnknownKeys = true }
     private val creditCommandJson = Json {
         ignoreUnknownKeys = true
@@ -234,7 +259,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
 
                 // 3. Insert into sync outbox
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", account.id.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", account.id.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -400,7 +425,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
 
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", accountId.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", accountId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -468,7 +493,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
 
-                val updatePredecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", accountId.value)?.operationId
+                val updatePredecessorOpId = syncDao.getLatestForAggregate(userId, "ACCOUNT", accountId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -487,7 +512,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -553,7 +578,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
                 val payloadJson = json.encodeToString(payload)
 
-                val debitPredecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", card.id.value)?.operationId
+                val debitPredecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", card.id.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -572,7 +597,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
             card
         }
     }
@@ -663,7 +688,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
                 val payloadJson = json.encodeToString(payload)
 
-                val creditPredecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", card.id.value)?.operationId
+                val creditPredecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", card.id.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -682,7 +707,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
             card
         }
     }
@@ -715,7 +740,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val canonicalPayload = json.encodeToString(payload)
                 val request = payload.copy(requestHash = sha256(canonicalPayload))
                 val payloadJson = creditCommandJson.encodeToString(request)
-                val predecessor = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessor = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -734,7 +759,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     ),
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -753,13 +778,13 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 syncDao.insert(InstrumentSyncOutboxEntity(
                     operationId = operationId.value, userId = userId, commandType = "UPDATE_DEBIT_CARD_IDENTITY",
                     aggregateType = "CARD", aggregateId = cardId.value,
-                    predecessorOperationId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId,
+                    predecessorOperationId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId,
                     expectedRevision = card.remoteRevision.coerceAtLeast(1), contractVersion = 1,
                     payloadJson = payloadJson, payloadHash = sha256(payloadJson), state = "PENDING",
                     createdAt = nowMicros, updatedAt = nowMicros,
                 ))
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -819,7 +844,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val canonicalPayload = json.encodeToString(payload)
                 val request = payload.copy(requestHash = sha256(canonicalPayload))
                 val payloadJson = creditCommandJson.encodeToString(request)
-                val predecessor = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessor = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -838,7 +863,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     ),
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -948,7 +973,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
 
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -967,7 +992,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -988,7 +1013,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadJson = json.encodeToString(payload)
                 val payloadHash = sha256(payloadJson)
 
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -1007,7 +1032,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -1201,7 +1226,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                         updatedAt = nowMillis,
                     ),
                 )
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -1221,7 +1246,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
             }
         }
-        if (commitResult.isSuccess) runCatching { syncScheduler.scheduleSync(userId) }
+        if (commitResult.isSuccess) scheduleSyncBestEffort(userId)
         return commitResult
     }
 
@@ -1461,7 +1486,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     ),
                 )
 
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, "CARD", cardId.value)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -1481,7 +1506,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 )
             }
         }
-        if (commitResult.isSuccess) runCatching { syncScheduler.scheduleSync(userId) }
+        if (commitResult.isSuccess) scheduleSyncBestEffort(userId)
         return commitResult
     }
     override suspend fun archiveInstrument(
@@ -1519,7 +1544,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadHash = sha256(payloadJson)
 
                 val aggregateType = if (isCard) "CARD" else "ACCOUNT"
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, aggregateType, instrumentId)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, aggregateType, instrumentId)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -1538,7 +1563,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 
@@ -1577,7 +1602,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                 val payloadHash = sha256(payloadJson)
 
                 val aggregateType = if (isCard) "CARD" else "ACCOUNT"
-                val predecessorOpId = syncDao.getLatestForAggregate(userId, aggregateType, instrumentId)?.operationId
+                val predecessorOpId = syncDao.getLatestForAggregate(userId, aggregateType, instrumentId)?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId
                 syncDao.insert(
                     InstrumentSyncOutboxEntity(
                         operationId = operationId.value,
@@ -1596,7 +1621,7 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
                     )
                 )
             }
-            syncScheduler.scheduleSync(userId)
+            scheduleSyncBestEffort(userId)
         }
     }
 

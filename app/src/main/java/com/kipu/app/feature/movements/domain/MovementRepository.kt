@@ -37,6 +37,9 @@ interface MovementRepository {
 
 // Separate ports preserve the existing registration API and its S2 clients.
 interface MovementMaintenanceRepository {
+    suspend fun retryFailed(userId: String, commandId: String): Boolean = false
+    suspend fun discardLocal(userId: String, commandId: String): Boolean = false
+
     suspend fun discardRejectedMovement(userId: String, transactionId: String): Boolean = false
     suspend fun getRevisionAudit(userId: String, transactionId: String): List<com.kipu.app.feature.movements.domain.model.MovementRevisionAudit> = emptyList()
     suspend fun getRevisionHead(userId: String, transactionId: String): com.kipu.app.feature.movements.domain.model.MovementRevisionHead?

@@ -758,6 +758,57 @@ class SyncMovementsWorkerTest {
         assertTrue(movementDao.hasUnfinishedOutbox(userId))
     }
 
+    @Test
+    fun unreadablePayloadIsRejectedWithoutRetry() = runTest {
+        val command = seedPendingIncome()
+        movementDao.insertOutbox(command.copy(payload = "not-json"))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        worker().doWork()
+        assertEquals("FAILED_PERMANENT", movementDao.getOutboxById(userId, command.id)?.state)
+        assertEquals("INVALID_PAYLOAD", movementDao.getOutboxById(userId, command.id)?.lastErrorCode)
+        assertEquals(0L, movementDao.getLedgerEntriesForTransaction(userId, command.aggregateId).sumOf { it.signedAmountMinor })
+        coVerify(exactly = 0) { movementApi.registerTransaction(any(), userId) }
+    }
+
+    @Test
+    fun elevenReadyCommandsDrainInOneExecution() = runTest {
+        val commands = (1..11).map { seedPendingIncome() }
+        coEvery { movementApi.registerTransaction(any(), userId) } returns MovementApiResponse.Success(RegisterTransactionResponseDto(status = "APPLIED"))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
+        commands.forEach { assertEquals("SYNCED", movementDao.getOutboxById(userId, it.id)?.state) }
+        coVerify(exactly = 11) { movementApi.registerTransaction(any(), userId) }
+    }
+
+    @Test
+    fun revisionCannotPassRegistrationInBackoff() = runTest {
+        val command = seedPendingIncome()
+        movementDao.updateOutboxResult(userId, command.id, "RETRY", System.currentTimeMillis() + 300_000L, "NETWORK_ERROR")
+        val edit = command.copy(id = UUID.randomUUID().toString(), idempotencyKey = UUID.randomUUID().toString(),
+            commandType = "REVISE_TRANSACTION", createdAt = command.createdAt + 1)
+        movementDao.insertOutbox(edit)
+        assertTrue(movementDao.claimPendingOutbox(userId, System.currentTimeMillis(), 10).isEmpty())
+        coVerify(exactly = 0) { movementApi.reviseOrVoidTransaction(any(), userId) }
+    }
+
+    @Test
+    fun walletPermanentFailureRejectsExpense() = runTest {
+        val command = seedPendingIncome()
+        val accountId = movementDao.getTransactionById(userId, command.aggregateId)!!.sourceAccountId!!
+        val payload = Json.parseToJsonElement(command.payload).jsonObject
+        val transaction = payload["transaction"]!!.jsonObject
+        movementDao.insertOutbox(command.copy(payload = kotlinx.serialization.json.JsonObject(payload + ("transaction" to
+            kotlinx.serialization.json.JsonObject(transaction + ("payment_channel" to kotlinx.serialization.json.JsonPrimitive("YAPE"))))).toString()))
+        database.instrumentSyncDao().insert(com.kipu.app.feature.accounts.data.local.InstrumentSyncOutboxEntity(
+            operationId = UUID.randomUUID().toString(), userId = userId, commandType = "CREATE_ACCOUNT", aggregateType = "ACCOUNT",
+            aggregateId = accountId, payloadJson = "{}", payloadHash = "hash", state = "FAILED_PERMANENT", createdAt = 1, updatedAt = 1))
+        coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(PullChangesResponseDto(emptyList(), 0L, false))
+        worker().doWork()
+        assertEquals("FAILED_PERMANENT", movementDao.getOutboxById(userId, command.id)?.state)
+        assertEquals("ACCOUNT_SYNC_FAILED", movementDao.getOutboxById(userId, command.id)?.lastErrorCode)
+        coVerify(exactly = 0) { movementApi.registerTransaction(any(), userId) }
+    }
+
     private suspend fun seedPendingIncome(): com.kipu.app.feature.movements.data.local.MovementOutboxEntity {
         val accountId = UUID.randomUUID().toString()
         accountDao.insert(AccountEntity(
@@ -771,7 +822,7 @@ class SyncMovementsWorkerTest {
             idempotencyKey = UUID.randomUUID().toString(), userId = userId, type = MovementType.INCOME,
             amountMinor = 800L, currency = "PEN", sourceAccountId = accountId, occurredAt = 1_000L,
         ), "original-hash")
-        return movementDao.findClaimableOutbox(userId, System.currentTimeMillis(), 10).single()
+        return movementDao.findClaimableOutbox(userId, System.currentTimeMillis(), 100).single { it.payload.contains(accountId) }
     }
 
     private suspend fun assertRejectedPageLeavesNoOpeningEffects(

@@ -1,5 +1,8 @@
 package com.kipu.app.feature.movements.data.sync
 
+import com.kipu.app.core.sync.OutboxPolicy
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
@@ -151,14 +154,21 @@ class SyncMovementsWorker @AssistedInject constructor(
             ownerTransaction(targetUserId) { movementDao.clearAuthRetryBackoff(targetUserId, System.currentTimeMillis()) }
         }
 
+        if (remoteSession !is RemoteSession.Valid || remoteSession.userId != targetUserId || !remoteSession.expiresAt.isAfter(Instant.now())) {
+            ownerTransaction(targetUserId) { movementDao.waitForAuth(targetUserId) }
+            return Result.success()
+        }
         var anyFailed = false
         // Lease immediately before each network call, rather than leasing a waiting batch.
-        for (index in 0 until 10) {
+        while (!isStopped) {
+            currentCoroutineContext().ensureActive()
             val now = System.currentTimeMillis()
             val cmd = ownerTransaction(targetUserId) { movementDao.claimPendingOutbox(targetUserId, now, limit = 1).firstOrNull() } ?: break
             if (!processCommand(cmd, now)) anyFailed = true
         }
 
+        if (isStopped) return Result.retry()
+        currentCoroutineContext().ensureActive()
         if (!hydration.pullChanges(targetUserId)) anyFailed = true
 
         // Earlier pulls appended the server's copy of offline-registered entries, posting them twice.
@@ -186,6 +196,12 @@ class SyncMovementsWorker @AssistedInject constructor(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: kotlinx.serialization.SerializationException) {
+            ownerTransaction(cmd.userId) {
+                if (cmd.commandType == "CREATE_REFUND") finishRefund(cmd, "FAILED_PERMANENT", null, "INVALID_PAYLOAD", "FAILED_PERMANENT", "REJECTED")
+                else MovementRejectionResolver(database, movementDao).rejectClaimed(cmd, "INVALID_PAYLOAD")
+            }
+            true
         } catch (e: Exception) {
             SecureLog.e("SyncMovementsWorker", "Error processing outbox command: ${e.javaClass.simpleName}")
             retryCommand(cmd, now, "PARSE_ERROR")
@@ -224,7 +240,10 @@ class SyncMovementsWorker @AssistedInject constructor(
                             finishRefund(cmd, "SYNCED", null, null, MovementSyncStatus.SYNCED.name, "SYNCED")
                         }
                     }
-                    "REJECTED" -> finishRefund(
+                    "REJECTED" -> if (response.data.error?.retryable == true) {
+                        retryCommand(cmd, now, response.data.error?.code ?: "REJECTED")
+                        false
+                    } else finishRefund(
                         cmd,
                         "FAILED_PERMANENT",
                         null,
@@ -241,6 +260,17 @@ class SyncMovementsWorker @AssistedInject constructor(
                     }
                 }
                 is MovementApiResponse.Error -> {
+                    when (OutboxPolicy.classify(httpStatus = response.statusCode)) {
+                        OutboxPolicy.Failure.WAITING_FOR_AUTH -> {
+                            movementDao.completeClaimedOutbox(cmd, "WAITING_FOR_AUTH", null, "HTTP_401")
+                            return@ownerTransaction true
+                        }
+                        OutboxPolicy.Failure.CONFLICT -> {
+                            movementDao.completeClaimedOutbox(cmd, "CONFLICT", null, "HTTP_409", MovementSyncStatus.CONFLICT.name)
+                            return@ownerTransaction true
+                        }
+                        else -> Unit
+                    }
                     val permanent = isPermanentHttpFailure(response.statusCode)
                     if (permanent) {
                         finishRefund(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}", MovementSyncStatus.FAILED_PERMANENT.name, "REJECTED")
@@ -283,7 +313,11 @@ class SyncMovementsWorker @AssistedInject constructor(
             val accountCommands = listOfNotNull(transaction.sourceAccountId, wallet?.id).mapNotNull { id ->
                 database.instrumentSyncDao().getLatestForAggregate(cmd.userId, "ACCOUNT", id)
             }
-            if (accountCommands.any { it.state != "SYNCED" }) {
+            if (accountCommands.any { OutboxPolicy.isTerminal(it.state) || it.state == "BLOCKED" }) {
+                ownerTransaction(cmd.userId) { MovementRejectionResolver(database, movementDao).rejectClaimed(cmd, "ACCOUNT_SYNC_FAILED") }
+                return true
+            }
+            if (accountCommands.any { it.state !in setOf("SYNCED", "DISCARDED") }) {
                 com.kipu.app.feature.accounts.data.sync.InstrumentSyncScheduler(applicationContext).scheduleSync(cmd.userId)
                 retryCommand(cmd, now, "ACCOUNT_SYNC_PENDING")
                 return false
@@ -320,6 +354,17 @@ class SyncMovementsWorker @AssistedInject constructor(
                     }
                 }
                 is MovementApiResponse.Error -> {
+                    when (OutboxPolicy.classify(httpStatus = response.statusCode)) {
+                        OutboxPolicy.Failure.WAITING_FOR_AUTH -> {
+                            movementDao.completeClaimedOutbox(cmd, "WAITING_FOR_AUTH", null, "HTTP_401")
+                            return@ownerTransaction true
+                        }
+                        OutboxPolicy.Failure.CONFLICT -> {
+                            movementDao.completeClaimedOutbox(cmd, "CONFLICT", null, "HTTP_409", MovementSyncStatus.CONFLICT.name)
+                            return@ownerTransaction true
+                        }
+                        else -> Unit
+                    }
                     val isPermanent = isPermanentHttpFailure(response.statusCode)
                     if (isPermanent) {
                         MovementRejectionResolver(database, movementDao).rejectClaimed(
@@ -360,26 +405,6 @@ class SyncMovementsWorker @AssistedInject constructor(
                 return false
             }
         }
-        if (cmd.dependsOnCommandId != null) {
-            val parentReceipt = movementDao.getReceipt(cmd.userId, cmd.dependsOnCommandId)
-            if (parentReceipt == null || parentReceipt.status !in listOf("APPLIED", "REVISED", "VOIDED")) {
-                val parentOutbox = movementDao.getOutboxById(cmd.userId, cmd.dependsOnCommandId)
-                if (parentOutbox?.state in listOf("CONFLICT", "FAILED_PERMANENT")) {
-                    ownerTransaction(cmd.userId) {
-                        movementDao.completeClaimedOutbox(
-                            cmd, "FAILED_PERMANENT", null, "DEPENDENCY_FAILED",
-                            MovementSyncStatus.FAILED_PERMANENT.name,
-                        )
-                    }
-                    return false
-                }
-                ownerTransaction(cmd.userId) {
-                    movementDao.updateOutboxResult(cmd.userId, cmd.id, "PENDING", now + 2_000L, "WAITING_DEPENDENCY")
-                }
-                return false
-            }
-        }
-
         val requestDto = json.decodeFromString<ReviseOrVoidTransactionRequestDto>(cmd.payload)
         val response = ownerRequest(cmd.userId) { api.reviseOrVoidTransaction(requestDto, cmd.userId) }
         return ownerTransaction(cmd.userId) {
@@ -460,6 +485,17 @@ class SyncMovementsWorker @AssistedInject constructor(
                     }
                 }
                 is MovementApiResponse.Error -> {
+                    when (OutboxPolicy.classify(httpStatus = response.statusCode)) {
+                        OutboxPolicy.Failure.WAITING_FOR_AUTH -> {
+                            movementDao.completeClaimedOutbox(cmd, "WAITING_FOR_AUTH", null, "HTTP_401")
+                            return@ownerTransaction true
+                        }
+                        OutboxPolicy.Failure.CONFLICT -> {
+                            movementDao.completeClaimedOutbox(cmd, "CONFLICT", null, "HTTP_409", MovementSyncStatus.CONFLICT.name)
+                            return@ownerTransaction true
+                        }
+                        else -> Unit
+                    }
                     val isPermanent = isPermanentHttpFailure(response.statusCode)
                     if (isPermanent && settlement != null) {
                         movementDao.completeClaimedOutbox(cmd, "FAILED_PERMANENT", null, "HTTP_${response.statusCode}",
@@ -508,7 +544,7 @@ class SyncMovementsWorker @AssistedInject constructor(
 
 /** 401/403 mean the session expired, not that the command is wrong; 408/429 are transient. */
 internal fun isPermanentHttpFailure(statusCode: Int): Boolean =
-    statusCode in 400..499 && statusCode !in setOf(401, 403, 408, 429)
+    OutboxPolicy.classify(httpStatus = statusCode) == OutboxPolicy.Failure.PERMANENT
 
 /** A late response is cancellation, never a retry that can write for the next session. */
 internal fun requireSyncOwner(coordinator: SessionCoordinator, userId: String) {

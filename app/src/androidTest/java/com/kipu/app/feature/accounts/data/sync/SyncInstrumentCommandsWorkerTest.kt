@@ -57,6 +57,8 @@ class SyncInstrumentCommandsWorkerTest {
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java).build()
         accountDao = database.accountDao()
+        every { sessionCoordinator.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)))
         every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(userId)
         every { workerParams.inputData } returns workDataOf(
             SyncInstrumentCommandsWorker.KEY_USER_ID to userId,
@@ -288,7 +290,56 @@ class SyncInstrumentCommandsWorkerTest {
         coVerify(exactly = 1) { syncDao.updateState(userId, command.operationId, "FAILED_PERMANENT", null, "CREDIT_LIMIT_EXCEEDED", any()) }
     }
 
-    private fun worker(movementDao: MovementDao = this.movementDao) = SyncInstrumentCommandsWorker(
+    @Test
+    fun failedPaymentDoesNotPrecedeNewIndependentPurchaseWithRealDao() = runTest {
+        val dao = database.instrumentSyncDao()
+        val payment = command("PAY_CREDIT_CARD", "CARD_PAYMENT")
+        dao.insert(payment)
+        coEvery { api.allocateCreditPayment(any(), expectedOwner = userId) } returns FinancialApiResponse.Success(
+            CreditCommandResponseDto(status = "REJECTED"))
+        worker(syncDao = dao).doWork()
+        assertEquals("FAILED_PERMANENT", dao.getByOperationId(userId, payment.operationId)?.state)
+        val latest = dao.getLatestForAggregate(userId, "CARD", payment.aggregateId)
+        val next = command("CONFIRM_CREDIT_PURCHASE", "CARD_PURCHASE").copy(aggregateId = payment.aggregateId, createdAt = 3,
+            predecessorOperationId = latest?.takeIf { com.kipu.app.core.sync.OutboxPolicy.canPrecede(it.state) }?.operationId)
+        val sameInstrumentRequest = request(next).let { it.copy(transaction = it.transaction.copy(cardId = payment.aggregateId)) }
+        val purchaseCommand = next.copy(payloadJson = Json.encodeToString(sameInstrumentRequest))
+        dao.insert(purchaseCommand)
+        val purchase = request(purchaseCommand).transaction
+        database.movementDao().insertTransaction(TransactionEntity(id = purchase.id, userId = userId,
+            type = "EXPENSE", amountMinor = purchase.amountMinor, currencyCode = "PEN", occurredAt = 1000,
+            status = "ACTIVE", syncStatus = "PENDING", createdAt = 1000, updatedAt = 1000,
+            cardId = purchase.cardId, operationKind = "CARD_PURCHASE", installmentCount = 3))
+        val installments = (1..3).map { number -> CreditInstallmentEntity(
+            id = UUID.randomUUID().toString(), userId = userId, transactionId = purchase.id,
+            installmentNumber = number, dueDate = number.toLong(), principalMinor = if (number == 3) 3334 else 3333,
+            interestMinor = 0, status = "PENDING", revision = 1, createdAt = 1000, updatedAt = 1000) }
+        database.creditDao().insertInstallments(installments)
+        coEvery { api.registerCreditPurchase(any(), expectedOwner = userId) } returns FinancialApiResponse.Success(
+            CreditCommandResponseDto(status = "APPLIED", installments = installments.map {
+                com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto(id = it.id, installmentNumber = it.installmentNumber,
+                    dueDate = java.time.LocalDate.ofEpochDay(it.dueDate).toString(), principalMinor = it.principalMinor) }))
+        worker(syncDao = dao).doWork()
+        assertEquals("SYNCED", dao.getByOperationId(userId, next.operationId)?.state)
+        coVerify(exactly = 1) { api.registerCreditPurchase(any(), expectedOwner = userId) }
+    }
+
+    @Test
+    fun unauthorizedThenAppliedPreservesCommandWithRealDao() = runTest {
+        val dao = database.instrumentSyncDao()
+        val cmd = command("UPDATE_CARD_PERSONAL_TEA", "STANDARD").let { base -> base.copy(payloadJson = Json.encodeToString(
+            com.kipu.app.feature.accounts.data.remote.UpdatePersonalTeaRequestDto(idempotencyKey = base.operationId,
+                requestHash = "hash", card = com.kipu.app.feature.accounts.data.remote.PersonalTeaCardCommandDto(base.aggregateId, 2500)))) }
+        dao.insert(cmd)
+        coEvery { api.updatePersonalTea(any(), expectedOwner = userId) } returnsMany listOf(FinancialApiResponse.Error(401, "expired"),
+            FinancialApiResponse.Success(com.kipu.app.feature.accounts.data.remote.PersonalTeaCommandResponseDto("APPLIED")))
+        worker(syncDao = dao).doWork()
+        assertEquals("WAITING_FOR_AUTH", dao.getByOperationId(userId, cmd.operationId)?.state)
+        worker(syncDao = dao).doWork()
+        assertEquals("SYNCED", dao.getByOperationId(userId, cmd.operationId)?.state)
+    }
+
+    private fun worker(movementDao: MovementDao = this.movementDao, syncDao: InstrumentSyncDao = this.syncDao) = SyncInstrumentCommandsWorker(
         appContext = context,
         workerParams = workerParams,
         syncDao = syncDao,
