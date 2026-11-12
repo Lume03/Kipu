@@ -232,8 +232,6 @@ dependencies {
     testImplementation(libs.androidx.navigation.testing)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.compose.ui.test.junit4)
-    testImplementation(libs.hilt.android.testing)
-    kspTest(libs.hilt.compiler)
 
     // Android tests
     androidTestImplementation(libs.androidx.junit)
@@ -242,13 +240,11 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.work.testing)
     androidTestImplementation(libs.androidx.navigation.testing)
-    androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.kotlin.test)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.mockk.agent)
-    kspAndroidTest(libs.hilt.compiler)
 
     // Debug
     debugImplementation(libs.androidx.compose.ui.tooling)
