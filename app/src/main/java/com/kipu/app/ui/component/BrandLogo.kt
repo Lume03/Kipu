@@ -71,11 +71,14 @@ enum class KipuBrand(
     }
 }
 
+private val DIACRITICS_REGEX = "\\p{Mn}+".toRegex()
+private val NON_ALPHANUMERIC_REGEX = "[^a-z0-9]+".toRegex()
+
 internal fun normalizeBrandKey(value: String): String = Normalizer
     .normalize(value, Normalizer.Form.NFD)
-    .replace("\\p{Mn}+".toRegex(), "")
+    .replace(DIACRITICS_REGEX, "")
     .lowercase(Locale.ROOT)
-    .replace("[^a-z0-9]+".toRegex(), " ")
+    .replace(NON_ALPHANUMERIC_REGEX, " ")
     .trim()
 
 /**

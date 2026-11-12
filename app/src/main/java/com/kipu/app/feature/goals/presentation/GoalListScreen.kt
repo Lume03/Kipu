@@ -477,14 +477,12 @@ private fun GoalSummaryCard(
                     fontWeight = FontWeight.SemiBold, color = colors.primaryDeep,
                     modifier = Modifier.background(colors.incomeBg, RoundedCornerShape(20.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
                 Spacer(Modifier.weight(1f))
-                val months = goal.targetDate?.takeIf { goal.status == GoalStatus.ACTIVE && remainingMinor > 0L }?.let {
-                    java.time.temporal.ChronoUnit.MONTHS.between(java.time.LocalDate.now().withDayOfMonth(1), it.withDayOfMonth(1)).coerceAtLeast(1L)
-                }
-                if (months != null) {
+                val monthlySuggestionMinor = goalMonthlySuggestion(goal, item.progress.reserved.minorUnits, java.time.LocalDate.now())
+                if (monthlySuggestionMinor != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Ahorra ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         MoneyText(
-                            com.kipu.app.core.finance.domain.model.Money((remainingMinor + months - 1) / months, goal.target.currency),
+                            com.kipu.app.core.finance.domain.model.Money(monthlySuggestionMinor, goal.target.currency),
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(" al mes", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

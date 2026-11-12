@@ -301,8 +301,7 @@ internal fun AuthFloatingField(
                         )
                     }
                 }
-                .border(1.5.dp, borderColor, shape)
-                .semantics { contentDescription = label },
+                .border(1.5.dp, borderColor, shape),
         )
         AuthErrorMessage(error)
     }
@@ -370,8 +369,7 @@ internal fun AuthBanner(message: String?, modifier: Modifier = Modifier) {
             Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 .background(colors.expenseBg, RoundedCornerShape(14.dp))
                 .border(1.dp, colors.expenseBorder, RoundedCornerShape(14.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Icon(Icons.Outlined.WarningAmber, null, Modifier.size(20.dp), tint = colors.expenseText)

@@ -63,20 +63,20 @@ fun KipuSkeletonBlock(
     cornerRadius: Dp = 10.dp,
 ) {
     val reducedMotion = rememberReducedMotionEnabled()
-    val alpha = if (reducedMotion) {
-        1f
+    val alphaState = if (reducedMotion) {
+        null
     } else {
         rememberInfiniteTransition(label = "skeleton").animateFloat(
             initialValue = 1f,
             targetValue = 0.55f,
             animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse),
             label = "skeleton_alpha",
-        ).value
+        )
     }
     Box(
         modifier
             .heightIn(min = height)
-            .graphicsLayer { this.alpha = alpha }
+            .graphicsLayer { this.alpha = alphaState?.value ?: 1f }
             .clip(RoundedCornerShape(cornerRadius))
             .background(color),
     )

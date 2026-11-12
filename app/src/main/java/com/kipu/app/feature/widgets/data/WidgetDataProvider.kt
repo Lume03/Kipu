@@ -141,7 +141,6 @@ class WidgetDataProvider @Inject constructor(
         dues(owner).first().rows
             .filter { it.status != DueStatus.PAID && it.obligationType == DebtObligationType.PAYABLE && it.outstanding.currency == currency }
             .sortedBy { it.dueDate }
-            .take(MAX_DUES)
             .map { due ->
                 DueRow(
                     title = due.title,
@@ -291,7 +290,6 @@ class WidgetDataProvider @Inject constructor(
 
     private companion object {
         const val LOAD_TIMEOUT_MILLIS = 12_000L
-        const val MAX_DUES = 6
         const val MAX_CAPTURES = 3
         const val WEEKS = 12
     }

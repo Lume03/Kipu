@@ -28,6 +28,7 @@ import com.kipu.app.feature.capture.domain.ExpectedPaymentStatus
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceSyncState
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.LocalDate
 
 @Composable
@@ -57,7 +58,7 @@ fun RecurrenceLifecycleScreen(
         recurrences.forEach { rule ->
             Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(rule.templateTransaction["concept"]?.toString()?.trim('"') ?: "Obligación", style = MaterialTheme.typography.titleMedium)
+                    Text((rule.templateTransaction["concept"] as? JsonPrimitive)?.content ?: "Obligación", style = MaterialTheme.typography.titleMedium)
                     Text(recurrenceStateLabel(rule.status, rule.nextDueDate), modifier = Modifier.testTag("recurrence_state_${rule.id}"))
                     (expectedPayments.firstOrNull { it.recurrenceId == rule.id && it.dueDate == rule.nextDueDate }
                         ?: expectedPayments.filter { it.recurrenceId == rule.id }.maxByOrNull { it.dueDate })?.let { payment ->

@@ -112,7 +112,7 @@ internal fun AuthTextField(
         OutlinedTextField(
             value = value, onValueChange = onValueChange, enabled = enabled,
             singleLine = true, isError = error != null,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics { contentDescription = label },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             placeholder = { Text(placeholder) },
             textStyle = MaterialTheme.typography.bodyLarge,
             visualTransformation = transformation,
@@ -183,7 +183,7 @@ internal fun AuthPrimaryButton(
     ) {
         if (loading) {
             CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp,
-                color = colors.primaryDeep)
+                color = colors.onPrimaryDeep)
             Spacer(Modifier.width(10.dp))
         }
         Text(if (loading) "Procesando…" else text, style = MaterialTheme.typography.titleSmall)

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -336,8 +337,12 @@ fun <T> KipuSegmentedControl(
                     .heightIn(min = minimumHeight)
                     .shadow(if (isSelected) selectedElevation else 0.dp, RoundedCornerShape(12.dp))
                     .background(bg, RoundedCornerShape(12.dp))
-                    .clickable(enabled = enabled && !isSelected, role = role) { onSelect(option) }
-                    .semantics { this.selected = isSelected }
+                    .selectable(
+                        selected = isSelected,
+                        enabled = enabled && !isSelected,
+                        role = role,
+                        onClick = { onSelect(option) },
+                    )
                     .then(tag(option).takeIf(String::isNotEmpty)?.let { Modifier.testTag(it) } ?: Modifier),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,

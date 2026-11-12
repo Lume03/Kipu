@@ -36,7 +36,12 @@ internal fun formatMoneyTextDisplay(
     isMasked: Boolean,
 ): String {
     if (isMasked) {
-        return if (currencySymbol != null) "$currencySymbol ••••••" else "••••••"
+        val symbol = currencySymbol ?: when {
+            amount.contains("S/") -> "S/"
+            amount.contains("$") -> "$"
+            else -> null
+        }
+        return if (symbol != null) "$symbol ••••••" else "••••••"
     }
 
     var text = amount.trim()

@@ -317,6 +317,7 @@ fun AnalyticsScreen(
                             data = data, options = options, currencies = currencies, currency = currency,
                             onCurrency = { currencyName = it.name }, today = today, monthNames = monthNames, navigation = navigation,
                             onCompare = { selectMode(AnalyticsMode.COMPARE) }, onPlans = onNavigateToPlans,
+                            filterAccountIds = ui.filters.accountIds,
                         )
                     }
                     is AnalyticsUiState.Comparison -> {
@@ -387,37 +388,39 @@ private fun AnalyticsHeader(
     onNavigateBack: (() -> Unit)?,
 ) {
     val colors = rememberCalmEmeraldColors()
-    Row(
-        Modifier.fillMaxWidth().background(colors.surfaceCard).statusBarsPadding().padding(start = if (onNavigateBack != null) 4.dp else 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (onNavigateBack != null) IconButton(onClick = onNavigateBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.analytics_back))
-        }
-        Text(
-            stringResource(R.string.analytics_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
-            color = colors.primaryText, modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        val description = stringResource(R.string.analytics_period_pill_desc, periodLabel)
+    Column(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).border(BorderStroke(1.dp, colors.borderSubtle), RoundedCornerShape(22.dp))
-                .clickable(enabled = periodEnabled, role = Role.Button, onClick = onPeriod)
-                .semantics { contentDescription = description }
-                .testTag(ANALYTICS_PERIOD_TAG)
-                .padding(start = 14.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.fillMaxWidth().background(colors.surfaceCard).statusBarsPadding().padding(start = if (onNavigateBack != null) 4.dp else 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(periodLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = colors.primaryText, modifier = Modifier.clearAndSetSemantics {})
-            Icon(Icons.Outlined.ExpandMore, contentDescription = null, tint = colors.primaryText, modifier = Modifier.size(18.dp))
-        }
-        IconButton(onClick = onToggleMask, modifier = Modifier.testTag(ANALYTICS_MASK_TOGGLE_TAG)) {
-            Icon(
-                if (masked) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                contentDescription = stringResource(if (masked) R.string.analytics_show_amounts else R.string.analytics_hide_amounts),
+            if (onNavigateBack != null) IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.analytics_back))
+            }
+            Text(
+                stringResource(R.string.analytics_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
+                color = colors.primaryText, modifier = Modifier.weight(1f).semantics { heading() },
             )
+            val description = stringResource(R.string.analytics_period_pill_desc, periodLabel)
+            Row(
+                Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp)).border(BorderStroke(1.dp, colors.borderSubtle), RoundedCornerShape(22.dp))
+                    .clickable(enabled = periodEnabled, role = Role.Button, onClick = onPeriod)
+                    .semantics { contentDescription = description }
+                    .testTag(ANALYTICS_PERIOD_TAG)
+                    .padding(start = 14.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(periodLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = colors.primaryText, modifier = Modifier.clearAndSetSemantics {})
+                Icon(Icons.Outlined.ExpandMore, contentDescription = null, tint = colors.primaryText, modifier = Modifier.size(18.dp))
+            }
+            IconButton(onClick = onToggleMask, modifier = Modifier.testTag(ANALYTICS_MASK_TOGGLE_TAG)) {
+                Icon(
+                    if (masked) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                    contentDescription = stringResource(if (masked) R.string.analytics_show_amounts else R.string.analytics_hide_amounts),
+                )
+            }
         }
+        HorizontalDivider(color = colors.borderSubtle)
     }
-    HorizontalDivider(color = colors.borderSubtle)
 }
 
 @Composable
@@ -489,6 +492,7 @@ private fun LazyListScope.analyticsContentItems(
     navigation: AnalyticsNavigation,
     onCompare: () -> Unit,
     onPlans: () -> Unit,
+    filterAccountIds: Set<String> = emptySet(),
 ) {
     val overview = data.overview
     val result = data.result
@@ -530,9 +534,13 @@ private fun LazyListScope.analyticsContentItems(
     }
     if (hasAccounts) {
         item(key = "balance") {
-            val series = remember(overview, result.period, currency) {
-                val ids = overview.accountsIn(currency).map { it.account.id.value }.toSet()
-                BalanceSeriesCalculator.series(result.period, overview.total(currency), ids, overview.deltas)
+            val series = remember(overview, result.period, currency, filterAccountIds) {
+                val accounts = overview.accountsIn(currency).filter { item ->
+                    filterAccountIds.isEmpty() || item.account.id.value in filterAccountIds
+                }
+                val ids = accounts.map { it.account.id.value }.toSet()
+                val total = Money(accounts.sumOf { it.balance.minorUnits }, currency)
+                BalanceSeriesCalculator.series(result.period, total, ids, overview.deltas)
             }
             BalanceLineSection(series, monthNames)
         }

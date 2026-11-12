@@ -1202,58 +1202,20 @@ private fun AdjustmentsAndClosureTab(
                     Column {
                         Text("2. Condonación de deuda", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
                         Text(
-                            if (isZeroBalance) "Completada con éxito" else "Extinción parcial o total sin ingreso monetario",
+                            "Extinción parcial o total sin ingreso monetario",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isZeroBalance) semanticColors.incomeText else emeraldColors.secondaryMuted,
+                            color = emeraldColors.secondaryMuted,
                         )
                     }
-                }
-                if (isZeroBalance) {
-                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = semanticColors.incomeText, modifier = Modifier.size(20.dp))
                 }
             }
 
             if (isZeroBalance) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = themeColors.surfaceSubtle,
-                    border = BorderStroke(1.dp, themeColors.border),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                "${formatMoneyTextDisplay(formatMinorUnits(0L), kipuCurrency.symbol(), isMasked)} exonerados",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = themeColors.inkPrimary,
-                            )
-                            Text(
-                                formatReadableSpanishDate(debt.openedOn.toString()),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = themeColors.inkSecondary,
-                            )
-                        }
-                        HorizontalDivider(color = themeColors.border)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(Icons.Rounded.Description, contentDescription = null, tint = themeColors.inkSecondary, modifier = Modifier.size(16.dp))
-                            Text(
-                                "Motivo: \"${debt.notes?.takeIf(String::isNotBlank) ?: "Acuerdo mutuo de exoneración comercial"}\"",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = themeColors.inkSecondary,
-                            )
-                        }
-                    }
-                }
+                Text(
+                    "Esta deuda ya tiene saldo cero. No hay saldo pendiente por condonar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = themeColors.inkSecondary,
+                )
             } else {
                 // Shortcut row: Atajo: Aplicar saldo total S/ XX.XX
                 Row(

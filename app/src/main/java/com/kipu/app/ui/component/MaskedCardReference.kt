@@ -28,11 +28,8 @@ fun MaskedCardReference(
     fontWeight: FontWeight? = null,
 ) {
     val sanitized = lastFourDigits.trim()
-    require(Card.isValidLastFourDigits(sanitized)) {
-        "lastFourDigits must be exactly 4 digits: '$lastFourDigits'"
-    }
-
-    val displayText = "•••• $sanitized"
+    val isValid = Card.isValidLastFourDigits(sanitized)
+    val displayText = if (isValid) "•••• $sanitized" else "••••"
 
     val finalStyle = if (style.fontFeatureSettings?.contains("tnum") == true) {
         style
@@ -43,7 +40,7 @@ fun MaskedCardReference(
     Text(
         text = displayText,
         modifier = modifier.semantics {
-            contentDescription = "Tarjeta terminada en $sanitized"
+            contentDescription = if (isValid) "Tarjeta terminada en $sanitized" else "Tarjeta"
         },
         color = color,
         style = finalStyle,

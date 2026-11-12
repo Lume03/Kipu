@@ -122,7 +122,6 @@ internal fun AuthFormScreen(
                 confirmationError = validation.reason
                 return
             }
-            confirmation = ""
             focus.clearFocus()
             keyboard?.hide()
             onRegisterClick()
@@ -242,7 +241,7 @@ internal fun AuthFormScreen(
             // Keeps the status bar icons readable once the teal header has scrolled away.
             val scrimAlpha by animateFloatAsState(if (scroll.value > 0) 1f else 0f, tween(150), label = "auth-status-scrim")
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(Color(0xFF0A5A54).copy(alpha = scrimAlpha)))
+                .background((if (colors.isDark) Color(0xFF052E2A) else Color(0xFF0A5A54)).copy(alpha = scrimAlpha)))
         }
     }
     if (uiState.showExistingAccountDialog) AlertDialog(

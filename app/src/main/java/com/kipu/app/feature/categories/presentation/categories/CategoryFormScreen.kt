@@ -79,12 +79,12 @@ import com.kipu.app.ui.theme.rememberKipuColors
 
 // Exact 6 quick icons + 7th item is the "+" button, matching Image 1
 private val QUICK_ICONS = listOf(
-    "tv", "music_note", "directions_car", "content_cut", "receipt", "shopping_cart"
+    "restaurant", "tv", "music_note", "directions_car", "content_cut", "receipt", "shopping_cart"
 )
 
 // Exact 6 quick colors + 7th item is the palette button, matching Image 1
 private val QUICK_COLORS = listOf(
-    "#06B6D4", "#3B82F6", "#8B5CF6", "#F97316", "#F43F5E", "#10B981"
+    "#0F766E", "#06B6D4", "#3B82F6", "#8B5CF6", "#F97316", "#F43F5E", "#10B981"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,6 +105,8 @@ fun CategoryFormDialog(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
     categoryId: String? = null,
+    isSaving: Boolean = false,
+    errorMessage: String? = null,
 ) {
     val colors = rememberKipuColors()
     val categoryOptions = remember(availableRoots) {
@@ -147,6 +149,8 @@ fun CategoryFormDialog(
             onBack = onDismiss,
             onDismiss = onDismiss,
             onConfirm = onConfirm,
+            isCreating = isSaving,
+            errorMessage = errorMessage,
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.88f),

@@ -24,7 +24,7 @@ import com.kipu.app.ui.theme.KipuMotionTokens
 @Composable
 internal fun RetainedRootTabs(
     selectedTabIndex: State<Int>,
-    pageCount: Int = 3,
+    pageCount: Int,
     content: @Composable () -> Unit,
 ) {
     val reducedMotion = rememberReducedMotionEnabled()

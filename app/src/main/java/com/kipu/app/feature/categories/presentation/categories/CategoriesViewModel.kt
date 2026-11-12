@@ -70,6 +70,7 @@ data class CategoriesUiState(
     val createCategoryType: CategoryType = CategoryType.EXPENSE,
     val showQuotaExceededDialog: Boolean = false,
     val categoryToDelete: CategoryItem? = null,
+    val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val selectedFreeCategoryRootIds: Set<CategoryId> = emptySet(),
@@ -155,17 +156,10 @@ class CategoriesViewModel @Inject constructor(
                         observeCategories.observePremiumVerified(userId),
                     ) { items, selected, premiumVerified -> Triple(items, selected, premiumVerified) }
                         .collect { (items, selected, premiumVerified) ->
-                        val activeRoots = items.count {
-                            it.category.isRoot && it.category.isCustom && it.category.isActive
-                        }
-                        val activeExpense = items.count {
-                            it.category.isRoot && it.category.isCustom && it.category.isActive &&
-                                (it.category.categoryType == CategoryType.EXPENSE || it.category.categoryType == CategoryType.GENERAL)
-                        }
-                        val activeIncome = items.count {
-                            it.category.isRoot && it.category.isCustom && it.category.isActive &&
-                                (it.category.categoryType == CategoryType.INCOME || it.category.categoryType == CategoryType.GENERAL)
-                        }
+                        val categoriesList = items.map { it.category }
+                        val activeRoots = CategoryRules.countActiveCustomRoots(categoriesList)
+                        val activeExpense = CategoryRules.countActiveCustomExpenseRoots(categoriesList)
+                        val activeIncome = CategoryRules.countActiveCustomIncomeRoots(categoriesList)
                         _uiState.update { current ->
                             current.copy(
                                 isLoading = false,
@@ -377,6 +371,8 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun submitCreateCategory() {
+        if (_uiState.value.isSaving) return
+
         val initiatingOwner = currentUserId ?: run {
             _uiState.update { it.copy(errorMessage = "No active user session") }
             return
@@ -396,6 +392,8 @@ class CategoriesViewModel @Inject constructor(
             return
         }
 
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+
         launchForOwner(initiatingOwner) { epoch ->
             if (state.isEditing) {
                 val editingId = state.editingCategoryId!!
@@ -414,15 +412,15 @@ class CategoriesViewModel @Inject constructor(
                 result.fold(
                     onSuccess = {
                         closeCreateDialog()
-                        _uiState.update { it.copy(successMessage = "Categoría actualizada con éxito") }
+                        _uiState.update { it.copy(isSaving = false, successMessage = "Categoría actualizada con éxito") }
                     },
                     onFailure = { error ->
-                        _uiState.update { it.copy(errorMessage = error.message ?: "Error al actualizar la categoría") }
+                        _uiState.update { it.copy(isSaving = false, errorMessage = error.message ?: "Error al actualizar la categoría") }
                     }
                 )
             } else {
                 if (state.createParentId == null && state.isFreeLimitReachedFor(submittedType)) {
-                    _uiState.update { it.copy(showQuotaExceededDialog = true) }
+                    _uiState.update { it.copy(isSaving = false, showQuotaExceededDialog = true) }
                     return@launchForOwner
                 }
                 val result = createCategory(
@@ -437,10 +435,10 @@ class CategoriesViewModel @Inject constructor(
                 result.fold(
                     onSuccess = {
                         closeCreateDialog()
-                        _uiState.update { it.copy(successMessage = "Categoría creada con éxito") }
+                        _uiState.update { it.copy(isSaving = false, successMessage = "Categoría creada con éxito") }
                     },
                     onFailure = { error ->
-                        _uiState.update { it.copy(errorMessage = error.message ?: "Error al crear la categoría") }
+                        _uiState.update { it.copy(isSaving = false, errorMessage = error.message ?: "Error al crear la categoría") }
                     }
                 )
             }

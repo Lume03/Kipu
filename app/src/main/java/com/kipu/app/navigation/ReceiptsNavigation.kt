@@ -115,6 +115,7 @@ internal fun ReceiptMovementEditorHost(
     content: @Composable ((String) -> Unit) -> Unit,
 ) {
     var editingMovementId by rememberSaveable { mutableStateOf<String?>(null) }
+    BackHandler(enabled = editingMovementId != null) { editingMovementId = null }
     content { editingMovementId = it }
     editingMovementId?.let { id ->
         androidx.compose.runtime.key(id) { editor(id) { editingMovementId = null } }
@@ -163,10 +164,12 @@ private fun ReceiptFlowScreen(
         sharedUri?.let(viewModel::requestSharedImport)
     }
     LaunchedEffect(state.addedEventId) {
-        state.addedEventId?.let { id ->
-            viewModel.consumeAddedEvent()
-            if (snackbar.showSnackbar("Comprobante agregado", "Ver", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) viewModel.select(id)
+        val id = state.addedEventId ?: return@LaunchedEffect
+        val result = snackbar.showSnackbar("Comprobante agregado", "Ver", duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.select(id)
         }
+        viewModel.consumeAddedEvent()
     }
     BackHandler(enabled = candidate != null || state.savedCandidate != null) { viewModel.closeEditor() }
     Scaffold(

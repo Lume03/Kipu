@@ -52,69 +52,6 @@ import androidx.compose.material.icons.filled.Work
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 
-data class CategoryColor(val name: String, val hex: String)
-
-val CATEGORY_PALETTE = listOf(
-    CategoryColor("Verde Kipu", "#0F766E"),
-    CategoryColor("Esmeralda", "#10B981"),
-    CategoryColor("Coral", "#E85D5D"),
-    CategoryColor("Ámbar", "#F59E0B"),
-    CategoryColor("Azul", "#0284C7"),
-    CategoryColor("Púrpura", "#8B5CF6"),
-    CategoryColor("Rosa", "#EC4899"),
-    CategoryColor("Pizarra", "#475569"),
-)
-
-data class CategoryIconItem(
-    val id: String,
-    val icon: ImageVector,
-    val label: String,
-)
-
-data class CategoryIconSection(
-    val title: String,
-    val icons: List<CategoryIconItem>,
-)
-
-val CATEGORY_ICON_SECTIONS = listOf(
-    CategoryIconSection(
-        title = "Alimentación y Compras",
-        icons = listOf(
-            CategoryIconItem("restaurant", Icons.Default.Restaurant, "Restaurante"),
-            CategoryIconItem("shopping_cart", Icons.Default.ShoppingCart, "Compras"),
-            CategoryIconItem("local_cafe", Icons.Default.LocalCafe, "Cafetería"),
-            CategoryIconItem("storefront", Icons.Default.Storefront, "Tienda"),
-        ),
-    ),
-    CategoryIconSection(
-        title = "Transporte y Viajes",
-        icons = listOf(
-            CategoryIconItem("directions_car", Icons.Default.DirectionsCar, "Auto"),
-            CategoryIconItem("directions_transit", Icons.Default.DirectionsTransit, "Transporte"),
-            CategoryIconItem("local_gas_station", Icons.Default.LocalGasStation, "Gasolina"),
-            CategoryIconItem("flight", Icons.Default.Flight, "Viajes"),
-        ),
-    ),
-    CategoryIconSection(
-        title = "Hogar y Servicios",
-        icons = listOf(
-            CategoryIconItem("home", Icons.Default.Home, "Hogar"),
-            CategoryIconItem("electric_bolt", Icons.Default.ElectricBolt, "Electricidad"),
-            CategoryIconItem("water_drop", Icons.Default.WaterDrop, "Agua"),
-            CategoryIconItem("wifi", Icons.Default.Wifi, "Internet"),
-        ),
-    ),
-    CategoryIconSection(
-        title = "Entretenimiento y Bienestar",
-        icons = listOf(
-            CategoryIconItem("movie", Icons.Default.Movie, "Cine"),
-            CategoryIconItem("fitness_center", Icons.Default.FitnessCenter, "Deportes"),
-            CategoryIconItem("medical_services", Icons.Default.MedicalServices, "Salud"),
-            CategoryIconItem("school", Icons.Default.School, "Educación"),
-        ),
-    ),
-)
-
 fun resolveCategoryIcon(iconId: String): ImageVector {
     return when (iconId.trim().lowercase()) {
         "delivery_dining" -> Icons.Default.DeliveryDining
@@ -165,13 +102,7 @@ fun resolveCategoryIcon(iconId: String): ImageVector {
         "pedal_bike", "bici" -> Icons.Default.PedalBike
         "star" -> Icons.Default.Star
         "label", "tag", "etiqueta", "category", "categoria", "categoría" -> Icons.Default.Label
-        else -> {
-            for (section in CATEGORY_ICON_SECTIONS) {
-                val found = section.icons.find { it.id.equals(iconId, ignoreCase = true) }
-                if (found != null) return found.icon
-            }
-            Icons.Default.Label
-        }
+        else -> Icons.Default.Label
     }
 }
 

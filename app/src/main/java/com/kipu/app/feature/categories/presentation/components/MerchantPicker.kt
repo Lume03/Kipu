@@ -308,7 +308,6 @@ fun MerchantPickerBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -420,10 +419,12 @@ fun MerchantPicker(
     }
 
     val filterColor = MaterialTheme.colorScheme.primary
-    val groupOptions = listOf(FilterOption<UiMerchantGroup?>(null, "Todos", Icons.Default.FilterList, filterColor, "merchant-filter-all")) +
-        availableGroups.map { group ->
-            FilterOption<UiMerchantGroup?>(group, group.label, Icons.Default.Storefront, filterColor, "merchant-filter-${group.name.lowercase()}")
-        }
+    val groupOptions = remember(availableGroups, filterColor) {
+        listOf(FilterOption<UiMerchantGroup?>(null, "Todos", Icons.Default.FilterList, filterColor, "merchant-filter-all")) +
+            availableGroups.map { group ->
+                FilterOption<UiMerchantGroup?>(group, group.label, Icons.Default.Storefront, filterColor, "merchant-filter-${group.name.lowercase()}")
+            }
+    }
     if (showGroupFilter) {
         OptionFilterSheet(
             title = "Filtrar comercios",

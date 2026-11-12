@@ -37,7 +37,7 @@ class RetainedRootTabsTest {
         val mounts = intArrayOf(0, 0, 0)
         val disposals = intArrayOf(0, 0, 0)
         compose.setContent {
-            RetainedRootTabs(selectedTabIndex = selected) {
+            RetainedRootTabs(selectedTabIndex = selected, pageCount = 3) {
                 repeat(3) { index ->
                     val isActive = selected.intValue == index
                     DisposableEffect(Unit) {
@@ -93,7 +93,7 @@ class RetainedRootTabsTest {
     @Test fun eachTabKeepsItsOwnScrollPosition() {
         val selected = mutableIntStateOf(0)
         compose.setContent {
-            RetainedRootTabs(selectedTabIndex = selected) {
+            RetainedRootTabs(selectedTabIndex = selected, pageCount = 3) {
                 repeat(3) { page ->
                     val scroll = rememberLazyListState()
                     LazyColumn(Modifier.fillMaxSize().testTag("list_$page"), state = scroll) {

@@ -42,9 +42,9 @@ class ReceiptFlowViewModelTest {
     @Before fun setup() {
         Dispatchers.setMain(dispatcher)
         every { session.localAccess } returns access
-        every { store.observe("owner") } returns flowOf(emptyList())
-        every { store.observeRegistered("owner") } returns flowOf(emptyList())
-        coEvery { store.get("owner", "candidate") } returns candidate
+        every { store.observe(any()) } returns flowOf(emptyList())
+        every { store.observeRegistered(any()) } returns flowOf(emptyList())
+        coEvery { store.get(any(), "candidate") } returns candidate
     }
     @After fun teardown() { Dispatchers.resetMain() }
     private fun viewModel(savedState: SavedStateHandle = SavedStateHandle()) =

@@ -1,5 +1,7 @@
 package com.kipu.app.feature.settings.presentation
 
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -134,7 +136,7 @@ fun BiometricSettingsScreen(
             BiometricSettingsContent(
                 state = state,
                 onToggleLocalUnlock = {
-                    val activity = context as? FragmentActivity
+                    val activity = context.findFragmentActivity()
                     if (state.isLocalUnlockEnabled && !state.canAuthenticate) confirmDisable = true
                     else if (activity != null) viewModel.toggleLocalUnlock(activity)
                 },
@@ -278,4 +280,10 @@ internal fun BiometricSettingsContent(
             }
         }
     }
+}
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
 }

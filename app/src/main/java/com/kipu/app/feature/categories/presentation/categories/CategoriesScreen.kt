@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
@@ -93,6 +94,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.feature.categories.domain.CategoryRules
 import com.kipu.app.feature.categories.domain.model.CategoryId
+import com.kipu.app.feature.categories.domain.model.CategoryType
 import com.kipu.app.feature.categories.domain.usecase.CategoryItem
 import com.kipu.app.feature.categories.presentation.parseHexColor
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
@@ -302,8 +304,8 @@ fun CategoriesScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Segmented Tabs: Gastos vs Ingresos
-                val expenseCount = CategoryTab.EXPENSE.filterCategories(state.categories).count { it.category.isRoot }
-                val incomeCount = CategoryTab.INCOME.filterCategories(state.categories).count { it.category.isRoot }
+                val expenseCount = CategoryTab.EXPENSE.filterCategories(state.categories).count { it.category.isRoot && it.category.isActive }
+                val incomeCount = CategoryTab.INCOME.filterCategories(state.categories).count { it.category.isRoot && it.category.isActive }
 
                 CategoryTypeTabs(state.selectedTab, expenseCount, incomeCount) {
                     expandedStates.clear()
@@ -321,7 +323,7 @@ fun CategoriesScreen(
                         selectedTab = state.selectedTab,
                         maxCount = state.maxCustomRoots,
                         isLimitReached = state.isFreeLimitReachedFor(state.selectedTab.categoryType),
-                        onOpenQuotaSelection = if (state.activeCustomExpenseRootsCount > state.maxCustomRoots || state.activeCustomIncomeRootsCount > state.maxCustomRoots) {
+                        onOpenQuotaSelection = if (state.activeCustomExpenseRootsCount >= state.maxCustomRoots || state.activeCustomIncomeRootsCount >= state.maxCustomRoots) {
                             viewModel::openQuotaSelection
                         } else null,
                     )
@@ -344,11 +346,11 @@ fun CategoriesScreen(
                     if (searchQuery.isBlank()) {
                         optionFiltered
                     } else {
-                        val q = searchQuery.trim().lowercase()
+                        val q = searchQuery.trim()
                         optionFiltered.mapNotNull { rootItem ->
-                            val matchesRoot = rootItem.displayName.lowercase().contains(q)
+                            val matchesRoot = CategoryRules.matchesNormalized(rootItem.displayName, q)
                             val matchingSubcategories = rootItem.subcategories.filter { sub ->
-                                sub.displayName.lowercase().contains(q)
+                                CategoryRules.matchesNormalized(sub.displayName, q)
                             }
                             if (matchesRoot || matchingSubcategories.isNotEmpty()) {
                                 rootItem.copy(subcategories = if (matchesRoot && matchingSubcategories.isEmpty()) rootItem.subcategories else matchingSubcategories)
@@ -374,7 +376,7 @@ fun CategoriesScreen(
                             ?: false
 
                         CategoryRootCard(
-                            item = rootItem,
+                            item = rootItem.copy(subcategories = rootItem.subcategories.filter { it.category.isActive }),
                             searchQuery = searchQuery,
                             isExpanded = isExpanded,
                             onToggleExpand = {
@@ -384,33 +386,42 @@ fun CategoriesScreen(
                             onDelete = { viewModel.requestDeleteCategory(rootItem) },
                             onEditSubcategory = { subItem -> viewModel.openEditDialog(subItem) },
                             onDeleteSubcategory = { subItem -> viewModel.requestDeleteCategory(subItem) },
+                            onToggleSubcategoryActive = { id, active -> viewModel.toggleCategoryActive(id, active) },
                             onAddSubcategory = { viewModel.openCreateDialog(rootItem.category.id) },
                         )
                     }
 
-                    val inactive = displayCategories.filterNot { it.category.isActive }
-                    item {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { showInactive = !showInactive }
-                                .testTag("categories_inactive_toggle").padding(vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(18.dp))
-                            Text("  Inactivas (${inactive.size})", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-                            Icon(Icons.Default.ExpandMore, contentDescription = if (showInactive) "Ocultar inactivas" else "Mostrar inactivas",
-                                modifier = Modifier.graphicsLayer { rotationZ = if (showInactive) 180f else 0f }, tint = colors.inkSecondary)
+                    val inactiveRoots = displayCategories.filterNot { it.category.isActive }
+                    val activeRootsWithInactiveSubs = displayCategories.filter { it.category.isActive && it.subcategories.any { sub -> !sub.category.isActive } }
+                        .map { it.copy(subcategories = it.subcategories.filterNot { sub -> sub.category.isActive }) }
+                    val inactiveDisplayList = inactiveRoots + activeRootsWithInactiveSubs
+                    val totalInactiveCount = inactiveRoots.size + displayCategories.filter { it.category.isActive }.sumOf { root -> root.subcategories.count { !it.category.isActive } }
+
+                    if (totalInactiveCount > 0) {
+                        item {
+                            Row(
+                                Modifier.fillMaxWidth().clickable { showInactive = !showInactive }
+                                    .testTag("categories_inactive_toggle").padding(vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.inkSecondary, modifier = Modifier.size(18.dp))
+                                Text("  Inactivas ($totalInactiveCount)", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                                Icon(Icons.Default.ExpandMore, contentDescription = if (showInactive) "Ocultar inactivas" else "Mostrar inactivas",
+                                    modifier = Modifier.graphicsLayer { rotationZ = if (showInactive) 180f else 0f }, tint = colors.inkSecondary)
+                            }
                         }
-                    }
-                    if (showInactive) items(inactive, key = { it.category.id.value }) { rootItem ->
-                        val expanded = expandedStates[rootItem.category.id.value] ?: false
-                        CategoryRootCard(
-                            item = rootItem, isExpanded = expanded, searchQuery = searchQuery,
-                            onToggleExpand = { expandedStates[rootItem.category.id.value] = !expanded },
-                            onEdit = { viewModel.openEditDialog(rootItem) },
-                            onToggleActive = { viewModel.toggleCategoryActive(rootItem.category.id, false) },
-                            onEditSubcategory = { viewModel.openEditDialog(it) },
-                            onDeleteSubcategory = { viewModel.requestDeleteCategory(it) },
-                        )
+                        if (showInactive) items(inactiveDisplayList, key = { "inactive_${it.category.id.value}" }) { rootItem ->
+                            val expanded = expandedStates[rootItem.category.id.value] ?: false
+                            CategoryRootCard(
+                                item = rootItem, isExpanded = expanded, searchQuery = searchQuery,
+                                onToggleExpand = { expandedStates[rootItem.category.id.value] = !expanded },
+                                onEdit = { viewModel.openEditDialog(rootItem) },
+                                onToggleActive = if (!rootItem.category.isActive) { { viewModel.toggleCategoryActive(rootItem.category.id, false) } } else null,
+                                onEditSubcategory = { viewModel.openEditDialog(it) },
+                                onDeleteSubcategory = { viewModel.requestDeleteCategory(it) },
+                                onToggleSubcategoryActive = { id, active -> viewModel.toggleCategoryActive(id, active) },
+                            )
+                        }
                     }
                     item { Spacer(modifier = Modifier.height(88.dp)) }
                 }
@@ -434,6 +445,8 @@ fun CategoriesScreen(
                         (state.createCategoryType != com.kipu.app.feature.categories.domain.model.CategoryType.GENERAL &&
                             it.category.categoryType == com.kipu.app.feature.categories.domain.model.CategoryType.GENERAL))
             },
+            isSaving = state.isSaving,
+            errorMessage = state.errorMessage,
             onNameChange = viewModel::onNameChanged,
             onIconChange = viewModel::onIconChanged,
             onColorChange = viewModel::onColorChanged,
@@ -758,8 +771,11 @@ fun CategoryRootCard(
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = if (item.category.isCustom) colors.primaryText else colors.inkSecondary)
                         }
-                        Text(if (item.category.isCustom) "Usa 1 cupo" else "No consume cupo",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.inkSecondary)
+                        Text(
+                            text = if (item.category.categoryType == CategoryType.GENERAL) "Usa 1 cupo en gastos e ingresos" else if (item.category.isCustom) "Usa 1 cupo" else "No consume cupo",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = colors.inkSecondary,
+                        )
                     }
                     // Status line if inactive or locked
                     if (item.category.isPlanLocked) {
@@ -933,22 +949,42 @@ fun CategoryRootCard(
                                                         onEditSubcategory(subItem)
                                                     },
                                                 )
-                                                DropdownMenuItem(
-                                                    text = { Text("Inactivar", color = MaterialTheme.colorScheme.error) },
-                                                    leadingIcon = {
-                                                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                                                    },
-                                                    onClick = {
-                                                        showSubMenu = false
-                                                        onDeleteSubcategory(subItem)
-                                                    },
-                                                )
+                                                if (subItem.category.isActive) {
+                                                    DropdownMenuItem(
+                                                        text = { Text("Inactivar", color = MaterialTheme.colorScheme.error) },
+                                                        leadingIcon = {
+                                                            Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                                        },
+                                                        onClick = {
+                                                            showSubMenu = false
+                                                            onToggleSubcategoryActive?.invoke(subItem.category.id, true) ?: onDeleteSubcategory(subItem)
+                                                        },
+                                                    )
+                                                } else {
+                                                    DropdownMenuItem(
+                                                        text = { Text("Reactivar", color = colors.primary) },
+                                                        leadingIcon = {
+                                                            Icon(Icons.Default.Refresh, contentDescription = null, tint = colors.primary)
+                                                        },
+                                                        onClick = {
+                                                            showSubMenu = false
+                                                            onToggleSubcategoryActive?.invoke(subItem.category.id, false)
+                                                        },
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                     if (!isRootActive) {
                                         Text(
                                             text = "Inactiva por categoría padre",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontSize = 11.sp,
+                                        )
+                                    } else if (!subItem.category.isActive) {
+                                        Text(
+                                            text = "Inactiva",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.error,
                                             fontSize = 11.sp,
@@ -1122,11 +1158,16 @@ private fun CategoryTypeTabsThemePreview() = KipuTheme {
 
 private fun highlightedCategoryName(name: String, query: String, accent: Color) = buildAnnotatedString {
     append(name)
-    if (query.isNotBlank()) {
-        var index = name.indexOf(query.trim(), ignoreCase = true)
-        while (index >= 0) {
-            addStyle(SpanStyle(background = accent.copy(alpha = 0.12f), fontWeight = FontWeight.Bold), index, index + query.trim().length)
-            index = name.indexOf(query.trim(), index + query.trim().length, ignoreCase = true)
+    val trimmed = query.trim()
+    if (trimmed.isNotBlank()) {
+        var index = name.indexOf(trimmed, ignoreCase = true)
+        if (index >= 0) {
+            while (index >= 0) {
+                addStyle(SpanStyle(background = accent.copy(alpha = 0.12f), fontWeight = FontWeight.Bold), index, index + trimmed.length)
+                index = name.indexOf(trimmed, index + trimmed.length, ignoreCase = true)
+            }
+        } else if (CategoryRules.matchesNormalized(name, trimmed)) {
+            addStyle(SpanStyle(background = accent.copy(alpha = 0.12f), fontWeight = FontWeight.Bold), 0, name.length)
         }
     }
 }

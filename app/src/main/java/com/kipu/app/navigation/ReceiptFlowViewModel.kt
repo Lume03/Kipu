@@ -62,7 +62,15 @@ class ReceiptFlowViewModel @Inject constructor(
         viewModelScope.launch {
             session.localAccess.collectLatest { access ->
                 // Session restoration may finish after Navigation restores this destination.
-                if (owner == null && access is LocalAccess.Available) owner = access.userId
+                if (access is LocalAccess.Available) {
+                    if (owner != null && owner != access.userId) {
+                        owner = access.userId
+                        savedState.remove<String>("selectedCandidate")
+                        _state.value = ReceiptFlowState(importConsumed = savedState["importConsumed"] ?: false)
+                    } else if (owner == null) {
+                        owner = access.userId
+                    }
+                }
                 if (!hasAccess()) {
                     if (owner != null) savedState.remove<String>("selectedCandidate")
                     _state.value = ReceiptFlowState(
@@ -180,12 +188,6 @@ class ReceiptFlowViewModel @Inject constructor(
     private fun consumeImport() {
         savedState["importConsumed"] = true
         _state.update { it.copy(importConsumed = true, requiresOcrConsent = false, pendingImportUri = null) }
-    }
-
-    fun manual() = work {
-        consumeImport()
-        val result = store.import(requireNotNull(owner), "manual:${UUID.randomUUID()}", YapeReceiptFields())
-        if (result is ReceiptCandidateSaveResult.Saved) loadCandidate(result.candidate.id)
     }
 
     fun select(id: String) = work {

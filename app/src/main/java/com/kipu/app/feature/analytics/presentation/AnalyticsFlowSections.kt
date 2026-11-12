@@ -84,8 +84,9 @@ import java.time.LocalDate
 /** Whole-percent change between two amounts; null when the earlier one is zero, which has no valid percentage. */
 fun percentChange(current: Money, previous: Money): Int? {
     if (previous.minorUnits <= 0L) return null
-    return BigDecimal.valueOf(current.minorUnits - previous.minorUnits).multiply(BigDecimal.valueOf(100))
-        .divide(BigDecimal.valueOf(previous.minorUnits), 0, RoundingMode.HALF_UP).toInt()
+    val result = BigDecimal.valueOf(current.minorUnits - previous.minorUnits).multiply(BigDecimal.valueOf(100))
+        .divide(BigDecimal.valueOf(previous.minorUnits), 0, RoundingMode.HALF_UP).toLong()
+    return result.coerceIn(-999_999L, 999_999L).toInt()
 }
 
 private fun signedPercent(value: Int): String = (if (value > 0) "+" else if (value < 0) "−" else "") + kotlin.math.abs(value) + "%"

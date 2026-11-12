@@ -52,7 +52,7 @@ class NotificationActionsTest {
         }
 
         compose.onNodeWithText("Notificaciones").assertIsDisplayed()
-        compose.onNodeWithText("Marcar leídas").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Marcar todas como leídas").assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Marcar leído: Umbral de crédito").assertIsDisplayed().performClick()
         // Unread notices must be marked read before they can be deleted.
         compose.onNodeWithContentDescription("Eliminar notificación").assertDoesNotExist()

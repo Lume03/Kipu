@@ -100,7 +100,7 @@ class NotificationCenterScreenTest {
         }
 
         compose.onNodeWithText("Notificaciones").assertIsDisplayed()
-        compose.onNodeWithText("Marcar leídas").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Marcar todas como leídas").assertIsDisplayed().performClick()
         NotificationFilter.entries.reversed().forEach { filter ->
             compose.onNodeWithTag("notification-filter-button").performClick()
             compose.onAllNodesWithText(filter.label).onLast().performScrollTo().assertIsDisplayed().performClick()
@@ -145,7 +145,7 @@ class NotificationCenterScreenTest {
 
         compose.onNodeWithText("Cuota próxima").assertIsDisplayed()
         compose.onNodeWithText("Vence el 30 de septiembre").assertIsDisplayed()
-        compose.onNodeWithText("Recordatorio · Fecha prevista").assertIsDisplayed()
+        compose.onNodeWithText("Recordatorio").assertIsDisplayed()
     }
 
     @Test

@@ -31,7 +31,7 @@ class AuthCelebrationScreensTest {
         rule.onNodeWithText("¡Cuenta creada!").assertIsDisplayed()
         rule.onNodeWithText("Te damos la bienvenida a Kipu.").assertIsDisplayed()
         rule.onNodeWithText("ana@correo.com").assertIsDisplayed()
-        rule.onNodeWithText("Siguiente paso: elegir tu plan").assertIsDisplayed()
+        rule.onNodeWithText("Tu dinero está listo").assertIsDisplayed()
         rule.onNodeWithTag("auth-created-continue").assertIsEnabled().performClick()
         rule.onNodeWithTag("auth-created-continue").performClick()
         rule.runOnIdle { assertEquals(1, continued) }

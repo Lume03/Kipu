@@ -311,17 +311,19 @@ fun ProfileSettingsScreen(
                 val reducedMotion = rememberReducedMotionEnabled()
                 val currentlyDark = LocalKipuDarkTheme.current
                 val systemDark = isSystemInDarkTheme()
-                val selectTheme: (ThemeMode) -> Unit = { mode ->
-                    val targetDark = when (mode) {
-                        ThemeMode.DARK -> true
-                        ThemeMode.SYSTEM -> systemDark
-                        else -> false
+                val selectTheme: (ThemeMode) -> Unit = remember(themeContext, reducedMotion, currentlyDark, systemDark) {
+                    { mode ->
+                        val targetDark = when (mode) {
+                            ThemeMode.DARK -> true
+                            ThemeMode.SYSTEM -> systemDark
+                            else -> false
+                        }
+                        val apply = {
+                            viewModel.onThemeModeChanged(mode)
+                            viewModel.savePreferences()
+                        }
+                        if (targetDark == currentlyDark) apply() else ThemeTransition.run(themeContext, reducedMotion, apply)
                     }
-                    val apply = {
-                        viewModel.onThemeModeChanged(mode)
-                        viewModel.savePreferences()
-                    }
-                    if (targetDark == currentlyDark) apply() else ThemeTransition.run(themeContext, reducedMotion, apply)
                 }
 
                 // 3. Tema de la aplicación
@@ -426,7 +428,6 @@ fun ProfileSettingsScreen(
                             checked = state.hideBalances,
                             onCheckedChange = {
                                 viewModel.toggleHideBalances()
-                                viewModel.savePreferences()
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = themeColors.onPrimary,
@@ -435,42 +436,6 @@ fun ProfileSettingsScreen(
                         )
                     },
                 )
-
-                // 5. Alertas de vencimiento
-                SettingsCard(
-                    icon = Icons.Default.Notifications,
-                    title = "Alertas de vencimiento",
-                    subtitle = "Días de anticipación para recordatorios",
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Avisar previo al corte",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            ) {
-                                Text(
-                                    text = "3 días",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
 
                 if (!state.planCard.clickable) {
                     SettingsCard(
