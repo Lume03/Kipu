@@ -24,6 +24,8 @@ internal data class SyncAccountPayload(
     @SerialName("linked_account_id") val linkedAccountId: String? = null,
     val color: String? = null,
     val icon: String? = null,
+    @SerialName("effective_opening_balance_minor_units") val effectiveOpeningBalanceMinorUnits: Long? = null,
+    @SerialName("opening_movements") val openingMovements: List<SyncOpeningMovement>? = null,
 )
 
 @Serializable
@@ -90,4 +92,21 @@ internal data class SyncLedgerEntryPayload(
     @SerialName("signed_amount_minor") val signedAmountMinor: Long,
     @SerialName("currency_code") val currencyCode: String,
     @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+internal data class SyncOpeningMovement(
+    val id: String,
+    @SerialName("operation_id") val operationId: String,
+    @SerialName("operation_sequence") val operationSequence: Int,
+    val kind: String,
+    @SerialName("amount_minor_units") val amountMinorUnits: Long,
+    val currency: String,
+    @SerialName("account_id") val accountId: String,
+    @SerialName("opening_account_id") val openingAccountId: String? = null,
+    @SerialName("effective_at") val effectiveAt: String,
+    val status: String,
+    @SerialName("reverses_movement_id") val reversesMovementId: String? = null,
+    @SerialName("adjusts_movement_id") val adjustsMovementId: String? = null,
+    @SerialName("created_at") val createdAt: String,
 )

@@ -12,6 +12,18 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FinancialMovementDao {
 
+    @androidx.room.Upsert
+    suspend fun upsertPulledOpening(movement: FinancialMovementEntity)
+
+    @androidx.room.Upsert
+    suspend fun upsertPulledOpeningTransaction(transaction: TransactionEntity)
+
+    @androidx.room.Upsert
+    suspend fun upsertPulledOpeningLedger(entry: LedgerEntryEntity)
+
+    @Query("DELETE FROM ledger_entries WHERE user_id=:userId AND id=:id")
+    suspend fun deleteSyntheticOpeningLedger(userId: String, id: String)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertRaw(movement: FinancialMovementEntity)
 

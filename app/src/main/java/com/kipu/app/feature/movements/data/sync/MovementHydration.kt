@@ -218,7 +218,7 @@ class MovementHydration @javax.inject.Inject constructor(
                     createdAt = openedAt, updatedAt = System.currentTimeMillis(),
                     linkedAccountId = remote.linkedAccountId,
                 ))
-                if (remote.initialBalanceMinorUnits != 0L) {
+                if (remote.openingMovements == null && remote.initialBalanceMinorUnits != 0L) {
                     movementDao.insertPulledLedgerEntries(listOf(LedgerEntryEntity(
                         id = "remote:opening:${remote.id}", userId = userId,
                         transactionId = "remote:opening:${remote.id}", accountId = remote.id,
@@ -226,6 +226,12 @@ class MovementHydration @javax.inject.Inject constructor(
                         currencyCode = remote.currency, createdAt = openedAt,
                     )))
                 }
+            }
+            if (remote.openingMovements != null) {
+                applyOpeningFacts(userId, remote)
+                if (existing != null) accountDao.update(existing.copy(
+                    initialBalanceMinorUnits = requireNotNull(remote.effectiveOpeningBalanceMinorUnits),
+                ))
             }
             accountDao.updateAppearance(userId, remote.id, remote.alias, remote.presetId, remote.color, remote.icon, System.currentTimeMillis() * 1_000L)
             accountDao.setArchived(userId, remote.id, remote.isArchived, System.currentTimeMillis() * 1_000L)
@@ -245,6 +251,46 @@ class MovementHydration @javax.inject.Inject constructor(
             ))
             true
         }
+
+    /** Same stable legacy IDs used by local account commands; server echoes replace, never add twice. */
+    private suspend fun applyOpeningFacts(userId: String, remote: SyncAccountPayload) {
+        val facts = requireNotNull(remote.openingMovements)
+        require(facts.map { it.id }.distinct().size == facts.size)
+        require(facts.filter { it.status == "POSTED" }.sumOf { it.amountMinorUnits } ==
+            requireNotNull(remote.effectiveOpeningBalanceMinorUnits))
+        val dao = database.financialMovementDao()
+        dao.deleteSyntheticOpeningLedger(userId, "remote:opening:${remote.id}")
+        for (fact in facts) {
+            require(fact.accountId == remote.id && fact.currency == remote.currency)
+            require(fact.kind in setOf("OPENING", "REVERSAL", "ADJUSTMENT") && fact.status == "POSTED")
+            val createdAt = parseFeedInstant(fact.createdAt).toEpochMilli()
+            val effectiveAt = parseFeedInstant(fact.effectiveAt).toEpochMilli()
+            dao.upsertPulledOpening(com.kipu.app.feature.accounts.data.local.FinancialMovementEntity(
+                id = fact.id, operationId = fact.operationId, operationSequence = fact.operationSequence,
+                userId = userId, kind = fact.kind, amountMinorUnits = fact.amountMinorUnits,
+                currency = fact.currency, accountId = remote.id, openingAccountId = fact.openingAccountId,
+                effectiveAt = effectiveAt * 1_000L, status = fact.status,
+                reversesMovementId = fact.reversesMovementId, adjustsMovementId = fact.adjustsMovementId,
+                createdAt = createdAt * 1_000L,
+            ))
+            val legacyId = "legacy:${fact.id}"
+            if (fact.amountMinorUnits == 0L) {
+                dao.deleteSyntheticOpeningLedger(userId, legacyId)
+                continue
+            }
+            dao.upsertPulledOpeningTransaction(TransactionEntity(
+                id = legacyId, userId = userId, type = if (fact.amountMinorUnits < 0) "EXPENSE" else "INCOME",
+                amountMinor = kotlin.math.abs(fact.amountMinorUnits), currencyCode = fact.currency,
+                sourceAccountId = remote.id, legacyKind = fact.kind, occurredAt = effectiveAt,
+                syncStatus = "MIGRATED_LOCAL", createdAt = createdAt, updatedAt = createdAt,
+            ))
+            dao.upsertPulledOpeningLedger(LedgerEntryEntity(
+                id = legacyId, userId = userId, transactionId = legacyId, accountId = remote.id,
+                role = if (fact.amountMinorUnits < 0) "SOURCE" else "DESTINATION",
+                signedAmountMinor = fact.amountMinorUnits, currencyCode = fact.currency, createdAt = createdAt,
+            ))
+        }
+    }
 
     private suspend fun applyPulledCard(userId: String, remote: SyncCardPayload, revision: Long): Boolean =
         ownerTransaction(userId) {
