@@ -24,6 +24,7 @@ Reglas aplicadas:
 - No se convierte TCEA a TEA. No se calcula promedio ni se elige el máximo de un rango.
 - En caso de fuentes oficiales con valores diferentes se registran las dos lecturas y se deja pendiente la vigencia si no puede resolverse por fecha/versionado.
 - “No disponible públicamente” significa que no fue posible verificar el dato en la documentación pública oficial consultada, no que el emisor carezca del dato.
+- **Regla de presentación en la aplicación (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13):** Cuando un producto o entidad no posea tasa publicada o desglose oficial, el catálogo de tasas en la interfaz de usuario DEBE mostrar «Sin dato SBS» en lugar de cifras de ejemplo, marcadores de posición o estimaciones ficticias.
 
 ## 3. Metodología
 

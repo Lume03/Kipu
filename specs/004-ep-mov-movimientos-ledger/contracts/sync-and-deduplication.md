@@ -44,6 +44,8 @@ La outbox persiste dependencias causales por agregado: alta → revisión → an
 
 ### Pull y tombstones
 
+- **Pull compartido unificado (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.4):** Se unifica en un solo pull que descarga el feed compartido y reparte los eventos por tipo a los hidratadores de cada entidad en una sola pasada, suprimiendo descargas repetidas del feed completo por cada módulo independiente.
+
 1. Servidor emite UPSERT de estado/revisión junto al snapshot, IDs lógicos de efectos, revisiones y referencias de contrapartida. VOIDED es un UPSERT conservado, no DELETE físico.
 2. Validar propietario y contratos/moneda/relaciones antes de aplicar. Procesar cada página y checkpoint en una transacción local; si una fila no puede verificarse, no avanzar más allá de ella y mostrar fallo/conflicto seguro.
 3. Revisión remota inferior se ignora sin mutar estado; misma revisión y mismo contenido es replay; misma revisión con contenido distinto es conflicto de protocolo.
@@ -72,6 +74,10 @@ Descartar marca resuelta la propuesta, conservando historia. Rehacer crea nuevo 
 
 ### Rechazo financiero permanente (P5)
 
+- **Patrón unificado de comandos rechazados (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.3):**
+  - Un solo patrón en todos los módulos: el elemento se marca «No sincronizado» con dos acciones: «Reintentar» (solo si el error es temporal) y «Usar la versión del servidor».
+  - Las altas rechazadas se muestran con ese aviso y la acción «Eliminar», y no cuentan en saldos.
+  - No habrá pantalla de fusión campo a campo.
 - Rechazo antes de cualquier commit local: REJECTED sin movimiento/asientos ficticios.
 - Rechazo de alta/compra/pago ya confirmado localmente y no aceptado remoto: crear evidencia VOIDED y contrapartidas de todos sus efectos vigentes, una sola vez; preservar ledger, cuotas, asignaciones y vínculos. Actualizar saldo/pasivo/disponibilidad de cuotas en el mismo commit, sin DELETE.
 - Rechazo de corrección sobre un original válido: neutralizar solo el intento local y volver al head oficial como en conflicto; original no se convierte a VOIDED. Identificar VOIDED del intento en historial de revisión, no como borrado del hecho válido.

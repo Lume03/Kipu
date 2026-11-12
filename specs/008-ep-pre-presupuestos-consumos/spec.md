@@ -97,6 +97,7 @@ Como usuario de Kipu, quiero editar, finalizar o eliminar mis presupuestos, para
 - **FR-017**: El presupuesto MUST ser planificación y no retener, reservar, transferir ni mover fondos.
 - **FR-018**: Los cambios locales deben quedar persistidos atómicamente antes de comunicar éxito; la sincronización debe ser segura ante reintentos y partición por propietario de acuerdo con la arquitectura aprobada.
 - **FR-019**: La operación de presupuestos MUST permanecer disponible en el núcleo Free conforme a la capacidad aprobada; el downgrade o exceso de cupo no cambia hechos financieros.
+- **FR-020**: La zona horaria para todos los cálculos presupuestarios y delimitaciones de periodos es fija: `America/Lima`. El valor por defecto del parámetro `time_zone` en el RPC `get_budget_status` es `America/Lima` (reemplazando a `UTC`). La preferencia o columna `user_profiles.time_zone` queda en desuso y no se utiliza para delimitar periodos de presupuestos (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.14).
 
 ### Success Criteria
 

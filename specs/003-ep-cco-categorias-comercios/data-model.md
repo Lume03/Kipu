@@ -91,6 +91,8 @@ Room guarda una preferencia por `(user_id, merchant_id)`. Supabase usa `public.m
 
 ## CategoryConflict
 
+*(Sustituido el 2026-11-11 por Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.12: Los conflictos de presentación —nombre, icono, color— se resuelven solos con Last-Write-Wins donde gana el último en escribir. Se borra `CategoryConflictScreen` y se retira el flujo de conflicto manual de presentación. La tabla y el modelo a continuación se conservan como referencia histórica de la especificación inicial).*
+
 | Field | Rules |
 |-------|-------|
 | `id` | Identidad estable del conflicto. |
@@ -105,11 +107,11 @@ Room guarda una preferencia por `(user_id, merchant_id)`. Supabase usa `public.m
 ```text
 Category root: ACTIVE <-> INACTIVE
 Subcategory eligibility: eligible <-> blocked by own/root inactivity
-CategoryConflict: OPEN -> RESOLVED (presentation or lifecycle)
+CategoryConflict: OPEN -> RESOLVED (presentation or lifecycle; sustituido para presentación por LWW automático)
 Movement classification: unclassified <-> category assigned
 Movement merchant: none <-> catalog merchant | provisional text
 MerchantAliasRule: absent -> active -> revised -> tombstoned
 MerchantCategoryPreference: absent -> eligible -> replaced -> tombstoned
 ```
 
-Transiciones prohibidas: crear un tercer nivel, crear ciclo, activar una raíz personalizada que supera el cupo Free, asignar categoría no elegible, conservar comercio y texto provisional simultáneamente, resolver conflicto mediante sobrescritura automática, evaluar una señal sin entitlement+consentimiento, elegir un comercio entre destinos alias distintos sin revisión, o aplicar una preferencia a una categoría inactiva/bloqueada/incompatible.
+Transiciones prohibidas: crear un tercer nivel, crear ciclo, activar una raíz personalizada que supera el cupo Free, asignar categoría no elegible, conservar comercio y texto provisional simultáneamente, resolver conflicto de ciclo de vida mediante sobrescritura automática (para presentación rige LWW según Decisión 2026-11-11 §8.12), evaluar una señal sin entitlement+consentimiento, elegir un comercio entre destinos alias distintos sin revisión, o aplicar una preferencia a una categoría inactiva/bloqueada/incompatible.

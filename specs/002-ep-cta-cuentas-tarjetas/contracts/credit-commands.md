@@ -14,7 +14,11 @@ Use the existing canonical `register_transaction_v1` command after extending and
 - `transaction_type = EXPENSE` and `operation_kind = CARD_PURCHASE`;
 - only actual confirmed purchase data; preview/simulation interest is never sent as posted financial data.
 
-One accepted operation creates one expense transaction, recognizes principal once in expense reporting and increases the card liability once. For installment purchases, it inserts the canonical `credit_installments` rows atomically. It returns the original result for the same operation and payload; reuse of an operation identity with a different payload is a conflict. A rejected or unconfirmed candidate has no transaction, ledger, installment or debt effect.
+One accepted operation creates one expense transaction, recognizes principal once in expense reporting and increases the card liability once. For installment purchases, it inserts the canonical `credit_installments` rows atomically. Card debt includes the interest of confirmed purchases with interest; preview/simulation interest never posts as debt or financial records (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.5). It returns the original result for the same operation and payload; reuse of an operation identity with a different payload is a conflict. A rejected or unconfirmed candidate has no transaction, ledger, installment or debt effect.
+
+An erroneous credit card purchase can be deleted with a single tap as long as none of its installments has applied payments. If payments have already been applied, one-tap deletion is blocked and the refund flow is offered (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2).
+
+Billing cycle and cut-off rules: The cut-off day belongs to the cycle that closes (inclusive cut-off; replaces the previous exclusive-closing rule from 2026-11-05). Payment day must never match the cut-off day in creation, editing, or domain validation (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.7).
 
 For an interest-free purchase, split integer minor units with `base = total_minor / count` and `remainder = total_minor % count`; add one minor unit to installments 1 through `remainder`. Therefore PEN 100.00 over three installments is PEN 33.34, PEN 33.33, PEN 33.33.
 

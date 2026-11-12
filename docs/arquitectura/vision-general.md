@@ -11,7 +11,7 @@ Kipu es Android nativo y local-first. La interfaz observa datos locales; una ope
 | Presentación | Compose, ViewModels, estados y navegación; sin cálculos monetarios autoritativos | [UI/UX](../ux-ui/README.md) |
 | Dominio | Dinero en unidades menores, validaciones, efectos y deduplicación | [Constitución](../../.specify/memory/constitution.md) |
 | Persistencia local | Room, escritura atómica, revisiones y colas por propietario | [Modelo de datos](modelo-de-datos.md) |
-| Sincronización | Comandos estables, reintentos, conflictos y separación por usuario | [Contratos EP-MOV](../../specs/004-ep-mov-movimientos-ledger/contracts/sync-and-deduplication.md) |
+| Sincronización | Comandos estables, reintentos, conflictos y separación por usuario; patrón único de comandos rechazados y pull compartido unificado (Decisiones 2026-11-11 §8.3 y §8.4) | [Contratos EP-MOV](../../specs/004-ep-mov-movimientos-ledger/contracts/sync-and-deduplication.md) |
 | Backend | Autorización, aislamiento y validación de operaciones privilegiadas | [Artefactos por épica](../../specs/) |
 | Captura | Candidatos antes del ledger, evidencia mínima y confirmación obligatoria de crédito detectado | [Backlog HU-45–HU-51](../producto/backlog.md) |
 | Planes y compras | Separar intención, compra, ciclo comercial y acceso efectivo verificado | [EP-PLA](../../specs/012-ep-pla-planes-monetizacion/spec.md) |

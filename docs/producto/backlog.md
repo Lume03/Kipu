@@ -1,6 +1,6 @@
 # KIPU V4.2 - Product Backlog
 
-> **Integración documental — 2026-10-20 (actualizado 2026-11-05 con decisiones del Owner).** Base HU-01–HU-60 procedente de `KipuApp/Kipu md/02_Kipu_V4.2_Product_Backlog.md`. Se conservan los identificadores y escenarios de origen; no se declaran todas las HU implementadas. Consultar los refinamientos aprobados en [specs/](../../specs/) y las [diferencias documentales](../control-documental.md). En particular, las menciones genéricas de «cinco categorías» en HU-14/HU-57 deben leerse con la aclaración por tipo de EP-CCO (5 de gastos + 5 de ingresos según migración `20261007144500_category_free_quota_5_plus_5.sql`), no como un límite global nuevo. Decisiones Owner 2026-11-05 incorporadas en esta ronda: cierre exclusivo en crédito (HU-13), umbrales de utilización fijos 50/80/100 (HU-10), tarjeta de débito con cupo compartido de su banco/cuenta (HU-08/HU-57), OCR local de comprobantes Yape permitido en Free con consentimiento y revisión (HU-49/HU-58), copy de Trial solo visible para usuarios elegibles (HU-52), y filtro por fuente como filtro avanzado Premium (HU-22/HU-58).
+> **Integración documental — 2026-10-20 (actualizado 2026-11-05 con decisiones del Owner y 2026-11-11 con decisiones de auditoría de calidad).** Base HU-01–HU-60 procedente de `KipuApp/Kipu md/02_Kipu_V4.2_Product_Backlog.md`. Se conservan los identificadores y escenarios de origen; no se declaran todas las HU implementadas. Consultar los refinamientos aprobados en [specs/](../../specs/) y las [diferencias documentales](../control-documental.md). En particular, las menciones genéricas de «cinco categorías» en HU-14/HU-57 deben leerse con la aclaración por tipo de EP-CCO (5 de gastos + 5 de ingresos según migración `20261007144500_category_free_quota_5_plus_5.sql`), no como un límite global nuevo. Decisiones Owner 2026-11-05 y 2026-11-11 incorporadas: ciclo de facturación con corte inclusivo para el ciclo que cierra (HU-13; sustituye el cierre exclusivo previo), deuda de tarjeta que incluye interés de compras confirmadas con interés (HU-13), eliminación de reembolsos en gastos normales y restricción a compras reales de tarjeta y extornos (HU-25), eliminación con un toque de compras de crédito sin pagos aplicados (HU-13), próxima fecha de recurrencias calculada dinámicamente sin guardarse en next_due_date y pantalla de edición aplazada (HU-33), condonaciones con fecha offline `occurred_at` (HU-29), `FLAG_SECURE` y widgets «Kipu bloqueado» (HU-03), enmascarado universal vía MoneyText (HU-04), contraseñas Unicode NFC (HU-01), billing con `obfuscatedAccountId` obligatorio y oferta sin texto estático «AHORRA 40%» (HU-53/HU-54), resolución automática LWW de conflictos de presentación en categorías sin pantalla de conflicto (HU-14), selector de categorías con fila «Usar "<raíz>"» (HU-14), BanBif en débito por código de banco (HU-08), retiro de comparación con mes anterior en filtros de movimientos (HU-22) y comparación de ingresos en análisis (HU-41), catálogo de tasas con «Sin dato SBS», y zona horaria fija `America/Lima` en presupuestos (HU-36).
 
 > **60 Historias de Usuario específicas agrupadas en 12 épicas, con prioridad, puntos, Sprint de cierre, dependencias, reglas de negocio y criterios de aceptación Gherkin.**
 
@@ -204,6 +204,7 @@ Como usuario de Kipu, quiero crear mi cuenta e iniciar sesión con correo y cont
 1. Solo se usan correo y contraseña de Kipu, nunca credenciales bancarias.
 2. No se muestra información de otra sesión; cada usuario tiene datos separados.
 3. Un fallo de autenticación no crea una sesión local válida.
+4. Política de contraseñas: se aceptan letras Unicode. La validación exige al menos una letra y un número en cualquier alfabeto (8–72 caracteres), normalizando la contraseña a forma canónica Unicode NFC tanto en cliente como en servidor (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.10).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -329,6 +330,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 1. Es opcional y no sustituye el inicio remoto.
 2. La app no almacena plantillas biométricas.
 3. Si no hay hardware o registro compatible se ofrece mantener el acceso protegido mediante credencial admitida del dispositivo.
+4. FLAG_SECURE: Mientras el bloqueo local esté activo, se activa `FLAG_SECURE` en la ventana de la aplicación para proteger la pantalla en Recientes y bloquear capturas (nunca en build debug). Los widgets del sistema muestran «Kipu bloqueado» mientras la app permanezca bloqueada (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.9).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -384,7 +386,7 @@ Como usuario de Kipu, quiero configurar moneda, inicio de mes, tema y ocultamien
 ### Reglas de Negocio
 
 1. PEN es la moneda inicial; cambiar la preferencia no convierte movimientos antiguos.
-2. La máscara oculta valores sin modificar cálculos.
+2. La máscara oculta valores sin modificar cálculos. Se aplica de forma universal y consistente en todas las pantallas y diálogos a través de `MoneyText` (o formateador con máscara), sin fugas en la semántica accesible (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.9).
 3. La personalización ordinaria permanece en Free.
 4. La fecha inicial del mes debe ser válida.
 
@@ -569,7 +571,7 @@ Como usuario de Kipu, quiero crear y administrar mis cuentas y billeteras, para 
 
 1. Alias, tipo, moneda y saldo inicial auditable; preset o genérico.
 2. Efectivo y Cuenta Metas virtual no consumen cupo de instrumentos.
-3. Modificar alias no cambia el saldo; un ajuste de apertura debe quedar trazado.
+3. Modificar alias no cambia el saldo; un ajuste de apertura debe quedar trazado. La corrección del saldo de apertura se publica en el feed de sincronización como proyección completa de la cuenta: saldo de apertura efectivo más todos sus hechos (apertura, reversiones y ajustes), garantizando convergencia idéntica a transacciones (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.1).
 4. Cuenta con historia se archiva, no borra sus movimientos.
 
 ### Criterios de Aceptación (Gherkin)
@@ -634,6 +636,7 @@ Como usuario de Kipu, quiero registrar mis tarjetas de débito y crédito, para 
 2. Débito reutiliza el saldo de la cuenta vinculada y comparte el cupo Free de su banco/cuenta (no consume un cupo de instrumento adicional independiente; corrección aprobada 2026-10-21, migración `20261021191708_shared_bank_instrument_quota.sql`, decisión Owner 2026-11-05).
 3. La cuenta interna contable de crédito no consume un segundo cupo.
 4. PAN completo y CVV nunca se solicitan.
+5. BanBif se incluye en las entidades soportadas para débito, resolviendo la entidad bancaria a partir de su código guardado (`bank_code`) y no por preset visual (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -914,11 +917,12 @@ Como usuario de Kipu, quiero registrar compras directas o en cuotas, para planif
 
 ### Reglas de Negocio
 
-1. Reconocer principal una sola vez.
+1. Reconocer principal una sola vez. La deuda de la tarjeta incluye el interés de las compras confirmadas con interés (compras en cuotas confirmadas con interés devengado/pactado); las simulaciones siguen sin crear deuda ni asientos financieros (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.5).
 2. Cuotas solo para crédito; estimaciones no son gastos reales.
 3. Distribuir céntimos de redondeo preservando la suma.
 4. Toda compra detectada con crédito requiere confirmación antes de afectar saldos.
-5. Ciclo de facturación con cierre exclusivo: una compra realizada exactamente el día de cierre entra al ciclo SIGUIENTE (cierre exclusivo, comportamiento actual del código; decisión Owner 2026-11-05).
+5. Ciclo de facturación con corte inclusivo: el día de corte pertenece al ciclo que cierra (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.7; sustituye la regla previa de cierre exclusivo del 2026-11-05). El día de pago no puede coincidir con el día de corte, ni en el alta, ni en la edición, ni en el dominio (comprobar con estado de cuenta real de BCP).
+6. Una compra con tarjeta registrada por error se elimina con un toque mientras ninguna de sus cuotas tenga pagos aplicados. Con pagos aplicados, la eliminación directa se bloquea y se ofrece el flujo de reembolso (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -947,10 +951,10 @@ Como usuario de Kipu, quiero registrar compras directas o en cuotas, para planif
 - **Cuando** intenta guardar,
 - **Entonces** se solicita un número válido y no se crea la compra.
 
-#### Escenario 6: Compra en día de cierre (cierre exclusivo)
-- **Dado que** la tarjeta de crédito tiene día de cierre configurado (por ejemplo, el día 20 de cada mes),
-- **Cuando** el usuario registra una compra con fecha exactamente del día de cierre,
-- **Entonces** la compra entra al ciclo de facturación siguiente (cierre exclusivo, comportamiento actual del código; decisión Owner 2026-11-05).
+#### Escenario 6: Compra en día de corte (cierre del ciclo)
+- **Dado que** la tarjeta de crédito tiene día de corte configurado (por ejemplo, el día 20 de cada mes),
+- **Cuando** el usuario registra una compra con fecha exactamente del día de corte,
+- **Entonces** la compra entra al ciclo de facturación que cierra en dicho día (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.7; sustituye el cierre exclusivo del 2026-11-05).
 
 ---
 
@@ -989,6 +993,8 @@ Como usuario de Kipu, quiero organizar y editar categorías en dos niveles, para
 
    **Aclaración existente por tipo:** [EP-CCO](../../specs/003-ep-cco-categorias-comercios/spec.md) documenta 5 de gastos y 5 de ingresos. La redacción y los escenarios de origen que omiten el tipo requieren explicitar ese contexto; esta integración no introduce otro cupo.
 4. No existen etiquetas ni tags en formularios, filtros o datos.
+5. Resolución de conflictos y sincronización: Los conflictos de presentación (nombre, icono, color) se resuelven automáticamente con política Last-Write-Wins (gana el último en escribir), suprimiendo pantallas de resolución manual (`CategoryConflictScreen`). Las reglas de comercio se sincronizan dentro del ciclo de sync normal (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.12).
+6. Selector de categorías en modo directo: Al pulsar una raíz con hijos (subcategorías), se abren las subcategorías y una opción «Usar "<raíz>"» permite elegir la categoría raíz en sí misma (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -1456,6 +1462,7 @@ Como usuario de Kipu, quiero encontrar movimientos mediante búsqueda y filtros,
 1. Free conserva todo el historial legible, búsqueda textual, fechas y filtro G/I/T.
 2. Premium habilita combinación por cuenta, tarjeta, categoría, comercio, monto, fuente (Manual / Notificación / OCR; decisión Owner 2026-11-05) y estado. Los movimientos históricos sin procedencia se clasifican como «Manual», salvo los vinculados a candidatos de captura.
 3. La política se valida también al abrir un enlace directo.
+4. Filtros de historial: Se retira la opción e interruptor de comparación con el mes anterior de los filtros de movimientos (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -1633,6 +1640,12 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales, para co
 1. Reembolso siempre vinculado al origen.
 2. No superar monto pendiente de reembolso.
 3. Caja cambia en fecha real; gasto y presupuesto se ajustan al periodo original.
+4. Alcance y elegibilidad de reembolsos (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2):
+   - En gastos normales se quita el reembolso: anular o editar el monto lo cubre.
+   - Una compra con tarjeta registrada por error se elimina con un toque mientras ninguna de sus cuotas tenga pagos aplicados. Con pagos aplicados se bloquea la eliminación directa y se ofrece el reembolso.
+   - El reembolso queda reservado exclusivamente para compras con tarjeta de crédito reales y para los extornos de la importación.
+   - Cualquier reembolso (incluidos los de gastos normales que ya existan históricamente) se puede eliminar del historial como cualquier otro movimiento para no dejar registros residuales; al eliminarlo vuelve a contar el efecto de la compra original sin necesidad de migrar ni conservar los antiguos.
+   - Fecha del reembolso: obligatoriamente igual o posterior a la compra y nunca futura.
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -1874,6 +1887,7 @@ Como usuario de Kipu, quiero planificar cuotas y cerrar obligaciones saldadas, p
 2. Cerrar exige saldo cero o ajuste explícito auditable.
 3. Cancelar no equivale automáticamente a pagada.
 4. Con historia se conserva consulta; sin operaciones se permite eliminación física según política.
+5. Condonaciones y ajustes: En toda condonación o ajuste de deuda, la fecha del hecho es la del registro offline (`occurred_at`). El RPC y el servidor aceptan `occurred_at` del comando y validan que no sea una fecha futura ni anterior a la fecha de apertura (`opened_on`) de la deuda (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.8).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -2124,7 +2138,7 @@ Como usuario de Kipu, quiero marcar un movimiento como pago recurrente, para pla
 
 1. Suscripción financiera y recurrencia son la misma capacidad.
 2. Frecuencia semanal, quincenal, mensual, anual o personalizada.
-3. Monto fijo o aproximado, próxima fecha y anticipación.
+3. Monto fijo o aproximado y anticipación. La próxima fecha se calcula siempre en tiempo de ejecución a partir de la regla de periodicidad (ancla `start_date`, frecuencia e intervalo) y no se guarda como dato estático en la columna `next_due_date` (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.6). La pantalla para editar recurrencias se aplaza.
 4. Kipu no ejecuta el pago real de Netflix ni de otro servicio.
 
 ### Criterios de Aceptación (Gherkin)
@@ -2298,6 +2312,7 @@ Como usuario de Kipu, quiero definir límites por total, categoría o subcategor
 2. Mostrar presupuestado, consumido, restante y porcentaje.
 3. Dos presupuestos activos en Free.
 4. Presupuesto no retiene ni mueve fondos.
+5. Zona horaria fija: Todos los periodos y consumos presupuestarios se calculan bajo la zona horaria fija `America/Lima`. El valor por defecto de zona horaria en el backend pasa de `UTC` a `America/Lima`. La columna `user_profiles.time_zone` queda sin usar (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.14).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -2613,6 +2628,7 @@ Como usuario de Kipu, quiero analizar gastos, crédito, deudas y metas, para com
 2. Excluir traslados y principal de métricas operativas.
 3. Por cobrar forma parte de patrimonio; reservas no lo duplican.
 4. Sin base de comparación se informa explícitamente.
+5. Comparación temporal en Análisis: Se mantiene la capacidad de comparar con el mes/periodo anterior, y la comparación abarca y muestra diferencias porcentuales y absolutas tanto para gastos como para ingresos (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13).
 
 ### Criterios de Aceptación (Gherkin)
 
@@ -3347,7 +3363,7 @@ Como usuario de Kipu, quiero contratar un plan mostrado por Google Play, para ha
 ### Reglas de Negocio
 
 1. Mensual/anual recurrentes; Lifetime compra única no consumible.
-2. Precios objetivo S/4.99, S/29.99 y S/49.99; UI usa precio localizado de Play.
+2. Precios objetivo S/4.99, S/29.99 y S/49.99; UI usa precio localizado de Play. La superficie de oferta muestra el precio real de Play y se retira el reclamo estático «AHORRA 40%», salvo que se calcule dinámicamente con los precios devueltos por Google Play (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.11).
 3. No se habilita acceso por retorno de UI sin verificación.
 4. Lifetime no tiene prueba propia.
 
@@ -3412,7 +3428,7 @@ Como usuario de Kipu, quiero obtener Premium solo cuando mi compra sea válida, 
 1. Verificar usuario, aplicación, producto, estado y vigencia.
 2. PENDING no desbloquea.
 3. Reconocimiento idempotente de compra inicial; Lifetime nunca se consume.
-4. Token asociado a una cuenta no habilita otra.
+4. Token asociado a una cuenta no habilita otra. `obfuscatedAccountId` es obligatorio en la verificación de compras en Google Play para evitar asignación indebida de compras entre cuentas Kipu (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.11).
 
 ### Criterios de Aceptación (Gherkin)
 

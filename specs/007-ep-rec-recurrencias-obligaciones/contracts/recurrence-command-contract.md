@@ -55,6 +55,8 @@ Los nombres son propuestos y pueden cambiar antes del primer despliegue, nunca s
 
 ### Update and lifecycle
 
+*(Nota Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.6: La próxima fecha se calcula dinámicamente desde la regla y no se guarda estáticamente en `next_due_date`. La pantalla dedicada para editar recurrencias queda aplazada; el ciclo de vida PAUSE/CANCEL/RESUME permanece vigente).*
+
 ```json
 {
   "command_type": "UPDATE_RECURRENCE",

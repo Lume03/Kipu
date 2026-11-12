@@ -265,10 +265,15 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 3. **Given** una compra de S/100 con S/40 ya reembolsados, **When** se intentan devolver S/70, **Then** se rechaza porque solo quedan S/60 reembolsables.
 4. **Given** una compra de septiembre y un reembolso de octubre, **When** se registra la devolución, **Then** la caja cambia en octubre y el gasto y presupuesto originales se ajustan explicando ambas fechas.
 
-#### Decisiones aprobadas para implementación S7 (2026-10-24)
+#### Decisiones aprobadas para implementación S7 (2026-10-24, actualizadas el 2026-11-11)
 
-- Son elegibles los gastos propios vigentes y confirmados (`CONFIRMED`/`REVISED`; se admite `ACTIVE` para compras de tarjeta ya confirmadas por el flujo actual), sin anulación ni rechazo permanente, pagados con efectivo, débito o tarjeta de crédito en una sola cuota. Se excluyen cuotas, transferencias, pagos de principal y movimientos especializados de deuda o metas.
-- La devolución se acredita automáticamente al instrumento de la compra: a su cuenta de origen o a la misma tarjeta de crédito. No se permite escoger otro destino.
+- **Elegibilidad y alcance de reembolsos (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2):**
+  - En gastos normales se elimina el reembolso: anular o editar el monto cubre esos casos.
+  - El reembolso queda restringido únicamente a compras con tarjeta de crédito reales y a extornos de importación (extractos bancarios).
+  - Una compra con tarjeta de crédito registrada por error se elimina con un toque mientras ninguna de sus cuotas tenga pagos aplicados. Si ya cuenta con pagos aplicados en alguna cuota, la eliminación directa se bloquea y se ofrece el flujo de reembolso.
+  - Cualquier reembolso (incluidos los de gastos normales que ya existan históricamente) se puede eliminar del historial como cualquier otro movimiento; al eliminarlo, vuelve a contar el efecto de la compra original sin necesidad de migrar ni conservar reembolsos antiguos.
+  - Fecha del reembolso: obligatoriamente igual o posterior a la compra y nunca futura.
+- La devolución se acredita automáticamente al instrumento de la compra: a la misma tarjeta de crédito. No se permite escoger otro destino.
 - El reembolso es `INCOME` con `operation_kind=REFUND`, relacionado una sola vez por `transaction_links.link_type=REFUND`, desde la compra hacia el reembolso. No se escribe `refund_of_transaction_id` y no se incluye en ingreso operativo.
 - Si la aceptación remota rechaza un intento offline por remanente agotado, se conserva visible con estado y motivo de rechazo; se puede anular mediante la ruta especializada. Nunca se borra ni se cambia la compra original.
 - La caja se reconoce en la fecha del reembolso. Gasto neto y consumo se recalculan en la fecha/categoría de la compra. EP-PRE usará su consulta existente de consumo, que devuelve gasto neto; no hay adaptador ni mantenimiento de presupuestos en EP-MOV. La prueba integrada de HU-36 queda pendiente.
@@ -300,7 +305,7 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 - **RN-MOV-008**: Correcciones y anulaciones agregan evidencia auditable; no reescriben saldos ni eliminan historia silenciosamente.
 - **RN-MOV-009**: Un movimiento anulado no participa en saldos, presupuestos ni métricas.
 - **RN-MOV-010**: Principal de deuda o préstamo, aportes a metas y pagos de tarjeta no se reclasifican como ingreso o gasto operativo.
-- **RN-MOV-011**: Un reembolso permanece vinculado al movimiento original, nunca excede su saldo reembolsable y no crea ingreso operativo.
+- **RN-MOV-011**: Un reembolso permanece vinculado al movimiento original, nunca excede su saldo reembolsable y no crea ingreso operativo. En gastos normales se quita el reembolso (anular o editar el monto lo cubre); el reembolso queda reservado para compras reales con tarjeta de crédito y extornos de importación. Cualquier reembolso se puede eliminar del historial como cualquier otro movimiento para no dejar registros residuales, restituyendo el efecto de la compra original. La fecha del reembolso DEBE ser igual o posterior a la compra y nunca futura (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2).
 - **RN-MOV-012**: La pérdida de Premium o el exceso de cupo preserva movimientos, relaciones y efectos financieros válidos.
 - **RN-MOV-013**: Solo el propietario puede leer o modificar un movimiento y todas sus relaciones deben pertenecer al mismo propietario.
 
@@ -321,17 +326,17 @@ Como usuario de Kipu, quiero registrar devoluciones totales o parciales para cor
 - **FR-013**: Kipu MUST rechazar o presentar para resolución una edición basada en una revisión incompatible; nunca MUST mezclar importes silenciosamente.
 - **FR-014**: Kipu MUST anular lógicamente un movimiento y revertir juntos todos sus efectos relacionados.
 - **FR-015**: Kipu MUST impedir que una actualización atrasada reactive silenciosamente un movimiento anulado.
-- **FR-016**: Kipu MUST ofrecer a todas las personas historial completo, búsqueda textual, rango de fechas y filtro por Gasto/Ingreso/Transferencia.
+- **FR-016**: Kipu MUST ofrecer a todas las personas historial completo, búsqueda textual, rango de fechas y filtro por Gasto/Ingreso/Transferencia. Se retira la opción e interruptor de comparación con el mes anterior de la hoja de filtros de movimientos (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.13).
 - **FR-017**: Kipu MUST limitar la combinación avanzada de cuenta, tarjeta, categoría, comercio, monto, fuente (Manual / Notificación / OCR) y estado a una autorización Premium verificada. Los movimientos históricos sin procedencia se clasifican como 'Manual', salvo los vinculados a candidatos de captura. *(Decisión Owner 2026-11-05: se implementa filtro por fuente como filtro avanzado Premium)*.
 - **FR-018**: Kipu MUST volver a evaluar el acceso al abrir consultas o enlaces directos con filtros avanzados.
 - **FR-019**: Kipu MUST mantener la protección de integridad y deduplicación en Free y Premium.
 - **FR-020**: Kipu MUST vincular pagos de principal, cobros y aportes con su obligación o meta dentro de la misma confirmación financiera desde el selector opcional 'Aplicar a…' del registro rápido (Gasto aplica a deuda, Ingreso a préstamo, Transferencia a meta), delegando directamente a las rutas contables de deuda (`DebtRepository.settleDebt`) y meta (`GoalRepository.reserveGoalFunds`) sin registrar un movimiento estándar ni proyectar consumo de presupuesto para el principal. *(Decisión Owner 2026-11-05: registro rápido 'Aplicar a…')*.
 - **FR-021**: Kipu MUST representar un aporte a meta mediante Transferencia hacia la reserva seleccionada, sin crear un cuarto tipo principal ni duplicar activos. En una transferencia explícita offline, el ID de transacción MUST ser la identidad cliente estable del comando para reconciliar la reserva/evento con el ledger local tras sync sin efectos duplicados. La reserva de meta utiliza la fecha actual del sistema (reloj actual), ocultando la selección manual de fecha en el formulario. *(Decisión Owner 2026-11-05: la reserva de meta usa la fecha actual)*.
 - **FR-022**: Kipu MUST impedir nuevas aplicaciones sobre un objeto sin cupo activo, conservando sus relaciones históricas y sus efectos existentes.
-- **FR-023**: Kipu MUST permitir reembolsos parciales y totales únicamente contra una compra propia confirmada.
+- **FR-023**: Kipu MUST permitir reembolsos parciales y totales únicamente contra compras confirmadas reales de tarjeta de crédito y contra extornos de importación (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2; en gastos normales no se admite reembolso). Una compra con tarjeta registrada por error se elimina con un toque mientras ninguna de sus cuotas tenga pagos aplicados; con pagos aplicados se bloquea y se ofrece el reembolso.
 - **FR-024**: Kipu MUST calcular el saldo reembolsable descontando todas las devoluciones válidas previas.
-- **FR-025**: Kipu MUST aplicar el cambio de caja en la fecha real del reembolso y corregir gasto y presupuesto en el periodo de la compra original.
-- **FR-026**: Kipu MUST sincronizar operaciones confirmadas mediante reintentos seguros y comunicar conflictos que puedan cambiar la verdad financiera.
+- **FR-025**: Kipu MUST aplicar el cambio de caja en la fecha del reembolso (la cual DEBE ser igual o posterior a la compra y nunca futura) y corregir gasto y presupuesto en el periodo de la compra original (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2). Cualquier reembolso puede eliminarse del historial como cualquier movimiento, restituyendo el efecto de la compra original.
+- **FR-026**: Kipu MUST sincronizar operaciones confirmadas mediante reintentos seguros. Se aplica el patrón transversal de comandos rechazados: el elemento se marca «No sincronizado» con acciones «Reintentar» (si es temporal) y «Usar la versión del servidor»; las altas rechazadas se muestran con aviso y «Eliminar» sin contar en saldos; sin pantallas de fusión campo a campo (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.3). El pull compartido se unifica en una sola pasada que reparte entidades por tipo (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.4).
 - **FR-027**: Kipu MUST mantener disponibles consulta y registro manual para una persona previamente autenticada cuando no haya conexión.
 - **FR-028**: Kipu MUST excluir de registros y mensajes diagnósticos los datos financieros sensibles que no sean necesarios para resolver el fallo.
 - **FR-029**: En S4 Kipu MUST limitar edición y anulación genéricas a operaciones estándar; una operación especializada MUST conservarse sin cambios y mostrar una advertencia amigable.

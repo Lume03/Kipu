@@ -65,10 +65,11 @@ Dependencias: bloqueantes HU-39, HU-36, HU-09, HU-26, HU-30, HU-58; parcial HU-2
 - **FR-008** El calendario permite consultar periodos pasados en Free.
 - **FR-009** Las métricas excluyen transferencias, reservas y principal de pagos/cobros de ingreso/gasto operativo, y respetan anulaciones y reembolsos según reglas financieras existentes.
 - **FR-010** Solo HU-41 ofrece estadísticas: Free ve el resumen básico del periodo actual; capacidades Premium de históricos/comparaciones/filtros requieren autorización efectiva, sin borrar ni restringir historia básica.
-- **FR-011** Comparaciones identifican periodos, manejo de base cero y periodos parciales sin porcentajes inválidos ni precisión falsa.
+- **FR-011** Comparaciones identifican periodos, manejo de base cero y periodos parciales sin porcentajes inválidos ni precisión falsa. En la pantalla de Análisis (HU-41), la comparación entre periodos se mantiene y compara tanto gastos como ingresos por totales agregados por moneda (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.13).
 - **FR-012** Datos inexistentes de módulos aún no usados se muestran vacíos/ceros explícitos según el dato, no se sintetizan ni se presentan como estado confirmado cuando sea desconocido.
 - **FR-013** Toda consulta se limita al propietario autenticado; errores, logs y telemetría no exponen importes o datos financieros sensibles de forma indebida.
 - **FR-014** La capa de presentación solo representa estado y emite eventos; no hace acceso de red/base de datos ni cálculos autoritativos.
+- **FR-015** Los widgets del sistema (AppWidgets) DEBEN mostrar «Kipu bloqueado» en lugar de métricas financieras o de patrimonio mientras la aplicación se encuentre con el bloqueo local activo (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.9).
 
 ## Criterios de éxito verificables
 

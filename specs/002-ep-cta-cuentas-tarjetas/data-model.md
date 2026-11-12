@@ -363,12 +363,12 @@ sequence 0: REVERSAL   amount = -originalOpeningAmount   effectiveAt = originalO
 sequence 1: ADJUSTMENT amount = +correctedOpeningAmount  effectiveAt = correctedOpenedAt
 ```
 
-The command carries client-generated IDs for both rows and the server rejects collision with the opening ID or either other. Both rows exist even when either amount is zero. This moves the effect between reporting periods without changing history; current balance changes only by `corrected - original`. A later correction reverses the currently effective correction pair and posts its replacement under a new operation, never the immutable opening row.
+The command carries client-generated IDs for both rows and the server rejects collision with the opening ID or either other. Both rows exist even when either amount is zero. This moves the effect between reporting periods without changing history; current balance changes only by `corrected - original`. A later correction reverses the currently effective correction pair and posts its replacement under a new operation, never the immutable opening row. An opening correction is published to the sync feed as a full projection of the account: effective opening balance plus all its auditable facts (opening, reversals, adjustments), ensuring convergence across devices (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.1).
 
 ### Credit Summary (Sprint 3)
 
 ```text
-usedCredit = confirmed posted liability effects
+usedCredit = confirmed posted liability effects (including accrued/confirmed interest from purchases confirmed with interest; simulations never create debt; Decisión 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.5)
 availableCredit = max(creditLimit - usedCredit, 0)
 utilization = if creditLimit == 0 then Unavailable else usedCredit / creditLimit
 ```

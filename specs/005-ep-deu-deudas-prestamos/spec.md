@@ -118,6 +118,7 @@ Como persona usuaria, quiero planificar cuotas y vencimientos sin que se interpr
 - **FR-016**: A due reminder MUST notify the user at the chosen lead time when notification delivery is available. It MUST NOT imply that a payment occurred.
 - **FR-017**: Changing or cancelling a due date or installment MUST replace or cancel its pending debt reminder idempotently. General reminder settings and cross-object reminder deduplication remain HU-44 scope.
 - **FR-018**: An obligation MUST be marked settled only when its derived principal is zero or after an explicit, auditable adjustment or forgiveness resolves the remainder.
+- **FR-018a**: En condonaciones y ajustes de deuda (acciones FORGIVE y ADJUST), la fecha del hecho es la del registro offline (`occurred_at`). El RPC y la capa de dominio aceptan `occurred_at` del comando y validan que no sea una fecha futura (`occurred_at <= now()`) ni anterior a la fecha de apertura (`opened_on`) de la obligación (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.8).
 - **FR-019**: Cancellation MUST NOT be presented as payment or conceal outstanding principal.
 - **FR-020**: Physical deletion MUST be permitted only when no related financial operation or event would be lost. An obligation with history MUST remain consultable through a non-destructive lifecycle state.
 - **FR-021**: The Free plan MUST allow at most two active obligations combined across PAYABLE and RECEIVABLE. Plan limits MUST NOT delete, rewrite, or hide valid financial history.

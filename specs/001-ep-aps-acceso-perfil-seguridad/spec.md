@@ -253,7 +253,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 
 #### Registro e Inicio de Sesión
 
-- **FR-001**: El sistema DEBE permitir crear una cuenta mediante un correo con formato válido y una contraseña que cumpla la política vigente.
+- **FR-001**: El sistema DEBE permitir crear una cuenta mediante un correo con formato válido y una contraseña que cumpla la política vigente (longitud 8–72 caracteres, con al menos una letra y un número en cualquier alfabeto, aceptando letras Unicode y normalizando el texto a NFC tanto en el cliente como en el servidor/Edge Function; Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.10).
 - **FR-002**: El sistema DEBE informar si la cuenta requiere verificar el correo antes de poder ingresar.
 - **FR-003**: El sistema DEBE impedir una sesión válida cuando las credenciales son incorrectas o la cuenta todavía no está habilitada.
 - **FR-004**: Los errores de autenticación DEBEN usar mensajes neutros que no confirmen la existencia de una cuenta.
@@ -278,7 +278,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 
 - **FR-018**: Una persona con sesión válida DEBE poder consultar si el dispositivo admite protección biométrica o una credencial local compatible.
 - **FR-019**: La protección biométrica DEBE permanecer desactivada hasta que la persona la active y complete una autenticación local válida.
-- **FR-020**: Cuando la protección está activa, Kipu DEBE bloquear y ocultar saldos y datos privados en cada inicio y después de permanecer al menos 1 minuto continuo en segundo plano, hasta superar el desbloqueo local requerido.
+- **FR-020**: Cuando la protección está activa, Kipu DEBE bloquear y ocultar saldos y datos privados en cada inicio y después de permanecer al menos 1 minuto continuo en segundo plano, hasta superar el desbloqueo local requerido. Asimismo, DEBE activar `FLAG_SECURE` en la ventana (en builds release; nunca en build debug) mientras el bloqueo local esté activo para proteger la vista previa del sistema en recientes; y los widgets del sistema DEBEN mostrar «Kipu bloqueado» en lugar de información financiera mientras la app permanezca bloqueada (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.9).
 - **FR-021**: Cancelar o fallar el desbloqueo DEBE mantener la información oculta y permitir un nuevo intento o una alternativa admitida.
 - **FR-022**: Si no existe biometría compatible, el sistema DEBE explicar la limitación y ofrecer la protección local admitida por el dispositivo sin bloquear permanentemente el núcleo manual.
 - **FR-023**: Kipu NO DEBE recopilar, almacenar, sincronizar ni registrar plantillas o muestras biométricas.
@@ -288,7 +288,7 @@ Como usuario de Kipu, quiero habilitar un desbloqueo biométrico opcional, para 
 
 - **FR-025**: La persona DEBE poder guardar moneda principal, inicio de mes, tema y estado de ocultamiento de montos como preferencias de su cuenta, recuperables en otro dispositivo después de autenticarse.
 - **FR-026**: Las preferencias guardadas DEBEN conservarse al cerrar y reabrir la aplicación.
-- **FR-027**: Activar la máscara DEBE ocultar los importes en las superficies protegidas sin modificar sus valores ni cálculos.
+- **FR-027**: Activar la máscara DEBE ocultar los importes en todas las pantallas y superficies de la aplicación mediante el componente unificado `MoneyText`, sin modificar sus valores ni cálculos (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.9).
 - **FR-028**: Cambiar la moneda principal DEBE conservar la moneda y el importe originales de todos los registros existentes y NO DEBE ejecutar una conversión ficticia.
 - **FR-029**: El inicio de mes DEBE validarse contra el rango aprobado; un valor inválido DEBE señalarse y conservar la configuración anterior.
 - **FR-030**: Moneda principal, inicio de mes, tema y máscara de montos DEBEN mantenerse aislados por cuenta y acompañarla entre dispositivos; la activación biométrica y los permisos DEBEN permanecer locales al dispositivo donde fueron autorizados y NO DEBEN activarse por sincronización.

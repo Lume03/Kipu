@@ -40,6 +40,9 @@ Rules:
 While locked or while owner/session state is transitioning:
 
 - render an opaque non-sensitive surface;
+- activate `FLAG_SECURE` on the window (release builds only; never in debug builds) to protect app previews and screenshots (Decisión 2026-11-11 §8.9);
+- display «Kipu bloqueado» on system widgets while locked, instead of financial metrics (Decisión 2026-11-11 §8.9);
+- apply universal balance masking across all screens via `MoneyText` (Decisión 2026-11-11 §8.9);
 - do not emit balances in semantics/accessibility trees;
 - do not expose private content in app previews or transitions;
 - do not persist prompt outcomes or biometric details in logs.

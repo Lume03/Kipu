@@ -7,11 +7,11 @@
 ## Invariantes
 
 1. El reembolso es una transacción positiva `INCOME` con `operation_kind=REFUND`; G/I/T no cambia y REFUND no es ingreso operativo.
-2. Sólo se reembolsan gastos propios confirmados y vigentes, no anulados ni rechazados permanentemente, pagados en efectivo, débito o tarjeta de crédito sin cuotas. Se excluyen cuotas, transferencias, principal de deuda y movimientos especializados de deuda/metas.
+2. Elegibilidad de reembolsos (Sustituido el 2026-11-11 por Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2): En gastos normales (efectivo, débito) se elimina el reembolso: anular o editar el monto cubre esos casos. El reembolso queda reservado exclusivamente para compras reales con tarjeta de crédito y para los extornos de la importación (extractos bancarios). Una compra con tarjeta registrada por error se elimina con un toque mientras ninguna de sus cuotas tenga pagos aplicados; con pagos aplicados la eliminación directa se bloquea y se ofrece el flujo de reembolso.
 3. El saldo es `importe_compra - suma(reembolsos válidos vinculados)`. El importe solicitado debe ser positivo, de la misma moneda y no superar el saldo. Dominio y servidor validan; el servidor es autoridad entre dispositivos.
-4. El destino se deriva del origen: la cuenta de la compra para efectivo/débito o la misma tarjeta para compra a crédito. El cliente no aporta ni elige otro destino.
+4. El destino se deriva del origen: la misma tarjeta de crédito para compras a crédito. El cliente no aporta ni elige otro destino.
 5. La relación única es `transaction_links.link_type=REFUND`, compra como `source_transaction_id`, reembolso como `target_transaction_id`. No se escribe `transactions.refund_of_transaction_id`.
-6. La fecha del reembolso afecta caja; gasto neto y consumo se atribuyen a fecha y categoría originales. No se modifica la compra.
+6. La fecha del reembolso afecta caja y DEBE ser igual o posterior a la compra y nunca futura (Decisión de producto 2026-11-11, docs/qa/audit-2026-11-11/INFORME.md §8.2). Gasto neto y consumo se atribuyen a fecha y categoría originales. Cualquier reembolso (incluyendo reembolsos históricos de gastos normales) puede eliminarse del historial como cualquier movimiento ordinario, restituyendo automáticamente el cómputo y efecto de la compra original. No se modifica la compra.
 7. Rechazo remoto por remanente agotado conserva el reembolso local visible con motivo seguro. La persona puede anularlo por ruta especializada; jamás se borra silenciosamente.
 
 ## Comando `refund_transaction_v1`

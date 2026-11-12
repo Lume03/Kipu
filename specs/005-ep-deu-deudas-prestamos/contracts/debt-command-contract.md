@@ -87,6 +87,7 @@
 - Recibe debt_id, expected_revision, operation_id y acción SETTLE, CANCEL, ADJUST o FORGIVE.
 - SETTLE solo se acepta si el pendiente derivado es cero.
 - ADJUST/FORGIVE requieren importe, dirección/motivo auditable y una revisión vigente; ninguna acción puede ocultar saldo sin registrar el evento.
+- **Fecha del hecho en condonaciones/ajustes (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.8)**: La fecha del hecho es la del registro offline informada en `occurred_at`. El RPC acepta `occurred_at` del comando y valida en servidor que no sea futura (`occurred_at <= now()`) ni anterior a la fecha de apertura (`opened_on`) de la deuda.
 - CANCEL conserva cualquier principal vigente, eventos y consulta histórica; no se presenta como pago.
 - El cupo activo se libera según estado y política existente, sin borrar historia.
 

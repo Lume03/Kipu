@@ -47,7 +47,7 @@ La autoridad del usuario es `auth.uid()`. Toda apertura, liquidación, cuota, ev
 | principal_delta_minor | entero con signo nullable para legado | Nuevo campo. Negativo reduce principal, positivo lo aumenta, cero marca un evento de apertura sin volver a contar total_minor. Los eventos nuevos lo informan siempre. Los nulos heredados conservan la semántica histórica: PAYMENT resta amount_minor; los otros tipos no alteran el saldo hasta reconciliar su semántica. |
 | transaction_id | UUID nullable | Movimiento de principal que afectó caja; null cuando el evento no produjo movimiento de cuenta. Debe pertenecer al mismo usuario. |
 | installment_id | UUID nullable | Cuota relacionada, debe pertenecer a debt_id y user_id del evento. |
-| occurred_at | timestamp | Fecha efectiva del evento; anulación de transacción enlazada excluye su efecto sin borrar auditoría. |
+| occurred_at | timestamp | Fecha efectiva del evento; anulación de transacción enlazada excluye su efecto sin borrar auditoría. En condonaciones y ajustes (FORGIVENESS/ADJUSTMENT) toma el `occurred_at` enviado desde el cliente offline, validado para no ser futuro ni anterior a `opened_on` (Decisión de producto 2026-11-11; docs/qa/audit-2026-11-11/INFORME.md §8.8). |
 
 El saldo vigente se calcula como principal inicial más la suma de deltas de eventos válidos. Para eventos heredados sin delta, se conserva la regla de lectura anterior de PAYMENT. Un evento con movimiento relacionado solo cuenta si dicho movimiento sigue vigente. Ajustes y condonaciones nuevos usan delta firmado y no editan el principal inicial.
 
