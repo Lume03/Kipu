@@ -23,9 +23,11 @@ class RenewBudgetPeriods(private val repository: BudgetRepository) {
         // A custom range includes its end date. Once the next civil day begins, its natural
         // lifecycle is finished and it must stop consuming a Free active-budget slot.
         val customRange = budget.schedule as? BudgetSchedule.CustomRange
-        if (customRange != null && !today.isBefore(customRange.end.plusDays(1))) {
+        val dueChange = budget.pendingChange?.takeIf { !it.effectiveFrom.isAfter(today) }
+        if (customRange != null && !today.isBefore(customRange.end.plusDays(1)) && dueChange?.schedule == null) {
             val finished = budget.copy(
                 status = BudgetStatus.FINISHED,
+                scope = dueChange?.scope ?: budget.scope,
                 pendingChange = null,
                 revision = budget.revision + 1,
             )

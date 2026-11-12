@@ -126,7 +126,7 @@ class RecurrenceReminderWorkerTest {
             ))
             .setWorkerFactory(object : WorkerFactory() {
                 override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker =
-                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator(), expectedPayments)
+                    RecurrenceReminderWorker(appContext, workerParameters, recurrenceDao, sessionCoordinator, checker, scheduleDao, eventDao, com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator(), expectedPayments, mockk(relaxed = true))
             })
             .build()
 

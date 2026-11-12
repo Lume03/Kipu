@@ -72,7 +72,7 @@ fun CreditCardTermsSheet(
     val validBillingDay = parsedBillingDay != null && parsedBillingDay in 1..31
     val validDueDay = parsedDueDay != null && parsedDueDay in 1..31
     val validAlias = alias.isBlank() || !FinancialCard.isForbiddenSensitiveCardInput(alias)
-    val canSave = validLimit && validBillingDay && validDueDay && validDigits && validAlias && !isSaving
+    val canSave = validLimit && validBillingDay && validDueDay && parsedBillingDay != parsedDueDay && validDigits && validAlias && !isSaving
 
     // Swipe-down must respect the same rule as the close button: no dismiss while saving.
     val currentIsSaving by rememberUpdatedState(isSaving)

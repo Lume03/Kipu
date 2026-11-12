@@ -9,6 +9,16 @@ import java.time.temporal.ChronoUnit
 object RecurrenceScheduleCalculator {
     private const val MAX_DATE_YEAR = 9999
 
+    /** First scheduled occurrence on or after a civil date, independently of persisted next_due_date. */
+    fun nextOccurrence(anchor: LocalDate, frequency: String, intervalCount: Long, customIntervalUnit: String?,
+        active: Boolean, end: LocalDate?, from: LocalDate): LocalDate? {
+        if (!active || (end != null && from > end)) return null
+        val candidate = if (from <= anchor) anchor else try {
+            firstOccurrenceAfter(anchor, frequency, intervalCount, customIntervalUnit, from.minusDays(1))
+        } catch (_: IllegalArgumentException) { return null }
+        return candidate.takeIf { end == null || it <= end }
+    }
+
     fun occurrenceAt(anchor: LocalDate, frequency: String, intervalCount: Long, customIntervalUnit: String?, occurrenceIndex: Long): LocalDate {
         requireCommonDate(anchor)
         require(occurrenceIndex >= 0) { "Occurrence index cannot be negative" }

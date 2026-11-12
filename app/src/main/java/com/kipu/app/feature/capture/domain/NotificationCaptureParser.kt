@@ -137,7 +137,13 @@ private class PeruNotificationParser : NotificationCaptureParser {
 
     private fun parseMinor(raw: String): Long? = runCatching {
         if (raw.startsWith('-')) return null
-        val token = raw.trimEnd('.', ',')
+        val spaced = raw.trimEnd('.', ',')
+        val integerPart = spaced.takeWhile { it != '.' && it != ',' }
+        if (' ' in spaced) {
+            val groups = integerPart.split(' ')
+            if (groups.first().length !in 1..3 || groups.drop(1).any { it.length != 3 || !it.all(Char::isDigit) }) return null
+        }
+        val token = spaced.replace(" ", "")
         val lastSeparator = token.indexOfLast { it == '.' || it == ',' }
         val fractionSize = if (lastSeparator >= 0) token.length - lastSeparator - 1 else 0
         val hasDecimal = fractionSize in 1..2
@@ -171,7 +177,7 @@ private class PeruNotificationParser : NotificationCaptureParser {
         private val NOT_COMPLETED = Regex("\\b(?:rechazad[ao]s?|denegad[ao]s?|declinad[ao]s?|fallid[ao]s?|anulad[ao]s?|cancelad[ao]s?|pendientes?|revertid[ao]s?|reversad[ao]s?|no\\s+(?:fue\\s+)?(?:procesad|autorizad|aprobad|realizad|completad)[ao]s?|no\\s+(?:se\\s+)?(?:pudo\\s+)?(?:procesar|realizar|completar)|en\\s+proceso)\\b")
         private fun fold(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFD)
             .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
-        private val MONEY = Regex("(?i)(S/\\.?|PEN\\b|USD\\b|US\\$)\\s*(-?\\d[\\d.,]*)")
+        private val MONEY = Regex("(?i)(S/\\.?|PEN\\b|USD\\b|US\\$)\\s*(-?\\d[\\d.,]*(?:[ \t]+\\d[\\d.,]*)*)")
         private val LAST4 = Regex("(?:terminad[ao](?:s)?\\s+en\\s*|[*x]{2,}\\s*)(\\d{4})(?!\\d)")
         private val WALLET_PAYMENT = Regex("(?i)(PEN|S/\\.?|USD|US\\$)\\s*(\\d+(?:[.,]\\d+)*)\\s+con\\s+([^\\s•*][^•*\\r\\n]*?)\\s+(?:•{2,}|\\*{2,})\\s*(\\d{4})")
         private val WALLET_CITY_SUFFIX = Regex("[ \\t]{2,}\\S+$")

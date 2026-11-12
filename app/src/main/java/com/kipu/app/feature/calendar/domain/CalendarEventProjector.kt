@@ -145,8 +145,8 @@ object CalendarEventProjector {
             val currency = (rule.templateTransaction["currency_code"] as? JsonPrimitive)?.content?.let(::currencyOrNull)
             val amount = if (amountMinor != null && currency != null) Money(amountMinor, currency) else null
             (1..month.lengthOfMonth()).map { month.atDay(it) }
-                .filter { day -> day >= rule.nextDueDate && (rule.endDate == null || day <= rule.endDate) }
-                .filter { day -> isOccurrence(rule, day) }
+                .filter { day -> RecurrenceScheduleCalculator.nextOccurrence(rule.startDate, rule.frequency, rule.intervalCount,
+                    rule.customIntervalUnit, rule.status == RecurrenceStatus.ACTIVE, rule.endDate, day) == day }
                 .map { day ->
                     CalendarEvent(
                         id = "recurrence:${rule.id}:$day",

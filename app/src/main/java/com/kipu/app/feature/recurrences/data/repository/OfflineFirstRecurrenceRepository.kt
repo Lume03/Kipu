@@ -351,12 +351,20 @@ class OfflineFirstRecurrenceRepository @Inject constructor(
                 reminderEventReconciler.invalidateSource(userId, recurrenceId, clock.instant())
                 return@exclusive
             }
-            reminderEventReconciler.retainCurrentDate(userId, recurrenceId, current.nextDueDate, clock.instant())
+            val due = RecurrenceScheduleCalculator.nextOccurrence(LocalDate.parse(current.startDate), current.frequency,
+                current.intervalCount, current.customIntervalUnit, true, current.endDate?.let(LocalDate::parse),
+                LocalDate.now(clock.withZone(businessZone)))
+            if (due == null) {
+                reminderScheduler.cancel(userId, recurrenceId)
+                reminderEventReconciler.invalidateSource(userId, recurrenceId, clock.instant())
+                return@exclusive
+            }
+            reminderEventReconciler.retainCurrentDate(userId, recurrenceId, due.toString(), clock.instant())
             reminderScheduler.schedule(
                 RecurrenceReminderRequest(
                     userId = userId,
                     recurrenceId = recurrenceId,
-                    dueDate = LocalDate.parse(current.nextDueDate),
+                    dueDate = due,
                     leadDays = current.reminderLeadDays,
                 ),
             )

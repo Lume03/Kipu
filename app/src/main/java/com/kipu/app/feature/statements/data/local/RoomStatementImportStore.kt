@@ -98,6 +98,11 @@ class RoomStatementImportStore @Inject constructor(
                     Currency.valueOf(line.currency), java.time.LocalDate.parse(line.occurredDate), StatementLineKind.valueOf(line.kind))
                 dao.setDuplicate(owner, line.id, duplicateLine)
             }
+            if (!deposit && cardId != null) for (line in lines.filter { it.status == "PENDING" }) {
+                val duplicateLine = matching.hasDuplicate(owner, cardId, line.amountMinor,
+                    Currency.valueOf(line.currency), java.time.LocalDate.parse(line.occurredDate))
+                dao.setDuplicate(owner, line.id, duplicateLine)
+            }
             true
         }
     }

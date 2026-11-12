@@ -8,8 +8,6 @@ import com.kipu.app.feature.receipts.domain.ReceiptCandidateSaveResult
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateStore
 import com.kipu.app.feature.receipts.domain.newReceiptCandidate
 import com.kipu.app.feature.receipts.domain.YapeReceiptFields
-import com.kipu.app.feature.receipts.domain.normalizedReference
-import com.kipu.app.feature.receipts.domain.sha256
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +25,7 @@ class RoomReceiptCandidateStore @Inject constructor(
     override suspend fun import(ownerId: String, imageFingerprint: String, fields: YapeReceiptFields, isIncome: Boolean?): ReceiptCandidateSaveResult {
         val owner = UUID.fromString(ownerId).toString()
         return database.withTransaction {
-            val candidate = newReceiptCandidate(owner, imageFingerprint, fields, isIncome)
+            val candidate = newReceiptCandidate(owner, imageFingerprint, fields, isIncome).copy(referenceFingerprint = null)
             val target = com.kipu.app.feature.capture.data.local.RoomCaptureCorrelation(database).attach(
                 owner, "OCR:YAPE", imageFingerprint, "receipt:${candidate.id}", fields.reference,
                 com.kipu.app.feature.capture.domain.CorrelationFacts("receipt:${candidate.id}", "OCR:YAPE", fields.reference,
@@ -38,15 +36,14 @@ class RoomReceiptCandidateStore @Inject constructor(
                         fields.amountMinor, "PEN", isIncome, fields.recipient, fields.occurredAt))
                 return@withTransaction ReceiptCandidateSaveResult.Duplicate(target.substringAfter(':'))
             }
-            val refFingerprint = fields.reference.normalizedReference()?.sha256()
-            val duplicate = dao.findImage(owner, imageFingerprint) ?: refFingerprint?.let { dao.findReference(owner, it) }
+            // OCR does not identify an account, so a reference alone cannot prove identity.
+            val duplicate = dao.findImage(owner, imageFingerprint)
             if (duplicate != null) return@withTransaction ReceiptCandidateSaveResult.Duplicate(duplicate.candidateId)
 
-            val row = candidate.toEntity()
+            val row = candidate.toEntity().copy(referenceFingerprint = null)
             if (dao.insert(row) != -1L) ReceiptCandidateSaveResult.Saved(candidate)
             else {
                 val conflict = dao.findImage(owner, imageFingerprint)
-                    ?: candidate.referenceFingerprint?.let { dao.findReference(owner, it) }
                 conflict?.let { ReceiptCandidateSaveResult.Duplicate(it.candidateId) }
                     ?: throw IllegalStateException("Candidate insert rejected without a matching duplicate")
             }
@@ -62,9 +59,7 @@ class RoomReceiptCandidateStore @Inject constructor(
     override suspend fun edit(ownerId: String, candidateId: String, edit: ReceiptCandidateEdit): ReceiptCandidate? {
         val owner = UUID.fromString(ownerId).toString()
         return database.withTransaction {
-            val fingerprint = edit.reference.normalizedReference()?.sha256()
-            val existing = fingerprint?.let { dao.findReference(owner, it) }
-            if (existing != null && existing.candidateId != candidateId) return@withTransaction null
+            val fingerprint: String? = null
             val changed = dao.edit(owner, candidateId, edit.amountMinor, edit.occurredAt, edit.recipient, edit.reference,
                 fingerprint, edit.isIncome, System.currentTimeMillis())
             if (changed == 1) get(owner, candidateId) else null

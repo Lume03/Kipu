@@ -821,14 +821,17 @@ private fun HorizontalBar(fraction: Float, color: Color, track: Color, modifier:
 private fun androidx.compose.foundation.lazy.LazyListScope.comparisonItems(result: AnalyticsComparison, monthNames: List<String>) {
     item(key = "previous_period") { PeriodCard(labelOf(R.string.analytics_comparison_previous), result.previous, monthNames) }
     item(key = "current_period") { PeriodCard(labelOf(R.string.analytics_comparison_current), result.current, monthNames) }
-    if (!result.previous.hasRecords && !result.current.hasRecords) {
+    if (!result.previous.hasMovements && !result.current.hasMovements) {
         item(key = "comparison_empty") {
             KipuEmptyState(title = stringResource(R.string.analytics_empty_title), message = stringResource(R.string.analytics_comparison_empty))
         }
         return
     }
-    result.byCurrency.keys.ordered().forEach { currency ->
+    (if (result.previous.hasRecords || result.current.hasRecords) result.byCurrency.keys else emptySet()).ordered().forEach { currency ->
         item(key = "comparison_$currency") { ComparisonCard(currency, result.byCurrency.getValue(currency), multiCurrency = result.byCurrency.size > 1) }
+    }
+    result.incomeByCurrency.keys.ordered().forEach { currency ->
+        item(key = "income_comparison_$currency") { ComparisonCard(currency, result.incomeByCurrency.getValue(currency), multiCurrency = result.incomeByCurrency.size > 1, income = true) }
     }
 }
 
@@ -837,7 +840,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.comparisonItems(resul
 private fun labelOf(id: Int): String = stringResource(id)
 
 @Composable
-private fun ComparisonCard(currency: Currency, comparison: CurrencyComparison, multiCurrency: Boolean) {
+private fun ComparisonCard(currency: Currency, comparison: CurrencyComparison, multiCurrency: Boolean, income: Boolean = false) {
     val colors = rememberCalmEmeraldColors()
     val masked = LocalBalanceMasked.current
     val hidden = stringResource(R.string.analytics_masked_amount)
@@ -862,7 +865,7 @@ private fun ComparisonCard(currency: Currency, comparison: CurrencyComparison, m
                 currencySymbol = currency.symbol(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = if (comparison.difference.minorUnits > 0L) colors.expenseText else colors.primaryText,
+                color = if (!income && comparison.difference.minorUnits > 0L) colors.expenseText else colors.primaryText,
             )
         }
         Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {

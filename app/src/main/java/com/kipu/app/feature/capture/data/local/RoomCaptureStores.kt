@@ -47,12 +47,12 @@ class RoomCaptureCandidateStore @Inject constructor(
         val target = correlation.attach(record.ownerId, "NOTIFICATION:${record.sourcePackage}",
             record.sourceEventFingerprint, "capture:${record.id}", record.operationReference,
             com.kipu.app.feature.capture.domain.CorrelationFacts("capture:${record.id}", "NOTIFICATION:${record.sourcePackage}", record.operationReference,
-                record.amountMinor, record.currency, record.direction?.let { it == com.kipu.app.feature.capture.domain.CaptureDirection.INCOME }, record.merchantSourceText, record.occurredAt))
+                record.amountMinor, record.currency, record.direction?.let { it == com.kipu.app.feature.capture.domain.CaptureDirection.INCOME }, record.merchantSourceText, record.occurredAt, record.accountId?.let { "account:$it" } ?: record.cardId?.let { "card:$it" }))
         if (target != null) {
             correlation.completeEmpty(record.ownerId, target, com.kipu.app.feature.capture.domain.CorrelationFacts(
                 "capture:${record.id}", "NOTIFICATION:${record.sourcePackage}", record.operationReference,
                 record.amountMinor, record.currency, record.direction?.let { it == com.kipu.app.feature.capture.domain.CaptureDirection.INCOME },
-                record.merchantSourceText, record.occurredAt))
+                record.merchantSourceText, record.occurredAt, record.accountId?.let { "account:$it" } ?: record.cardId?.let { "card:$it" }))
             false
         } else dao.insertIfAbsent(record.toEntity()) != -1L
     }

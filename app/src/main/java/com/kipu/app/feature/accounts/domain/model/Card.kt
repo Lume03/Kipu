@@ -154,6 +154,7 @@ data class CreditCard(
         require(dueDay in 1..31) {
             "Due day must be between 1 and 31"
         }
+        require(billingDay != dueDay) { "Billing day and due day must differ" }
         personalTeaBps?.let {
             require(it >= 0) { "TEA basis points cannot be negative" }
         }

@@ -4,8 +4,7 @@ import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
 import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.plans.domain.model.CommercialOption
-import java.math.BigDecimal
-import java.math.RoundingMode
+import com.kipu.app.core.finance.domain.MoneyInputParser
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,11 +41,8 @@ data class SetupAccountDraft(
     /** Minor units of the typed balance, or null when the text is not a valid non-negative amount. */
     val balanceMinorUnits: Long?
         get() {
-            val text = balanceText.trim().replace(",", "")
-            if (text.isEmpty()) return 0L
-            val value = text.toBigDecimalOrNull() ?: return null
-            if (value.signum() < 0 || value.stripTrailingZeros().scale() > 2) return null
-            return value.setScale(2, RoundingMode.HALF_UP).multiply(BigDecimal(100)).toLong()
+            if (balanceText.isBlank()) return 0L
+            return MoneyInputParser.parseMinorUnits(balanceText)
         }
 
     val balanceError: String?

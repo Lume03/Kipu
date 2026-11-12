@@ -324,7 +324,8 @@ fun AccountDetailScreen(
         },
         onReactivate = {
             isSubmitting = true
-            val isComputable = account?.isComputableForQuota ?: card?.isComputableForQuota ?: true
+            val debitSharesActiveGroup = card is DebitCard && instruments.activeAccounts.any { it.id == card.linkedAccountId }
+            val isComputable = if (debitSharesActiveGroup) false else account?.isComputableForQuota ?: card?.isComputableForQuota ?: true
             viewModel.reactivateInstrument(instrumentId, isCard, isComputable)
         },
         onPayCreditCard = { showCardPayment = true },
@@ -748,6 +749,7 @@ fun AccountDetailContent(
                     // R10 Movements Section
                     CreditCardMovementsSection(
                         movements = cardMovements,
+                        closingDay = card.billingDay,
                     )
                 } else {
                     // Liquid account (C1-C9) or debit card view
@@ -1449,9 +1451,13 @@ private fun CreditCardPeriodPanel(
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
-    val debt = summary?.debt ?: Money(0L, card.currency)
-    val available = summary?.availableCredit ?: Money(card.creditLimitMinorUnits, card.currency)
-    val utilization = summary?.utilizationPercentage ?: 0.0
+    if (summary == null) {
+        Text("Sin datos del resumen de la tarjeta", modifier = modifier.fillMaxWidth())
+        return
+    }
+    val debt = summary.debt
+    val available = summary.availableCredit
+    val utilization = summary.utilizationPercentage
 
     if (card.isArchived) {
         Card(
@@ -1907,7 +1913,7 @@ private fun CreditCardActionsSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!isArchived) {
-            val hasDebt = (summary?.debt?.minorUnits ?: 0L) > 0L
+            val hasDebt = summary == null || summary.debt.minorUnits > 0L
             if (hasDebt) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2123,6 +2129,7 @@ private fun CreditCardActionsSection(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun CreditCardMovementsSection(
     movements: List<CardMovementDisplay>,
+    closingDay: Int,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -2138,9 +2145,9 @@ private fun CreditCardMovementsSection(
             .withZone(ZoneId.systemDefault())
     }
 
-    val filteredMovements = remember(movements, selectedTypeFilter, selectedPeriodFilter) {
-        val now = java.time.Instant.now()
-        val thirtyDaysAgo = now.minus(30, java.time.temporal.ChronoUnit.DAYS)
+    val today = java.time.LocalDate.now(ZoneId.of("America/Lima"))
+    val filteredMovements = remember(movements, selectedTypeFilter, selectedPeriodFilter, closingDay, today) {
+        val cycle = currentCardCycle(closingDay, today)
         movements.filter { item ->
             val m = item.movement
             val matchesType = when (selectedTypeFilter) {
@@ -2149,7 +2156,7 @@ private fun CreditCardMovementsSection(
                 else -> true
             }
             val matchesPeriod = when (selectedPeriodFilter) {
-                "CYCLE" -> m.effectiveAt >= thirtyDaysAgo
+                "CYCLE" -> m.effectiveAt.atZone(ZoneId.of("America/Lima")).toLocalDate() in cycle.consumptionStartDate..cycle.consumptionEndDate
                 else -> true
             }
             matchesType && matchesPeriod
@@ -2722,3 +2729,7 @@ private fun AccountType.toDetailLabel(): String = when (this) {
     AccountType.DIGITAL_WALLET -> "Billetera digital"
     AccountType.CREDIT_LIABILITY -> "Pasivo de tarjeta"
 }
+
+internal fun currentCardCycle(closingDay: Int, today: java.time.LocalDate): com.kipu.app.core.finance.domain.BillingCycle =
+    com.kipu.app.core.finance.domain.BillingCycleCalculator.currentCycle(
+        com.kipu.app.core.finance.domain.BillingCycleConfiguration(closingDay, if (closingDay == 1) 2 else 1, closingDayInclusive = true), today)

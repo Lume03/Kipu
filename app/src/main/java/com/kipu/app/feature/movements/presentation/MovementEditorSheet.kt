@@ -770,7 +770,7 @@ fun MovementEditorContent(
     // DatePicker Dialog
     if (showDatePicker) {
         val dateState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.occurredAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+            initialSelectedDateMillis = editorPickerInitialMillis(uiState.occurredAt.takeIf { it > 0 } ?: System.currentTimeMillis()),
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -778,7 +778,7 @@ fun MovementEditorContent(
                 TextButton(
                     onClick = {
                         dateState.selectedDateMillis?.let { selected ->
-                            onDateChanged(selected)
+                            onDateChanged(editorPickerDateToInstant(selected, uiState.occurredAt))
                         }
                         showDatePicker = false
                     },
@@ -1053,7 +1053,7 @@ private val editorDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern
 
 private fun editorDateLabel(epochMilli: Long): String {
     if (epochMilli <= 0L) return "Seleccionar fecha"
-    val zone = ZoneId.systemDefault()
+    val zone = ZoneId.of("America/Lima")
     val date = Instant.ofEpochMilli(epochMilli).atZone(zone).toLocalDate()
     val today = LocalDate.now(zone)
     val text = date.format(editorDateFormatter).replace(".", "").lowercase().lowercase()
@@ -1075,4 +1075,15 @@ private fun editorSubtitle(s: MovementEditorUiState): String {
             .format(editorDateFormatter).replace(".", "").lowercase()
     } else null
     return listOfNotNull(type, s.initialMerchantName?.trim()?.takeIf { it.isNotBlank() }, date).joinToString(" · ")
+}
+
+internal fun editorPickerInitialMillis(occurredAt: Long): Long =
+    Instant.ofEpochMilli(occurredAt).atZone(ZoneId.of("America/Lima")).toLocalDate()
+        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+
+internal fun editorPickerDateToInstant(selected: Long, occurredAt: Long): Long {
+    val zone = ZoneId.of("America/Lima")
+    val date = Instant.ofEpochMilli(selected).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+    val time = Instant.ofEpochMilli(occurredAt).atZone(zone).toLocalTime()
+    return date.atTime(time).atZone(zone).toInstant().toEpochMilli()
 }

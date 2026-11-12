@@ -393,6 +393,9 @@ class CaptureReviewViewModel @Inject constructor(
     fun onCategorySelected(categoryId: String?) = _state.update { it.copy(categoryId = categoryId, categoryError = null) }
 
     fun onInstrumentSelected(choice: CaptureInstrumentChoice) = _state.update { current ->
+        if (current.currency != null && current.currency != choice.currency) {
+            return@update current.copy(instrumentError = "La moneda de la cuenta no coincide con la del importe detectado")
+        }
         val credit = choice.kind == CaptureInstrumentKind.CREDIT_CARD
         val direction = if (credit) CaptureDirection.EXPENSE else current.direction
         current.copy(

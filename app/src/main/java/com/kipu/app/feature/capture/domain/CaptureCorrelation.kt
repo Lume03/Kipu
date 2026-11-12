@@ -5,7 +5,7 @@ import java.util.Locale
 
 data class CorrelationFacts(
     val root: String, val source: String, val reference: String?, val amount: Long?,
-    val currency: String?, val income: Boolean?, val counterparty: String?, val time: Long?,
+    val currency: String?, val income: Boolean?, val counterparty: String?, val time: Long?, val account: String? = null,
 )
 
 /** HU-49 D1: similarity is a proposal, never authority to post or silently merge. */
@@ -17,7 +17,10 @@ object CaptureCorrelation {
             .lowercase(Locale.ROOT).trim().replace(Regex("\\s+"), " ")
     }?.takeIf { it.isNotBlank() }
     fun sameReference(a: CorrelationFacts, b: CorrelationFacts): Boolean =
-        reference(a.reference) != null && reference(a.reference) == reference(b.reference) &&
+        a.source != b.source && a.account != null && a.account == b.account &&
+            a.time != null && b.time != null && java.math.BigInteger.valueOf(a.time)
+                .subtract(java.math.BigInteger.valueOf(b.time)).abs() <= java.math.BigInteger.valueOf(600_000) &&
+            reference(a.reference) != null && reference(a.reference) == reference(b.reference) &&
             a.amount != null && a.amount > 0 && a.amount == b.amount &&
             a.currency != null && a.currency == b.currency && a.income != null && a.income == b.income
     fun compatible(a: CorrelationFacts, b: CorrelationFacts): Boolean {

@@ -25,6 +25,7 @@ data class RecurrenceReminderRequest(
 
 interface RecurrenceReminderScheduler {
     fun schedule(request: RecurrenceReminderRequest)
+    fun scheduleNext(request: RecurrenceReminderRequest) = schedule(request)
     fun cancel(userId: String, recurrenceId: String)
 
     companion object {
@@ -45,13 +46,17 @@ class WorkManagerRecurrenceReminderScheduler @Inject constructor(
     private val clock: Clock = Clock.systemUTC(),
     @BusinessZone private val businessZone: ZoneId = LIMA_BUSINESS_ZONE,
 ) : RecurrenceReminderScheduler {
-    override fun schedule(request: RecurrenceReminderRequest) {
+    override fun schedule(request: RecurrenceReminderRequest) = enqueue(request, ExistingWorkPolicy.REPLACE, true)
+
+    override fun scheduleNext(request: RecurrenceReminderRequest) = enqueue(request, ExistingWorkPolicy.APPEND_OR_REPLACE, false)
+
+    private fun enqueue(request: RecurrenceReminderRequest, policy: ExistingWorkPolicy, cancelObsolete: Boolean) {
         // Zero-day delivery semantics remain with the notifications contract.
         if (request.userId.isBlank() || request.recurrenceId.isBlank() || request.leadDays !in 0..30 || request.leadDays == 0) {
             cancel(request.userId, request.recurrenceId)
             return
         }
-        cancelPostedNotificationIfObsolete(request.userId, request.recurrenceId, request.dueDate.toString())
+        if (cancelObsolete) cancelPostedNotificationIfObsolete(request.userId, request.recurrenceId, request.dueDate.toString())
         val fireAt = request.dueDate.minusDays(request.leadDays.toLong())
             .atStartOfDay(businessZone).toInstant().toEpochMilli()
         val work = OneTimeWorkRequestBuilder<RecurrenceReminderWorker>()
@@ -67,7 +72,7 @@ class WorkManagerRecurrenceReminderScheduler @Inject constructor(
             .addTag(RecurrenceReminderScheduler.sourceTag(request.userId, request.recurrenceId))
             .addTag(RecurrenceReminderScheduler.ownerTag(request.userId))
             .build()
-        workManager.enqueueUniqueWork(RecurrenceReminderScheduler.workName(request), ExistingWorkPolicy.REPLACE, work)
+        workManager.enqueueUniqueWork(RecurrenceReminderScheduler.workName(request), policy, work)
     }
 
     override fun cancel(userId: String, recurrenceId: String) {

@@ -24,7 +24,9 @@ data class AnalyticsPeriod(val start: LocalDate, val endInclusive: LocalDate, va
         if (start.dayOfMonth == 1) {
             val previousStart = start.minusMonths(1)
             val span = java.time.temporal.ChronoUnit.DAYS.between(start, endInclusive)
-            val previousEnd = minOf(previousStart.plusDays(span), previousStart.withDayOfMonth(previousStart.lengthOfMonth()))
+            val previousMonthEnd = previousStart.withDayOfMonth(previousStart.lengthOfMonth())
+            val closedWholeMonth = endInclusive == start.withDayOfMonth(start.lengthOfMonth()) && endInclusive.isBefore(LocalDate.now(zone))
+            val previousEnd = if (closedWholeMonth) previousMonthEnd else minOf(previousStart.plusDays(span), previousMonthEnd)
             return AnalyticsPeriod(previousStart, previousEnd, zone)
         }
         val length = java.time.temporal.ChronoUnit.DAYS.between(start, endInclusive) + 1
@@ -83,7 +85,7 @@ sealed interface PercentageChange {
     data class Value(val percent: BigDecimal) : PercentageChange
 }
 data class CurrencyComparison(val previous: Money, val current: Money, val difference: Money, val percentage: PercentageChange)
-data class AnalyticsComparison(val previous: PeriodResult, val current: PeriodResult, val byCurrency: Map<Currency, CurrencyComparison>)
+data class AnalyticsComparison(val previous: PeriodResult, val current: PeriodResult, val byCurrency: Map<Currency, CurrencyComparison>, val incomeByCurrency: Map<Currency, CurrencyComparison> = emptyMap())
 
 object AnalyticsCalculator {
     fun calculate(
@@ -167,16 +169,20 @@ object AnalyticsCalculator {
         return blocks
     }
     fun compare(previous: PeriodResult, current: PeriodResult): AnalyticsComparison {
-        val currencies = previous.totals.keys + current.totals.keys
-        return AnalyticsComparison(previous, current, currencies.associateWith { currency ->
-            val before = previous.totals[currency] ?: Money.zero(currency)
-            val after = current.totals[currency] ?: Money.zero(currency)
-            val delta = after - before
-            val percentage = if (before.minorUnits == 0L) PercentageChange.SinBaseDeComparacion else
-                PercentageChange.Value(BigDecimal.valueOf(delta.minorUnits).multiply(BigDecimal.valueOf(100))
-                    .divide(BigDecimal.valueOf(before.minorUnits), 2, RoundingMode.HALF_UP))
-            CurrencyComparison(before, after, delta, percentage)
-        })
+        fun compareTotals(beforeTotals: Map<Currency, Money>, afterTotals: Map<Currency, Money>): Map<Currency, CurrencyComparison> {
+            val currencies = beforeTotals.keys + afterTotals.keys
+            return currencies.associateWith { currency ->
+                val before = beforeTotals[currency] ?: Money.zero(currency)
+                val after = afterTotals[currency] ?: Money.zero(currency)
+                val delta = after - before
+                val percentage = if (before.minorUnits == 0L) PercentageChange.SinBaseDeComparacion else
+                    PercentageChange.Value(BigDecimal.valueOf(delta.minorUnits).multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(before.minorUnits), 2, RoundingMode.HALF_UP))
+                CurrencyComparison(before, after, delta, percentage)
+            }
+        }
+        return AnalyticsComparison(previous, current, compareTotals(previous.totals, current.totals),
+            compareTotals(previous.incomeTotals, current.incomeTotals))
     }
 }
 

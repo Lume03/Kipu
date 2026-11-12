@@ -75,7 +75,7 @@ class ReminderFinancialIsolationTest {
                     if (workerClassName == DebtReminderWorker::class.java.name) DebtReminderWorker(appContext, workerParameters,
                         database.debtDao(), session, permission, database.reminderScheduleDao(), database.localReminderEventDao(), ReminderReconciliationCoordinator())
                     else RecurrenceReminderWorker(appContext, workerParameters, database.recurrenceDao(), session, permission,
-                        database.reminderScheduleDao(), database.localReminderEventDao(), ReminderReconciliationCoordinator(), payments)
+                        database.reminderScheduleDao(), database.localReminderEventDao(), ReminderReconciliationCoordinator(), payments, mockk(relaxed = true))
             }
             val repository = OfflineFirstNotificationsRepository(database.appNotificationDao(), database.localReminderEventDao(),
                 database.notificationSyncOutboxDao(), mockk(), object : DatabaseTransactionRunner {

@@ -20,6 +20,8 @@ import com.kipu.app.feature.capture.domain.ExpectedPaymentStore
 import com.kipu.app.feature.capture.domain.ExpectedPaymentStatus
 import kotlinx.coroutines.flow.first
 import com.kipu.app.feature.recurrences.data.local.RecurrenceDao
+import com.kipu.app.feature.recurrences.domain.schedule.RecurrenceScheduleCalculator
+import com.kipu.app.core.di.LIMA_BUSINESS_ZONE
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.nio.ByteBuffer
@@ -39,6 +41,7 @@ class RecurrenceReminderWorker @AssistedInject constructor(
     private val localReminderEventDao: LocalReminderEventDao,
     private val coordinator: ReminderReconciliationCoordinator,
     private val expectedPayments: ExpectedPaymentStore,
+    private val scheduler: RecurrenceReminderScheduler,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result = coordinator.exclusive { runReminder() }
 
@@ -53,9 +56,19 @@ class RecurrenceReminderWorker @AssistedInject constructor(
 
         val recurrence = recurrenceDao.get(userId, recurrenceId) ?: return Result.success()
         if (recurrence.status != "ACTIVE" || recurrence.syncState != "SYNCED" || !recurrence.isActive || recurrence.deletedAt != null ||
-            recurrence.nextDueDate != dueDate.toString() || recurrence.reminderLeadDays != leadDays ||
+            recurrence.reminderLeadDays != leadDays ||
             leadDays !in 1..30 || recurrence.endDate?.let { dueDate > LocalDate.parse(it) } == true
         ) return Result.success()
+
+        val anchor = LocalDate.parse(recurrence.startDate)
+        val end = recurrence.endDate?.let(LocalDate::parse)
+        if (RecurrenceScheduleCalculator.nextOccurrence(anchor, recurrence.frequency, recurrence.intervalCount,
+                recurrence.customIntervalUnit, true, end, dueDate) != dueDate) return Result.success()
+        if (recurrenceDao.get(userId, recurrenceId) != recurrence) return Result.success()
+        val nextFrom = maxOf(dueDate.plusDays(1), LocalDate.now(LIMA_BUSINESS_ZONE))
+        val next = RecurrenceScheduleCalculator.nextOccurrence(anchor, recurrence.frequency, recurrence.intervalCount,
+            recurrence.customIntervalUnit, true, end, nextFrom)
+        if (next != null) scheduler.scheduleNext(RecurrenceReminderRequest(userId, recurrenceId, next, leadDays))
 
         if (expectedPayments.observeByRecurrence(userId, recurrenceId).first().any {
                 it.dueDate == dueDate && it.status == ExpectedPaymentStatus.ATTENDED

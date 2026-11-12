@@ -6,6 +6,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NotificationCaptureParserTest {
+    @Test fun `space grouped amounts are parsed without truncation`() {
+        val parsed = parse(CaptureProvider.BCP, "Compra S/ 1 250.00 en TIENDA con tu tarjeta d?bito terminada en 1234 el 28/10/2026 10:35")
+        assertEquals(125000L, parsed.amountMinor)
+    }
+
     @Test fun `every provider ignores incomplete operation fixtures regardless of case or accents`() {
         val statuses = listOf("RECHAZADA", "denegada", "fallida", "anulada", "cancelada", "PENDIENTE", "revertida",
             "no procesada", "no fue procesada", "no autorizada", "declinada", "no se pudo realizar")

@@ -108,7 +108,7 @@ class RecurrenceDatesAndRemindersTest {
                 RecurrenceReminderWorker.KEY_DUE_DATE to "2026-11-01", RecurrenceReminderWorker.KEY_LEAD_DAYS to 1,
             )
         }, dao, session, object : DebtNotificationPermissionChecker { override fun canPostDebtReminder() = false },
-        schedules, events, ReminderReconciliationCoordinator(), store,
+        schedules, events, ReminderReconciliationCoordinator(), store, mockk(relaxed = true),
     )
     private fun entity() = RecurrenceEntity(
         "rule", "owner", "{}", "FIXED", "MONTHLY", 1, null, "2026-10-01", null, "2026-11-01", 1,

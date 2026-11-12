@@ -40,7 +40,8 @@ class RoomCaptureCorrelation @Inject constructor(private val db: KipuDatabase) {
             return CorrelationFacts(root, source, reference, transaction.amountMinor, transaction.currencyCode,
                 transaction.type == "INCOME", transaction.merchantProvisionalText ?: if (root.startsWith("receipt:"))
                     db.receiptCandidateDao().get(owner, id)?.recipient else db.captureCandidateDao().get(owner, id)?.merchantSourceText,
-                transaction.occurredAt)
+                transaction.occurredAt, transaction.cardId?.let { "card:$it" }
+                    ?: (transaction.sourceAccountId ?: transaction.destinationAccountId)?.let { "account:$it" })
         }
         return if (root.startsWith("receipt:")) {
             val r = db.receiptCandidateDao().get(owner, id) ?: return null
@@ -49,7 +50,7 @@ class RoomCaptureCorrelation @Inject constructor(private val db: KipuDatabase) {
         } else {
             val r = db.captureCandidateDao().get(owner, id) ?: return null
             if (r.status == "DISCARDED") return null
-            CorrelationFacts(root, source, reference, r.amountMinor, r.currency, r.direction?.let { it == "INCOME" }, r.merchantSourceText, r.occurredAt)
+            CorrelationFacts(root, source, reference, r.amountMinor, r.currency, r.direction?.let { it == "INCOME" }, r.merchantSourceText, r.occurredAt, r.accountId?.let { "account:$it" } ?: r.cardId?.let { "card:$it" })
         }
     }
 
