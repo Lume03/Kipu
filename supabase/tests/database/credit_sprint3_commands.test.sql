@@ -17,6 +17,11 @@ VALUES
     ('93000000-0000-0000-0000-000000000103','93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000113','Cuenta USD','BANK','USD',50000,now(),false, 'GENERIC'),
     ('93000000-0000-0000-0000-000000000201','93000000-0000-0000-0000-000000000002','93000000-0000-0000-0000-000000000211','Cuenta externa','BANK','PEN',50000,now(),false, 'GENERIC');
 
+-- The account mirror is not spendable money; post the fixture's opening fact.
+INSERT INTO public.financial_movements(operation_id,user_id,kind,amount_minor_units,currency,account_id,opening_account_id)
+SELECT extensions.gen_random_uuid(),user_id,'OPENING',initial_balance_minor_units,currency_code,id,id
+FROM public.accounts WHERE user_id IN ('93000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000002') AND initial_balance_minor_units>0;
+
 -- Canonical cards always reference their own liability account.
 INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
 (internal.credit_liability_identity_v1('account', '93000000-0000-0000-0000-000000000001'::uuid, '93000000-0000-0000-0000-000000000301'::uuid), '93000000-0000-0000-0000-000000000001', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN'),

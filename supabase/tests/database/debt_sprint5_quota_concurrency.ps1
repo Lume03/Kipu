@@ -13,8 +13,8 @@ $dollar = '$'
 $setup = @"
 DELETE FROM auth.users WHERE id = '$owner';
 INSERT INTO auth.users (id, email) VALUES ('$owner', 'debt-quota-race@kipu.test');
-INSERT INTO public.accounts (id, user_id, name, account_type, currency_code)
-VALUES ('$account', '$owner', 'Quota race', 'SAVINGS', 'PEN');
+INSERT INTO public.accounts (id, user_id, name, account_type, currency_code, preset_id)
+VALUES ('$account', '$owner', 'Quota race', 'SAVINGS', 'PEN', 'GENERIC');
 INSERT INTO public.debts (id, user_id, obligation_type, counterparty_name, total_minor, currency_code)
 VALUES ('$existingDebt', '$owner', 'PAYABLE', 'Existing debt', 1000, 'PEN');
 CREATE OR REPLACE FUNCTION public.debt_quota_race_pause()

@@ -43,7 +43,7 @@ if ($migrationExitCode -ne 0) { throw "S5 migrations did not apply after explici
 docker exec $container psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Unable to install pgTAP in the local verification database." }
 $testSql = "SET search_path TO public, extensions;`n" + (Get-Content $migrationTest -Raw)
-$testSql | docker exec -i $container psql -U postgres -d postgres -v ON_ERROR_STOP=1
-if ($LASTEXITCODE -ne 0) { throw "Post-migration preservation assertions failed." }
+$tapOutput = $testSql | docker exec -i $container psql -U postgres -d postgres -v ON_ERROR_STOP=1
+if ($LASTEXITCODE -ne 0 -or ($tapOutput -join "`n") -match '(?m)^\s*not ok\b') { throw "Post-migration preservation assertions failed: $($tapOutput -join "`n")" }
 
 Write-Output "PASS: ambiguous legacy events blocked the upgrade without partial DDL; explicit deltas enabled a data-preserving retry."

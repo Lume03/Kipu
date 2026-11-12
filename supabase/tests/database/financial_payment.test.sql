@@ -11,6 +11,11 @@ INSERT INTO public.accounts (id, user_id, creation_operation_id, name, account_t
 VALUES ('44444444-4444-4444-4444-000000000001', '44444444-4444-4444-4444-444444444444', '44444444-4444-4444-4444-000000000011', 'Ahorros BCP', 'SAVINGS', 'PEN', 100000, now(), now(), now(), 'GENERIC')
 ON CONFLICT DO NOTHING;
 
+-- The account mirror is not spendable money; post the fixture's opening fact.
+INSERT INTO public.financial_movements(operation_id,user_id,kind,amount_minor_units,currency,account_id,opening_account_id)
+SELECT extensions.gen_random_uuid(),user_id,'OPENING',initial_balance_minor_units,currency_code,id,id
+FROM public.accounts WHERE user_id IN ('44444444-4444-4444-4444-444444444444') AND initial_balance_minor_units>0;
+
 -- Canonical cards always reference their own liability account.
 INSERT INTO public.accounts(id,user_id,name,account_type,currency_code) VALUES
 (internal.credit_liability_identity_v1('account', '44444444-4444-4444-4444-444444444444'::uuid, '44444444-4444-4444-4444-000000000002'::uuid), '44444444-4444-4444-4444-444444444444', 'Credit liability fixture', 'CREDIT_LIABILITY', 'PEN');
@@ -46,9 +51,7 @@ SELECT is(
 
 RESET ROLE;
 SELECT is(
-    (SELECT (a.initial_balance_minor_units + COALESCE(sum(le.signed_amount_minor),0))::bigint
-     FROM public.accounts a LEFT JOIN internal.ledger_entries le ON le.account_id=a.id AND le.user_id=a.user_id
-     WHERE a.id='44444444-4444-4444-4444-000000000001' GROUP BY a.initial_balance_minor_units),
+    internal.goal_confirmed_balance('44444444-4444-4444-4444-444444444444','44444444-4444-4444-4444-000000000001'),
     90000::bigint,
     'Source asset decreases by S/100 exactly once'
 );
