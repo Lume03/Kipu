@@ -8,6 +8,12 @@ import androidx.room.Transaction
 
 @Dao
 interface DebtOutboxDao {
+    @Query("SELECT * FROM debt_command_outbox WHERE user_id=:userId AND debt_id=:debtId AND command_type='REMOTE_SNAPSHOT' AND state='CONFLICT' ORDER BY created_at,rowid")
+    suspend fun getRemoteSnapshots(userId: String, debtId: String): List<DebtOutboxEntity>
+
+    @Query("UPDATE debt_command_outbox SET state='DISCARDED', lease_until=NULL, next_attempt_at=NULL WHERE user_id=:userId AND debt_id=:debtId AND command_type<>'REMOTE_SNAPSHOT' AND state NOT IN ('SYNCED','DISCARDED')")
+    suspend fun discardPendingForDebt(userId: String, debtId: String)
+
 
     @Query("UPDATE debt_command_outbox SET state='BLOCKED', last_error_code='BLOCKED_BY_PREVIOUS' WHERE user_id=:userId AND state IN ('PENDING','RETRY','WAITING_FOR_AUTH') AND EXISTS (SELECT 1 FROM debt_command_outbox p WHERE p.user_id=debt_command_outbox.user_id AND p.debt_id=debt_command_outbox.debt_id AND (p.created_at<debt_command_outbox.created_at OR (p.created_at=debt_command_outbox.created_at AND p.rowid<debt_command_outbox.rowid)) AND p.command_type<>'REMOTE_SNAPSHOT' AND p.state IN ('FAILED_PERMANENT','CONFLICT'))")
     suspend fun blockBehindFailures(userId: String)

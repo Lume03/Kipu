@@ -10,7 +10,6 @@ import androidx.work.WorkerParameters
 import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.SessionCoordinator
-import com.kipu.app.feature.categories.data.local.CategoryConflictEntity
 import com.kipu.app.feature.categories.data.local.CategoryDao
 import com.kipu.app.feature.categories.data.local.CategoryEntity
 import com.kipu.app.feature.categories.data.local.CategoryPresentationEntity
@@ -47,10 +46,11 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
     private val merchantRulesDao: MerchantRulesDao,
     private val api: CategoriesApi,
     private val sessionCoordinator: SessionCoordinator,
+    private val transactionRunner: com.kipu.app.core.database.DatabaseTransactionRunner,
 ) : CoroutineWorker(appContext, workerParams) {
 
     private sealed interface CommandOutcome {
-        data object Applied : CommandOutcome
+        data class Applied(val revision: Long? = null) : CommandOutcome
         data object Retry : CommandOutcome
         data class Conflict(val code: String, val state: String = "CONFLICT") : CommandOutcome
     }
@@ -103,9 +103,23 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             if((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId!=userId) return Result.retry()
             val now = System.currentTimeMillis()
             when (outcome) {
-                CommandOutcome.Applied -> categoryDao.complete(cmd,"COMPLETED",null,null,now)
+                is CommandOutcome.Applied -> transactionRunner {
+                    val stored = categoryDao.getCommand(cmd.userId, cmd.operationId)
+                    if (stored?.state != "IN_FLIGHT" || stored.updatedAt != cmd.updatedAt || stored.nextAttemptAt != cmd.nextAttemptAt) return@transactionRunner
+                    categoryDao.complete(cmd,"COMPLETED",null,null,now)
+                    reconcileApplied(cmd, outcome.revision)
+                }
                 is CommandOutcome.Conflict -> {
-                    categoryDao.complete(cmd,outcome.state,outcome.code,null,now)
+                    transactionRunner {
+                        val stored = categoryDao.getCommand(cmd.userId, cmd.operationId)
+                        if (stored?.state != "IN_FLIGHT" || stored.updatedAt != cmd.updatedAt || stored.nextAttemptAt != cmd.nextAttemptAt) return@transactionRunner
+                        categoryDao.complete(cmd,outcome.state,outcome.code,null,now)
+                        val state = when (outcome.state) { "FAILED_PERMANENT" -> "FAILED"; "WAITING_FOR_AUTH" -> "PENDING"; else -> "CONFLICT" }
+                        when (cmd.aggregateType) {
+                            "MERCHANT_ALIAS_RULE" -> merchantRulesDao.setAliasSyncState(cmd.userId, cmd.aggregateId, state, null, outcome.code)
+                            "MERCHANT_CATEGORY_PREFERENCE" -> merchantRulesDao.setPreferenceSyncState(cmd.userId, cmd.aggregateId, state, null, outcome.code)
+                        }
+                    }
                 }
                 CommandOutcome.Retry -> {
                     needsRetry = true
@@ -126,33 +140,9 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                 }
                 "UPDATE_PRESENTATION" -> {
                     val dto = json.decodeFromString<UpdateCategoryPresentationRequestDto>(cmd.payloadJson)
-                    when (val res = api.updatePresentation(dto)) {
-                        is CategoryApiResponse.Success -> {
-                            if (res.data.status == "CONFLICT") {
-                                // Conflict record was generated remotely; ensure local conflict state
-                                categoryDao.insertConflict(
-                                    CategoryConflictEntity(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        categoryId = dto.categoryId,
-                                        userId = cmd.userId,
-                                        conflictType = "PRESENTATION",
-                                        localVersion = cmd.payloadJson,
-                                        remoteVersion = "CONFLICT_DETECTED",
-                                        status = "OPEN",
-                                        createdAt = System.currentTimeMillis()
-                                    )
-                                )
-                                CommandOutcome.Conflict("REVISION_CONFLICT")
-                            } else if (!res.data.success) {
-                                CommandOutcome.Retry
-                            } else {
-                                CommandOutcome.Applied
-                            }
-                        }
-                        is CategoryApiResponse.Error -> failureOutcome(OutboxPolicy.classify(httpStatus=res.statusCode), "HTTP_${res.statusCode}")
-                        is CategoryApiResponse.NetworkFailure -> CommandOutcome.Retry
-                    }
+                    api.updatePresentation(dto).asCommandOutcome()
                 }
+
                 "SET_CATEGORY_ACTIVE" -> {
                     val dto = json.decodeFromString<SetCategoryActiveRequestDto>(cmd.payloadJson)
                     api.setCategoryActive(dto).asCommandOutcome()
@@ -168,26 +158,21 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
                 "UPSERT_MERCHANT_ALIAS_RULE" -> {
                     val dto = json.decodeFromString<UpsertMerchantAliasRuleRequestDto>(cmd.payloadJson)
                     val outcome = api.upsertMerchantAliasRule(dto).asCommandOutcome()
-                    updateAliasSyncState(cmd.userId, dto.ruleId, dto.expectedRevision, outcome)
                     outcome
                 }
                 "DELETE_MERCHANT_ALIAS_RULE" -> {
                     val dto = json.decodeFromString<DeleteMerchantAliasRuleRequestDto>(cmd.payloadJson)
                     val outcome = api.deleteMerchantAliasRule(dto).asCommandOutcome()
-                    updateAliasSyncState(cmd.userId, dto.ruleId, dto.expectedRevision, outcome)
                     outcome
                 }
                 "UPSERT_MERCHANT_CATEGORY_PREFERENCE" -> {
                     val dto = json.decodeFromString<UpsertMerchantCategoryPreferenceRequestDto>(cmd.payloadJson)
                     val outcome = api.upsertMerchantCategoryPreference(dto).asCommandOutcome()
-                    updatePreferenceSyncState(cmd.userId, dto.merchantId, dto.expectedRevision, outcome)
                     outcome
                 }
                 "DELETE_MERCHANT_CATEGORY_PREFERENCE" -> {
                     val dto = json.decodeFromString<DeleteMerchantCategoryPreferenceRequestDto>(cmd.payloadJson)
-                    val merchantId = merchantRulesDao.getPreference(cmd.userId, cmd.aggregateId)?.merchantId ?: cmd.aggregateId
                     val outcome = api.deleteMerchantCategoryPreference(dto).asCommandOutcome()
-                    updatePreferenceSyncState(cmd.userId, merchantId, dto.expectedRevision, outcome)
                     outcome
                 }
                 "RESOLVE_CONFLICT" -> {
@@ -213,51 +198,29 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
     private fun CategoryApiResponse<CategoryCommandResponseDto>.asCommandOutcome(): CommandOutcome = when (this) {
         is CategoryApiResponse.Success -> when {
             data.status == "CONFLICT" || data.status == "REJECTED" -> failureOutcome(OutboxPolicy.classify(status=data.status), data.code ?: data.status)
-            data.success -> CommandOutcome.Applied
+            data.success -> CommandOutcome.Applied(data.revision)
             else -> CommandOutcome.Retry
         }
         is CategoryApiResponse.Error -> failureOutcome(OutboxPolicy.classify(httpStatus=statusCode), "HTTP_$statusCode")
         is CategoryApiResponse.NetworkFailure -> CommandOutcome.Retry
     }
 
-    private suspend fun updateAliasSyncState(
-        userId: String,
-        ruleId: String,
-        expectedRevision: Long?,
-        outcome: CommandOutcome,
+    private suspend fun reconcileApplied(
+        cmd: com.kipu.app.feature.categories.data.local.CategorySyncOutboxEntity,
+        revision: Long?,
     ) {
-        val state = when (outcome) {
-            CommandOutcome.Applied -> "SYNCED"
-            is CommandOutcome.Conflict -> when(outcome.state) { "FAILED_PERMANENT" -> "FAILED"; "WAITING_FOR_AUTH" -> "PENDING"; else -> "CONFLICT" }
-            CommandOutcome.Retry -> "PENDING"
+        // An older receipt must never publish the projection of a later local edit.
+        val successors = categoryDao.getUnresolvedCommands(cmd.userId).filter {
+            it.aggregateType == cmd.aggregateType && it.aggregateId == cmd.aggregateId
         }
-        merchantRulesDao.setAliasSyncState(
-            userId = userId,
-            ruleId = ruleId,
-            state = state,
-            revision = if (outcome == CommandOutcome.Applied) expectedRevision?.plus(1L) ?: 1L else null,
-            error = (outcome as? CommandOutcome.Conflict)?.code,
-        )
-    }
-
-    private suspend fun updatePreferenceSyncState(
-        userId: String,
-        merchantId: String,
-        expectedRevision: Long?,
-        outcome: CommandOutcome,
-    ) {
-        val state = when (outcome) {
-            CommandOutcome.Applied -> "SYNCED"
-            is CommandOutcome.Conflict -> when(outcome.state) { "FAILED_PERMANENT" -> "FAILED"; "WAITING_FOR_AUTH" -> "PENDING"; else -> "CONFLICT" }
-            CommandOutcome.Retry -> "PENDING"
+        if (successors.isNotEmpty()) return
+        val confirmed = revision ?: cmd.expectedRevision?.plus(1L) ?: 1L
+        when (cmd.aggregateType) {
+            "CATEGORY_PRESENTATION" -> categoryDao.getPresentation(cmd.userId, cmd.aggregateId)?.let {
+                categoryDao.updatePresentation(it.copy(remoteRevision = confirmed))
+            }
+            "MERCHANT_ALIAS_RULE" -> merchantRulesDao.setAliasSyncState(cmd.userId, cmd.aggregateId, "SYNCED", confirmed, null)
+            "MERCHANT_CATEGORY_PREFERENCE" -> merchantRulesDao.setPreferenceSyncState(cmd.userId, cmd.aggregateId, "SYNCED", confirmed, null)
         }
-        merchantRulesDao.setPreferenceSyncState(
-            userId = userId,
-            merchantId = merchantId,
-            state = state,
-            revision = if (outcome == CommandOutcome.Applied) expectedRevision?.plus(1L) ?: 1L else null,
-            error = (outcome as? CommandOutcome.Conflict)?.code,
-        )
     }
-
 }

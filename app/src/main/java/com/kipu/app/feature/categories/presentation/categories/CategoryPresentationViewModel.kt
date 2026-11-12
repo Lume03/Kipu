@@ -56,6 +56,8 @@ class CategoryPresentationViewModel @Inject constructor(
     val uiState: StateFlow<CategoryPresentationUiState> = _uiState.asStateFlow()
 
     private var currentUserId: UserId? = null
+    private var presentationJob: kotlinx.coroutines.Job? = null
+    private var draftChanged = false
 
     init {
         viewModelScope.launch {
@@ -76,16 +78,21 @@ class CategoryPresentationViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        presentationJob?.cancel()
+        presentationJob = viewModelScope.launch {
             val category = repository.getCategory(cid)
-            val presentation = category?.let { repository.observeCategoryPresentations(userId) }
-
-            _uiState.update { current ->
-                current.copy(
-                    isLoading = false,
-                    isSystemCategory = category?.isSystem ?: false,
-                    expectedRevision = category?.revision ?: 1L,
-                )
+            repository.observeCategoryPresentations(userId).collectLatest { presentations ->
+                val presentation = presentations.firstOrNull { it.categoryId == cid }
+                _uiState.update { current ->
+                    current.copy(
+                        isLoading = false,
+                        isSystemCategory = category?.isSystem ?: false,
+                        expectedRevision = presentation?.revision ?: 0L,
+                        name = if (draftChanged) current.name else presentation?.name ?: current.name,
+                        icon = if (draftChanged) current.icon else presentation?.icon ?: current.icon,
+                        color = if (draftChanged) current.color else presentation?.color ?: current.color,
+                    )
+                }
             }
         }
     }
@@ -99,14 +106,17 @@ class CategoryPresentationViewModel @Inject constructor(
     }
 
     fun onNameChanged(name: String) {
+        draftChanged = true
         _uiState.update { it.copy(name = name) }
     }
 
     fun onIconChanged(icon: String) {
+        draftChanged = true
         _uiState.update { it.copy(icon = icon) }
     }
 
     fun onColorChanged(color: String) {
+        draftChanged = true
         _uiState.update { it.copy(color = color) }
     }
 

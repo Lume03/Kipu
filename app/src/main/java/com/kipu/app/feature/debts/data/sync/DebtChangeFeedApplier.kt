@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -96,6 +97,36 @@ class DebtChangeFeedApplier @Inject constructor(
         }
     }
 
+    suspend fun applyPendingSnapshots(userId: String, debtId: String): Boolean = database.withTransaction {
+        val outbox = database.debtOutboxDao()
+        val snapshots = outbox.getRemoteSnapshots(userId, debtId)
+        if (snapshots.isEmpty()) return@withTransaction false
+        // Parents and schedules precede the events that reference them; latest entity revision wins.
+        val changes = snapshots.map { stored ->
+            val value = json.parseToJsonElement(stored.payload).jsonObject
+            SyncChangeItemDto(
+                sequence = 0L,
+                entityType = value.getValue("entity_type").jsonPrimitive.content,
+                entityId = value.getValue("entity_id").jsonPrimitive.content,
+                revision = value.getValue("revision").jsonPrimitive.content.toLong(),
+                operation = value.getValue("operation").jsonPrimitive.content,
+                payload = value["snapshot"],
+            )
+        }.groupBy { it.entityType to it.entityId }.values.map { versions -> versions.maxBy { it.revision } }
+            .sortedBy { when (it.entityType.uppercase()) { "DEBT" -> 0; "DEBT_INSTALLMENT" -> 1; else -> 2 } }
+        changes.forEach { change ->
+            when (change.entityType.uppercase()) {
+                "DEBT" -> if (change.operation.equals("DELETE", true)) applyDebtDeleteChange(userId, change)
+                    else applyDebtChange(userId, change, acceptRemote = true)
+                "DEBT_INSTALLMENT" -> applyInstallmentChange(userId, change, acceptRemote = true)
+                "DEBT_EVENT" -> applyEventChange(userId, change, acceptRemote = true)
+                else -> throw InvalidDebtChangePage("INVALID_SNAPSHOT_TYPE")
+            }
+        }
+        snapshots.forEach { outbox.updateResult(userId, it.operationId, "DISCARDED", 0, null, null, clock.millis()) }
+        true
+    }
+
     private suspend fun saveConflictSnapshot(userId: String, debtId: String, change: SyncChangeItemDto) {
         val remote=change.payload as? kotlinx.serialization.json.JsonObject
             ?: throw InvalidDebtChangePage("DEBT_PAYLOAD_REQUIRED")
@@ -116,7 +147,7 @@ class DebtChangeFeedApplier @Inject constructor(
         ))
     }
 
-    private suspend fun applyDebtChange(userId: String, change: SyncChangeItemDto) {
+    private suspend fun applyDebtChange(userId: String, change: SyncChangeItemDto, acceptRemote: Boolean = false) {
 
         val payload = change.payload ?: throw InvalidDebtChangePage("DEBT_PAYLOAD_REQUIRED")
         val remote = json.decodeFromJsonElement<RemoteDebtDto>(payload)
@@ -139,7 +170,7 @@ class DebtChangeFeedApplier @Inject constructor(
         }
 
         val existing = debtDao.getDebtIncludingDeleted(userId, remote.id)
-        if (existing != null && remote.revision < existing.revision) {
+        if (!acceptRemote && existing != null && remote.revision < existing.revision) {
             if (existing.syncState == "SYNCED") return
             throw StaleDebtRevision(remote.id, existing.revision, remote.revision)
         }
@@ -162,7 +193,7 @@ class DebtChangeFeedApplier @Inject constructor(
             createdAt = remote.createdAt?.let(::parseInstantMillis) ?: existing?.createdAt ?: clock.millis(),
             updatedAt = remote.updatedAt?.let(::parseInstantMillis) ?: clock.millis(),
         )
-        if (existing != null && remote.revision == existing.revision) {
+        if (!acceptRemote && existing != null && remote.revision == existing.revision) {
             if (!sameDebtContent(existing, entity)) {
                 if (existing.syncState != "SYNCED") {
                     throw StaleDebtRevision(remote.id, existing.revision, remote.revision)
@@ -172,7 +203,7 @@ class DebtChangeFeedApplier @Inject constructor(
             if (existing.syncState != "SYNCED") debtDao.updateDebt(entity.copy(createdAt = existing.createdAt))
             return
         }
-        if (existing != null && existing.syncState != "SYNCED" && !sameDebtContent(existing, entity)) {
+        if (!acceptRemote && existing != null && existing.syncState != "SYNCED" && !sameDebtContent(existing, entity)) {
             throw StaleDebtRevision(remote.id, existing.revision, remote.revision)
         }
         debtDao.upsertDebt(entity.copy(createdAt = existing?.createdAt ?: entity.createdAt))
@@ -198,7 +229,7 @@ class DebtChangeFeedApplier @Inject constructor(
         installmentIds.forEach { database.localReminderEventDao().tombstoneSource(userId, it, clock.instant()) }
     }
 
-    private suspend fun applyEventChange(userId: String, change: SyncChangeItemDto) {
+    private suspend fun applyEventChange(userId: String, change: SyncChangeItemDto, acceptRemote: Boolean = false) {
         if (change.operation.equals("DELETE", ignoreCase = true)) {
             throw InvalidDebtChangePage("DEBT_HISTORY_CANNOT_BE_DELETED")
         }
@@ -235,17 +266,17 @@ class DebtChangeFeedApplier @Inject constructor(
             createdAt = remote.createdAt?.let(::parseInstantMillis) ?: clock.millis(),
         )
         val existing = debtDao.getEvent(userId, remote.id)
-        if (existing != null && !sameEventContent(existing, event)) {
+        if (!acceptRemote && existing != null && !sameEventContent(existing, event)) {
             throw InvalidDebtChangePage("DEBT_EVENT_ID_REUSED")
         }
         if (existing == null) {
             debtDao.insertEvent(event)
-        } else if (existing.createdAt != event.createdAt) {
+        } else if (acceptRemote || existing.createdAt != event.createdAt) {
             debtDao.upsertEvent(event)
         }
     }
 
-    private suspend fun applyInstallmentChange(userId: String, change: SyncChangeItemDto) {
+    private suspend fun applyInstallmentChange(userId: String, change: SyncChangeItemDto, acceptRemote: Boolean = false) {
         if (change.operation.equals("DELETE", ignoreCase = true)) {
             throw InvalidDebtChangePage("DEBT_INSTALLMENT_HISTORY_CANNOT_BE_DELETED")
         }
@@ -258,7 +289,7 @@ class DebtChangeFeedApplier @Inject constructor(
         val dueDate = runCatching { LocalDate.parse(remote.dueDate) }.getOrNull()
             ?: throw InvalidDebtChangePage("INVALID_DEBT_INSTALLMENT_DATE")
         val existing = debtDao.getInstallment(userId, remote.debtId, remote.id)
-        if (existing != null && change.revision < existing.revision) {
+        if (!acceptRemote && existing != null && change.revision < existing.revision) {
             if (debtDao.getDebtIncludingDeleted(userId, remote.debtId)?.syncState == "SYNCED") return
             throw StaleDebtRevision(remote.debtId, existing.revision, change.revision)
         }
@@ -275,7 +306,7 @@ class DebtChangeFeedApplier @Inject constructor(
             createdAt = remote.createdAt?.let(::parseInstantMillis) ?: existing?.createdAt ?: clock.millis(),
             updatedAt = remote.updatedAt?.let(::parseInstantMillis) ?: clock.millis(),
         )
-        if (existing != null && change.revision == existing.revision &&
+        if (!acceptRemote && existing != null && change.revision == existing.revision &&
             existing.copy(createdAt = installment.createdAt, updatedAt = installment.updatedAt) != installment) {
             throw InvalidDebtChangePage("DEBT_INSTALLMENT_REVISION_REUSED")
         }

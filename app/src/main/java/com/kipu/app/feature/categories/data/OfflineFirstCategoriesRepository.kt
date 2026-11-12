@@ -464,32 +464,17 @@ class OfflineFirstCategoriesRepository @Inject constructor(
                 val existing = categoryDao.getPresentation(userId, presentation.categoryId.value)
                 require(currentUserId() == userId) { "Owner changed while loading presentation" }
 
-                if (existing != null && existing.remoteRevision != expectedRevision) {
-                    categoryDao.insertConflict(
-                        CategoryConflictEntity(
-                            id = UUID.randomUUID().toString(),
-                            categoryId = presentation.categoryId.value,
-                            userId = userId,
-                            conflictType = "PRESENTATION",
-                            localVersion = payloadJson,
-                            remoteVersion = json.encodeToString(existing),
-                            status = "OPEN",
-                            createdAt = now
-                        )
-                    )
-                } else {
-                    categoryDao.insertPresentation(
-                        CategoryPresentationEntity(
-                            categoryId = presentation.categoryId.value,
-                            userId = userId,
-                            name = presentation.name,
-                            icon = presentation.icon,
-                            color = presentation.color,
-                            remoteRevision = expectedRevision + 1,
-                            updatedAt = now
-                        )
-                    )
-                }
+                categoryDao.insertPresentation(
+                    CategoryPresentationEntity(
+                        categoryId = presentation.categoryId.value,
+                        userId = userId,
+                        name = presentation.name,
+                        icon = presentation.icon,
+                        color = presentation.color,
+                        remoteRevision = (existing?.remoteRevision ?: 0L) + 1L,
+                        updatedAt = now,
+                    ),
+                )
                 require(currentUserId() == userId) { "Owner changed while writing presentation" }
                 categoryDao.insertOutboxCommand(
                     CategorySyncOutboxEntity(

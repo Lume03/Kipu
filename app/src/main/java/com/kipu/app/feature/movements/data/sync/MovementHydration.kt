@@ -97,7 +97,7 @@ class MovementHydration @javax.inject.Inject constructor(
                                             else -> false
                                         }
                                         "TRANSACTION", "MOVEMENT" -> if (change.operation.equals("UPSERT", true) && payload != null) {
-                                            applyPulledTransaction(userId, json.decodeFromJsonElement<SyncTransactionPayload>(payload), change.revision)
+                                            applyPulledTransaction(userId, json.decodeFromJsonElement<SyncTransactionPayload>(payload), change.revision, change.sequence)
                                         } else false
                                         // Shared-feed types applied by their own sync must not block restoring
                                         // money data; an unknown future type still rolls the page back.
@@ -397,6 +397,7 @@ class MovementHydration @javax.inject.Inject constructor(
         userId: String,
         remote: SyncTransactionPayload,
         revision: Long,
+        sequence: Long,
     ): Boolean = ownerTransaction(userId) {
         // The server names an ordinary movement STANDARD; locally that kind is null.
         val remoteKind = remote.operationKind?.takeUnless { it.equals("STANDARD", ignoreCase = true) }
@@ -441,14 +442,24 @@ class MovementHydration @javax.inject.Inject constructor(
         }
 
         if (existing != null) {
-            if (revision < existing.revision) {
+            val pendingLocal = movementDao.getPendingOutboxForTransaction(userId, remote.id)
+            // Keep the earliest skipped cursor durably with the local command receipt.
+            // It survives backoff, process death and retries without changing the wire payload.
+            for (pending in pendingLocal) {
+                val receipt = movementDao.getReceipt(userId, pending.idempotencyKey) ?: continue
+                val body = runCatching { json.parseToJsonElement(receipt.responsePayload ?: "{}") as? kotlinx.serialization.json.JsonObject }.getOrNull()
+                    ?: kotlinx.serialization.json.JsonObject(emptyMap())
+                val previous = body["skipped_remote_sequence"]?.toString()?.toLongOrNull()
+                val updated = kotlinx.serialization.json.JsonObject(body + ("skipped_remote_sequence" to kotlinx.serialization.json.JsonPrimitive(minOf(previous ?: sequence, sequence))))
+                movementDao.insertOrUpdateReceipt(receipt.copy(responsePayload = updated.toString()))
+            }
+            if (revision < existing.revision && existing.syncStatus != MovementSyncStatus.CONFLICT.name) {
                 return@ownerTransaction true
             }
             if ((!isRefund && existing.cardId != remote.cardId) || existing.operationKind != remoteKind ||
                 existing.installmentCount != remote.installmentCount
             ) return@ownerTransaction false
 
-            val pendingLocal = movementDao.getPendingOutboxForTransaction(userId, remote.id)
             if (pendingLocal.isNotEmpty() && revision <= existing.revision) return@ownerTransaction true
             if (pendingLocal.isNotEmpty() && revision > existing.revision) {
                 val pending = pendingLocal.first()

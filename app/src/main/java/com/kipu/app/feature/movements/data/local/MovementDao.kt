@@ -235,6 +235,17 @@ interface MovementDao {
         val stored = getOutboxById(command.userId, command.id) ?: return false
         if (stored.state != "IN_FLIGHT" || stored.leaseUntil != command.leaseUntil ||
             stored.updatedAt != command.updatedAt) return false
+        if (state == "CONFLICT") {
+            val receipt = getReceipt(command.userId, command.idempotencyKey)
+            val skipped = receipt?.responsePayload?.let { payload ->
+                runCatching {
+                    (kotlinx.serialization.json.Json.parseToJsonElement(payload) as? kotlinx.serialization.json.JsonObject)
+                        ?.get("skipped_remote_sequence")?.toString()?.toLongOrNull()
+                }.getOrNull()
+            }
+            val cursor = getSyncCheckpoint(command.userId)?.sequence ?: 0L
+            saveSyncCheckpoint(MovementSyncCheckpointEntity(command.userId, minOf(cursor, (skipped ?: 1L) - 1L).coerceAtLeast(0L)))
+        }
         updateOutboxResult(command.userId, command.id, state, nextAttemptAt, errorCode)
         if (com.kipu.app.core.sync.OutboxPolicy.isTerminal(state)) blockSuccessors(command.userId, command.aggregateId, command.createdAt, command.id)
         if (transactionSyncStatus != null) {

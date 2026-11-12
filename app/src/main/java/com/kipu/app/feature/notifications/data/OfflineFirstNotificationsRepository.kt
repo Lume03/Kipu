@@ -57,13 +57,11 @@ class OfflineFirstNotificationsRepository @Inject constructor(
     override suspend fun refresh(userId: String): Result<Unit> = runCatching {
         when (val response = api.fetchForUser(userId)) {
             is NotificationsApiResponse.Success -> {
-                val pendingIds = outboxDao.getPending(userId).mapTo(mutableSetOf()) { it.notificationId }
-                val remoteRows = response.data
-                    .asSequence()
-                    .filter { it.userId == userId && it.id !in pendingIds && !it.id.startsWith(CAPTURE_REVIEW_PREFIX) }
-                    .map { it.toEntity() }
-                    .toList()
                 val newRows = transactionRunner {
+                    val pendingIds = outboxDao.getPending(userId).mapTo(mutableSetOf()) { it.notificationId }
+                    val remoteRows = response.data.asSequence()
+                        .filter { it.userId == userId && it.id !in pendingIds && !it.id.startsWith(CAPTURE_REVIEW_PREFIX) }
+                        .map { it.toEntity() }.toList()
                     val knownIds = notificationDao.getAllIds(userId).toHashSet()
                     notificationDao.upsertAll(remoteRows)
                     remoteRows.filter { it.id !in knownIds }
@@ -171,7 +169,11 @@ class OfflineFirstNotificationsRepository @Inject constructor(
                     deletedAt = command.deletedAt?.toString(),
                 ),
             )) {
-                is NotificationsApiResponse.Success -> outboxDao.delete(command.operationId)
+                is NotificationsApiResponse.Success -> transactionRunner {
+                    if (outboxDao.getByNotice(userId, command.notificationId) == command) {
+                        outboxDao.delete(command.operationId)
+                    }
+                }
                 is NotificationsApiResponse.Error -> {
                     outboxDao.incrementAttempt(command.operationId)
                     error("Notification sync failed (${response.statusCode}): ${response.message.orEmpty()}")

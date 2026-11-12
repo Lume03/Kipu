@@ -136,14 +136,15 @@ class GoalLocalDataSource @Inject constructor(
     ): Boolean = database.withTransaction {
         val affectedGoalIds = buildSet {
             add(command.goalId)
-            runCatching {
-                kotlinx.serialization.json.Json.parseToJsonElement(command.payload)
-                    .jsonObject["payload"]!!.jsonObject["replacement_goal_id"]
-                    ?.jsonPrimitive?.contentOrNull
-            }.getOrNull()?.let(::add)
+            val body = runCatching {
+                kotlinx.serialization.json.Json.parseToJsonElement(command.payload).jsonObject["payload"]?.jsonObject
+            }.getOrNull()
+            listOf("replacement_goal_id", "destination_goal_id").forEach { key ->
+                body?.get(key)?.jsonPrimitive?.contentOrNull?.let(::add)
+            }
         }
         if (remoteGoals.isNotEmpty() && remoteGoals.map { it.goalId }.toSet() != affectedGoalIds) return@withTransaction false
-        if (affectedGoalIds.size > 1 && state in setOf("APPLIED", "DUPLICATE") && remoteGoals.map { it.goalId }.toSet() != affectedGoalIds) {
+        if (affectedGoalIds.size > 1 && command.commandType != GoalCommandType.REASSIGN_GOAL_RESERVE.name && state in setOf("APPLIED", "DUPLICATE") && remoteGoals.map { it.goalId }.toSet() != affectedGoalIds) {
             return@withTransaction false
         }
         val now = clock.millis()
@@ -176,16 +177,31 @@ class GoalLocalDataSource @Inject constructor(
                     if (remoteGoals.isNotEmpty()) {
                         remoteGoals.forEach { remote ->
                             val validStatus = runCatching { com.kipu.app.feature.goals.domain.model.GoalStatus.valueOf(remote.status) }.isSuccess
-                            if (!validStatus || goalDao.updateRemoteGoalResult(command.userId, remote.goalId, remote.status, remote.revision, "SYNCED") != 1) {
+                            if (!validStatus) throw IllegalStateException("Invalid goal status")
+                            if (hasPendingForGoal(command.userId, remote.goalId)) {
+                                goalDao.updateSyncState(command.userId, remote.goalId, "PENDING")
+                                return@forEach
+                            }
+                            if (goalDao.updateRemoteGoalResult(command.userId, remote.goalId, remote.status, remote.revision, "SYNCED") != 1) {
                                 throw IllegalStateException("Composite goal receipt does not match local projections")
                             }
                         }
-                    } else if (outboxDao.countPending(command.userId, command.goalId) > 0) {
+                    } else if (hasPendingForGoal(command.userId, command.goalId)) {
                         goalDao.updateSyncState(command.userId, command.goalId, "PENDING")
                     } else if (remoteRevision != null) {
                         goalDao.updateRemoteRevision(command.userId, command.goalId, remoteRevision, "SYNCED")
                     } else {
                         goalDao.updateSyncState(command.userId, command.goalId, "SYNCED")
+                    }
+                    if (command.commandType == GoalCommandType.REASSIGN_GOAL_RESERVE.name && remoteGoals.isEmpty()) {
+                        val body = kotlinx.serialization.json.Json.parseToJsonElement(command.payload).jsonObject.getValue("payload").jsonObject
+                        val destinationId = body.getValue("destination_goal_id").jsonPrimitive.content
+                        val destinationRevision = body.getValue("destination_expected_revision").jsonPrimitive.content.toLong() + 1L
+                        if (hasPendingForGoal(command.userId, destinationId)) {
+                            goalDao.updateSyncState(command.userId, destinationId, "PENDING")
+                        } else {
+                            goalDao.updateRemoteRevision(command.userId, destinationId, destinationRevision, "SYNCED")
+                        }
                     }
                     outboxDao.deleteApplied(command.userId, command.operationId)
                 }
@@ -206,6 +222,14 @@ class GoalLocalDataSource @Inject constructor(
         }
         true
     }
+
+    private suspend fun hasPendingForGoal(userId: String, goalId: String): Boolean =
+        outboxDao.getUnresolvedForUser(userId).any { pending ->
+            val body = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(pending.payload).jsonObject["payload"]?.jsonObject }.getOrNull()
+            pending.goalId == goalId || listOf("destination_goal_id", "replacement_goal_id").any {
+                body?.get(it)?.jsonPrimitive?.contentOrNull == goalId
+            }
+        }
 
     private fun retryDelay(attempt: Int): Long =
         (BASE_RETRY_DELAY_MS * (1L shl (attempt.coerceIn(1, 10) - 1))).coerceAtMost(MAX_RETRY_DELAY_MS)

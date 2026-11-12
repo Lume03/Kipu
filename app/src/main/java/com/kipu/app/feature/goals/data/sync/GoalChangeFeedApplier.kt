@@ -128,14 +128,16 @@ class GoalChangeFeedApplier @Inject constructor(
                 val affectedIds = buildSet {
                     add(stale.goalId)
                     outboxDao.getPendingForUser(userId).forEach { command ->
-                        val replacementId = runCatching {
-                            Json.parseToJsonElement(command.payload).jsonObject["payload"]
-                                ?.jsonObject?.get("replacement_goal_id")?.jsonPrimitive?.contentOrNull
+                        val body = runCatching {
+                            Json.parseToJsonElement(command.payload).jsonObject["payload"]?.jsonObject
                         }.getOrNull()
-                        if (command.goalId == stale.goalId || replacementId == stale.goalId) {
+                        val ids = buildSet {
                             add(command.goalId)
-                            replacementId?.let(::add)
+                            listOf("replacement_goal_id", "destination_goal_id").forEach { key ->
+                                body?.get(key)?.jsonPrimitive?.contentOrNull?.let(::add)
+                            }
                         }
+                        if (stale.goalId in ids) addAll(ids)
                     }
                 }
                 affectedIds.forEach { goalDao.updateSyncState(userId, it, "CONFLICT") }

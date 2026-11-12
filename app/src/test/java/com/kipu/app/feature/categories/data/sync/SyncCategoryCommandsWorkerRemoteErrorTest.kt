@@ -37,6 +37,10 @@ import org.junit.Test
 
 /** H-05: a PostgREST error body must never complete the outbox command. */
 class SyncCategoryCommandsWorkerRemoteErrorTest {
+    private val transactionRunner = object : com.kipu.app.core.database.DatabaseTransactionRunner {
+        override suspend fun <R> invoke(block: suspend () -> R): R = block()
+    }
+
     private val userId = UUID.randomUUID().toString()
     private val categoryDao = mockk<CategoryDao>(relaxed = true)
 
@@ -67,7 +71,7 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
         coEvery { categoryDao.getPendingOutboxCommands(userId) } returns listOf(command)
         return SyncCategoryCommandsWorker(
             mockk<Context>(relaxed = true), params, categoryDao, mockk<MerchantCatalogDao>(relaxed = true),
-            mockk<MerchantRulesDao>(relaxed = true), CategoriesApi(client, sessions), coordinator,
+            mockk<MerchantRulesDao>(relaxed = true), CategoriesApi(client, sessions), coordinator, transactionRunner,
         )
     }
 

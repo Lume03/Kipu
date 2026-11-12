@@ -72,6 +72,11 @@ class DebtLocalDataSource @Inject constructor(
         if(!discard && !com.kipu.app.core.sync.OutboxPolicy.canRetry(cmd.state)) return@withTransaction false
         if(discard && cmd.state !in setOf("FAILED_PERMANENT","CONFLICT","BLOCKED","RETRY","WAITING_FOR_AUTH")) return@withTransaction false
         debtOutboxDao.updateResult(userId,id,if(discard) "DISCARDED" else "PENDING",0,null,null,clock.millis())
+        if (discard && debtOutboxDao.getRemoteSnapshots(userId, cmd.debtId).isNotEmpty()) {
+            com.kipu.app.feature.debts.data.sync.DebtChangeFeedApplier(database, debtDao, movementDao, clock)
+                .applyPendingSnapshots(userId, cmd.debtId)
+            debtOutboxDao.discardPendingForDebt(userId, cmd.debtId)
+        }
         debtOutboxDao.unblock(userId,cmd.debtId)
         debtDao.updateSyncState(userId,cmd.debtId,if(debtOutboxDao.countPendingForDebt(userId,cmd.debtId)>0) "PENDING" else "SYNCED")
         true

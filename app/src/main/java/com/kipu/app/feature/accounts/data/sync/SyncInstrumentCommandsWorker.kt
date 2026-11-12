@@ -195,7 +195,7 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
         }
 
     private suspend fun processCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean = try {
-        dispatchCommand(cmd, nowMicros)
+        dispatchCommand(chainRevision(cmd), nowMicros)
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: kotlinx.serialization.SerializationException) {
@@ -204,6 +204,32 @@ class SyncInstrumentCommandsWorker @AssistedInject constructor(
     } catch (_: Exception) {
         updateCreditCommandState(cmd, "ERROR", nowMicros + 30_000_000L, "NETWORK_ERROR")
         false
+    }
+
+    /** Persist once before sending; retries retain the exact request identity and revision. */
+    private suspend fun chainRevision(cmd: InstrumentSyncOutboxEntity): InstrumentSyncOutboxEntity {
+        if (cmd.attemptCount != 0 || cmd.predecessorOperationId == null) return cmd
+        if (syncDao.getByOperationId(cmd.userId, cmd.predecessorOperationId)?.state != "SYNCED") return cmd
+        val revision = when (cmd.aggregateType) {
+            "ACCOUNT" -> accountDao.getById(cmd.userId, cmd.aggregateId)?.remoteRevision
+            "CARD" -> cardDao.getById(cmd.userId, cmd.aggregateId)?.remoteRevision
+            else -> null
+        }?.coerceAtLeast(1L) ?: return cmd
+        val payload = when (cmd.commandType) {
+            "UPDATE_APPEARANCE" -> json.encodeToString(json.decodeFromString<UpdateAppearanceRequestDto>(cmd.payloadJson).copy(expectedRevision = revision))
+            "UPDATE_CREDIT_CARD_TERMS" -> {
+                val old = json.decodeFromString<UpdateCreditCardTermsRequestDto>(cmd.payloadJson)
+                val rebased = old.copy(requestHash = "pending", card = old.card.copy(expectedRevision = revision))
+                val canonical = json.encodeToString(rebased)
+                val requestHash = MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
+                json.encodeToString(rebased.copy(requestHash = requestHash))
+            }
+            // Personal TEA has no expected_revision in its wire contract; FIFO already serializes it.
+            else -> return cmd
+        }
+        val hash = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
+        ownerTransaction(cmd.userId) { syncDao.updatePayload(cmd.userId, cmd.operationId, payload, hash, revision) }
+        return cmd.copy(payloadJson = payload, payloadHash = hash, expectedRevision = revision)
     }
 
     private suspend fun dispatchCommand(cmd: InstrumentSyncOutboxEntity, nowMicros: Long): Boolean {

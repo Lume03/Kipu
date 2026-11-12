@@ -32,6 +32,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SyncCategoryCommandsWorkerTest {
+    private val transactionRunner = object : com.kipu.app.core.database.DatabaseTransactionRunner {
+        override suspend fun <R> invoke(block: suspend () -> R): R = block()
+    }
+
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val categoryDao: CategoryDao = mockk(relaxed = true)
@@ -106,7 +110,8 @@ class SyncCategoryCommandsWorkerTest {
             merchantDao = merchantDao,
             merchantRulesDao = merchantRulesDao,
             api = api,
-            sessionCoordinator = sessionCoordinator
+            sessionCoordinator = sessionCoordinator,
+            transactionRunner = transactionRunner,
         )
 
         val result = worker.doWork()
@@ -155,7 +160,7 @@ class SyncCategoryCommandsWorkerTest {
         coEvery { api.upsertMerchantCategoryPreference(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
         coEvery { api.deleteMerchantCategoryPreference(any()) } returns CategoryApiResponse.Success(CategoryCommandResponseDto(success = true, status = "APPLIED"))
 
-        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator)
+        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         assertEquals(ListenableWorker.Result.success(), worker.doWork())
 
         coVerify { api.preserveMerchantSourceText(match { it.merchantRawText == "  IZIPAY*TÁMBO  " }) }
@@ -186,7 +191,7 @@ class SyncCategoryCommandsWorkerTest {
         coEvery { api.fetchMerchantCatalog(any()) } returns CategoryApiResponse.Success(emptyList())
         coEvery { api.upsertMerchantAliasRule(any()) } returns CategoryApiResponse.Error(400, "PREMIUM_REQUIRED")
 
-        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator)
+        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         assertEquals(ListenableWorker.Result.success(), worker.doWork())
 
         coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-rejected", "CONFLICT", null, "COMMAND_REJECTED") }
@@ -250,7 +255,7 @@ class SyncCategoryCommandsWorkerTest {
         )
         coEvery { api.fetchCategoryPresentations() } returns CategoryApiResponse.Success(emptyList())
 
-        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator)
+        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
@@ -261,7 +266,7 @@ class SyncCategoryCommandsWorkerTest {
     @Test
     fun workerSkipsPersistedWorkForAnInactiveOwner() = runTest {
         io.mockk.every { sessionCoordinator.localAccess } returns MutableStateFlow(LocalAccess.NoOwner)
-        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator)
+        val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
 
         val result = worker.doWork()
 

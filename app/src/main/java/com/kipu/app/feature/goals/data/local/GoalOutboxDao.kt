@@ -30,8 +30,12 @@ interface GoalOutboxDao {
         SELECT c.* FROM goal_command_outbox c
         WHERE c.user_id = :userId
           AND NOT EXISTS (SELECT 1 FROM goal_command_outbox prior
-            WHERE prior.user_id=c.user_id AND prior.goal_id=c.goal_id
-              AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND COALESCE(prior.expected_revision,-1)<COALESCE(c.expected_revision,-1)))
+            WHERE prior.user_id=c.user_id AND (
+                prior.goal_id IN (c.goal_id, json_extract(c.payload,'$.payload.destination_goal_id'), json_extract(c.payload,'$.payload.replacement_goal_id'))
+                OR json_extract(prior.payload,'$.payload.destination_goal_id') IN (c.goal_id, json_extract(c.payload,'$.payload.destination_goal_id'), json_extract(c.payload,'$.payload.replacement_goal_id'))
+                OR json_extract(prior.payload,'$.payload.replacement_goal_id') IN (c.goal_id, json_extract(c.payload,'$.payload.destination_goal_id'), json_extract(c.payload,'$.payload.replacement_goal_id'))
+              )
+              AND (prior.created_at<c.created_at OR (prior.created_at=c.created_at AND prior.rowid<c.rowid))
               AND prior.state NOT IN ('APPLIED','DUPLICATE','DISCARDED'))
           AND (
               (state IN ('PENDING', 'RETRYABLE') AND (next_attempt_at IS NULL OR next_attempt_at <= :now))
