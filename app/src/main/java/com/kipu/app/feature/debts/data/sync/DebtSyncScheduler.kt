@@ -107,7 +107,7 @@ class SyncDebtChangesWorker @AssistedInject constructor(
             if (processCommand(command)) needsRetry = true
         }
 
-        if (!DebtHydration(debtDao, financialApi, changeFeedApplier, sessionCoordinator).pullChanges(targetOwner)) needsRetry = true
+        com.kipu.app.feature.movements.data.sync.MovementSyncScheduler(applicationContext).scheduleSync(targetOwner)
         if (outboxDao.countPending(targetOwner) > 0) needsRetry = true
         reminderReconciler.reconcile(targetOwner)
         return if (needsRetry) Result.retry() else Result.success()

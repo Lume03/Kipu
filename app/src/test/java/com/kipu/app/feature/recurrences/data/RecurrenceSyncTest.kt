@@ -215,6 +215,8 @@ class RecurrenceSyncTest {
             com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto(listOf(change), 10),
         )
         assertTrue(worker().doWork() is ListenableWorker.Result.Success)
+        coVerify(exactly = 0) { api.pullChanges(any(), any()) }
+        assertTrue(RecurrenceHydration(db.recurrenceDao(), repository, api, session).pullChanges(OWNER))
         assertEquals("SYNCED", db.recurrenceDao().get(OWNER, "remote")?.syncState)
         assertEquals("ACTIVE", db.recurrenceDao().get(OWNER, "remote")?.status)
         assertEquals(10L, db.recurrenceDao().checkpoint(OWNER)?.sequence)
@@ -231,7 +233,8 @@ class RecurrenceSyncTest {
         coEvery { api.pullChanges(OWNER, 0) } returns RecurrencesApiResponse.Success(
             com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto(listOf(change), 10),
         )
-        assertTrue(worker().doWork() is ListenableWorker.Result.Retry)
+        assertTrue(worker().doWork() is ListenableWorker.Result.Success)
+        assertTrue(runCatching { RecurrenceHydration(db.recurrenceDao(), repository, api, session).pullChanges(OWNER) }.isFailure)
         assertNull(db.recurrenceDao().checkpoint(OWNER))
     }
 
@@ -256,7 +259,7 @@ class RecurrenceSyncTest {
     )
     private fun worker() = SyncRecurrenceCommandsWorker(
         context, mockk<WorkerParameters> { every { inputData } returns workDataOf(SyncRecurrenceCommandsWorker.KEY_USER_ID to OWNER) },
-        db.recurrenceOutboxDao(), db.recurrenceDao(), repository, api, session, clock,
+        db.recurrenceOutboxDao(), db.recurrenceDao(), repository, api, session, clock, mockk(relaxed = true),
     )
     companion object {
         const val OWNER = "61000000-0000-4000-8000-000000000001"

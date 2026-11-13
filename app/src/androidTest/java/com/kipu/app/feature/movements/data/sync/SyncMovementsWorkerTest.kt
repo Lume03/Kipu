@@ -892,5 +892,6 @@ class SyncMovementsWorkerTest {
         database = database,
         sessionCoordinator = session,
         debtSyncScheduler = NoOpDebtSyncScheduler,
+        sharedChangeFeed = movementFeedFixture(database, financialApi, session),
     )
 }

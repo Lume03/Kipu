@@ -29,10 +29,7 @@ class RecurrenceHydration @Inject constructor(private val recurrenceDao: Recurre
                 is RecurrencesApiResponse.Success -> {
                     if (!isCurrentOwner(userId)) return false
                     val page = response.data
-                    require(page.nextSequence >= checkpoint)
-                    require(page.changes.all { it.sequence > checkpoint && it.sequence <= page.nextSequence })
-                    val rules = page.changes.filter { it.entityType == "RECURRENCE" }.map { it.toRule(userId) }
-                    repository.applyChangeFeed(userId, page.nextSequence, rules)
+                    if (!applyPage(userId, page)) return false
                     if (!page.hasMore) return true
                     require(page.nextSequence > checkpoint)
                 }
@@ -40,6 +37,15 @@ class RecurrenceHydration @Inject constructor(private val recurrenceDao: Recurre
             }
         }
         return false
+    }
+
+    suspend fun applyPage(userId: String, page: com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto): Boolean {
+        if (!isCurrentOwner(userId)) return false
+        val checkpoint = recurrenceDao.checkpoint(userId)?.sequence ?: 0L
+        if (!com.kipu.app.feature.accounts.data.remote.SyncFeedCursor.isValidPage(checkpoint, page)) return false
+        val rules = page.changes.filter { it.entityType.equals("RECURRENCE", true) }.map { it.toRule(userId) }
+        repository.applyChangeFeed(userId, page.nextSequence, rules)
+        return isCurrentOwner(userId)
     }
 
     private fun SyncChangeItemDto.toRule(userId: String): RecurrenceRule {

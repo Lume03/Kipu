@@ -65,6 +65,19 @@ class LedgerIntegrityWorkerTest {
     fun tearDown() { database.close() }
 
     @Test
+    fun firstPullDoesNotDownloadTheSamePageAgainForHistoricalRepair() = runBlocking {
+        coEvery { financialApi.pullChanges(any(), userId) } answers {
+            val cursor = firstArg<PullChangesRequestDto>().afterSequence
+            if (cursor == 0L) FinancialApiResponse.Success(PullChangesResponseDto(
+                listOf(SyncChangeItemDto(1,"CATEGORY","known-marker",1,"UPSERT")),1))
+            else FinancialApiResponse.Success(PullChangesResponseDto(nextSequence=cursor))
+        }
+        worker().doWork()
+        coVerify(exactly=1) { financialApi.pullChanges(any(),userId) }
+        assertTrue(prefs.getBoolean(repairKey,false))
+    }
+
+    @Test
     fun rejectedTransferPreservesEvidenceAndReversesBothAccountsExactlyOnce() = runBlocking {
         val tx = register(command(MovementType.TRANSFER))
         val outbox = dao.getPendingOutboxForTransaction(userId, tx.id).single()
@@ -273,5 +286,5 @@ class LedgerIntegrityWorkerTest {
     }
 
     private fun worker(workerDao: MovementDao = dao) = SyncMovementsWorker(context, params, workerDao, api, financialApi,
-        database.accountDao(), database.cardDao(), database, session, NoOpDebtSyncScheduler)
+        database.accountDao(), database.cardDao(), database, session, NoOpDebtSyncScheduler, movementFeedFixture(database, financialApi, session, workerDao))
 }

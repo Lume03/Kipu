@@ -87,7 +87,7 @@ class SyncGoalsWorker @AssistedInject constructor(
                 failed = true
             }
         }
-        if (!GoalHydration(financialApi, changeFeedApplier, database, movementSyncScheduler, sessionCoordinator).pullChanges(userId)) failed = true
+        movementSyncScheduler.scheduleSync(userId)
         if (outboxDao.getPendingForUser(userId).isNotEmpty()) failed = true
         return if (failed) Result.retry() else Result.success()
     }

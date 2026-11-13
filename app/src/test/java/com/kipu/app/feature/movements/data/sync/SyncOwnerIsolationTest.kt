@@ -45,7 +45,7 @@ class SyncOwnerIsolationTest {
                     nextSequence = requests.toLong(), hasMore = true))
             }
             val worker = SyncMovementsWorker(context, params, db.movementDao(), mockk<MovementApi>(), api,
-                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler)
+                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler, movementFeedFixture(db, api, coordinator))
             val failure = runCatching { worker.doWork() }.exceptionOrNull()
             if (failure !is CancellationException) throw AssertionError("Expected owner cancellation, got $failure", failure)
             assertEquals(2, requests)
@@ -76,7 +76,7 @@ class SyncOwnerIsolationTest {
             val params = mockk<WorkerParameters>(relaxed = true)
             every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to "A")
             val worker = SyncMovementsWorker(context, params, dao, mockk<MovementApi>(), api,
-                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler)
+                db.accountDao(), db.cardDao(), db, coordinator, NoOpDebtSyncScheduler, movementFeedFixture(db, api, coordinator, dao))
             val failure = runCatching { worker.doWork() }.exceptionOrNull()
             if (failure !is CancellationException) throw AssertionError("Expected owner cancellation, got $failure", failure)
             assertNull(db.movementDao().getSyncCheckpoint("A"))

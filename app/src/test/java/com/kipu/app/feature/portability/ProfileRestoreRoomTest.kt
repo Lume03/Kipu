@@ -66,7 +66,7 @@ class ProfileRestoreRoomTest {
         val session = mockk<SessionCoordinator>()
         every { session.currentOwner } returns mockk { every { verifiedUserId } returns owner.toString() }
         val profile = mockk<ProfilePreferencesRepository>()
-        val restore = RestoreUserData(session, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), profile)
+        val restore = RestoreUserData(session, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), profile)
         coEvery { profile.refreshProfile(owner) } returns Result.failure(IllegalStateException("offline"))
         assertEquals(false, restore(owner.toString()).modules["Perfil y preferencias"])
         coEvery { profile.refreshProfile(owner) } returns Result.success(com.kipu.app.feature.settings.domain.model.UserProfile(owner, "Local"))

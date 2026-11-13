@@ -194,6 +194,7 @@ class MovementRefundSyncTest {
         database = database,
         sessionCoordinator = session,
         debtSyncScheduler = NoOpDebtSyncScheduler,
+        sharedChangeFeed = movementFeedFixture(database, financialApi, session),
     )
 
     private data class RefundFixture(val purchaseId: String, val refundId: String, val idempotencyKey: String)

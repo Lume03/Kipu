@@ -41,10 +41,7 @@ class RestoreRunner(private val operations: Map<String, suspend (String) -> Bool
 @Singleton
 class RestoreUserData @Inject constructor(
     private val session: SessionCoordinator,
-    movements: MovementHydration,
-    goals: GoalHydration,
-    debts: DebtHydration,
-    recurrences: RecurrenceHydration,
+    feed: com.kipu.app.core.sync.SharedChangeFeed,
     budgets: BudgetHydration,
     categories: CategoryHydration,
     supplements: SupplementaryHydration,
@@ -53,11 +50,8 @@ class RestoreUserData @Inject constructor(
     private val mutex = Mutex()
     private val runner = RestoreRunner(linkedMapOf<String, suspend (String) -> Boolean>(
         "Categorías y comercios" to { owner -> restoreAll({ categories.hydrateFully(owner) }, { supplements.merchantRules(owner) }) },
-        "Cuentas, tarjetas y movimientos" to { owner -> restoreAll({ movements.hydrateFully(owner) }, { supplements.movementHistory(owner) }, { supplements.financialFacts(owner) }) },
-        "Deudas y cuotas" to { owner -> debts.hydrateFully(owner) },
-        "Metas y reservas" to { owner -> goals.hydrateFully(owner) },
+        "Cuentas, movimientos, deudas, metas y recurrencias" to { owner -> restoreAll({ feed.pullChanges(owner) }, { supplements.movementHistory(owner) }, { supplements.financialFacts(owner) }) },
         "Presupuestos" to { owner -> budgets.hydrateFully(owner) },
-        "Recurrencias" to { owner -> recurrences.hydrateFully(owner) },
         "Perfil y preferencias" to { owner ->
             profile.refreshProfile(UUID.fromString(owner)).isSuccess
         },

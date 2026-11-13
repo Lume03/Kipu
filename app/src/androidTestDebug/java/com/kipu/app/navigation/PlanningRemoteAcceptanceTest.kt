@@ -189,7 +189,8 @@ class PlanningRemoteAcceptanceTest {
                 val factory = object : WorkerFactory() {
                     override fun createWorker(appContext: Context, workerClassName: String, params: WorkerParameters): ListenableWorker? = when (workerClassName) {
                         SyncMovementsWorker::class.java.name -> SyncMovementsWorker(appContext, params, restored.movementDao(),
-                            access.movementApi(), access.financialApi(), restored.accountDao(), restored.cardDao(), restored, access.session(), NoOpDebtSyncScheduler)
+                            access.movementApi(), access.financialApi(), restored.accountDao(), restored.cardDao(), restored, access.session(), NoOpDebtSyncScheduler,
+                            com.kipu.app.feature.movements.data.sync.movementFeedFixture(restored, access.financialApi(), access.session()))
                         SyncBudgetCommandsWorker::class.java.name -> SyncBudgetCommandsWorker(appContext, params,
                             restored.budgetDao(), restored.budgetAlertLedgerDao(), object : DatabaseTransactionRunner {
                                 override suspend fun <R> invoke(block: suspend () -> R): R = restored.withTransaction { block() }

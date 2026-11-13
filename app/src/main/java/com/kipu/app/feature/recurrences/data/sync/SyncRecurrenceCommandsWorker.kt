@@ -39,6 +39,7 @@ class SyncRecurrenceCommandsWorker @AssistedInject constructor(
     private val api: RecurrencesApi,
     private val sessionCoordinator: SessionCoordinator,
     private val clock: Clock,
+    private val movementSyncScheduler: com.kipu.app.feature.movements.data.sync.MovementSyncScheduler,
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result = try {
         sync()
@@ -67,7 +68,7 @@ class SyncRecurrenceCommandsWorker @AssistedInject constructor(
             send(command)
         }
         if (!isCurrentOwner(userId)) return Result.retry()
-        if (!RecurrenceHydration(recurrenceDao, repository, api, sessionCoordinator).pullChanges(userId)) return Result.retry()
+        movementSyncScheduler.scheduleSync(userId)
         return if (outboxDao.hasOutstanding(userId)) Result.retry() else Result.success()
     }
 

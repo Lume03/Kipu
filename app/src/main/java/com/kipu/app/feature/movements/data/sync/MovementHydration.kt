@@ -60,78 +60,85 @@ class MovementHydration @javax.inject.Inject constructor(
                     val page = response.data
                     if (page.changes.isEmpty()) return !page.hasMore && page.nextSequence == checkpoint
                     if (!SyncFeedCursor.isValidPage(checkpoint, page)) return false
-                    val appliedPage = try {
-                        ownerTransaction(userId) {
-                            var expectedSequence = checkpoint
-                            for (change in page.changes.sortedBy { it.sequence }) {
-                                val payload = change.payload
-                                val applied = try {
-                                    when (change.entityType.uppercase()) {
-                                        "ACCOUNT" -> when (change.operation.uppercase()) {
-                                            "UPSERT" -> payload?.let {
-                                                applyPulledAccount(userId, json.decodeFromJsonElement<SyncAccountPayload>(it), change.revision)
-                                            } ?: false
-                                            "ARCHIVE" -> accountDao.getById(userId, change.entityId)?.let {
-                                                if (change.revision >= it.remoteRevision && !hasUnsentInstrument(userId, change.entityId)) {
-                                                    accountDao.setArchived(userId, change.entityId, true, System.currentTimeMillis() * 1_000L)
-                                                    accountDao.updateRemoteRevision(userId, change.entityId, change.revision, System.currentTimeMillis() * 1_000L)
-                                                }
-                                                true
-                                            } ?: false
-                                            else -> false
-                                        }
-                                        "CARD" -> when (change.operation.uppercase()) {
-                                            "UPSERT" -> payload?.let {
-                                                applyPulledCard(userId, json.decodeFromJsonElement<SyncCardPayload>(it), change.revision)
-                                            } ?: false
-                                            "ARCHIVE" -> cardDao.getById(userId, change.entityId)?.let {
-                                                if (change.revision >= it.remoteRevision && !hasUnsentInstrument(userId, change.entityId)) {
-                                                    cardDao.setArchived(userId, change.entityId, true, System.currentTimeMillis() * 1_000L)
-                                                    cardDao.updateRemoteRevision(userId, change.entityId, change.revision, System.currentTimeMillis() * 1_000L)
-                                                }
-                                                true
-                                            } ?: false
-                                            "DELETE" -> applyPulledCardDeletion(userId, change.entityId)
-                                            else -> false
-                                        }
-                                        "TRANSACTION", "MOVEMENT" -> if (change.operation.equals("UPSERT", true) && payload != null) {
-                                            applyPulledTransaction(userId, json.decodeFromJsonElement<SyncTransactionPayload>(payload), change.revision, change.sequence)
-                                        } else false
-                                        // Shared-feed types applied by their own sync must not block restoring
-                                        // money data; an unknown future type still rolls the page back.
-                                        in FOREIGN_FEED_ENTITY_TYPES -> true
-                                        else -> false
-                                    }
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    SecureLog.e("SyncMovementsWorker", "Could not apply sync change: ${e.javaClass.simpleName}")
-                                    false
-                                }
-                                if (!applied) {
-                                    SecureLog.w("SyncMovementsWorker", "Rejected sync change ${change.sequence} ${change.entityType} ${change.operation}")
-                                    throw InvalidSyncPage()
-                                }
-                                expectedSequence = change.sequence
-                            }
-                            if (expectedSequence != page.nextSequence) throw InvalidSyncPage()
-                            movementDao.saveSyncCheckpoint(MovementSyncCheckpointEntity(userId, expectedSequence))
-                            checkpoint = expectedSequence
-                            true
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        SecureLog.e("SyncMovementsWorker", "Sync page rolled back: ${e.javaClass.simpleName}")
-                        false
-                    }
-                    if (!appliedPage) return false
+                    if (!applyPage(userId, page, checkpoint)) return false
+                    checkpoint = page.nextSequence
                     if (!page.hasMore) return true
                 }
                 is FinancialApiResponse.Error, is FinancialApiResponse.NetworkFailure -> return false
             }
         }
         return false
+    }
+
+    /** Applies and checkpoints one downloaded page atomically, using the existing money appliers. */
+    suspend fun applyPage(userId: String, page: com.kipu.app.feature.accounts.data.remote.PullChangesResponseDto,
+                          previousCheckpoint: Long? = null): Boolean {
+        val checkpoint = previousCheckpoint ?: movementDao.getSyncCheckpoint(userId)?.sequence ?: 0L
+        if (!SyncFeedCursor.isValidPage(checkpoint, page)) return false
+        return try {
+            ownerTransaction(userId) {
+                var expectedSequence = checkpoint
+                for (change in page.changes.sortedBy { it.sequence }) {
+                    val payload = change.payload
+                    val applied = try {
+                        when (change.entityType.uppercase()) {
+                            "ACCOUNT" -> when (change.operation.uppercase()) {
+                                "UPSERT" -> payload?.let {
+                                    applyPulledAccount(userId, json.decodeFromJsonElement<SyncAccountPayload>(it), change.revision)
+                                } ?: false
+                                "ARCHIVE" -> accountDao.getById(userId, change.entityId)?.let {
+                                    if (change.revision >= it.remoteRevision && !hasUnsentInstrument(userId, change.entityId)) {
+                                        accountDao.setArchived(userId, change.entityId, true, System.currentTimeMillis() * 1_000L)
+                                        accountDao.updateRemoteRevision(userId, change.entityId, change.revision, System.currentTimeMillis() * 1_000L)
+                                    }
+                                    true
+                                } ?: false
+                                else -> false
+                            }
+                            "CARD" -> when (change.operation.uppercase()) {
+                                "UPSERT" -> payload?.let {
+                                    applyPulledCard(userId, json.decodeFromJsonElement<SyncCardPayload>(it), change.revision)
+                                } ?: false
+                                "ARCHIVE" -> cardDao.getById(userId, change.entityId)?.let {
+                                    if (change.revision >= it.remoteRevision && !hasUnsentInstrument(userId, change.entityId)) {
+                                        cardDao.setArchived(userId, change.entityId, true, System.currentTimeMillis() * 1_000L)
+                                        cardDao.updateRemoteRevision(userId, change.entityId, change.revision, System.currentTimeMillis() * 1_000L)
+                                    }
+                                    true
+                                } ?: false
+                                "DELETE" -> applyPulledCardDeletion(userId, change.entityId)
+                                else -> false
+                            }
+                            "TRANSACTION", "MOVEMENT" -> if (change.operation.equals("UPSERT", true) && payload != null) {
+                                applyPulledTransaction(userId, json.decodeFromJsonElement<SyncTransactionPayload>(payload), change.revision, change.sequence)
+                            } else false
+                            // Shared-feed types applied by their own sync must not block restoring
+                            // money data; an unknown future type still rolls the page back.
+                            in FOREIGN_FEED_ENTITY_TYPES -> true
+                            else -> false
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        SecureLog.e("SyncMovementsWorker", "Could not apply sync change: ${e.javaClass.simpleName}")
+                        false
+                    }
+                    if (!applied) {
+                        SecureLog.w("SyncMovementsWorker", "Rejected sync change ${change.sequence} ${change.entityType} ${change.operation}")
+                        throw InvalidSyncPage()
+                    }
+                    expectedSequence = change.sequence
+                }
+                if (expectedSequence != page.nextSequence) throw InvalidSyncPage()
+                movementDao.saveSyncCheckpoint(MovementSyncCheckpointEntity(userId, expectedSequence))
+                true
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SecureLog.e("SyncMovementsWorker", "Sync page rolled back: ${e.javaClass.simpleName}")
+            false
+        }
     }
 
     /** Replays the already-applied feed only to reconcile ledger nets; never moves the checkpoint. */

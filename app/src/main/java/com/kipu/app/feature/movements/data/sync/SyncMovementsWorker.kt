@@ -84,6 +84,7 @@ class SyncMovementsWorker @AssistedInject constructor(
     private val database: KipuDatabase,
     private val sessionCoordinator: SessionCoordinator,
     private val debtSyncScheduler: com.kipu.app.feature.debts.data.sync.DebtSyncScheduler,
+    private val sharedChangeFeed: com.kipu.app.core.sync.SharedChangeFeed,
 ) : CoroutineWorker(appContext, workerParams) {
 
     private val hydration = MovementHydration(movementDao, financialApi, accountDao, cardDao, database, sessionCoordinator)
@@ -151,13 +152,15 @@ class SyncMovementsWorker @AssistedInject constructor(
 
         if (isStopped) return Result.retry()
         currentCoroutineContext().ensureActive()
-        if (!hydration.pullChanges(targetUserId)) anyFailed = true
+        val hadAppliedFeed = movementDao.getSyncCheckpoint(targetUserId) != null
+        if (!sharedChangeFeed.pullChanges(targetUserId)) anyFailed = true
 
         // Earlier pulls appended the server's copy of offline-registered entries, posting them twice.
         // Runs after pushing, so pending user changes never wait behind this one-time pass.
         val ledgerRepairKey = "ledger-net-20261026-v1:$targetUserId"
         if (!recovery.getBoolean(ledgerRepairKey, false)) {
-            if (hydration.repairDuplicatedLedger(targetUserId)) {
+            // A fresh installation has no previously pulled ledger to repair.
+            if (!hadAppliedFeed || hydration.repairDuplicatedLedger(targetUserId)) {
                 recovery.edit().putBoolean(ledgerRepairKey, true).apply()
             } else {
                 anyFailed = true
