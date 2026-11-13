@@ -188,10 +188,6 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
                 navController.returnToAccountsDashboard("Tarjeta creada.")
                 navController.navigateToCardDetail(card.id.value)
             },
-            onNavigateToRecordConsumption = { card ->
-                navController.returnToAccountsDashboard("Tarjeta creada.")
-                navController.navigateToCardDetail(card.id.value, startPurchase = true)
-            },
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
         )
     }
@@ -205,10 +201,6 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
             onNavigateToCardDetail = { card ->
                 navController.returnToAccountsDashboard("Tarjeta creada.")
                 navController.navigateToCardDetail(card.id.value)
-            },
-            onNavigateToRecordConsumption = { card ->
-                navController.returnToAccountsDashboard("Tarjeta creada.")
-                navController.navigateToCardDetail(card.id.value, startPurchase = true)
             },
             initialCreditCard = true,
             onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },

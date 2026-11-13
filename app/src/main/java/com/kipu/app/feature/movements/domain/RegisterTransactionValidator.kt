@@ -2,13 +2,14 @@ package com.kipu.app.feature.movements.domain
 
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
+import javax.inject.Inject
 
 sealed interface ValidationResult {
     data object Valid : ValidationResult
     data class Invalid(val field: String?, val message: String) : ValidationResult
 }
 
-class RegisterTransactionValidator {
+class RegisterTransactionValidator @Inject constructor() {
 
     fun validate(command: RegisterTransactionCommand): ValidationResult {
         if (command.amountMinor <= 0) {

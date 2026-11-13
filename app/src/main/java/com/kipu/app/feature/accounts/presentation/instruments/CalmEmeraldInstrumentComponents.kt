@@ -1758,56 +1758,6 @@ fun CalmEmeraldTeaConfigCard(
     }
 }
 
-/**
- * Usage alerts section with 50%, 80%, 100% toggle pills.
- */
-@Composable
-private fun AlertTogglePill(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val calmColors = rememberCalmEmeraldColors()
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) calmColors.incomeBg else calmColors.surfaceCard,
-        border = BorderStroke(
-            1.dp,
-            if (selected) calmColors.incomeText else calmColors.borderSubtle
-        ),
-        modifier = modifier
-            .heightIn(min = 44.dp)
-            .clickable(onClick = onClick)
-            .semantics { this.selected = selected },
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = calmColors.incomeText,
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                ),
-                color = if (selected) calmColors.incomeText else calmColors.primaryText,
-            )
-        }
-    }
-}
 
 /**
  * Step 3: Credit Limit Input Card (Images 1 & 2 in media_1791086926370.png)

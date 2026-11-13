@@ -18,7 +18,6 @@ data class BankChoice(
     val textColor: Color,
     val isRetail: Boolean = false,
     val subtitle: String? = null,
-    val logoAcronym: String = name.take(3).uppercase(),
 )
 
 data class CatalogProductChoice(
@@ -26,10 +25,7 @@ data class CatalogProductChoice(
     val network: CardNetwork,
     val reference: CreditProductReference? = null,
     val stylePreset: CardStylePreset? = null,
-) {
-    val familyId: String get() = stylePreset?.familyId ?: "verified-products-other"
-    val familyLabel: String get() = stylePreset?.familyLabel ?: "Otros productos verificados"
-}
+)
 
 val bankChoices = listOf(
     BankChoice(
@@ -41,7 +37,6 @@ val bankChoices = listOf(
         textColor = Color(0xFF002A8F),
         isRetail = false,
         subtitle = "Banco de Crédito",
-        logoAcronym = "BCP",
     ),
     BankChoice(
         code = "BBVA",
@@ -52,7 +47,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = false,
         subtitle = "Continental",
-        logoAcronym = "BBVA",
     ),
     BankChoice(
         code = "INTERBANK",
@@ -63,7 +57,6 @@ val bankChoices = listOf(
         textColor = Color(0xFF191C1E),
         isRetail = false,
         subtitle = "Grupo Intercorp",
-        logoAcronym = "IBK",
     ),
     BankChoice(
         code = "SCOTIABANK",
@@ -74,7 +67,6 @@ val bankChoices = listOf(
         textColor = Color(0xFFFFFFFF),
         isRetail = false,
         subtitle = "Perú",
-        logoAcronym = "SCO",
     ),
     BankChoice(
         code = "BANCO_NACION",
@@ -85,7 +77,6 @@ val bankChoices = listOf(
         textColor = Color(0xFF1F1B13),
         isRetail = false,
         subtitle = "Perú",
-        logoAcronym = "BN",
     ),
     BankChoice(
         code = "BANBIF",
@@ -96,7 +87,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = false,
         subtitle = "BanBif Perú",
-        logoAcronym = "BIF",
     ),
     BankChoice(
         code = "OTHER",
@@ -107,7 +97,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = false,
         subtitle = "Entidad financiera",
-        logoAcronym = "OTR",
     ),
     BankChoice(
         code = "BANCO_FALABELLA",
@@ -118,7 +107,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = true,
         subtitle = "Banco Falabella Perú",
-        logoAcronym = "CMR",
     ),
     BankChoice(
         code = "CENCOSUD",
@@ -129,7 +117,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = true,
         subtitle = "Banco Cencosud Scotiabank",
-        logoAcronym = "CEN",
     ),
     BankChoice(
         code = "RIPLEY",
@@ -140,7 +127,6 @@ val bankChoices = listOf(
         textColor = Color.White,
         isRetail = true,
         subtitle = "Banco Ripley Perú",
-        logoAcronym = "R",
     ),
 ).map { bank ->
     // Preserve bank identity while keeping names/acronyms readable on the brand color.

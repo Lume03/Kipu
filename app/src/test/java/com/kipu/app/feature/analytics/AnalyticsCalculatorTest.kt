@@ -3,7 +3,6 @@ package com.kipu.app.feature.analytics
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.analytics.domain.*
-import com.kipu.app.feature.home.domain.*
 import com.kipu.app.feature.movements.domain.model.MovementType
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -56,11 +55,6 @@ class AnalyticsCalculatorTest {
         assertTrue(result(current).partial)
         assertEquals(today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli(), current.toExclusiveMillis)
         assertEquals(current.start.atStartOfDay(zone).toInstant().toEpochMilli(), current.fromMillis)
-    }
-    @Test fun netWorthIncludesReceivablesAndDeductsCardDebtOnce() {
-        val data = NetWorthInputs(listOf(Money(10000, Currency.PEN)), listOf(Money(2000, Currency.PEN)), emptyList(), listOf(Money(3000, Currency.PEN)))
-        val summary = NetWorthCalculator.calculate(data) as NetWorthSummary.Available
-        assertEquals(Money(9000, Currency.PEN), summary.byCurrency.single().netWorth)
     }
     @Test fun fullRefundIsConfirmedZeroNotEmpty() {
         val result = result(current, expense(10000, 10000))

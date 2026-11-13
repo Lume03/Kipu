@@ -1,10 +1,11 @@
 package com.kipu.app.feature.movements.domain
 
 import com.kipu.app.feature.movements.domain.model.*
+import javax.inject.Inject
 import java.util.UUID
 
 /** Pure plan only. The repository must revalidate and persist the whole plan atomically. */
-class MovementRevisionPlanner {
+class MovementRevisionPlanner @Inject constructor() {
     fun plan(
         owner: String,
         head: MovementRevisionHead,

@@ -730,20 +730,6 @@ class QuickMovementViewModel @Inject constructor(
         )
     }
 
-    suspend fun createSubcategory(
-        parentCategoryId: String,
-        name: String,
-        icon: String,
-        color: String,
-        rememberFrequentMerchant: Boolean,
-    ): Result<CategoryOption> = createCategoryOrSubcategory(
-        parentCategoryId = parentCategoryId,
-        name = name,
-        icon = icon,
-        color = color,
-        rememberFrequentMerchant = rememberFrequentMerchant,
-    )
-
     fun onMerchantSelected(merchant: MerchantCatalogEntry) {
         merchantPreferenceJob?.cancel()
         merchantPreferenceJob = null

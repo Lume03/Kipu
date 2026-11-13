@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.core.finance.domain.model.AccountId
 import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Money
@@ -256,4 +257,9 @@ internal fun eligibleCardPaymentAccounts(
 ): List<AccountWithBalance> = accounts.filter {
     it.account.type in setOf(AccountType.BANK, AccountType.SAVINGS) &&
         it.account.currency == cardCurrency && !it.account.isArchived && it.balance.minorUnits > 0L
+}
+
+private fun parseAmountToMinorUnits(input: String): Long? {
+    if (input.isBlank()) return 0L
+    return MoneyInputParser.parseMinorUnits(input)
 }

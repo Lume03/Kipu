@@ -75,39 +75,7 @@ class OfflineFirstMovementRepository @Inject constructor(
             val accountsById = accounts.associateBy { it.id }
             val cardsById = cards.associateBy { it.id }
             entities.map { entity ->
-                run {
-                    val domain = entity.toDomain()
-                    val sourceAlias = domain.sourceAccountId?.let { accountsById[it]?.alias }
-                    val destAlias = domain.destinationAccountId?.let { accountsById[it]?.alias }
-                    val card = domain.cardId?.let(cardsById::get)
-                    val category = domain.categoryId?.let(categoriesById::get)
-                    val merchant = domain.merchantId?.let(merchantsById::get)
-                    TransactionItem(
-                        transaction = domain,
-                        voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
-                        sourceAccountAlias = sourceAlias,
-                        destinationAccountAlias = destAlias,
-                        cardAlias = card?.alias,
-                        cardLastFourDigits = card?.lastFourDigits,
-                        categoryName = category?.name,
-                        categoryIcon = category?.icon,
-                        merchantName = domain.merchantProvisionalText ?: merchant?.name,
-                        merchantLogoKey = merchant?.logoKey,
-                        merchantLogoUrl = merchant?.logoPath?.let {
-                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
-                                com.kipu.app.BuildConfig.SUPABASE_URL,
-                                it,
-                            )
-                        },
-                        merchantLogoDarkUrl = merchant?.logoDarkPath?.let {
-                            com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
-                                com.kipu.app.BuildConfig.SUPABASE_URL,
-                                it,
-                            )
-                        },
-                        merchantBrandColor = merchant?.brandColor,
-                    )
-                }
+                buildTransactionItem(userId, entity, categoriesById, merchantsById, accountsById, cardsById)
             }
         }
 
@@ -306,38 +274,49 @@ class OfflineFirstMovementRepository @Inject constructor(
         val accounts = accountDao.observeAll(userId).first().associateBy { it.id }
         val cards = cardDao.observeAll(userId).first().associateBy { it.id }
         return entities.map { entity ->
-            val domain = entity.toDomain()
-            val sourceAlias = domain.sourceAccountId?.let { accounts[it]?.alias }
-            val destAlias = domain.destinationAccountId?.let { accounts[it]?.alias }
-            val card = domain.cardId?.let(cards::get)
-            val category = domain.categoryId?.let(presentations::get)
-            val merchant = domain.merchantId?.let(merchants::get)
-            TransactionItem(
-                transaction = domain,
-                        voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
-                sourceAccountAlias = sourceAlias,
-                destinationAccountAlias = destAlias,
-                cardAlias = card?.alias,
-                cardLastFourDigits = card?.lastFourDigits,
-                categoryName = category?.name,
-                categoryIcon = category?.icon,
-                merchantName = domain.merchantProvisionalText ?: merchant?.name,
-                merchantLogoKey = merchant?.logoKey,
-                merchantLogoUrl = merchant?.logoPath?.let {
-                    com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
-                        com.kipu.app.BuildConfig.SUPABASE_URL,
-                        it,
-                    )
-                },
-                merchantLogoDarkUrl = merchant?.logoDarkPath?.let {
-                    com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
-                        com.kipu.app.BuildConfig.SUPABASE_URL,
-                        it,
-                    )
-                },
-                merchantBrandColor = merchant?.brandColor,
-            )
+            buildTransactionItem(userId, entity, presentations, merchants, accounts, cards)
         }
+    }
+
+    private suspend fun buildTransactionItem(
+        userId: String,
+        entity: TransactionEntity,
+        categoriesById: Map<String, com.kipu.app.feature.categories.data.local.CategoryPresentationEntity>,
+        merchantsById: Map<String, com.kipu.app.feature.categories.data.local.MerchantCatalogEntity>,
+        accountsById: Map<String, com.kipu.app.feature.accounts.data.local.AccountEntity>,
+        cardsById: Map<String, com.kipu.app.feature.accounts.data.local.CardEntity>,
+    ): TransactionItem {
+        val domain = entity.toDomain()
+        val sourceAlias = domain.sourceAccountId?.let { accountsById[it]?.alias }
+        val destAlias = domain.destinationAccountId?.let { accountsById[it]?.alias }
+        val card = domain.cardId?.let(cardsById::get)
+        val category = domain.categoryId?.let(categoriesById::get)
+        val merchant = domain.merchantId?.let(merchantsById::get)
+        return TransactionItem(
+            transaction = domain,
+            voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
+            sourceAccountAlias = sourceAlias,
+            destinationAccountAlias = destAlias,
+            cardAlias = card?.alias,
+            cardLastFourDigits = card?.lastFourDigits,
+            categoryName = category?.name,
+            categoryIcon = category?.icon,
+            merchantName = domain.merchantProvisionalText ?: merchant?.name,
+            merchantLogoKey = merchant?.logoKey,
+            merchantLogoUrl = merchant?.logoPath?.let {
+                com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                    com.kipu.app.BuildConfig.SUPABASE_URL,
+                    it,
+                )
+            },
+            merchantLogoDarkUrl = merchant?.logoDarkPath?.let {
+                com.kipu.app.core.storage.data.MerchantLogoUrlResolver.resolve(
+                    com.kipu.app.BuildConfig.SUPABASE_URL,
+                    it,
+                )
+            },
+            merchantBrandColor = merchant?.brandColor,
+        )
     }
 }
 

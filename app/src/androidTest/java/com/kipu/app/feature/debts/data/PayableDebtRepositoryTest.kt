@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.core.database.KipuDatabase
+import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.debts.data.local.DebtEntity
 import com.kipu.app.feature.debts.data.local.DebtEventEntity
 import com.kipu.app.feature.debts.data.local.DebtLocalDataSource
@@ -73,6 +74,41 @@ class PayableDebtRepositoryTest {
         assertEquals("HISTORICAL", visible.single().openingMode.name)
         assertEquals(listOf("owner"), scheduler.scheduledOwners)
         assertEquals(1L, scalarLong("SELECT COUNT(*) FROM debt_command_outbox WHERE state='PENDING'"))
+    }
+
+    @Test
+    fun newPayableOpeningIncreasesCashAndSchedulesSync() = runBlocking {
+        database.accountDao().insert(
+            AccountEntity(
+                id = "cash-1",
+                userId = "owner",
+                creationOperationId = "84000000-0000-4000-8000-000000000000",
+                alias = "Ahorros",
+                type = "SAVINGS",
+                currency = "PEN",
+                presetId = null,
+                color = null,
+                icon = null,
+                initialBalanceMinorUnits = 0L,
+                openedAt = 1L,
+                createdAt = 1L,
+                updatedAt = 1L,
+            ),
+        )
+
+        val cmd = command().copy(
+            openingMode = DebtOpeningMode.NEW_CASH_FLOW,
+            accountId = "cash-1",
+        )
+        val result = repository.openDebt("owner", cmd, hasPremiumAccess = false)
+
+        assertTrue(result is DebtCommandResult.Applied)
+        val visible = repository.observeDebts("owner").first().single()
+        assertEquals(DEBT_ID, visible.debtId)
+        assertEquals(5_000L, visible.remainingPrincipalMinor)
+        assertEquals(DebtOpeningMode.NEW_CASH_FLOW, visible.openingMode)
+        assertEquals(5_000L, database.financialMovementDao().getAccountBalance("owner", "cash-1"))
+        assertEquals(listOf("owner"), scheduler.scheduledOwners)
     }
 
     @Test

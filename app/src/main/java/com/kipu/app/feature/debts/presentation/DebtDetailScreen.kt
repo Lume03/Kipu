@@ -3,10 +3,6 @@ package com.kipu.app.feature.debts.presentation
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import com.kipu.app.ui.theme.rememberKipuColors
-import android.graphics.Paint
-import android.graphics.pdf.PdfDocument
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
@@ -63,14 +59,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -96,10 +90,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Currency
 import java.util.Locale
 import kotlin.math.absoluteValue
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class DebtSettlementActivity(
     val eventId: String,
@@ -134,29 +124,6 @@ fun DebtDetailScreen(
     var showDeleteConfirmation by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "manage") }
     var showHistory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initialAction == "history") }
     var showOverflowMenu by remember { mutableStateOf(false) }
-    var certificateMessage by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val certificateLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/pdf"),
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                certificateMessage = try {
-                    withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(uri)?.use { output ->
-                            writeDebtClosureCertificate(output, debt, activities)
-                        } ?: error("No se pudo abrir el destino del PDF")
-                    }
-                    "Constancia PDF guardada"
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (error: Exception) {
-                    "No se pudo guardar el PDF: ${error.message ?: "error de escritura"}"
-                }
-            }
-        }
-    }
     val currency = runCatching { Currency.getInstance(debt.currencyCode) }.getOrNull()
     val formatter = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("es").setRegion("PE").build())
     if (currency != null) formatter.currency = currency
@@ -779,64 +746,4 @@ private fun installmentStatusLabel(status: String): String = when (status) {
     "PAID" -> "Pago registrado"
     "CANCELLED" -> "Cuota cancelada"
     else -> "Estado: $status"
-}
-
-private fun writeDebtClosureCertificate(
-    output: java.io.OutputStream,
-    debt: DebtSummary,
-    activities: List<DebtSettlementActivity>,
-) {
-    val document = PdfDocument()
-    try {
-        val page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
-        val canvas = page.canvas
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 22f
-            isFakeBoldText = true
-            color = android.graphics.Color.rgb(15, 23, 42)
-        }
-        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 13f
-            color = android.graphics.Color.rgb(71, 85, 105)
-        }
-        val headingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 15f
-            isFakeBoldText = true
-            color = android.graphics.Color.rgb(15, 118, 110)
-        }
-        val currency = runCatching { Currency.getInstance(debt.currencyCode) }.getOrNull()
-        val amountFormatter = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-PE")).apply {
-            if (currency != null) this.currency = currency
-        }
-        val lines = listOf(
-            "Constancia informativa de cierre contable",
-            "Registro personal de Kipu",
-            "",
-            "Obligación: ${debt.counterpartyName}",
-            "Tipo: ${if (debt.obligationType.name == "PAYABLE") "Por pagar" else "Por cobrar"}",
-            "Fecha de apertura: ${debt.openedOn}",
-            "Principal original: ${amountFormatter.format(debt.principalMinor / 100.0)}",
-            "Saldo pendiente registrado: ${amountFormatter.format(debt.remainingPrincipalMinor / 100.0)}",
-            "Estado registrado: Liquidada · saldo cero",
-            "Eventos del historial: ${activities.size}",
-            "Generado: ${java.time.ZonedDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm z", Locale.forLanguageTag("es-PE")))}",
-            "",
-            "Documento informativo generado desde el historial conservado en Kipu.",
-            "No reemplaza recibos, acuerdos ni constancias emitidas por el acreedor.",
-        )
-        var y = 76f
-        lines.forEachIndexed { index, line ->
-            val paint = when (index) {
-                0 -> titlePaint
-                2, 3 -> headingPaint
-                else -> bodyPaint
-            }
-            if (line.isNotBlank()) canvas.drawText(line, 48f, y, paint)
-            y += if (index == 0) 34f else 27f
-        }
-        document.finishPage(page)
-        document.writeTo(output)
-    } finally {
-        document.close()
-    }
 }

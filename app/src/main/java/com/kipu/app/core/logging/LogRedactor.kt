@@ -38,10 +38,6 @@ object LogRedactor {
  */
 object SecureLog {
 
-    fun d(tag: String, message: String) {
-        Log.d(tag, LogRedactor.redact(message))
-    }
-
     fun i(tag: String, message: String) {
         Log.i(tag, LogRedactor.redact(message))
     }

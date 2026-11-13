@@ -4,12 +4,13 @@ import com.kipu.app.feature.movements.domain.model.MovementRevisionCommand
 import java.security.MessageDigest
 import java.util.Locale
 import java.time.Instant
+import javax.inject.Inject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 
-class MovementRevisionRequestHasher {
+class MovementRevisionRequestHasher @Inject constructor() {
     fun computeHash(command: MovementRevisionCommand): String {
         fun text(value: String?): JsonElement = value?.let(::JsonPrimitive) ?: JsonNull
         fun id(value: String?): JsonElement = text(value?.lowercase(Locale.ROOT))

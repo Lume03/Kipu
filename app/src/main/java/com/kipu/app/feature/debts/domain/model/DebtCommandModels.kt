@@ -140,28 +140,6 @@ sealed interface DebtPlanResult<out T> {
     data class Invalid(val code: String) : DebtPlanResult<Nothing>
 }
 
-data class PayableOpeningPlan(
-    val debtId: String,
-    val principalMinor: Long,
-    val currencyCode: String,
-    val accountId: String?,
-    val cashDeltaMinor: Long,
-    val movementType: String,
-    val operationKind: String,
-    val counterpartyName: String,
-)
-
-data class ReceivableOpeningPlan(
-    val debtId: String,
-    val principalMinor: Long,
-    val currencyCode: String,
-    val accountId: String?,
-    val cashDeltaMinor: Long,
-    val movementType: String,
-    val operationKind: String,
-    val counterpartyName: String,
-)
-
 data class DebtSettlementPlan(
     val debtId: String,
     val eventId: String,

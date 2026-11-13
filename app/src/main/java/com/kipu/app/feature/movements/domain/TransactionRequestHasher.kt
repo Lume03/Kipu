@@ -3,11 +3,12 @@ package com.kipu.app.feature.movements.domain
 import com.kipu.app.feature.movements.domain.model.RegisterTransactionCommand
 import java.security.MessageDigest
 import java.util.Locale
+import javax.inject.Inject
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 
-class TransactionRequestHasher {
+class TransactionRequestHasher @Inject constructor() {
     // Only new commands use v2. Persisted v1 outbox hashes are never recalculated.
     fun computeHash(command: RegisterTransactionCommand): String {
         val values = listOf(

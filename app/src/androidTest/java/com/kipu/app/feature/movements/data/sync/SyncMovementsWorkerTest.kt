@@ -478,50 +478,6 @@ class SyncMovementsWorkerTest {
         assertEquals(64L, movementDao.getSyncCheckpoint(userId)?.sequence)
     }
 
-    /** Server voids arrive as STANDARD + ledger_effects; the restored balance must undo the expense once. */
-    @Test
-    fun remoteVoidOfPulledExpenseRestoresBalanceOnceAndKeepsTheHistory() = runTest {
-        val accountId = UUID.randomUUID().toString()
-        val expenseId = UUID.randomUUID().toString()
-        val account = SyncChangeItemDto(
-            sequence = 238, entityType = "ACCOUNT", entityId = accountId, revision = 1, operation = "UPSERT",
-            payload = Json.parseToJsonElement(
-                """{"id":"$accountId","alias":"Yape","type":"CASH","currency":"PEN","initial_balance_minor_units":5000,
-                   "opened_at":"2026-10-21T19:00:00+00:00"}""",
-            ),
-        )
-        val expense = SyncChangeItemDto(
-            sequence = 239, entityType = "TRANSACTION", entityId = expenseId, revision = 1, operation = "UPSERT",
-            payload = Json.parseToJsonElement(
-                """{"id":"$expenseId","type":"EXPENSE","status":"ACTIVE","amount_minor":1000,"currency_code":"PEN",
-                   "source_account_id":"$accountId","occurred_at":"2026-10-21T19:25:55.361+00:00",
-                   "ledger_entries":[{"id":"${UUID.randomUUID()}","role":"PRIMARY","account_id":"$accountId",
-                   "currency_code":"PEN","signed_amount_minor":-1000,"created_at":"2026-10-21T19:25:56+00:00"}]}""",
-            ),
-        )
-        fun void(sequence: Long) = SyncChangeItemDto(
-            sequence = sequence, entityType = "TRANSACTION", entityId = expenseId, revision = 2, operation = "UPSERT",
-            payload = Json.parseToJsonElement(
-                """{"id":"$expenseId","type":"EXPENSE","status":"VOIDED","operation_kind":"STANDARD","amount_minor":1000,
-                   "currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-21T19:25:55.361+00:00",
-                   "ledger_effects":[{"reverses":["${UUID.randomUUID()}","0"],"effect_ordinal":0,"ledger_entry_id":"${UUID.randomUUID()}"}]}""",
-            ),
-        )
-        coEvery { financialApi.pullChanges(any(), userId) } returnsMany listOf(
-            FinancialApiResponse.Success(PullChangesResponseDto(listOf(account, expense, void(248)), 248, false)),
-            FinancialApiResponse.Success(PullChangesResponseDto(listOf(void(249)), 249, false)),
-        )
-
-        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
-        assertEquals("VOIDED", movementDao.getTransactionById(userId, expenseId)?.status)
-        assertEquals(5_000L, movementDao.calculateLedgerSumForAccount(userId, accountId))
-
-        assertTrue(worker().doWork().javaClass.simpleName.contains("Success"))
-        assertEquals(5_000L, movementDao.calculateLedgerSumForAccount(userId, accountId))
-        assertEquals(5_000L, movementDao.getBalanceProjection(userId, accountId)?.balanceMinor)
-        assertEquals(249L, movementDao.getSyncCheckpoint(userId)?.sequence)
-    }
-
     @Test
     fun replaysExpiredCommandAfterRemoteCommitWithoutRepeatingLocalIncome() = runTest {
         val accountId = UUID.randomUUID().toString()

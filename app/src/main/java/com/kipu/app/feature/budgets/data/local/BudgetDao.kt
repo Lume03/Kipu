@@ -83,9 +83,6 @@ interface BudgetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPeriod(period: BudgetPeriodEntity)
 
-    @Update
-    suspend fun updatePeriod(period: BudgetPeriodEntity): Int
-
     @Query("UPDATE budget_periods SET limit_minor = :limitMinor WHERE user_id = :userId AND id = :periodId")
     suspend fun updatePeriodLimit(userId: String, periodId: String, limitMinor: Long): Int
 
@@ -94,9 +91,6 @@ interface BudgetDao {
 
     @Query("SELECT * FROM budget_tombstones WHERE user_id = :userId AND budget_id = :budgetId LIMIT 1")
     suspend fun getTombstone(userId: String, budgetId: String): BudgetTombstoneEntity?
-
-    @Query("SELECT budget_id FROM budget_tombstones WHERE user_id = :userId")
-    suspend fun tombstonedBudgetIds(userId: String): List<String>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTombstoneIfAbsent(tombstone: BudgetTombstoneEntity): Long

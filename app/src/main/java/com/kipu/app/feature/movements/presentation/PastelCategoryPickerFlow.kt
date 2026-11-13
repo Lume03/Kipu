@@ -649,43 +649,6 @@ fun PastelCategoryPickerBottomSheet(
     }
 }
 
-/**
- * Flow alias for [PastelCategoryPickerBottomSheet].
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PastelCategoryPickerFlow(
-    categories: List<CategoryOption>,
-    selectedCategoryId: String?,
-    onSelect: (CategoryOption) -> Unit,
-    onCreateSubcategory: suspend (
-        parentId: String,
-        name: String,
-        iconId: String,
-        colorHex: String,
-        rememberFrequentMerchant: Boolean,
-    ) -> Result<CategoryOption>,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    initialParentCategoryId: String? = null,
-    isCreating: Boolean = false,
-    errorMessage: String? = null,
-    directSelectionMode: Boolean = false,
-) = PastelCategoryPickerBottomSheet(
-    categories = categories,
-    selectedCategoryId = selectedCategoryId,
-    onSelect = onSelect,
-    onCreateCategory = { parentId, name, iconId, colorHex, rememberFrequentMerchant ->
-        onCreateSubcategory(parentId ?: "", name, iconId, colorHex, rememberFrequentMerchant)
-    },
-    onDismiss = onDismiss,
-    modifier = modifier,
-    initialParentCategoryId = initialParentCategoryId,
-    isCreating = isCreating,
-    errorMessage = errorMessage,
-    directSelectionMode = directSelectionMode,
-)
-
 
 // ============================================================================
 // 6. VIEW: BROWSE CATEGORIES (States 1, 2, 3, 4)
@@ -1472,54 +1435,6 @@ private fun CurrentCategoryTag() {
             color = PastelDesignTokens.Mint.contentColor,
         )
     }
-}
-
-// ============================================================================
-// 9. VIEW: CREATE NEW SUBCATEGORY (State 5)
-// ============================================================================
-
-@Composable
-internal fun CreateSubcategoryView(
-    categories: List<CategoryOption>,
-    selectedParentId: String,
-    onOpenParentChooser: () -> Unit = {},
-    name: String,
-    onNameChange: (String) -> Unit,
-    selectedIconId: String,
-    onSelectQuickIcon: (String) -> Unit,
-    onOpenIconCatalog: () -> Unit = {},
-    selectedColorHex: String,
-    onSelectQuickColor: (String) -> Unit,
-    onOpenColorPicker: () -> Unit = {},
-    rememberFrequentMerchant: Boolean,
-    onRememberFrequentMerchantChange: (Boolean) -> Unit,
-    isCreating: Boolean,
-    errorMessage: String?,
-    onBack: () -> Unit,
-    onDismiss: () -> Unit,
-    onSave: () -> Unit,
-) {
-    CategoryFormContent(
-        showBack = true,
-        selectOnSave = true,
-        isEditing = false,
-        categoryType = categories.find { it.id == selectedParentId }?.categoryType ?: CategoryType.EXPENSE,
-        name = name,
-        icon = selectedIconId,
-        color = selectedColorHex,
-        parentId = selectedParentId.takeIf { it.isNotBlank() }?.let { CategoryId(it) },
-        availableRoots = categories.filter { it.parentCategoryId == null },
-        onNameChange = onNameChange,
-        onIconChange = onSelectQuickIcon,
-        onColorChange = onSelectQuickColor,
-        onParentIdChange = { /* updated via chooser */ },
-        onBack = onBack,
-        onDismiss = onDismiss,
-        onConfirm = onSave,
-        isCreating = isCreating,
-        errorMessage = errorMessage,
-        modifier = Modifier.fillMaxSize(),
-    )
 }
 
 // ============================================================================

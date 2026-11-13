@@ -18,23 +18,11 @@ import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.core.database.KipuDatabase
 import com.kipu.app.feature.accounts.data.local.AccountDao
-import com.kipu.app.feature.accounts.data.local.AccountEntity
 import com.kipu.app.feature.accounts.data.local.CardDao
-import com.kipu.app.feature.accounts.data.local.CardEntity
-import com.kipu.app.feature.accounts.data.local.CreditPaymentAllocationEntity
-import com.kipu.app.feature.accounts.domain.model.CreditLiabilityAccountIds
-import com.kipu.app.feature.accounts.domain.model.Card
-import com.kipu.app.feature.accounts.data.remote.FinancialApiResponse
 import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
-import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
-import com.kipu.app.feature.accounts.data.remote.SyncFeedCursor
-import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
 import com.kipu.app.feature.movements.data.local.MovementDao
 import com.kipu.app.feature.movements.data.local.MovementRejectionResolver
 import com.kipu.app.feature.movements.data.local.MovementOutboxEntity
-import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
-import com.kipu.app.feature.movements.data.local.TransactionEntity
-import com.kipu.app.feature.movements.data.local.LedgerEntryEntity
 import com.kipu.app.feature.movements.data.remote.MovementApi
 import com.kipu.app.feature.movements.data.remote.MovementApiResponse
 import com.kipu.app.feature.movements.data.remote.RegisterTransactionRequestDto
@@ -47,7 +35,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromJsonElement
 import java.time.Instant
 import java.util.UUID
 import androidx.room.withTransaction
@@ -109,16 +96,11 @@ class SyncMovementsWorker @AssistedInject constructor(
 
     private fun requireOwner(userId: String) = requireSyncOwner(sessionCoordinator, userId)
 
-    private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T {
-        requireOwner(userId)
-        return request().also { requireOwner(userId) }
-    }
+    private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T =
+        com.kipu.app.feature.movements.data.sync.ownerRequest(sessionCoordinator, userId, request)
 
     private suspend fun <T> ownerTransaction(userId: String, block: suspend () -> T): T =
-        database.withTransaction {
-            requireOwner(userId)
-            block().also { requireOwner(userId) }
-        }
+        com.kipu.app.feature.movements.data.sync.ownerTransaction(database, sessionCoordinator, userId, block)
 
     override suspend fun doWork(): Result {
         val currentVerifiedOwner = sessionCoordinator.currentOwner?.verifiedUserId
@@ -552,4 +534,19 @@ internal fun requireSyncOwner(coordinator: SessionCoordinator, userId: String) {
     if (owner == null || owner.explicitlySignedOut || owner.verifiedUserId != userId) {
         throw CancellationException("Sync owner is no longer active")
     }
+}
+
+internal suspend fun <T> ownerRequest(coordinator: SessionCoordinator, userId: String, request: suspend () -> T): T {
+    requireSyncOwner(coordinator, userId)
+    return request().also { requireSyncOwner(coordinator, userId) }
+}
+
+internal suspend fun <T> ownerTransaction(
+    database: KipuDatabase,
+    coordinator: SessionCoordinator,
+    userId: String,
+    block: suspend () -> T,
+): T = database.withTransaction {
+    requireSyncOwner(coordinator, userId)
+    block().also { requireSyncOwner(coordinator, userId) }
 }

@@ -5,13 +5,8 @@ import com.kipu.app.feature.movements.domain.ExpenseConsumptionRepository
 import com.kipu.app.feature.movements.domain.MovementMaintenanceRepository
 import com.kipu.app.feature.movements.domain.MovementRepository
 import com.kipu.app.feature.movements.domain.MovementRefundRepository
-import com.kipu.app.feature.movements.domain.MovementRevisionPlanner
-import com.kipu.app.feature.movements.domain.MovementRevisionRequestHasher
-import com.kipu.app.feature.movements.domain.RegisterTransactionValidator
-import com.kipu.app.feature.movements.domain.TransactionRequestHasher
 import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -60,28 +55,4 @@ abstract class MovementsBindingModule {
     abstract fun bindMovementEntitlementProvider(
         impl: com.kipu.app.feature.movements.data.PlansMovementEntitlementProvider
     ): com.kipu.app.feature.movements.domain.MovementEntitlementProvider
-}
-
-@Module
-@InstallIn(SingletonComponent::class)
-object MovementsModule {
-    @Provides
-    @Singleton
-    fun provideRegisterTransactionValidator(): RegisterTransactionValidator =
-        RegisterTransactionValidator()
-
-    @Provides
-    @Singleton
-    fun provideTransactionRequestHasher(): TransactionRequestHasher =
-        TransactionRequestHasher()
-
-    @Provides
-    @Singleton
-    fun provideMovementRevisionRequestHasher(): MovementRevisionRequestHasher =
-        MovementRevisionRequestHasher()
-
-    @Provides
-    @Singleton
-    fun provideMovementRevisionPlanner(): MovementRevisionPlanner =
-        MovementRevisionPlanner()
 }

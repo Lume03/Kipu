@@ -41,8 +41,6 @@ internal interface FieldTiming {
 
 /** "¡Cuenta creada!": the quipu is woven, its knots gather into one seal, then the copy arrives. */
 internal object AccountCreatedTimeline : FieldTiming {
-    const val REVEAL = 0.95f
-
     override val mainStart = 0.75f
     override val mainDuration = 0.7f
     override val pendantDuration = 0.6f
@@ -74,8 +72,6 @@ internal object AccountCreatedTimeline : FieldTiming {
 
 /** "¡Hola de nuevo!": the cords hang, a light wave waits while the home loads, then everything closes on the logo. */
 internal object WelcomeBackTimeline : FieldTiming {
-    const val REVEAL = 0.95f
-
     override val mainStart = 0.7f
     override val mainDuration = 0.55f
     override val pendantDuration = 0.45f

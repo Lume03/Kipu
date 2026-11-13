@@ -17,7 +17,6 @@ import com.kipu.app.feature.accounts.domain.model.CardNetwork
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
-import com.kipu.app.feature.accounts.presentation.components.CreditCardSummaryCard
 import com.kipu.app.feature.accounts.presentation.dashboard.DashboardScreen
 import com.kipu.app.ui.theme.KipuTheme
 import io.mockk.every
@@ -115,21 +114,5 @@ class Issue48ProductionLabelsTest {
         compose.onNodeWithText("TOTAL DISPONIBLE").assertDoesNotExist()
         compose.onNodeWithText("L\u00EDneas de cr\u00E9dito (no suman al saldo disponible)")
             .assertDoesNotExist()
-    }
-
-    @Test
-    fun productionCreditCardSummarySeparatesDebtAvailableCreditAndTotalLine() {
-        compose.setContent {
-            KipuTheme {
-                CreditCardSummaryCard(creditCardWithSummary = cardSummary)
-            }
-        }
-
-        compose.onNodeWithText("Deuda actual").assertIsDisplayed()
-        compose.onNodeWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
-            .assertIsDisplayed()
-        compose.onNodeWithText("Uso de l\u00EDnea total de cr\u00E9dito:", substring = true)
-            .assertIsDisplayed()
-        compose.onNodeWithText("Disponible en l\u00EDnea").assertDoesNotExist()
     }
 }

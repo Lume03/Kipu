@@ -15,6 +15,7 @@ import com.kipu.app.feature.accounts.data.remote.FinancialInstrumentsApi
 import com.kipu.app.feature.accounts.data.remote.PullChangesRequestDto
 import com.kipu.app.feature.accounts.data.remote.SyncFeedCursor
 import com.kipu.app.feature.accounts.data.remote.parseFeedInstant
+import com.kipu.app.feature.movements.data.local.BalanceProjectionStore
 import com.kipu.app.feature.movements.data.local.MovementDao
 import com.kipu.app.feature.movements.data.local.MovementSyncCheckpointEntity
 import com.kipu.app.feature.movements.data.local.TransactionEntity
@@ -41,15 +42,12 @@ class MovementHydration @javax.inject.Inject constructor(
     private val FOREIGN_FEED_ENTITY_TYPES = setOf("CATEGORY", "BUDGET", "GOAL", "GOAL_EVENT", "DEBT", "DEBT_EVENT", "DEBT_INSTALLMENT", "SAVINGS_GOAL", "OBLIGATION", "RECURRENCE",
         // Merchant rules travel in the same feed and are applied by the categories sync; they must not block restoring money data.
         "MERCHANT_ALIAS_RULE", "MERCHANT_CATEGORY_PREFERENCE")
+    private val balanceProjectionStore = BalanceProjectionStore(movementDao)
     private fun requireOwner(userId: String) = requireSyncOwner(sessionCoordinator, userId)
-    private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T {
-        requireOwner(userId)
-        return request().also { requireOwner(userId) }
-    }
-    private suspend fun <T> ownerTransaction(userId: String, block: suspend () -> T): T = database.withTransaction {
-        requireOwner(userId)
-        block().also { requireOwner(userId) }
-    }
+    private suspend fun <T> ownerRequest(userId: String, request: suspend () -> T): T =
+        com.kipu.app.feature.movements.data.sync.ownerRequest(sessionCoordinator, userId, request)
+    private suspend fun <T> ownerTransaction(userId: String, block: suspend () -> T): T =
+        com.kipu.app.feature.movements.data.sync.ownerTransaction(database, sessionCoordinator, userId, block)
     suspend fun hydrateFully(userId: String): Boolean {
         requireOwner(userId)
         return pullChanges(userId, full = true)
@@ -170,11 +168,7 @@ class MovementHydration @javax.inject.Inject constructor(
                         if (!reconcilePulledLedgerEntries(userId, remote, local.occurredAt, change.revision)) throw InvalidSyncPage()
                         movementDao.getLedgerEntriesForTransaction(userId, local.id).map { it.accountId }.distinct().forEach { accountId ->
                             val account = accountDao.getById(userId, accountId) ?: throw InvalidSyncPage()
-                            movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
-                                userId = userId, accountId = accountId,
-                                balanceMinor = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L,
-                                currencyCode = account.currency, lastTransactionAt = local.occurredAt,
-                            ))
+                            balanceProjectionStore.rebuildBalanceFromLedger(userId, accountId, account.currency)
                         }
                     }
                 } catch (e: CancellationException) {
@@ -514,11 +508,7 @@ class MovementHydration @javax.inject.Inject constructor(
             val allAccountIds = (accountIds + listOfNotNull(existing.sourceAccountId, existing.destinationAccountId)).distinct()
             allAccountIds.forEach { accountId ->
                 val account = accountDao.getById(userId, accountId) ?: return@forEach
-                val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
-                movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
-                    userId = userId, accountId = accountId, balanceMinor = balance,
-                    currencyCode = account.currency, lastTransactionAt = occurredAt,
-                ))
+                balanceProjectionStore.rebuildBalanceFromLedger(userId, accountId, account.currency)
             }
             return@ownerTransaction true
         }
@@ -544,11 +534,7 @@ class MovementHydration @javax.inject.Inject constructor(
         if (isRefund) database.creditDao().refreshInstallmentStatuses(userId)
         accountIds.forEach { accountId ->
             val account = accountDao.getById(userId, accountId) ?: return@ownerTransaction false
-            val balance = movementDao.calculateLedgerSumForAccount(userId, accountId) ?: 0L
-            movementDao.upsertBalanceProjection(com.kipu.app.feature.movements.data.local.BalanceProjectionEntity(
-                userId = userId, accountId = accountId, balanceMinor = balance,
-                currencyCode = account.currency, lastTransactionAt = occurredAt,
-            ))
+            balanceProjectionStore.rebuildBalanceFromLedger(userId, accountId, account.currency)
         }
         true
     }
@@ -560,28 +546,6 @@ class MovementHydration @javax.inject.Inject constructor(
         revision: Long,
     ): Boolean {
         val existingEntries = movementDao.getLedgerEntriesForTransaction(userId, remote.id)
-
-        // A remote void carries ledger_effects instead of ledger_entries: neutralize what is still
-        // net on each account, like a local void does. Deterministic ids keep it idempotent.
-        if (remote.status.equals("VOIDED", ignoreCase = true) && remote.ledgerEntries.isEmpty()) {
-            val compensations = existingEntries.groupBy { it.accountId }.mapNotNull { (accountId, entries) ->
-                val net = entries.sumOf { it.signedAmountMinor }
-                if (net == 0L) return@mapNotNull null
-                val original = entries.first()
-                LedgerEntryEntity(
-                    id = "remote:void:${remote.id}:$accountId",
-                    userId = userId,
-                    transactionId = remote.id,
-                    accountId = accountId,
-                    role = original.role,
-                    signedAmountMinor = -net,
-                    currencyCode = original.currencyCode,
-                    createdAt = occurredAt,
-                )
-            }
-            if (compensations.isNotEmpty()) movementDao.insertPulledLedgerEntries(compensations)
-            return true
-        }
 
         if (existingEntries.isEmpty()) {
             if (remote.ledgerEntries.isEmpty()) return true

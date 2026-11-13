@@ -110,14 +110,6 @@ import com.kipu.app.ui.theme.rememberKipuColors
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-private val KipuTealPrimary: Color @Composable get() = rememberKipuColors().primaryText
-private val KipuLightGreenContainer: Color @Composable get() = rememberKipuColors().positiveContainer
-private val KipuSurfaceVariantNeutral: Color @Composable get() = rememberKipuColors().surfaceVariant
-private val KipuBorderColor: Color @Composable get() = rememberKipuColors().border
-private val KipuSuccessGreen: Color @Composable get() = rememberKipuColors().positive
-private val KipuInkTitle: Color @Composable get() = rememberKipuColors().inkPrimary
-private val KipuTextMuted: Color @Composable get() = if (rememberKipuColors().isDark) rememberKipuColors().inkSecondary else Color(0xFF475569)
-
 private enum class InstrumentKind(val label: String) {
     SAVINGS_DEBIT("Ahorros / Débito"),
     CREDIT_CARD("Tarjeta de crédito"),
@@ -205,7 +197,6 @@ fun UnifiedInstrumentFormScreen(
     onNavigateBack: () -> Unit,
     onSaveSuccess: ((String) -> Unit)? = null,
     onNavigateToCardDetail: ((CreditCard) -> Unit)? = null,
-    onNavigateToRecordConsumption: ((CreditCard) -> Unit)? = null,
     initialCreditCard: Boolean = false,
     initialBankAccount: Boolean = false,
     onNavigateToPlans: (() -> Unit)? = null,
@@ -255,10 +246,6 @@ fun UnifiedInstrumentFormScreen(
     var dueDayInput by rememberSaveable { mutableStateOf("") }
     var selectedIcon by rememberSaveable { mutableStateOf("account_balance") }
     var selectedColor by rememberSaveable { mutableStateOf("institution") }
-    var isBankSelectorExpanded by rememberSaveable { mutableStateOf(false) }
-    var isProductTreeExpanded by rememberSaveable { mutableStateOf(false) }
-    var isPreviewExpanded by rememberSaveable { mutableStateOf(false) }
-    var isPersonalizationExpanded by rememberSaveable { mutableStateOf(false) }
     var hasAliasBeenEdited by rememberSaveable { mutableStateOf(false) }
 
     // Step 2 & Step 3 specific states
@@ -292,13 +279,6 @@ fun UnifiedInstrumentFormScreen(
         }
     }
 
-    // Pristine & submission tracking
-    var isSubmitted by rememberSaveable { mutableStateOf(false) }
-    var amountTouched by rememberSaveable { mutableStateOf(false) }
-    var aliasTouched by rememberSaveable { mutableStateOf(false) }
-    var lastFourTouched by rememberSaveable { mutableStateOf(false) }
-    var cycleTouched by rememberSaveable { mutableStateOf(false) }
-
     // Transient UI/async state (never restored to true across recreation)
     var isSubmitting by remember { mutableStateOf(false) }
     var accountCreatedBeforeDebitFailure by remember { mutableStateOf(false) }
@@ -310,12 +290,10 @@ fun UnifiedInstrumentFormScreen(
     var cardError by remember { mutableStateOf<String?>(null) }
     var limitError by remember { mutableStateOf<String?>(null) }
     var teaError by remember { mutableStateOf<String?>(null) }
-    var cycleError by remember { mutableStateOf<String?>(null) }
 
     val aliasBringIntoViewRequester = remember { BringIntoViewRequester() }
     val amountBringIntoViewRequester = remember { BringIntoViewRequester() }
     val lastFourBringIntoViewRequester = remember { BringIntoViewRequester() }
-    val cycleBringIntoViewRequester = remember { BringIntoViewRequester() }
 
     LaunchedEffect(Unit) { viewModel.loadCreditProductCatalog() }
     LaunchedEffect(viewModel) {
@@ -349,14 +327,6 @@ fun UnifiedInstrumentFormScreen(
         balanceError = null
         cardError = null
         limitError = null
-        cycleError = null
-        isBankSelectorExpanded = false
-        isProductTreeExpanded = false
-        isSubmitted = false
-        amountTouched = false
-        aliasTouched = false
-        lastFourTouched = false
-        cycleTouched = false
         if (next == InstrumentKind.CASH) {
             selectedIcon = "payments"
             bankCode = bankChoices.first().code
@@ -389,7 +359,7 @@ fun UnifiedInstrumentFormScreen(
                         value.isBlank() || (value.contains("VERIFIC", true) && !value.contains("PENDIENTE", true))
                     }
                     .mapNotNull { product ->
-                        val productNetwork = product.cardNetwork?.let(::networkFromCatalog) ?: CardNetwork.OTHER
+                        val productNetwork = product.cardNetwork?.toCardNetwork() ?: CardNetwork.OTHER
                         CatalogProductChoice(
                             name = product.productName,
                             network = productNetwork,
@@ -416,45 +386,9 @@ fun UnifiedInstrumentFormScreen(
     val eligibleWalletAccounts = instrumentsUiState.activeAccounts.filter { account ->
         account.type in setOf(AccountType.SAVINGS, AccountType.BANK) && account.preset == expectedWalletBank && account.currency == currency
     }
-    val amountForValidation = if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput
-        else if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput.ifBlank { "0" }
-    val parsedAmountForValidation = MoneyInputParser.parseMinorUnits(amountForValidation)
-    val cycleIsValid = billingDayInput.toIntOrNull() in 1..31 && dueDayInput.toIntOrNull() in 1..31
-    val lastFourIsValid = when (kind) {
-        InstrumentKind.CREDIT_CARD -> Card.isValidLastFourDigits(lastFourDigits)
-        InstrumentKind.SAVINGS_DEBIT -> lastFourDigits.isEmpty() ||
-            Card.isValidLastFourDigits(lastFourDigits)
-        else -> true
-    }
-    val cardBackground = when {
-        kind == InstrumentKind.CASH -> MaterialTheme.colorScheme.surfaceVariant
-        kind == InstrumentKind.WALLET -> Color(0xFF005C55)
-        selectedColor == "kipu" -> rememberKipuColors().primary
-        else -> bank.color
-    }
-    val previewStylePreset = selectedStylePreset ?: when (kind) {
-        InstrumentKind.CREDIT_CARD -> CardStylePresets.genericCreditStyle
-        InstrumentKind.SAVINGS_DEBIT -> CardStylePresets.forInstitution(bank.code, CardStyleType.DEBIT).firstOrNull()
-            ?: CardStylePresets.genericDebitStyle
-        InstrumentKind.WALLET, InstrumentKind.CASH -> null
-    }
-    val cardForeground = when {
-        kind == InstrumentKind.CASH -> MaterialTheme.colorScheme.onSurface
-        kind == InstrumentKind.WALLET || selectedColor == "kipu" -> rememberKipuColors().onPrimary
-        else -> bank.textColor
-    }
-    val previewTitle = alias.ifBlank {
-        selectedProductName ?: when (kind) {
-            InstrumentKind.SAVINGS_DEBIT -> "Cuenta ${bank.name}"
-            InstrumentKind.CREDIT_CARD -> "Tu tarjeta ${bank.name}"
-            InstrumentKind.WALLET -> if (walletProvider == AccountPreset.PLIN) "Billetera Plin" else "Billetera Yape"
-            InstrumentKind.CASH -> "Efectivo"
-        }
-    }
 
     fun handleSaveCreditCard() {
         if (isSubmitting) return
-        isSubmitted = true
         var hasError = false
 
         val parsedBalance = MoneyInputParser.parseMinorUnits(creditLimitInput)
@@ -545,7 +479,6 @@ fun UnifiedInstrumentFormScreen(
 
     fun handleSubmit() {
         if (isSubmitting) return
-        isSubmitted = true
         var valid = true
         var firstInvalidRequester: BringIntoViewRequester? = null
 
@@ -564,20 +497,15 @@ fun UnifiedInstrumentFormScreen(
         }
 
         val parsedBalance = MoneyInputParser.parseMinorUnits(
-            if (kind == InstrumentKind.CREDIT_CARD) creditLimitInput else amountForValidation
+            if (kind == InstrumentKind.WALLET && walletAffiliated) "0" else balanceInput.ifBlank { "0" }
         )
         if (parsedBalance == null || parsedBalance < 0L) {
-            if (kind == InstrumentKind.CREDIT_CARD) limitError = "Ingresa una ${FinancialTerminology.TOTAL_CREDIT_LINE.lowercase()} válida."
-            else balanceError = "Ingresa un monto válido (0 o más)"
+            balanceError = "Ingresa un monto válido (0 o más)"
             valid = false
             if (firstInvalidRequester == null) firstInvalidRequester = amountBringIntoViewRequester
         }
 
-        if (kind == InstrumentKind.CREDIT_CARD && !Card.isValidLastFourDigits(lastFourDigits)) {
-            cardError = "Deben ser exactamente 4 números"
-            valid = false
-            if (firstInvalidRequester == null) firstInvalidRequester = lastFourBringIntoViewRequester
-        } else if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
+        if (kind == InstrumentKind.SAVINGS_DEBIT && lastFourDigits.isNotEmpty() &&
             !Card.isValidLastFourDigits(lastFourDigits)) {
             cardError = "Deben ser exactamente 4 números"
             valid = false
@@ -588,14 +516,6 @@ fun UnifiedInstrumentFormScreen(
             (selectedWalletAccountId == null || eligibleWalletAccounts.none { it.id.value == selectedWalletAccountId })) {
             cardError = "Selecciona una cuenta bancaria compatible para afiliar la billetera."
             valid = false
-        }
-
-        val billingDay = billingDayInput.toIntOrNull()
-        val dueDay = dueDayInput.toIntOrNull()
-        if (kind == InstrumentKind.CREDIT_CARD && (billingDay !in 1..31 || dueDay !in 1..31)) {
-            cycleError = "El corte y el pago deben estar entre los días 1 y 31."
-            valid = false
-            if (firstInvalidRequester == null) firstInvalidRequester = cycleBringIntoViewRequester
         }
 
         if (!valid) {
@@ -648,27 +568,6 @@ fun UnifiedInstrumentFormScreen(
                     }
                 }
             }
-            InstrumentKind.CREDIT_CARD -> {
-                viewModel.registerCreditCard(
-                    alias = trimmedAlias,
-                    issuer = bank.name,
-                    network = network,
-                    lastFourDigits = lastFourDigits,
-                    currency = currency,
-                    creditLimitMinorUnits = requireNotNull(parsedBalance),
-                    billingDay = requireNotNull(billingDay),
-                    dueDay = requireNotNull(dueDay),
-                    personalTeaBps = null,
-                    preset = bank.cardPreset,
-                    colorToken = colorToken,
-                    iconToken = iconToken,
-                    stylePresetId = selectedStylePreset?.id,
-                ) { createdCreditCard ->
-                    isSubmitting = false
-                    registeredCreditCard = createdCreditCard
-                    showSuccessSheet = true
-                }
-            }
             InstrumentKind.WALLET, InstrumentKind.CASH -> {
                 val preset = when (kind) {
                     InstrumentKind.WALLET -> walletProvider
@@ -696,6 +595,7 @@ fun UnifiedInstrumentFormScreen(
                     )
                 }
             }
+            InstrumentKind.CREDIT_CARD -> Unit
         }
     }
 
@@ -1307,200 +1207,6 @@ fun UnifiedInstrumentFormScreen(
     }
 }
 
-
-
-
-@Composable
-private fun TreeBranchItem(
-    isFirst: Boolean,
-    isLast: Boolean,
-    isSelected: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val lineColor = KipuBorderColor
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(28.dp)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val lineX = size.width / 2f
-                val centerY = size.height / 2f
-                val strokeWidth = 2.dp.toPx()
-                // Top segment from parent/previous branch
-                drawLine(
-                    color = lineColor,
-                    start = Offset(lineX, 0f),
-                    end = Offset(lineX, centerY),
-                    strokeWidth = strokeWidth,
-                )
-                // Bottom segment to next branch (if not last)
-                if (!isLast) {
-                    drawLine(
-                        color = lineColor,
-                        start = Offset(lineX, centerY),
-                        end = Offset(lineX, size.height),
-                        strokeWidth = strokeWidth,
-                    )
-                }
-                // Horizontal arm to card
-                drawLine(
-                    color = lineColor,
-                    start = Offset(lineX, centerY),
-                    end = Offset(size.width, centerY),
-                    strokeWidth = strokeWidth,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) rememberKipuColors().primary else rememberKipuColors().surface)
-                    .border(
-                        BorderStroke(if (isSelected) 2.dp else 1.5.dp, if (isSelected) KipuTealPrimary else KipuBorderColor),
-                        CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = rememberKipuColors().onPrimary,
-                        modifier = Modifier.size(10.dp),
-                    )
-                }
-            }
-        }
-
-        Box(modifier = Modifier.weight(1f)) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun BranchProductCard(
-    title: String,
-    subtitle: String?,
-    badgeText: String?,
-    isBadgePrimary: Boolean,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) rememberKipuColors().selectedSurface else rememberKipuColors().surface,
-        border = BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) KipuTealPrimary else KipuBorderColor,
-        ),
-        shadowElevation = if (isSelected) 1.dp else 0.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .semantics(mergeDescendants = true) {
-                this.selected = isSelected
-                role = Role.RadioButton
-            },
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        color = KipuInkTitle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    badgeText?.let { badge ->
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isBadgePrimary) KipuLightGreenContainer else KipuSurfaceVariantNeutral,
-                        ) {
-                            Text(
-                                text = badge,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isBadgePrimary) KipuTealPrimary else KipuTextMuted,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
-                        }
-                    }
-                }
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KipuTextMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Seleccionado",
-                    tint = KipuSuccessGreen,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
-}
-
-
-
-@Composable
-private fun ReferencialTeaCard(product: CreditProductReference, currency: Currency) {
-    val low = if (currency == Currency.PEN) product.penTeaMinBps else product.usdTeaMinBps
-    val high = if (currency == Currency.PEN) product.penTeaMaxBps else product.usdTeaMaxBps
-    val rateText = when {
-        low != null && high != null && low != high -> "${percentage(low)}–${percentage(high)}%"
-        low != null -> "${percentage(low)}%"
-        high != null -> "${percentage(high)}%"
-        else -> "No se publica una tasa única validada y desglosada para ${currency.name}."
-    }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("TEA referencial publicada · ${currency.name}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text(rateText, style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"))
-            Text("Fuente: catálogo SBS de Kipu · ${product.catalogAsOf ?: "fecha no disponible"}", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-
 private fun finishInstrumentSave(
     message: String,
     onSaveSuccess: ((String) -> Unit)?,
@@ -1525,14 +1231,6 @@ private fun String.toCardNetwork(): CardNetwork = when (uppercase()) {
 
 private val networkOptions = listOf(CardNetwork.VISA, CardNetwork.MASTERCARD, CardNetwork.AMEX, CardNetwork.DINERS)
 
-private fun networkFromCatalog(network: String): CardNetwork? = when (network.uppercase()) {
-    "VISA" -> CardNetwork.VISA
-    "MASTERCARD" -> CardNetwork.MASTERCARD
-    "AMEX", "AMERICAN EXPRESS" -> CardNetwork.AMEX
-    "DINERS" -> CardNetwork.DINERS
-    else -> null
-}
-
 private fun networkLabel(network: CardNetwork): String = when (network) {
     CardNetwork.VISA -> "Visa"
     CardNetwork.MASTERCARD -> "Mastercard"
@@ -1542,6 +1240,5 @@ private fun networkLabel(network: CardNetwork): String = when (network) {
 }
 
 
-private fun percentage(basisPoints: Int): String = String.format(Locale.getDefault(), "%.2f", basisPoints / 100.0)
 
 private fun currencySymbol(currency: Currency): String = if (currency == Currency.PEN) "S/" else "\$"
