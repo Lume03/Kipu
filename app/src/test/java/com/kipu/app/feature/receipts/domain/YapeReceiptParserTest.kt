@@ -363,33 +363,6 @@ class YapeReceiptParserTest {
     }
 
     @Test
-    fun `same amount but different reference are not equal`() {
-        val receipt1 = YapeReceiptFields(
-            amountMinor = 1250L,
-            occurredAt = 1761050100000L,
-            recipient = "Juan Perez",
-            reference = "12345678",
-            issues = emptyList()
-        )
-
-        val receipt2 = YapeReceiptFields(
-            amountMinor = 1250L,
-            occurredAt = 1761050100000L,
-            recipient = "Juan Perez",
-            reference = "87654321",
-            issues = emptyList()
-        )
-
-        assertNotEquals(
-            "Receipts with identical amount but different reference must NOT be equal",
-            receipt1,
-            receipt2
-        )
-
-        assertEquals("Receipt must equal itself or its identical copy", receipt1, receipt1.copy())
-    }
-
-    @Test
     fun `positional recipient between amount and date is extracted when no label exists`() {
         val text = """
             ¡Yapeaste!

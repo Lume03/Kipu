@@ -59,16 +59,25 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
             override suspend fun refreshSession() = currentSession()
         }
         val coordinator = mockk<SessionCoordinator>(relaxed = true)
-        every { coordinator.localAccess } returns MutableStateFlow(LocalAccess.Available(userId, RemoteSession.Absent))
+        val validSession = RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600))
+        every { coordinator.remoteSession } returns MutableStateFlow(validSession)
+        every { coordinator.localAccess } returns MutableStateFlow(LocalAccess.Available(userId, validSession))
         val params = mockk<WorkerParameters>(relaxed = true)
         every { params.inputData } returns workDataOf(SyncCategoryCommandsWorker.KEY_USER_ID to userId)
         val command = CategorySyncOutboxEntity(
             operationId = "op-1", userId = userId, commandType = "RESOLVE_CONFLICT", aggregateType = "CATEGORY",
             aggregateId = "cat-1",
             payloadJson = """{"operation_id":"op-1","conflict_id":"c-1","chosen_version":"LOCAL","payload_hash":"h"}""",
-            payloadHash = "h", state = "PENDING", createdAt = 1L, updatedAt = 1L,
+            payloadHash = "h", state = "IN_FLIGHT", createdAt = 1L, updatedAt = 1L,
         )
-        coEvery { categoryDao.getPendingOutboxCommands(userId) } returns listOf(command)
+        var claimed = false
+        coEvery { categoryDao.claim(userId, any()) } answers {
+            if (!claimed) {
+                claimed = true
+                command
+            } else null
+        }
+        coEvery { categoryDao.getCommand(userId, command.operationId) } returns command
         return SyncCategoryCommandsWorker(
             mockk<Context>(relaxed = true), params, categoryDao, mockk<MerchantCatalogDao>(relaxed = true),
             mockk<MerchantRulesDao>(relaxed = true), CategoriesApi(client, sessions), coordinator, transactionRunner,
@@ -80,19 +89,19 @@ class SyncCategoryCommandsWorkerRemoteErrorTest {
         for (code in listOf(400, 401, 409, 429, 500)) {
             val w = worker(HttpStatusCode.fromValue(code), body)
             val result = w.doWork()
-            assertTrue(if (code in listOf(401, 429, 500)) result is ListenableWorker.Result.Retry else result is ListenableWorker.Result.Success)
-            coVerify(exactly = 0) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+            assertTrue(if (code in listOf(429, 500)) result is ListenableWorker.Result.Retry else result is ListenableWorker.Result.Success)
+            coVerify(exactly = 0) { categoryDao.complete(any(), "COMPLETED", any(), any(), any()) }
         }
     }
 
     @Test fun `a 2xx answer with success true still completes the command`() = runTest {
         val w = worker(HttpStatusCode.OK, """{"success":true,"status":"APPLIED"}""")
         w.doWork()
-        coVerify(exactly = 1) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+        coVerify(exactly = 1) { categoryDao.complete(any(), "COMPLETED", any(), any(), any()) }
     }
 
     @Test fun `failed hydration is retried and cannot be reported as completed`() = runTest {
         assertTrue(worker(HttpStatusCode.OK, """{"success":true,"status":"APPLIED"}""", getFails = true).doWork() is ListenableWorker.Result.Retry)
-        coVerify(exactly = 1) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+        coVerify(exactly = 1) { categoryDao.complete(any(), "COMPLETED", any(), any(), any()) }
     }
 }

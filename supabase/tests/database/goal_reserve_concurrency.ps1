@@ -1,4 +1,4 @@
-param([string]$Container = 'supabase_db_kipu-met-local-20261017')
+param([string]$Container = 'supabase_db_kipu')
 $ErrorActionPreference = 'Stop'
 
 $userId = '96000000-0000-4000-8000-000000000001'
@@ -98,6 +98,7 @@ BEGIN;
 DELETE FROM public.goal_events WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
 DELETE FROM internal.sync_changes WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
 DELETE FROM internal.command_receipts WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
+DELETE FROM internal.ledger_entries WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
 DELETE FROM public.goals WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
 DELETE FROM public.financial_movements WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');
 DELETE FROM public.accounts WHERE user_id IN ('$userId','96000000-0000-4000-8000-000000000002');

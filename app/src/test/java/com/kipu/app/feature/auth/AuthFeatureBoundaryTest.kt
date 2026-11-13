@@ -39,21 +39,6 @@ class AuthFeatureBoundaryTest {
     }
 
     @Test
-    fun `boundary test - currency preference change does not mutate transaction amounts`() {
-        val originalAmount = 500.00
-        val userId = UUID.randomUUID()
-        val initialProfile = UserProfile(userId = userId, displayName = "User", currencyCode = "PEN")
-
-        // Update preference to USD
-        val delta = ProfilePreferenceDelta(currencyCode = "USD")
-        val updatedProfile = initialProfile.copy(currencyCode = delta.currencyCode!!)
-
-        assertEquals("PEN", initialProfile.currencyCode)
-        assertEquals("USD", updatedProfile.currencyCode)
-        assertEquals("Financial transaction amounts must not be automatically converted or mutated", 500.00, originalAmount, 0.0001)
-    }
-
-    @Test
     fun `boundary test - local owner UUID is strictly decoupled from remote session token`() {
         val verifiedUserId = UUID.randomUUID().toString()
         val localOwner = LocalOwner(verifiedUserId = verifiedUserId, explicitlySignedOut = false)

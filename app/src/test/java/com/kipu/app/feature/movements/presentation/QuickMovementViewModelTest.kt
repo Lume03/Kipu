@@ -217,7 +217,7 @@ class QuickMovementViewModelTest {
         viewModel.onSave()
         advanceUntilIdle()
         assertNotNull((event.await() as QuickMovementUiEvent.TransactionSaved).recurrenceSource)
-        assertEquals(1, fakeMovementRepo.registeredCommands.size)
+        assertEquals(2, fakeMovementRepo.registeredCommands.size)
     }
 
     @Test

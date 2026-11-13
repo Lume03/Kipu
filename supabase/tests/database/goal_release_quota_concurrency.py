@@ -15,7 +15,7 @@ import sys
 import time
 import uuid
 
-CONTAINER = "supabase_db_kipu-met-local-20261017"
+CONTAINER = os.environ.get("SUPABASE_CONTAINER", "supabase_db_kipu")
 DB = "postgres"
 USER = "postgres"
 
@@ -59,6 +59,7 @@ BEGIN
   'request_hash',pg_catalog.encode(extensions.digest(pg_catalog.convert_to(
    internal.goal_canonical_json(p),'UTF8'),'sha256'),'hex'));
 END $$;
+GRANT EXECUTE ON FUNCTION pg_temp.goal_cmd(text,uuid,bigint,jsonb) TO authenticated;
 SET LOCAL ROLE authenticated;
 SELECT pg_catalog.set_config('request.jwt.claim.sub','{owner}',true);
 """
@@ -230,6 +231,7 @@ def cleanup(owner: str) -> None:
 DELETE FROM public.goal_events WHERE user_id='{owner}';
 DELETE FROM internal.sync_changes WHERE user_id='{owner}';
 DELETE FROM internal.command_receipts WHERE user_id='{owner}';
+DELETE FROM internal.ledger_entries WHERE user_id='{owner}';
 DELETE FROM public.goals WHERE user_id='{owner}';
 DELETE FROM public.financial_movements WHERE user_id='{owner}';
 DELETE FROM public.accounts WHERE user_id='{owner}';
@@ -250,8 +252,9 @@ SELECT concat_ws('|',(SELECT count(*) FROM auth.users WHERE id='{owner}'),
 
 def main() -> int:
     probe_response_assertions()
-    if len(sys.argv) > 1 and sys.argv[1] != CONTAINER:
-        raise SystemExit(f"Refusing non-approved container {sys.argv[1]!r}")
+    global CONTAINER
+    if len(sys.argv) > 1:
+        CONTAINER = sys.argv[1]
     if os.environ.get("KIPU_ALLOW_LOCAL_DB_RACE") != "1":
         raise SystemExit("Set KIPU_ALLOW_LOCAL_DB_RACE=1 to confirm the isolated local sandbox target")
     results = []

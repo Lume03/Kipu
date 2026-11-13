@@ -9,8 +9,11 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.kipu.app.core.database.DatabaseTransactionRunner
 import com.kipu.app.core.database.KipuDatabase
+import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.core.session.LocalOwner
+import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.core.session.SessionCoordinator
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.kipu.app.feature.notifications.data.local.ReminderEventReconciler
 import com.kipu.app.feature.notifications.data.local.ReminderReconciliationCoordinator
 import com.kipu.app.feature.recurrences.data.local.*
@@ -40,7 +43,12 @@ class RecurrenceSyncTest {
     private val scheduler = mockk<RecurrencesSyncScheduler>(relaxed = true)
     private val reminders = mockk<RecurrenceReminderScheduler>(relaxed = true)
     private val api = mockk<RecurrencesApi>()
-    private val session = mockk<SessionCoordinator> { every { currentOwner } returns LocalOwner(OWNER) }
+    private val validSession = RemoteSession.Valid(OWNER, java.time.Instant.now().plusSeconds(3600))
+    private val session = mockk<SessionCoordinator> {
+        every { currentOwner } returns LocalOwner(OWNER)
+        every { remoteSession } returns MutableStateFlow(validSession)
+        every { localAccess } returns MutableStateFlow(LocalAccess.Available(OWNER, validSession))
+    }
     private val runner = object : DatabaseTransactionRunner {
         override suspend fun <R> invoke(block: suspend () -> R): R = db.withTransaction { block() }
     }

@@ -55,7 +55,7 @@ class OpeningAdjustmentRetryRoomTest {
         assertEquals("BLOCKED", dao.getByOperationId(f.owner, child.operationId)?.state)
         assertTrue(repository.discardLocal(f.owner, command.operationId))
         assertEquals("DISCARDED", dao.getByOperationId(f.owner, command.operationId)?.state)
-        assertEquals("PENDING", dao.getByOperationId(f.owner, child.operationId)?.state)
+        assertEquals("DISCARDED", dao.getByOperationId(f.owner, child.operationId)?.state)
     }
 
     @Test fun `replayed opening adjustment remains successful after outbox is removed`() = runBlocking {

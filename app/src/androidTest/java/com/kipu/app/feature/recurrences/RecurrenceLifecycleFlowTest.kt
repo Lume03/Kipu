@@ -10,6 +10,7 @@ import com.kipu.app.feature.recurrences.domain.model.RecurrenceRule
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceStatus
 import com.kipu.app.feature.recurrences.domain.model.RecurrenceSyncState
 import com.kipu.app.feature.recurrences.presentation.RecurrenceLifecycleScreen
+import com.kipu.app.feature.recurrences.presentation.recurrenceStateLabel
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.serialization.json.buildJsonObject
@@ -61,7 +62,7 @@ class RecurrenceLifecycleFlowTest {
         compose.setContent { lifecycle(listOf(stale)) }
         compose.onNodeWithTag("recurrence_state_conflict-1").assertIsDisplayed()
         compose.onNodeWithTag("recurrence_conflict_conflict-1").assertIsDisplayed()
-        compose.onNodeWithText("Estado: ACTIVE · Próxima fecha: ${stale.nextDueDate} · Revisión 4").assertIsDisplayed()
+        compose.onNodeWithText(recurrenceStateLabel(stale.status, stale.nextDueDate)).assertIsDisplayed()
     }
 
     @Test

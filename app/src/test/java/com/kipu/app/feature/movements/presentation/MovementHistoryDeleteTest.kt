@@ -106,7 +106,13 @@ class MovementHistoryDeleteTest {
     }
     @Test fun cardPurchaseAndRefundCanDeleteUnlessLocallyBlocked() {
         for (kind in listOf("CARD_PURCHASE", "REFUND")) {
-            val candidate = item.copy(transaction = item.transaction.copy(operationKind = kind))
+            val candidate = item.copy(transaction = item.transaction.copy(
+                type = if (kind == "REFUND") MovementType.INCOME else MovementType.EXPENSE,
+                operationKind = kind,
+                installmentCount = if (kind == "CARD_PURCHASE") 1 else null,
+                sourceAccountId = if (kind == "CARD_PURCHASE") null else item.transaction.sourceAccountId,
+                cardId = if (kind == "CARD_PURCHASE") "card" else null,
+            ))
             assertTrue(canDeleteFromHistory(candidate))
             assertTrue(canVoidMovement(candidate))
             assertFalse(canDeleteFromHistory(candidate.copy(voidBlockCode = "CARD_PURCHASE_HAS_PAYMENTS")))

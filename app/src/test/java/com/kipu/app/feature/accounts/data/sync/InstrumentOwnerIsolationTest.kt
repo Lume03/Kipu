@@ -45,6 +45,7 @@ class InstrumentOwnerIsolationTest {
         try {
             val coordinator = SessionCoordinatorImpl()
             coordinator.setActiveOwner(owner)
+            coordinator.updateRemoteSession(com.kipu.app.core.session.RemoteSession.Valid(owner, java.time.Instant.now().plusSeconds(3600)))
             val params = mockk<WorkerParameters>(relaxed = true)
             every { params.inputData } returns workDataOf(SyncInstrumentCommandsWorker.KEY_USER_ID to owner)
             db.instrumentSyncDao().insert(command("1"))

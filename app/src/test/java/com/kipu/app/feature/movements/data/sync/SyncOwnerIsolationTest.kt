@@ -32,6 +32,7 @@ class SyncOwnerIsolationTest {
         try {
             val coordinator = SessionCoordinatorImpl()
             coordinator.setActiveOwner("A")
+            coordinator.updateRemoteSession(com.kipu.app.core.session.RemoteSession.Valid("A", java.time.Instant.now().plusSeconds(3600)))
             val api = mockk<FinancialInstrumentsApi>()
             val params = mockk<WorkerParameters>(relaxed = true)
             every { params.inputData } returns workDataOf(SyncMovementsWorker.KEY_USER_ID to "A")
@@ -62,6 +63,7 @@ class SyncOwnerIsolationTest {
         try {
             val coordinator = SessionCoordinatorImpl()
             coordinator.setActiveOwner("A")
+            coordinator.updateRemoteSession(com.kipu.app.core.session.RemoteSession.Valid("A", java.time.Instant.now().plusSeconds(3600)))
             val dao = spyk(db.movementDao())
             coEvery { dao.saveSyncCheckpoint(any()) } coAnswers {
                 // This write occurs inside the page transaction; the commit guard must roll it back.

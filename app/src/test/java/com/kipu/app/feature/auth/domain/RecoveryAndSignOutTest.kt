@@ -1,6 +1,12 @@
 package com.kipu.app.feature.auth.domain
 
-import com.kipu.app.core.session.PendingChangesRepository
+import com.kipu.app.core.session.PendingChangesRepositoryImpl
+import com.kipu.app.core.session.PendingChangesSource
+import com.kipu.app.feature.accounts.data.local.InstrumentSyncDao
+import com.kipu.app.feature.plans.data.local.PlanPreferencesDao
+import com.kipu.app.feature.settings.data.local.ProfilePreferencesDao
+import io.mockk.coEvery
+import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -12,13 +18,34 @@ class RecoveryAndSignOutTest {
 
     @Test
     fun `pending changes count sums outboxes across features`() = runTest {
-        val fakePendingRepo = object : PendingChangesRepository {
-            override suspend fun count(userId: UUID): Int = 3 + 2 // 3 from plans, 2 from profile
+        val ownerA = UUID.randomUUID()
+        val ownerB = UUID.randomUUID()
+
+        val planPreferencesDao = mockk<PlanPreferencesDao>()
+        val profilePreferencesDao = mockk<ProfilePreferencesDao>()
+        val instrumentSyncDao = mockk<InstrumentSyncDao>()
+        val customSource = object : PendingChangesSource {
+            override suspend fun count(userId: UUID): Int = if (userId == ownerA) 4 else 0
             override suspend fun markWaitingForAuth(userId: UUID) {}
         }
 
-        val count = fakePendingRepo.count(UUID.randomUUID())
-        assertEquals(5, count)
+        coEvery { planPreferencesDao.pendingCount(ownerA) } returns 1
+        coEvery { profilePreferencesDao.pendingOutboxCount(ownerA) } returns 2
+        coEvery { instrumentSyncDao.getPendingCount(ownerA.toString()) } returns 3
+
+        coEvery { planPreferencesDao.pendingCount(ownerB) } returns 0
+        coEvery { profilePreferencesDao.pendingOutboxCount(ownerB) } returns 0
+        coEvery { instrumentSyncDao.getPendingCount(ownerB.toString()) } returns 0
+
+        val repo = PendingChangesRepositoryImpl(
+            planPreferencesDao = planPreferencesDao,
+            profilePreferencesDao = profilePreferencesDao,
+            instrumentSyncDao = instrumentSyncDao,
+            customSources = setOf(customSource),
+        )
+
+        assertEquals(10, repo.count(ownerA))
+        assertEquals(0, repo.count(ownerB))
     }
 
     @Test

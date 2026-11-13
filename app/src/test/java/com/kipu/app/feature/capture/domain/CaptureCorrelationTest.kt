@@ -5,7 +5,7 @@ import org.junit.Test
 
 class CaptureCorrelationTest {
     private val notification = CorrelationFacts("capture:1", "NOTIFICATION:YAPE", "00-123", 5000,
-        "PEN", true, "José Pérez", 1_000_000)
+        "PEN", true, "José Pérez", 1_000_000, account = "acc-1")
     private val share = notification.copy(root = "receipt:1", source = "OCR:YAPE", reference = "00123")
     @Test fun sameReferenceInBothOrdersPreservesLeadingZeroes() {
         assertTrue(CaptureCorrelation.sameReference(notification, share))

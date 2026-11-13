@@ -70,16 +70,23 @@ class DebtReminderWorkerTest {
         coEvery { debtDao.getDebt(OWNER_ID, DEBT_ID) } returns debt()
         coEvery { debtDao.getInstallment(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns installment()
         coEvery { debtDao.getInstallmentRemaining(OWNER_ID, DEBT_ID, INSTALLMENT_ID) } returns 10_000L
-        val permissionChecker = SequencePermissionChecker(true, false)
-        val worker = worker(permissionChecker = permissionChecker)
 
-        val result = worker.doWork()
+        io.mockk.mockkStatic(androidx.core.app.NotificationManagerCompat::class)
+        try {
+            val notificationManager = mockk<androidx.core.app.NotificationManagerCompat>(relaxed = true)
+            every { androidx.core.app.NotificationManagerCompat.from(any()) } returns notificationManager
+            every { notificationManager.notify(any(), any(), any()) } throws SecurityException("Permission revoked between checks")
 
-        assertTrue(result is ListenableWorker.Result.Success)
-        assertTrue(permissionChecker.calls == 1)
-        coVerify(exactly = 1) { debtDao.getDebt(OWNER_ID, DEBT_ID) }
-        coVerify(exactly = 1) { debtDao.getInstallment(OWNER_ID, DEBT_ID, INSTALLMENT_ID) }
-        coVerify(exactly = 1) { localReminderEventDao.upsert(any()) }
+            val worker = worker(permissionChecker = PermissionChecker(true))
+            val result = worker.doWork()
+
+            assertTrue(result is ListenableWorker.Result.Success)
+            coVerify(exactly = 1) { debtDao.getDebt(OWNER_ID, DEBT_ID) }
+            coVerify(exactly = 1) { debtDao.getInstallment(OWNER_ID, DEBT_ID, INSTALLMENT_ID) }
+            coVerify(exactly = 1) { localReminderEventDao.upsert(any()) }
+        } finally {
+            io.mockk.unmockkStatic(androidx.core.app.NotificationManagerCompat::class)
+        }
     }
 
     @Test

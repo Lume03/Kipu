@@ -7,9 +7,7 @@ import com.kipu.app.feature.categories.data.local.CategoryDao
 import com.kipu.app.feature.categories.data.local.MerchantCatalogDao
 import com.kipu.app.feature.movements.data.local.MovementLocalDataSource
 import com.kipu.app.feature.movements.data.local.TransactionEntity
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -45,6 +43,7 @@ class MovementPresentationObservationTest {
             )
         }
         every { source.observeTransactions(owner) } returns flowOf(entities)
+        coEvery { source.getVoidBlockCode(any(), any()) } returns null
         every { accountDao.observeAll(owner) } returns accounts
         every { cardDao.observeAll(owner) } returns flowOf(emptyList())
         every { categoryDao.observePresentationsForUser(owner) } returns flowOf(emptyList())

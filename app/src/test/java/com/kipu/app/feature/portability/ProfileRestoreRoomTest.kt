@@ -30,7 +30,7 @@ class ProfileRestoreRoomTest {
             val row = ProfilePreferenceOutboxEntity(UUID.randomUUID(), owner, 3, """{"display_name":"Local","hide_balances":true}""", "PENDING", createdAt = now, updatedAt = now)
             dao.insertOutbox(row)
             val remote = local.copy(displayName = "Remote", hideBalances = false, themeMode = "DARK", remoteRevision = 8, syncState = "SYNCED")
-            for (status in listOf("PENDING", "WAITING_FOR_AUTH", "IN_FLIGHT", "CONFLICT")) {
+            for (status in listOf("PENDING", "WAITING_FOR_AUTH", "IN_FLIGHT")) {
                 val pending = row.copy(status = status)
                 dao.updateOutbox(pending)
                 repeat(2) {
@@ -43,7 +43,18 @@ class ProfileRestoreRoomTest {
                     assertEquals(pending, dao.findOutbox(row.operationId))
                 }
             }
+            val conflict = row.copy(status = "CONFLICT")
+            dao.updateOutbox(conflict)
+            val hydrated = dao.hydrateProfile(remote)
+            assertEquals("Local", hydrated.displayName)
+            assertTrue(hydrated.hideBalances)
+            assertEquals("DARK", hydrated.themeMode)
+            assertEquals(8L, hydrated.remoteRevision)
+            assertEquals("PENDING", hydrated.syncState)
+            assertEquals("DISCARDED", dao.findOutbox(row.operationId)?.status)
             dao.deleteOutbox(row.operationId)
+            val newPending = dao.findUnresolvedOutbox(owner)
+            newPending.forEach { dao.deleteOutbox(it.operationId) }
             assertEquals(remote, dao.hydrateProfile(remote))
             val other = UUID.randomUUID()
             assertEquals(remote.copy(userId = other), dao.hydrateProfile(remote.copy(userId = other)))

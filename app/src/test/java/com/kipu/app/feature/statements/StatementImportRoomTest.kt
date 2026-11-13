@@ -39,7 +39,7 @@ class StatementImportRoomTest {
     private val other = UUID.randomUUID().toString()
     private val now = 1000L
     private val instruments = mockk<com.kipu.app.feature.accounts.domain.usecase.ObserveInstruments>()
-    private val debitMatching = mockk<StatementImportMatching>()
+    private val debitMatching = mockk<StatementImportMatching>(relaxed = true)
 
     @Before fun setup() {
         database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext<Context>(), KipuDatabase::class.java)

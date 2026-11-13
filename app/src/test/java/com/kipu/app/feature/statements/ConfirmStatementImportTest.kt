@@ -474,7 +474,7 @@ class ConfirmStatementImportTest {
             valid.copy(id = "currency", currency = "USD"), valid.copy(id = "void", status = TransactionStatus.VOIDED),
             valid.copy(id = "old", occurredAt = valid.occurredAt - 121L * 86400000),
             valid.copy(id = "future", occurredAt = valid.occurredAt + 3L * 86400000), valid.copy(id = "small", amountMinor = 500),
-            valid.copy(id = "refunded"), valid.copy(id = "installments", installmentCount = 3))
+            valid.copy(id = "refunded"), valid.copy(id = "conflict", syncStatus = MovementSyncStatus.CONFLICT))
         coEvery { refundRepository.getRefundedAmount(owner, "refunded") } returns 1
         use(line(kind = StatementLineKind.REFUND))
         assertEquals(StatementLineFailureReason.RefundPurchaseRequired, confirm(owner, "import").failed.single().reason)

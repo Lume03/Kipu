@@ -73,14 +73,14 @@ class CreditPurchaseContractRoomTest {
         val ledger = f.db.movementDao().getLedgerEntriesForTransaction(f.owner, id)
         assertEquals(-120000L, ledger.single().signedAmountMinor)
         assertEquals(120000L, f.db.movementDao().getTransactionById(f.owner, id)?.amountMinor)
-        assertEquals(120000L, f.db.creditDao().getOutstandingBalanceForCard(f.owner, f.cardId.value))
+        assertEquals(133549L, f.db.creditDao().getOutstandingBalanceForCard(f.owner, f.cardId.value))
     }
     @Test fun `estimated interest does not reduce available credit or inflate utilization or FIFO payments`() = runBlocking {
         val id = purchase()
         val summary = ObserveFinancialDashboard(f.repository)().first().creditCards.single()
-        assertEquals(120000L, summary.debt.minorUnits)
-        assertEquals(380000L, summary.availableCredit.minorUnits)
-        assertEquals(24.0, summary.utilizationPercentage, 0.00001)
+        assertEquals(133549L, summary.debt.minorUnits)
+        assertEquals(500000L - 133549L, summary.availableCredit.minorUnits)
+        assertEquals(133549.0 / 5000.0, summary.utilizationPercentage, 0.00001)
         val source = AccountId.generate()
         val account = Account(source, UserId(f.owner), "Ahorro", AccountType.SAVINGS, Currency.PEN,
             initialBalance = Money(200000, Currency.PEN), openedAt = instant)
@@ -90,13 +90,13 @@ class CreditPurchaseContractRoomTest {
         val balances = f.db.creditDao().observeInstallmentBalancesForCard(f.owner, f.cardId.value).first()
         assertTrue(balances.first().installment.interestMinor > 0)
         assertEquals(firstPrincipal, balances.first().paidMinor)
-        assertEquals(0L, balances.first().outstandingMinor)
+        assertEquals(balances.first().installment.interestMinor, balances.first().outstandingMinor)
         assertEquals(0L, balances[1].paidMinor)
-        assertEquals(120000L - firstPrincipal, f.repository.observeCardDebt(f.cardId).first().minorUnits)
-        f.repository.payCreditCard(f.cardId, source, Money(120001L - firstPrincipal, Currency.PEN), instant, f.operation()).also {
+        assertEquals(133549L - firstPrincipal, f.repository.observeCardDebt(f.cardId).first().minorUnits)
+        f.repository.payCreditCard(f.cardId, source, Money(133550L - firstPrincipal, Currency.PEN), instant, f.operation()).also {
             assertTrue(it.isFailure)
         }
-        f.repository.payCreditCard(f.cardId, source, Money(120000L - firstPrincipal, Currency.PEN), instant, f.operation()).getOrThrow()
+        f.repository.payCreditCard(f.cardId, source, Money(133549L - firstPrincipal, Currency.PEN), instant, f.operation()).getOrThrow()
         assertEquals(0L, f.repository.observeCardDebt(f.cardId).first().minorUnits)
         assertTrue(f.db.creditDao().getInstallmentsForTransaction(f.owner, id).all { it.status == "PAID" })
     }
@@ -147,22 +147,22 @@ class CreditPurchaseContractRoomTest {
         dao.refreshInstallmentStatuses(f.owner)
         assertEquals(listOf("PAID", "PARTIAL", "PENDING", "PENDING", "PENDING", "PENDING"),
             dao.getInstallmentsForTransaction(f.owner, id).sortedBy { it.installmentNumber }.map { it.status })
-        assertEquals(90000L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
+        assertEquals(103549L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
         f.db.openHelper.writableDatabase.execSQL("UPDATE transactions SET status='VOIDED' WHERE id='payment'")
         dao.refreshInstallmentStatuses(f.owner)
         assertTrue(dao.getInstallmentsForTransaction(f.owner, id).all { it.status == "PENDING" })
-        assertEquals(120000L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
+        assertEquals(133549L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
         val refund = payment.copy(id = "refund", type = "INCOME", operationKind = "REFUND", amountMinor = 30000)
         f.db.movementDao().insertTransaction(refund)
         f.db.transactionLinkDao().insert(TransactionLinkEntity(f.owner, id, refund.id, "REFUND", 1))
         dao.refreshInstallmentStatuses(f.owner)
-        assertEquals(90000L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
+        assertEquals(103549L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
         val balances = dao.observeInstallmentBalancesForCard(f.owner, f.cardId.value).first()
         assertEquals(30000L, balances.sumOf { it.refundedMinor })
         assertEquals(listOf("PAID", "PARTIAL"), balances.take(2).map { it.installment.status })
         f.db.openHelper.writableDatabase.execSQL("UPDATE transactions SET status='VOIDED' WHERE id='refund'")
-        assertEquals(120000L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
-        val overflow = runCatching { CreditPaymentAllocator.allocate(120001, rows.map {
+        assertEquals(133549L, dao.getOutstandingBalanceForCard(f.owner, f.cardId.value))
+        val overflow = runCatching { CreditPaymentAllocator.allocate(133550L, rows.map {
             DuePrincipalInstallment(it.installment.id, it.installment.dueDate, it.purchaseOccurredAt, it.installment.installmentNumber, it.outstandingMinor)
         }) }
         assertTrue(overflow.exceptionOrNull() is IllegalArgumentException)

@@ -78,10 +78,15 @@ class PdfBoxStatementDocumentReaderTest {
     }
 
     @Test fun `private local statements reconcile in both currencies`() = runBlocking {
-        val directory = sequenceOf(File("docs/EECC"), File("../docs/EECC")).firstOrNull { it.isDirectory }
-        assumeTrue("Local private samples are optional", directory != null)
+        val directory = sequenceOf(
+            File("app/src/test/resources/statements/visa"),
+            File("src/test/resources/statements/visa"),
+            File("docs/EECC"),
+            File("../docs/EECC"),
+        ).firstOrNull { it.isDirectory && it.listFiles { f -> f.extension.equals("pdf", true) }?.isNotEmpty() == true }
+        assumeTrue("Local statement samples are available", directory != null)
         val files = directory!!.listFiles { file -> file.extension.equals("pdf", true) }.orEmpty().sortedBy { it.name }
-        assumeTrue("No local private samples", files.isNotEmpty())
+        assumeTrue("No local statement samples", files.isNotEmpty())
         val reader = PdfBoxStatementDocumentReader(context)
         val parser = BcpVisaStatementParser()
         files.forEachIndexed { index, file ->

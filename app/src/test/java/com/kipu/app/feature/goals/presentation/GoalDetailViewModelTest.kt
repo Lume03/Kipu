@@ -78,7 +78,7 @@ class GoalDetailViewModelTest {
     }
 
     @Test fun `deletion rejected for history keeps the detail open`() = runTest(dispatcher) {
-        coEvery { repository.deleteEmptyGoal(owner, goal.id, goal.revision) } returns GoalCommandResult.Rejected("HISTORY_PRESERVED")
+        coEvery { repository.deleteWithReserves(owner, goal.id, null, false) } returns GoalCommandResult.Rejected("HISTORY_PRESERVED")
         val model = create(0)
         advanceUntilIdle()
         model.delete()
@@ -91,31 +91,27 @@ class GoalDetailViewModelTest {
         val preferences = mockk<GoalDisplayPreferences>()
         every { preferences.snapshot(owner) } returns GoalDisplayState()
         coEvery { preferences.remove(owner, goal.id) } returns Unit
-        coEvery { repository.releaseGoalReserve(owner, goal.id, "account", Money(125_000, Currency.PEN), null, null, false) } returns GoalCommandResult.Applied(goal.id, 5)
-        coEvery { repository.archiveGoal(owner, goal.id, any()) } returns GoalCommandResult.Applied(goal.id, 6)
+        coEvery { repository.deleteWithReserves(owner, goal.id, null, false) } returns GoalCommandResult.Applied(goal.id, 5)
         val model = create(125_000, preferences)
         advanceUntilIdle()
         model.delete()
         advanceUntilIdle()
-        coVerifyOrder {
-            repository.releaseGoalReserve(owner, goal.id, "account", Money(125_000, Currency.PEN), null, null, false)
-            repository.archiveGoal(owner, goal.id, any())
+        coVerify(exactly = 1) {
+            repository.deleteWithReserves(owner, goal.id, null, false)
             preferences.remove(owner, goal.id)
         }
-        coVerify(exactly = 0) { repository.deleteEmptyGoal(any(), any(), any()) }
         assertTrue(model.state.value.isDeleted)
     }
 
     @Test fun `failed release keeps goal visible and does not archive or hide`() = runTest(dispatcher) {
         val preferences = mockk<GoalDisplayPreferences>()
         every { preferences.snapshot(owner) } returns GoalDisplayState()
-        coEvery { repository.releaseGoalReserve(owner, goal.id, "account", Money(125_000, Currency.PEN), null, null, false) } returns GoalCommandResult.Rejected("RESERVE_EXCEEDED")
+        coEvery { repository.deleteWithReserves(owner, goal.id, null, false) } returns GoalCommandResult.Rejected("RESERVE_EXCEEDED")
         val model = create(125_000, preferences)
         advanceUntilIdle()
         model.delete()
         advanceUntilIdle()
         coVerify(exactly = 0) { preferences.remove(any(), any()) }
-        coVerify(exactly = 0) { repository.archiveGoal(any(), any(), any()) }
         assertFalse(model.state.value.isDeleted)
         assertNotNull(model.state.value.errorMessage)
     }

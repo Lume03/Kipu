@@ -40,7 +40,7 @@ class CardPurchaseVoidAndRefundRoomTest {
     @After fun close() { db.close() }
     private suspend fun insertPurchase() {
         db.movementDao().insertTransaction(TransactionEntity(id=purchase,userId=owner,type="EXPENSE",amountMinor=10000,currencyCode="PEN",
-            occurredAt=1,status="CONFIRMED",syncStatus="SYNCED",cardId="card",operationKind="CARD_PURCHASE",installmentCount=1,revision=1))
+            occurredAt=1,status="CONFIRMED",syncStatus="SYNCED",cardId="card",operationKind="CARD_PURCHASE",installmentCount=1,revision=1,categoryId="cat-1"))
         db.movementDao().insertLedgerEntries(listOf(LedgerEntryEntity("ledger",owner,purchase,"liability","LIABILITY",-10000,"PEN",1)))
         db.creditDao().insertInstallments(listOf(CreditInstallmentEntity("installment",owner,purchase,1,1,10000,0,"PENDING",1,1,1)))
     }

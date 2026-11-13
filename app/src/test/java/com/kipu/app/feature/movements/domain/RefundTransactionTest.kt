@@ -112,7 +112,7 @@ class RefundTransactionTest {
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
     fun `transfer and specialized purchase are not refundable`() = runTest {
-        val transfer = purchase(type = MovementType.TRANSFER)
+        val transfer = purchase(type = MovementType.TRANSFER, cardId = null, operationKind = null, installmentCount = null)
         val repository = InMemoryRefundRepository(transfer)
 
         assertEquals(
@@ -222,7 +222,7 @@ class RefundTransactionTest {
         type = type,
         amountMinor = 10_000L,
         currency = "PEN",
-        sourceAccountId = sourceAccountId,
+        sourceAccountId = sourceAccountId ?: if (type == MovementType.TRANSFER) "cash-1" else null,
         destinationAccountId = if (type == MovementType.TRANSFER) "cash-2" else null,
         categoryId = "category-1",
         merchantId = "merchant-1",

@@ -23,7 +23,9 @@ class CreditDatabaseFixture : AutoCloseable {
     val context: Context = ApplicationProvider.getApplicationContext()
     val db = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java).allowMainThreadQueries().build()
     val session = mockk<SessionCoordinator> {
-        every { localAccess } returns MutableStateFlow(LocalAccess.Available(owner, RemoteSession.Absent))
+        val remote = RemoteSession.Valid(owner, java.time.Instant.now().plusSeconds(3600))
+        every { remoteSession } returns MutableStateFlow(remote)
+        every { localAccess } returns MutableStateFlow(LocalAccess.Available(owner, remote))
         every { currentOwner } returns LocalOwner(owner)
     }
     val repository = OfflineFirstFinancialInstrumentsRepository(db, mockk(relaxed = true), db.accountDao(), db.cardDao(),
