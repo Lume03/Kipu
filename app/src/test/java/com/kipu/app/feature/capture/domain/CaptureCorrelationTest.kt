@@ -12,6 +12,12 @@ class CaptureCorrelationTest {
         assertTrue(CaptureCorrelation.sameReference(share, notification))
         assertFalse(CaptureCorrelation.sameReference(notification, share.copy(reference = "123")))
     }
+    @Test fun sameReferenceAllowsMissingAccountsButRejectsDifferentKnownAccounts() {
+        assertTrue(CaptureCorrelation.sameReference(notification.copy(account = null), share.copy(account = null)))
+        assertTrue(CaptureCorrelation.sameReference(notification, share.copy(account = null)))
+        assertTrue(CaptureCorrelation.sameReference(notification.copy(account = null), share))
+        assertFalse(CaptureCorrelation.sameReference(notification, share.copy(account = "other")))
+    }
     @Test fun missingReferenceNeedsExactlyOneCompatibleRootInEitherOrder() {
         val weak = share.copy(reference = null, counterparty = "  jose   perez ")
         assertEquals(notification.root, CaptureCorrelation.suggestion(weak, listOf(notification)))

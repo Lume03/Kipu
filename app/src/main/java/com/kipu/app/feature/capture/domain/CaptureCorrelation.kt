@@ -17,7 +17,7 @@ object CaptureCorrelation {
             .lowercase(Locale.ROOT).trim().replace(Regex("\\s+"), " ")
     }?.takeIf { it.isNotBlank() }
     fun sameReference(a: CorrelationFacts, b: CorrelationFacts): Boolean =
-        a.source != b.source && a.account != null && a.account == b.account &&
+        a.source != b.source && (a.account == null || b.account == null || a.account == b.account) &&
             a.time != null && b.time != null && java.math.BigInteger.valueOf(a.time)
                 .subtract(java.math.BigInteger.valueOf(b.time)).abs() <= java.math.BigInteger.valueOf(600_000) &&
             reference(a.reference) != null && reference(a.reference) == reference(b.reference) &&

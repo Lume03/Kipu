@@ -51,8 +51,6 @@ SELECT is(
     'Initial purchase under limit is accepted'
 );
 
--- Production bug documented in SQL3-13: register_transaction_v1_pre_liability_s3 still enforces CREDIT_LIMIT_EXCEEDED
-SELECT todo_start('Production bug: register_transaction_v1_pre_liability_s3 still rejects overutilization with CREDIT_LIMIT_EXCEEDED despite P10');
 
 -- 2. Second purchase S/ 20 exceeding card limit (total S/ 110 > S/ 100) should be accepted (overutilization allowed)
 SELECT is(
@@ -120,7 +118,6 @@ SELECT is(
     'Duplicate retry did not insert extra installments'
 );
 
-SELECT todo_end();
 
 -- 6. Verified that first purchase is recorded
 SELECT is(

@@ -143,7 +143,7 @@ fun GoalDetailScreen(
         return
     }
 
-    if (openDialog == GoalDetailDialog.RELEASE) {
+    if (openDialog == GoalDetailDialog.RELEASE && goal?.status != GoalStatus.ARCHIVED) {
         GoalContributionSheet(
             state = fundsState?.copy(
                 isSaving = fundsState.isSaving || state.isSaving,
@@ -225,18 +225,27 @@ fun GoalDetailScreen(
                         }
                     }
                 }
+                if (goal.status == GoalStatus.COMPLETED) {
+                    Text("Completaste el objetivo. La reserva permanece intacta hasta que decidas liberarla o reasignarla.")
+                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.testTag("goal_archive")) { Text("Archivar") }
+                }
                 if (goal.status == GoalStatus.ARCHIVED) {
-                    Text("Meta pausada · historial conservado.",
+                    Text("Archivada")
+                    Text("Esta meta está archivada: solo las metas activas aceptan aportes; elige otra meta activa para continuar.",
                         style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("goal_archived_explanation"))
+                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.testTag("goal_release")) { Text("Liberar") }
+                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.testTag("goal_reassign")) { Text("Reasignar") }
+                    OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.testTag("goal_archive")) { Text("Archivar") }
+                    TextButton(onClick = onNavigateBack, modifier = Modifier.testTag("goal_archived_back_to_list")) { Text("Volver a metas") }
                 }
                 GoalBackingStatus(
                     accounts = state.backingAccounts.filter { (goalReservedAccounts[it.id] ?: 0L) > 0L },
-                    onDeposit = onDeposit,
-                    onRelease = if (releasableAccounts.isNotEmpty()) { accountId ->
+                    onDeposit = if (goal.status != GoalStatus.ARCHIVED) onDeposit else null,
+                    onRelease = if (goal.status != GoalStatus.ARCHIVED && releasableAccounts.isNotEmpty()) { accountId ->
                         deficitAccountId = accountId
                         openDialog = GoalDetailDialog.RELEASE
                     } else null,
-                    onReassign = if (releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty()) { accountId ->
+                    onReassign = if (goal.status != GoalStatus.ARCHIVED && releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty()) { accountId ->
                         deficitAccountId = accountId
                         openDialog = GoalDetailDialog.REASSIGN
                     } else null,
@@ -267,9 +276,9 @@ fun GoalDetailScreen(
             if (goal.status == GoalStatus.ACTIVE && !state.isPaused) add(com.kipu.app.ui.component.PlanningAction(
                 "Aportar", "Aparta dinero de una cuenta", Icons.Default.Add, onContribute,
                 com.kipu.app.ui.component.PlanningActionTone.PRIMARY))
-            if (releasableAccounts.isNotEmpty()) add(com.kipu.app.ui.component.PlanningAction(
+            if (goal.status != GoalStatus.ARCHIVED && releasableAccounts.isNotEmpty()) add(com.kipu.app.ui.component.PlanningAction(
                 "Retirar", "Devuelve dinero a tu disponible", Icons.Default.Remove, { openDialog = GoalDetailDialog.RELEASE }))
-            if (releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty()) add(com.kipu.app.ui.component.PlanningAction(
+            if (goal.status != GoalStatus.ARCHIVED && releasableAccounts.isNotEmpty() && candidateGoals.isNotEmpty()) add(com.kipu.app.ui.component.PlanningAction(
                 "Reasignar", "Reserva este dinero para otra meta", Icons.Default.Edit,
                 { openDialog = GoalDetailDialog.REASSIGN }, enabled = !state.isSaving, tag = "goal_reassign"))
             onEdit?.let { edit -> add(com.kipu.app.ui.component.PlanningAction(
@@ -290,7 +299,7 @@ fun GoalDetailScreen(
         })
     }
 
-    when (openDialog) {
+    when (if (goal?.status == GoalStatus.ARCHIVED) null else openDialog) {
         GoalDetailDialog.COMPLETE -> if (goal != null && progress != null) GoalCompleteDialog(goal, progress.reserved, state.isSaving,
             onDismiss = { openDialog = null }, onConfirm = { openDialog = null; completionRequested = true; onComplete?.invoke() })
         GoalDetailDialog.DELETE -> if (goal != null) GoalDeleteDialog(goal, (progress?.reserved?.minorUnits ?: 0L) > 0L, state.isSaving,

@@ -202,7 +202,7 @@ class GoalDetailViewModel @Inject constructor(
             return
         }
         val goal = current.goal ?: return
-        if (current.isSaving) return
+        if (current.isSaving || goal.status == com.kipu.app.feature.goals.domain.model.GoalStatus.ARCHIVED) return
         _state.value = current.copy(isSaving = true, errorMessage = null, message = null)
         viewModelScope.launch {
             val result = runCatching { command(userId, goal) }.getOrElse {

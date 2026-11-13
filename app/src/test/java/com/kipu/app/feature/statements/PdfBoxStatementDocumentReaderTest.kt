@@ -2,6 +2,7 @@ package com.kipu.app.feature.statements
 
 import android.content.Context
 import android.net.Uri
+import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.statements.data.PdfBoxStatementDocumentReader
 import com.kipu.app.feature.statements.domain.DocumentRef
 import com.kipu.app.feature.statements.domain.*
@@ -77,10 +78,30 @@ class PdfBoxStatementDocumentReaderTest {
         assertTrue(password.all { it == '\u0000' })
     }
 
+    @Test fun `synthetic visa statement parses and reconciles both currencies`() = runBlocking {
+        val fixture = requireNotNull(javaClass.getResourceAsStream("/statements/visa/visa_sample.pdf")) { "Synthetic Visa fixture missing" }
+        val read = PdfBoxStatementDocumentReader(context).read(register(fixture.use { it.readBytes() }), null)
+        assertTrue(read is StatementReadResult.Opened)
+        val parsed = BcpVisaStatementParser().parse((read as StatementReadResult.Opened).pages)
+        assertTrue(parsed is StatementParseResult.Parsed)
+        val statement = (parsed as StatementParseResult.Parsed).statement
+        val counts = statement.lines.groupingBy { it.kind }.eachCount()
+        assertEquals(2, counts[StatementLineKind.PURCHASE])
+        assertEquals(1, counts[StatementLineKind.CARD_PAYMENT])
+        assertEquals(1, counts[StatementLineKind.POINTS_REDEMPTION])
+        assertEquals(1, counts[StatementLineKind.REFUND])
+        assertEquals(1, counts[StatementLineKind.INTEREST])
+        assertEquals(1, counts[StatementLineKind.INSURANCE])
+        assertEquals(1, counts[StatementLineKind.INSTALLMENT_PURCHASE])
+        assertEquals(8, statement.lines.size)
+        assertEquals(11800L, statement.totals.getValue(Currency.PEN).billedMinor)
+        assertEquals(700L, statement.totals.getValue(Currency.USD).billedMinor)
+        assertTrue(statement.reconciliation.getValue(Currency.PEN).matches)
+        assertTrue(statement.reconciliation.getValue(Currency.USD).matches)
+    }
+
     @Test fun `private local statements reconcile in both currencies`() = runBlocking {
         val directory = sequenceOf(
-            File("app/src/test/resources/statements/visa"),
-            File("src/test/resources/statements/visa"),
             File("docs/EECC"),
             File("../docs/EECC"),
         ).firstOrNull { it.isDirectory && it.listFiles { f -> f.extension.equals("pdf", true) }?.isNotEmpty() == true }

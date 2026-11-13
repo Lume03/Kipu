@@ -81,7 +81,6 @@ class GoalLifecycleFlowTest {
         compose.onNodeWithText("Resolver", substring = true).assertIsDisplayed()
     }
 
-    @Ignore("BUG: el detalle actual no explica la reserva de meta completada ni ofrece el estado de archivo esperado")
     @Test
     fun completedGoalRetainsItsReserveAndCannotBeArchivedUntilResolved() {
         val goal = goal("goal-1", "Casa", GoalStatus.COMPLETED, 20_000L)
@@ -233,7 +232,6 @@ class GoalLifecycleFlowTest {
         compose.runOnIdle { assertEquals(true, archived) }
     }
 
-    @Ignore("BUG: meta archivada no comunica estado ni ofrece el retorno seguro esperado")
     @Test
     fun archivedGoalExplainsUnavailableActionsAndOffersSafeReturnWithoutFinancialCommands() {
         val archivedGoal = goal("goal-archived", "Viaje", GoalStatus.ARCHIVED, 100_000L)

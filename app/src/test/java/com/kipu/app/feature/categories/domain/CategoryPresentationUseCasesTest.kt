@@ -134,7 +134,7 @@ class CategoryPresentationUseCasesTest {
     }
 
     @Test
-    fun `updateCategoryPresentation records conflict when revision does not match`() = runTest {
+    fun `updateCategoryPresentation applies latest edit without conflict when revision does not match`() = runTest {
         val catId = CategoryId.generate()
         categoryDao.insertCategory(
             com.kipu.app.feature.categories.data.local.CategoryEntity(
@@ -170,13 +170,13 @@ class CategoryPresentationUseCasesTest {
         )
 
         val result = updateCategoryPresentation(localPres, expectedRevision = 1L)
-        assertTrue(result.isSuccess) // Locally accepted and conflict recorded
-
-        // Verify conflict created
-        val conflicts = resolveCategoryConflict.observeConflicts(testUserId).first()
-        assertEquals(1, conflicts.size)
-        assertEquals(catId, conflicts.first().categoryId)
-        assertEquals("OPEN", conflicts.first().status.name)
+        assertTrue(result.isSuccess)
+        val saved = categoryDao.getPresentation(testUserId.value, catId.value)
+        assertNotNull(saved)
+        assertEquals("Comida (local)", saved!!.name)
+        assertEquals("dinner_dining", saved.icon)
+        assertEquals("#E91E63", saved.color)
+        assertTrue(resolveCategoryConflict.observeConflicts(testUserId).first().isEmpty())
     }
 
     @Test
