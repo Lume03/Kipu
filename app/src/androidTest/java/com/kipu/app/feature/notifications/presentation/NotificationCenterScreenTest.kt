@@ -190,7 +190,7 @@ class NotificationCenterScreenTest {
                 hasText("Vence el 30 de septiembre de 2026", ignoreCase = true),
             useUnmergedTree = true,
         ).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Recordatorio · Fecha prevista", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Recordatorio", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("notification-row-notice-2")
             .assertContentDescriptionContains("Vence el 30 de", substring = true)
             .assertContentDescriptionContains("Se acerca tu vencimiento.", substring = true)

@@ -143,7 +143,7 @@ class NotificationActionsTest {
         }
 
         compose.onNodeWithText("Umbral de crédito").assertIsDisplayed()
-        compose.onNodeWithText("Alerta · Condición ocurrida").assertIsDisplayed()
+        compose.onNodeWithText("Alerta").assertIsDisplayed()
         compose.onNodeWithContentDescription("Eliminar notificación").assertIsDisplayed()
     }
 

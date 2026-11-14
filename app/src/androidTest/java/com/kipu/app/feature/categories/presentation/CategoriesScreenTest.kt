@@ -325,7 +325,7 @@ class CategoriesScreenTest {
         composeTestRule.setContent {
             CategoryFormContent(
                 name = "",
-                icon = "restaurant",
+                icon = "school",
                 color = "#AA3311",
                 parentId = CategoryId.generate(),
                 availableRoots = emptyList(),

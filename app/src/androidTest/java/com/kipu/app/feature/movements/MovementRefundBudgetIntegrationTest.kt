@@ -73,7 +73,10 @@ class MovementRefundBudgetIntegrationTest {
         val movementDao = database.movementDao()
         movementSource = MovementLocalDataSource(database, movementDao, BalanceProjectionStore(movementDao))
 
-        session = SessionCoordinatorImpl().also { it.setActiveOwner(ownerId) }
+        session = SessionCoordinatorImpl().also {
+            it.setActiveOwner(ownerId)
+            it.resolveLocalProtection(ownerId, false)
+        }
         val transactionRunner = object : DatabaseTransactionRunner {
             override suspend fun <R> invoke(block: suspend () -> R): R = database.withTransaction { block() }
         }

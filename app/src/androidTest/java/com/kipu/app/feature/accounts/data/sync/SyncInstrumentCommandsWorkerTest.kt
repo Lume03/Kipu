@@ -160,6 +160,8 @@ class SyncInstrumentCommandsWorkerTest {
     @Test
     fun paymentNetworkFailureKeepsOutboxCommandForRetry() = runTest {
         val command = command("PAY_CREDIT_CARD", "CARD_PAYMENT")
+        coEvery { syncDao.getByOperationId(userId, command.operationId) } returns
+            command.copy(state = "IN_FLIGHT", attemptCount = command.attemptCount + 1)
         coEvery { syncDao.getPendingCommands(userId, any()) } returns listOf(command)
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
         coEvery { api.allocateCreditPayment(any(), userId) } returns FinancialApiResponse.NetworkFailure(
@@ -196,6 +198,8 @@ class SyncInstrumentCommandsWorkerTest {
     @Test
     fun remotelyRejectedPurchaseIsRetainedAsFailedButNoLongerCountsAsDebt() = runTest {
         val command = command("CONFIRM_CREDIT_PURCHASE", "CARD_PURCHASE")
+        coEvery { syncDao.getByOperationId(userId, command.operationId) } returns
+            command.copy(state = "IN_FLIGHT", attemptCount = command.attemptCount + 1)
         val request = request(command)
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(command), emptyList())
         coEvery { syncDao.claimCommand(userId, command.operationId, any(), any()) } returns 1
@@ -297,7 +301,7 @@ class SyncInstrumentCommandsWorkerTest {
         dao.insert(payment)
         coEvery { api.allocateCreditPayment(any(), expectedOwner = userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(status = "REJECTED"))
-        worker(syncDao = dao).doWork()
+        worker(movementDao = database.movementDao(), syncDao = dao).doWork()
         assertEquals("FAILED_PERMANENT", dao.getByOperationId(userId, payment.operationId)?.state)
         val latest = dao.getLatestForAggregate(userId, "CARD", payment.aggregateId)
         val next = command("CONFIRM_CREDIT_PURCHASE", "CARD_PURCHASE").copy(aggregateId = payment.aggregateId, createdAt = 3,

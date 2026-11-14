@@ -47,7 +47,10 @@ class OfflineFirstBudgetRepositoryRoomTest {
         database = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        sessionCoordinator = SessionCoordinatorImpl().also { it.setActiveOwner(ownerId) }
+        sessionCoordinator = SessionCoordinatorImpl().also {
+            it.setActiveOwner(ownerId)
+            it.resolveLocalProtection(ownerId, false)
+        }
         val transactionRunner = object : DatabaseTransactionRunner {
             override suspend fun <R> invoke(block: suspend () -> R): R = database.withTransaction { block() }
         }

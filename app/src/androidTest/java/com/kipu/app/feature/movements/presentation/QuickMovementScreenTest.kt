@@ -227,17 +227,17 @@ class QuickMovementScreenTest {
             }
         }
 
-        compose.onNodeWithText("Más detalles (opcional)").assertIsDisplayed()
+        compose.onNodeWithText("Más detalles").assertIsDisplayed()
         compose.onNodeWithTag("input_merchant").assertDoesNotExist()
         compose.onNodeWithTag("selector_occurred_at").assertDoesNotExist()
-        compose.onNodeWithText("+ Nota (opcional)").assertIsDisplayed()
         compose.onNodeWithTag("input_note").assertDoesNotExist()
 
-        compose.onNodeWithText("Más detalles (opcional)").performClick()
+        compose.onNodeWithText("Más detalles").performClick()
         compose.onNodeWithTag("input_merchant").assertIsDisplayed().assertHasClickAction()
-        compose.onNodeWithText("Comercio o pagador (opcional)").assertIsDisplayed()
+        compose.onNodeWithText("Comercio").assertIsDisplayed()
         compose.onNodeWithText("Agregar comercio").assertIsDisplayed()
         compose.onNodeWithTag("selector_occurred_at").assertIsDisplayed()
+        compose.onNodeWithTag("input_note").performScrollTo().assertIsDisplayed()
     }
 
     @Test

@@ -89,7 +89,7 @@ class SyncMovementsWorkerTest {
             accountId = accountId, role = "PRIMARY", signedAmountMinor = -100, currencyCode = "PEN", createdAt = 1)))
         fun page(sequence: Long, revision: Long, status: String = "ACTIVE", amount: Long = 100) = PullChangesResponseDto(listOf(
             SyncChangeItemDto(sequence, "TRANSACTION", transactionId, revision, "UPSERT", Json.parseToJsonElement(
-                """{"id":"$transactionId","type":"EXPENSE","operation_kind":"DEBT_PAYMENT","amount_minor":$amount,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-25T17:00:00Z","status":"$status","ledger_entries":${if (status == "VOIDED") "[]" else """[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":${-amount},"currency_code":"PEN"}]"""}}"""
+                """{"id":"$transactionId","type":"EXPENSE","operation_kind":"DEBT_PAYMENT","amount_minor":$amount,"currency_code":"PEN","source_account_id":"$accountId","occurred_at":"2026-10-25T17:00:00Z","status":"$status","ledger_entries":${if (status == "VOIDED") """[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":${-amount},"currency_code":"PEN"},{"id":"server-reversal","account_id":"$accountId","role":"REVERSAL","signed_amount_minor":$amount,"currency_code":"PEN"}]""" else """[{"id":"server-entry","account_id":"$accountId","role":"PRIMARY","signed_amount_minor":${-amount},"currency_code":"PEN"}]"""}}"""
             )),
         ), sequence, false)
         coEvery { financialApi.pullChanges(any(), userId) } returns FinancialApiResponse.Success(page(1,1))

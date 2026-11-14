@@ -61,7 +61,10 @@ class FinancialRejectionCompensationTest {
         database = Room.inMemoryDatabaseBuilder(context, KipuDatabase::class.java).build()
         accountDao = database.accountDao()
         movementDao = database.movementDao()
-        every { sessionCoordinator.currentOwner } returns null
+        every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(userId)
+        every { sessionCoordinator.remoteSession } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.kipu.app.core.session.RemoteSession.Valid(userId, java.time.Instant.now().plusSeconds(3600)),
+        )
         every { workerParams.inputData } returns workDataOf(
             SyncInstrumentCommandsWorker.KEY_USER_ID to userId,
         )
@@ -188,7 +191,9 @@ class FinancialRejectionCompensationTest {
         )
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(outboxCommand), emptyList())
         coEvery { syncDao.claimCommand(userId, operationId, any(), any()) } returns 1
-        coEvery { api.registerCreditPurchase(any()) } returns FinancialApiResponse.Success(
+        coEvery { syncDao.getByOperationId(userId, operationId) } returns
+            outboxCommand.copy(state = "IN_FLIGHT", attemptCount = outboxCommand.attemptCount + 1)
+        coEvery { api.registerCreditPurchase(any(), expectedOwner = userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(
                 status = "REJECTED",
                 error = CreditCommandErrorDto(code = "CREDIT_LIMIT_EXCEEDED", field = "amount_minor"),
@@ -368,7 +373,9 @@ class FinancialRejectionCompensationTest {
         )
         coEvery { syncDao.getPendingCommands(userId, any()) } returnsMany listOf(listOf(outboxCommand), emptyList())
         coEvery { syncDao.claimCommand(userId, operationId, any(), any()) } returns 1
-        coEvery { api.allocateCreditPayment(any()) } returns FinancialApiResponse.Success(
+        coEvery { syncDao.getByOperationId(userId, operationId) } returns
+            outboxCommand.copy(state = "IN_FLIGHT", attemptCount = outboxCommand.attemptCount + 1)
+        coEvery { api.allocateCreditPayment(any(), expectedOwner = userId) } returns FinancialApiResponse.Success(
             CreditCommandResponseDto(
                 status = "REJECTED",
                 error = CreditCommandErrorDto(code = "PAYMENT_REJECTED"),

@@ -56,6 +56,10 @@ class SyncCategoryCommandsWorkerTest {
         io.mockk.every { sessionCoordinator.localAccess } returns MutableStateFlow(
             LocalAccess.Available(testUserId, RemoteSession.Absent),
         )
+        io.mockk.every { sessionCoordinator.remoteSession } returns MutableStateFlow<RemoteSession>(
+            RemoteSession.Valid(testUserId, java.time.Instant.now().plusSeconds(3600)),
+        )
+        io.mockk.every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(testUserId)
     }
 
     @Test

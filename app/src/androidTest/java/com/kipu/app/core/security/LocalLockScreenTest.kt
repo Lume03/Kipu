@@ -59,6 +59,7 @@ class LocalLockScreenTest {
         val dao = mockk<DeviceAccountSettingsDao>()
         coEvery { dao.findSettings(owner) } returns DeviceAccountSettingsEntity(owner, localUnlockEnabled = true)
         val session = mockk<SessionCoordinator>(relaxed = true)
+        every { session.currentOwner } returns com.kipu.app.core.session.LocalOwner(owner.toString())
         every { session.localAccess } returns MutableStateFlow<LocalAccess>(LocalAccess.Available(owner.toString(), RemoteSession.Absent))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         lateinit var lock: LocalLockCoordinator

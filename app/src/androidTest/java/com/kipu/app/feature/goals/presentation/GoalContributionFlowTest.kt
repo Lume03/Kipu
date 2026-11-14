@@ -57,7 +57,7 @@ class GoalContributionFlowTest {
         compose.waitForIdle()
         compose.onNodeWithTag("goal_transfer_toggle").performScrollTo().performClick()
         compose.onNodeWithTag("goal_transfer_source_picker").performScrollTo().performClick()
-        compose.onNodeWithText("Origen · libre 500.00").performClick()
+        compose.onNodeWithText("Origen · libre S/ 500.00").performClick()
         compose.onNodeWithTag("goal_contribution_submit").performClick()
 
         compose.runOnIdle {
