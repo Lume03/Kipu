@@ -13,6 +13,7 @@ import com.kipu.app.feature.movements.domain.model.*
 import io.mockk.*
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.*
 import org.junit.*
 import org.junit.Assert.*
@@ -38,11 +39,11 @@ class CardPurchaseVoidAndRefundRoomTest {
             network="VISA", issuer="BCP", lastFourDigits="1234", createdAt=1, updatedAt=1))
     }
     @After fun close() { db.close() }
-    private suspend fun insertPurchase() {
-        db.movementDao().insertTransaction(TransactionEntity(id=purchase,userId=owner,type="EXPENSE",amountMinor=10000,currencyCode="PEN",
+    private suspend fun insertPurchase(amount: Long = 10000) {
+        db.movementDao().insertTransaction(TransactionEntity(id=purchase,userId=owner,type="EXPENSE",amountMinor=amount,currencyCode="PEN",
             occurredAt=1,status="CONFIRMED",syncStatus="SYNCED",cardId="card",operationKind="CARD_PURCHASE",installmentCount=1,revision=1,categoryId="cat-1"))
-        db.movementDao().insertLedgerEntries(listOf(LedgerEntryEntity("ledger",owner,purchase,"liability","LIABILITY",-10000,"PEN",1)))
-        db.creditDao().insertInstallments(listOf(CreditInstallmentEntity("installment",owner,purchase,1,1,10000,0,"PENDING",1,1,1)))
+        db.movementDao().insertLedgerEntries(listOf(LedgerEntryEntity("ledger",owner,purchase,"liability","LIABILITY",-amount,"PEN",1)))
+        db.creditDao().insertInstallments(listOf(CreditInstallmentEntity("installment",owner,purchase,1,1,amount,0,"PENDING",1,1,1)))
     }
     private suspend fun void(id: String): MovementMutationResult {
         val head = requireNotNull(local.getRevisionHead(owner,id))
@@ -88,6 +89,50 @@ class CardPurchaseVoidAndRefundRoomTest {
         assertEquals(10000L,db.creditDao().getOutstandingPrincipalForCard(owner,"card"))
         assertTrue(void(purchase) is MovementMutationResult.Success)
     }
+    private fun historyRepository() = com.kipu.app.feature.movements.data.OfflineFirstMovementRepository(
+        local, BalanceProjectionStore(db.movementDao()), TransactionRequestHasher(), MovementRevisionRequestHasher(),
+        com.kipu.app.feature.movements.data.sync.MovementSyncScheduler(ApplicationProvider.getApplicationContext()),
+        db.accountDao(), db.cardDao(), db.categoryDao(), db.merchantCatalogDao(),
+    )
+
+    @Test fun syncedCardRefundHistoryAndDetailsSurviveCanonicalFeed() = runTest {
+        insertPurchase(400)
+        val refundId = UUID.randomUUID().toString()
+        db.movementDao().insertTransaction(TransactionEntity(id=refundId,userId=owner,type="INCOME",amountMinor=100,currencyCode="PEN",
+            occurredAt=2,status="CONFIRMED",syncStatus="SYNCED",cardId="card",operationKind="REFUND",revision=1,note="QA-reembolso"))
+        db.transactionLinkDao().insert(TransactionLinkEntity(owner,purchase,refundId,"REFUND",2))
+        // Historical feed projects the liability account, without card_id. On the origin
+        // device updateTransactionFromRemote keeps the locally registered card_id.
+        feed(refundId,"""{"id":"$refundId","type":"INCOME","operation_kind":"REFUND","amount_minor":100,"currency_code":"PEN","note":"QA-reembolso","source_account_id":"liability","occurred_at":"2026-10-01T12:00:00Z","status":"CONFIRMED","ledger_entries":[{"account_id":"liability","role":"LIABILITY","signed_amount_minor":100,"currency_code":"PEN"}]}""")
+        assertTrue(hydration().hydrateFully(owner))
+        val history = QueryMovementHistory(historyRepository())
+        assertEquals(setOf(purchase, refundId), history(owner, MovementHistoryQuery()).items.map { it.transaction.id }.toSet())
+        assertEquals(2L, history.getHistorySummary(owner, MovementHistoryQuery())!!.totalCount)
+        assertEquals(java.math.BigInteger.valueOf(-400), history.getHistorySummary(owner, MovementHistoryQuery())!!.netByCurrency["PEN"])
+        assertEquals(300L, db.creditDao().getOutstandingPrincipalForCard(owner,"card"))
+        assertEquals(listOf(refundId), history(owner, MovementHistoryQuery(queryText="QA-reembolso")).items.map { it.transaction.id })
+        val refund = history.getHistoryItemById(owner,refundId)!!
+        assertEquals("card",refund.transaction.cardId)
+        assertNull(refund.transaction.sourceAccountId)
+        assertEquals("PURCHASE_HAS_ACTIVE_REFUNDS",history.getHistoryItemById(owner,purchase)!!.voidBlockCode)
+        assertEquals("card", historyRepository().getTransactionById(owner,refundId)!!.cardId)
+    }
+
+    @Test fun malformedRowDoesNotHideHistoryOrBreakPagingAndDetail() = runTest {
+        insertPurchase()
+        db.movementDao().insertTransaction(TransactionEntity(id="bad-row",userId=owner,type="INCOME",amountMinor=1,currencyCode="PEN",
+            sourceAccountId="liability",occurredAt=3,captureSource="UNEXPECTED"))
+        val repository = historyRepository()
+        val history = QueryMovementHistory(repository)
+        val page = history(owner,MovementHistoryQuery(limit=1))
+        assertTrue(page.items.isEmpty())
+        assertTrue(page.hasMore)
+        assertNotNull(page.nextCursor)
+        assertEquals(purchase,history(owner,MovementHistoryQuery(limit=1,cursor=page.nextCursor)).items.single().transaction.id)
+        assertNull(history.getHistoryItemById(owner,"bad-row"))
+        assertEquals(listOf(purchase), repository.observeTransactions(owner).first().map { it.transaction.id })
+    }
+
     private fun feed(id:String, payload:String, revision:Long=1) {
         coEvery { api.pullChanges(any(),any()) } answers {
             val cursor=firstArg<PullChangesRequestDto>().afterSequence

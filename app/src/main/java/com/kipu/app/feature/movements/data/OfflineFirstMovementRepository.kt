@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.data
 
+import com.kipu.app.core.logging.SecureLog
 import com.kipu.app.feature.accounts.data.local.AccountDao
 import com.kipu.app.feature.accounts.data.local.CardDao
 import com.kipu.app.feature.categories.data.local.CategoryDao
@@ -75,7 +76,7 @@ class OfflineFirstMovementRepository @Inject constructor(
             val accountsById = accounts.associateBy { it.id }
             val cardsById = cards.associateBy { it.id }
             val voidBlockCodes = localDataSource.getVoidBlockCodes(userId, entities)
-            entities.map { entity ->
+            entities.mapNotNull { entity ->
                 buildTransactionItem(userId, entity, categoriesById, merchantsById, accountsById, cardsById, voidBlockCodes[entity.id])
             }
         }
@@ -264,7 +265,7 @@ class OfflineFirstMovementRepository @Inject constructor(
 
     override suspend fun getHistoryItemById(userId: String, transactionId: String): TransactionItem? {
         return localDataSource.getTransactionById(userId, transactionId)?.let { entity ->
-            mapEntitiesToItems(userId, listOf(entity)).single()
+            mapEntitiesToItems(userId, listOf(entity)).singleOrNull()
         }
     }
 
@@ -275,7 +276,7 @@ class OfflineFirstMovementRepository @Inject constructor(
         val accounts = accountDao.observeAll(userId).first().associateBy { it.id }
         val cards = cardDao.observeAll(userId).first().associateBy { it.id }
         val voidBlockCodes = localDataSource.getVoidBlockCodes(userId, entities)
-        return entities.map { entity ->
+        return entities.mapNotNull { entity ->
             buildTransactionItem(userId, entity, presentations, merchants, accounts, cards, voidBlockCodes[entity.id])
         }
     }
@@ -288,14 +289,14 @@ class OfflineFirstMovementRepository @Inject constructor(
         accountsById: Map<String, com.kipu.app.feature.accounts.data.local.AccountEntity>,
         cardsById: Map<String, com.kipu.app.feature.accounts.data.local.CardEntity>,
         voidBlockCode: String?,
-    ): TransactionItem {
+    ): TransactionItem? = try {
         val domain = entity.toDomain()
         val sourceAlias = domain.sourceAccountId?.let { accountsById[it]?.alias }
         val destAlias = domain.destinationAccountId?.let { accountsById[it]?.alias }
         val card = domain.cardId?.let(cardsById::get)
         val category = domain.categoryId?.let(categoriesById::get)
         val merchant = domain.merchantId?.let(merchantsById::get)
-        return TransactionItem(
+        TransactionItem(
             transaction = domain,
             voidBlockCode = voidBlockCode,
             sourceAccountAlias = sourceAlias,
@@ -320,6 +321,10 @@ class OfflineFirstMovementRepository @Inject constructor(
             },
             merchantBrandColor = merchant?.brandColor,
         )
+    } catch (_: IllegalArgumentException) {
+        // No row identifiers, amounts, notes, or exception messages in financial logs.
+        SecureLog.w("MovementRepository", "Skipping history row: invalid domain representation")
+        null
     }
 }
 

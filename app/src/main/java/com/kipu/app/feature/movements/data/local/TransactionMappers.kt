@@ -13,7 +13,14 @@ internal fun TransactionEntity.toDomain(): Transaction = Transaction(
     currency = currencyCode,
     // Older planning snapshots used destination_account_id for an income. Read those
     // rows through the same single-account contract without changing their ledger.
-    sourceAccountId = sourceAccountId ?: destinationAccountId.takeIf { type.equals("INCOME", ignoreCase = true) },
+    // The historical refund feed exposes the card's backing liability as source_account_id.
+    // Hydrating an existing local card refund retains card_id. That account is a ledger
+    // implementation detail, not a second refund destination in the domain (L2).
+    sourceAccountId = if (type.equals("INCOME", true) && operationKind.equals("REFUND", true) && !cardId.isNullOrBlank()) {
+        null
+    } else {
+        sourceAccountId ?: destinationAccountId.takeIf { type.equals("INCOME", ignoreCase = true) }
+    },
     destinationAccountId = destinationAccountId.takeUnless { type.equals("INCOME", ignoreCase = true) && sourceAccountId == null },
     cardId = cardId,
     operationKind = operationKind,
