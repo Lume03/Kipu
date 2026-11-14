@@ -117,7 +117,10 @@ class PlanningVisualEvidenceTest {
                     if (case == "goal-delete") compose.onNodeWithText("Eliminar meta").performScrollTo().performClick()
                 }
                 "goal-release" -> compose.onNodeWithTag("goal_release").performClick()
-                "budget-delete" -> compose.onNodeWithTag("budget_delete").performScrollTo().performClick()
+                "budget-delete" -> {
+                    compose.onNodeWithTag("budget_actions").performClick()
+                    compose.onNodeWithTag("budget_sheet_delete").performScrollTo().performClick()
+                }
                 "budget-options" -> compose.onNodeWithContentDescription("Acciones del presupuesto").performClick()
                 "goal-contribution" -> compose.onNodeWithTag("goal_contribution_amount").performTextInput("330")
             }

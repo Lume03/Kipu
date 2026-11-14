@@ -64,6 +64,7 @@ class SyncCategoryCommandsWorkerTest {
         coEvery { api.fetchMerchantCatalog(any()) } returns CategoryApiResponse.Success(emptyList())
         coEvery { categoryDao.claim(testUserId, any()) } returns null
         coEvery { categoryDao.getUnresolvedCommands(testUserId) } returns emptyList()
+        coEvery { categoryDao.getPresentation(any(), any()) } returns null
         io.mockk.every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(testUserId)
     }
 
@@ -177,9 +178,9 @@ class SyncCategoryCommandsWorkerTest {
         coVerify { api.deleteMerchantAliasRule(testUserId, match { it.ruleId == "rule-1" }) }
         coVerify { api.upsertMerchantCategoryPreference(testUserId, match { it.merchantId == "merchant-1" }) }
         coVerify { api.deleteMerchantCategoryPreference(testUserId, match { it.preferenceId == "preference-1" }) }
-        coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 1L, null) }
+        coVerify(exactly = 0) { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 1L, null) }
         coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 2L, null) }
-        coVerify { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 1L, null) }
+        coVerify(exactly = 0) { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 1L, null) }
         coVerify { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 2L, null) }
         coVerify(exactly = 5) { categoryDao.complete(any(), "COMPLETED", null, null, any()) }
     }
@@ -210,7 +211,11 @@ class SyncCategoryCommandsWorkerTest {
     private fun prepareCommands(commands: List<CategorySyncOutboxEntity>) {
         val leased = commands.map { it.copy(state="IN_FLIGHT", nextAttemptAt=61_000, updatedAt=1_000) }
         coEvery { categoryDao.claim(testUserId, any()) } returnsMany (leased + listOf(null))
-        coEvery { categoryDao.getUnresolvedCommands(testUserId) } returns commands
+        val unresolved = commands.toMutableList()
+        coEvery { categoryDao.getUnresolvedCommands(testUserId) } answers { unresolved.toList() }
+        coEvery { categoryDao.complete(any(), any(), any(), any(), any()) } coAnswers {
+            unresolved.removeAll { it.operationId == firstArg<CategorySyncOutboxEntity>().operationId }
+        }
         coEvery { categoryDao.getCommand(testUserId, any()) } answers { leased.firstOrNull { it.operationId == secondArg<String>() } }
     }
 
@@ -224,6 +229,7 @@ class SyncCategoryCommandsWorkerTest {
             else -> "MOVEMENT"
         },
         aggregateId = aggregateId,
+        expectedRevision = if (type.startsWith("DELETE_")) 1L else null,
         payloadJson = payload,
         payloadHash = "hash-$operationId",
         state = "PENDING",

@@ -147,7 +147,7 @@ class DebtChangeFeedTest {
 
         assertEquals(DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP"), result)
         assertNull(database.debtDao().getDebt("owner", DEBT_ID))
-        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
+        assertNull(database.debtDao().getSyncCheckpoint("owner"))
     }
 
     @Test
@@ -230,7 +230,7 @@ class DebtChangeFeedTest {
         assertEquals(DebtChangeApplyResult.Rejected("REMOTE_DELETE_WOULD_REMOVE_FINANCIAL_HISTORY"), result)
         assertEquals(5_000L, database.debtDao().getDebtIncludingDeleted("owner", DEBT_ID)?.totalMinor)
         assertEquals(EVENT_ID, database.debtDao().getEvent("owner", EVENT_ID)?.id)
-        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
+        assertNull(database.debtDao().getSyncCheckpoint("owner"))
     }
 
     private fun page(vararg changes: SyncChangeItemDto, nextSequence: Long) = PullChangesResponseDto(

@@ -46,7 +46,7 @@ class GoalManagementFlowTest {
                 createRequested = true)
         }
         compose.onNodeWithTag("goal_plan_limit_sheet").assertIsDisplayed()
-        compose.onNodeWithText("Ver mis metas activas").performClick()
+        compose.onNodeWithText("Entendido").performClick()
         compose.onNodeWithTag("goal_plan_limit_sheet").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, creates) }
     }
@@ -90,20 +90,22 @@ class GoalManagementFlowTest {
     fun freePlanShowsItsTwoGoalLimitAndHidesCreateActionAtQuota() {
         val uiState = state(goals = listOf(goal("goal-1", GoalStatus.ACTIVE), goal("goal-2", GoalStatus.ACTIVE)))
         compose.setContent {
-            GoalListScreen(uiState, {}, {}, {}, {}, {}, {})
+            GoalListScreen(uiState, {}, { error("Quota must block creation") }, {}, {}, {}, {}, createRequested = true)
         }
 
-        compose.onNodeWithText("2 de 2 activas").assertIsDisplayed()
+        compose.onNodeWithTag("goal_plan_limit_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Tienes 2 de 2 metas activas. Completa una o revisa los planes.").assertIsDisplayed()
         compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
     }
 
     @Test
     fun completedGoalDoesNotConsumeFreePlanSlot() {
         val uiState = state(goals = listOf(goal("goal-active", GoalStatus.ACTIVE), goal("goal-completed", GoalStatus.COMPLETED)))
-        compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
+        var creates = 0
+        compose.setContent { GoalListScreen(uiState, {}, { creates++ }, {}, {}, {}, {}, createRequested = true) }
 
-        compose.onNodeWithText("1 de 2 activas").assertIsDisplayed()
-        compose.onNodeWithTag("goal_create_button").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(1, creates); assertEquals(1, uiState.activeGoalCount) }
+        compose.onNodeWithTag("goal_plan_limit_sheet").assertDoesNotExist()
     }
 
     @Test
@@ -115,9 +117,10 @@ class GoalManagementFlowTest {
                 goal("goal-3", GoalStatus.ACTIVE),
             ),
         )
-        compose.setContent { GoalListScreen(uiState, {}, {}, {}, {}, {}, {}) }
+        compose.setContent { GoalListScreen(uiState, {}, { error("Quota must block creation") }, {}, {}, {}, {}, createRequested = true) }
 
-        compose.onNodeWithText("2 de 2 activas").assertIsDisplayed()
+        compose.onNodeWithTag("goal_plan_limit_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Tienes 2 de 2 metas activas. Completa una o revisa los planes.").assertIsDisplayed()
         compose.onAllNodesWithTag("goal_create_button").assertCountEquals(0)
     }
 
@@ -303,11 +306,11 @@ class GoalManagementFlowTest {
         compose.onNodeWithText("Aportar").assertIsDisplayed()
         compose.onNodeWithText("Ver historial de aportes").assertIsDisplayed()
         compose.onNodeWithText("Editar").assertIsDisplayed()
-        compose.onNodeWithText("Eliminar meta vacía").assertIsDisplayed()
+        compose.onNodeWithText("Eliminar meta").assertIsDisplayed()
         compose.onNodeWithText("Cancelar").performClick()
 
         compose.onNodeWithText("goal-with-history").assertIsDisplayed()
-        compose.onAllNodesWithText("Eliminar meta vacía").assertCountEquals(0)
+        compose.onAllNodesWithText("Eliminar meta").assertCountEquals(0)
         compose.runOnIdle { assertEquals(0, actionCount) }
     }
 

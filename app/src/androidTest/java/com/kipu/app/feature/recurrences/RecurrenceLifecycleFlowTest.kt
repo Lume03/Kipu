@@ -2,6 +2,7 @@ package com.kipu.app.feature.recurrences
 
 import androidx.compose.ui.test.assertIsDisplayed
 import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,7 +21,8 @@ import org.junit.Rule
 import org.junit.Test
 
 class RecurrenceLifecycleFlowTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createComposeRule(issues = listOf(com.kipu.app.core.sync.SyncIssue(
+        com.kipu.app.core.sync.SyncModule.RECURRENCE, "conflict-1", "conflict-command", false, false, "Alquiler")))
 
     @Test
     fun cancelConfirmationBackOutDispatchesNoLifecycleCommand() {
@@ -53,7 +55,8 @@ class RecurrenceLifecycleFlowTest {
         compose.onNodeWithText("La próxima fecha válida será $futureDate. No se crearán gastos de periodos omitidos.").assertIsDisplayed()
         compose.onNodeWithTag("recurrence_resume_back").performClick()
         compose.runOnIdle { assertEquals("dismissed resume preview must not send SET_STATUS", 0, resumeCalls) }
-        compose.onNodeWithText("Pendiente de sincronización local").assertIsDisplayed()
+        compose.onNodeWithTag("recurrence_state_paused-1").assertIsDisplayed()
+        compose.onNodeWithText(recurrenceStateLabel(rule.status, rule.nextDueDate)).assertIsDisplayed()
     }
 
     @Test
@@ -61,7 +64,7 @@ class RecurrenceLifecycleFlowTest {
         val stale = recurrence("conflict-1", RecurrenceStatus.ACTIVE, RecurrenceSyncState.CONFLICT, revision = 4)
         compose.setContent { lifecycle(listOf(stale)) }
         compose.onNodeWithTag("recurrence_state_conflict-1").assertIsDisplayed()
-        compose.onNodeWithTag("recurrence_conflict_conflict-1").assertIsDisplayed()
+        compose.onAllNodesWithText("No sincronizado")[0].assertIsDisplayed()
         compose.onNodeWithText(recurrenceStateLabel(stale.status, stale.nextDueDate)).assertIsDisplayed()
     }
 

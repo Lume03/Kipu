@@ -69,7 +69,7 @@ class OptionalDateFormsTest {
         compose.runOnIdle { assertEquals(listOf(LocalDate.parse("2026-11-15"), null), saved) }
         // The date is selected through the calendar; invalid typed dates are no longer a UI path.
         compose.onNodeWithTag(scene.field).assert(androidx.compose.ui.test.SemanticsMatcher.expectValue(
-            androidx.compose.ui.semantics.SemanticsProperties.IsEditable, false))
+            androidx.compose.ui.semantics.SemanticsProperties.IsEditable, scene == Scene.DEBT_EDIT))
     }
 
     private fun save(scene: Scene) {

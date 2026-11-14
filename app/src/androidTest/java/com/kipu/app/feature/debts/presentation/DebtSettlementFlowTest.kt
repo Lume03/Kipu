@@ -55,7 +55,7 @@ class DebtSettlementFlowTest {
             )
         }
 
-        compose.onNodeWithText("El inter?s se registra aparte como gasto o ingreso.", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("El interés se registra aparte como gasto o ingreso.", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("settlement-principal").performTextReplacement("35.00")
         compose.onNodeWithTag("settlement-interest").performTextReplacement("2.50")
         compose.onNodeWithTag("settlement-save").assertIsEnabled()
@@ -166,7 +166,7 @@ class DebtSettlementFlowTest {
 
         compose.onNodeWithTag("debt-installment-plan").performScrollTo()
         compose.onNodeWithText("Plan de cuotas (no son pagos)").assertIsDisplayed()
-        compose.onNodeWithText("Cuota 1 · 2026-11-10").assertIsDisplayed()
+        compose.onNodeWithText("Cuota 1 · 10 nov. 2026").assertIsDisplayed()
         compose.onNodeWithText("Pago parcial").assertIsDisplayed()
     }
 
@@ -213,7 +213,7 @@ class DebtSettlementFlowTest {
     fun debtListDistinguishesPlannedInstallmentFromCompletedPayment() {
         val pendingDebt = debt(DebtObligationType.PAYABLE)
         val partialDebt = pendingDebt.copy(debtId = "88000000-0000-4000-8000-000000000006", counterpartyName = "Prestamo parcial")
-        val settledDebt = pendingDebt.copy(debtId = "88000000-0000-4000-8000-000000000005", counterpartyName = "Préstamo pagado")
+        val settledDebt = pendingDebt.copy(debtId = "88000000-0000-4000-8000-000000000005", counterpartyName = "Préstamo pagado", status = DebtLifecycleStatus.SETTLED, remainingPrincipalMinor = 0L)
         compose.setContent {
             DebtListScreen(
                 debts = listOf(pendingDebt, settledDebt, partialDebt),
@@ -250,9 +250,10 @@ class DebtSettlementFlowTest {
         }
 
         // A planned installment only shows its amount and due date, never a payment state.
-        compose.onNodeWithText("Cuota de S/ 20.00 vence en 5 días").assertIsDisplayed()
-        compose.onNodeWithText("Pago completado").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Pago parcial registrado").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Cuota S/ 20.00 · en 5 días").assertIsDisplayed()
+        compose.onNodeWithText("Vencida hace 21 días").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("debt_closed_section").performScrollTo().performClick()
+        compose.onNodeWithText("Pagada").performScrollTo().assertIsDisplayed()
     }
 
     private fun debt(type: DebtObligationType) = DebtSummary(

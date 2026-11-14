@@ -75,7 +75,7 @@ class Issue48ProductionCreditLabelsTest {
         val cardRow = compose.onNodeWithTag("card_item_${card.id.value}")
         cardRow.assertIsDisplayed().assertHasClickAction()
         compose.onNodeWithText("Crédito disponible", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Usado:", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Deuda:", substring = true).assertIsDisplayed()
         compose.onNodeWithContentDescription(
             "Crédito disponible, no es dinero propio:",
             substring = true,
@@ -115,20 +115,12 @@ class Issue48ProductionCreditLabelsTest {
         }
 
         compose.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
-            .performScrollTo()
-            .assertIsDisplayed()
-
-        val visibleCreditLine = compose.onAllNodesWithText(
-            FinancialTerminology.TOTAL_CREDIT_LINE,
-            substring = true,
-            ignoreCase = true,
-        )
-        visibleCreditLine[0].performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription(
-            "línea total de crédito",
-            substring = true,
-        ).assertIsDisplayed()
+        compose.onNodeWithText("Crédito disponible").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Línea S/ 4,000.00").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Línea total de crédito", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("S/ 1,420.00", substring = true).assertExists()
+        compose.onNodeWithText("S/ 2,580.00", substring = true).assertExists()
     }
 
     private fun creditCard() = CreditCard(

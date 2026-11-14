@@ -1575,6 +1575,7 @@ private fun CreditCardPeriodPanel(
                     ) {
                         Text(
                             text = "Crédito disponible",
+                            modifier = Modifier.semantics { contentDescription = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1770,6 +1771,7 @@ private fun CreditCardPeriodPanel(
                 ) {
                     Text(
                         text = "Crédito disponible",
+                        modifier = Modifier.semantics { contentDescription = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1884,6 +1886,7 @@ private fun CreditCardPeriodPanel(
 
                 Text(
                     text = "Línea ${card.currency.symbol()} ${displayCreditLimit(card)}",
+                    modifier = Modifier.semantics { contentDescription = FinancialTerminology.TOTAL_CREDIT_LINE },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -2,9 +2,9 @@ package com.kipu.app.feature.goals.presentation
 
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsNotEnabled
 import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -29,7 +29,8 @@ import org.junit.Test
 import org.junit.Ignore
 
 class GoalLifecycleFlowTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createComposeRule(issues = listOf(com.kipu.app.core.sync.SyncIssue(
+        com.kipu.app.core.sync.SyncModule.GOAL, "conflict", "conflict-command", false, false, "Viaje")))
 
     @Test
     fun backingDeficitIsVisibleWithoutChangingRecordedReserve() {
@@ -69,16 +70,18 @@ class GoalLifecycleFlowTest {
     }
 
     @Test
-    fun synchronizationConflictOffersAllThreeResolutionOptions() {
+    fun synchronizationConflictOffersSharedServerRecoveryWithoutChangingReserves() {
         val goal = goal("conflict", "Viaje", GoalStatus.ACTIVE, 100_000L)
             .copy(syncState = com.kipu.app.feature.goals.domain.model.GoalSyncState.CONFLICT)
         compose.setContent {
-            GoalListScreen(GoalManagementUiState(goals = listOf(GoalListItemState(goal, GoalProgressCalculator.calculate(goal, emptyList()))), isLoading = false),
-                {}, {}, {}, {}, {}, {})
+            GoalDetailScreen(detailState(goal, emptyList(), emptyList()), {}, {}, { _, _, _ -> }, { _, _, _ -> }, {})
         }
-        compose.onNodeWithText("Descartar", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Ajustar", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Resolver", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("No sincronizado").assertIsDisplayed()
+        compose.onNodeWithText("Hay cambios locales que requieren revisión.").assertIsDisplayed()
+        compose.onNodeWithText("Usar la versión del servidor").assertIsDisplayed()
+        compose.onNodeWithTag("goal_summary_amounts").assertExists()
+        compose.onNodeWithText("S/ 0").assertExists()
+        compose.onAllNodesWithText("S/ 1,000").assertCountEquals(2)
     }
 
     @Test

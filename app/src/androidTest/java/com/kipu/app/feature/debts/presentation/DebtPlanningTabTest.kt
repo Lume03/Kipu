@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import com.kipu.app.testing.createSyncNoticeAndroidComposeRule as createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
@@ -92,7 +93,7 @@ class DebtPlanningTabTest {
         }
 
         compose.onNodeWithTag("debt_filter_button").assertIsDisplayed()
-        compose.onNodeWithText("Vence en 4 días").assertIsDisplayed()
+        compose.onNodeWithText("En 4 días").assertIsDisplayed()
         compose.onNodeWithText("Vencida hace 3 días").assertIsDisplayed()
         compose.onNodeWithText("40%").assertIsDisplayed()
     }
@@ -105,13 +106,12 @@ class DebtPlanningTabTest {
                     debts = listOf(debt("d1", DebtObligationType.PAYABLE), debt("d2", DebtObligationType.RECEIVABLE)),
                     selectedType = null, onTypeSelected = {}, onDebtSelected = {},
                     onAddPayable = { created++ }, onAddReceivable = { created++ },
-                    embedded = true, freeLimitReached = true, activeDebtCount = 2,
+                    embedded = true, freeLimitReached = true, activeDebtCount = 2, openRegisterDebt = true,
                 )
             }
         }
 
-        compose.onNodeWithTag("debt_new_chip").performClick()
-        compose.onNodeWithText("Llegaste al límite de tu Plan Básico").assertIsDisplayed()
+        compose.onNodeWithText("Llegaste al límite de tu Plan Free").assertIsDisplayed()
         compose.onNodeWithText("2 de 2 deudas o préstamos activos", substring = true).assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, created) }
     }

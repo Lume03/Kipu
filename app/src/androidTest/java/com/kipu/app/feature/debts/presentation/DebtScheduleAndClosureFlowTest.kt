@@ -130,7 +130,7 @@ class DebtScheduleAndClosureFlowTest {
             )
         }
 
-        compose.onNodeWithText("Las cuotas son planificaci?n: no registran pagos", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Las cuotas son planificación: no registran pagos", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Pendiente").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("33.34", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("debt-schedule-cancel").performScrollTo().performClick()

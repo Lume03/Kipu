@@ -40,12 +40,12 @@ class AuthVisualFlowTest {
         capture("login")
         rule.onNodeWithText("Registrarse").performClick()
         rule.onNode(hasSetTextAction() and hasText("Correo electrónico")).performTextInput("demo@example.com")
-        rule.onNode(hasSetTextAction() and hasText("Contraseña"), useUnmergedTree = true).performTextInput("Password123")
-        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true).performTextInput("Different123")
+        rule.onNode(hasSetTextAction() and hasText("Contraseña")).performTextInput("Password123")
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña")).performTextInput("Different123")
         rule.onNodeWithText("Crear cuenta").performScrollTo().performClick()
         rule.runOnIdle { assertEquals(0, submitted) }
         capture("register-error")
-        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true).performTextReplacement("Password123")
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña")).performTextReplacement("Password123")
         rule.onNodeWithText("Crear cuenta").performScrollTo()
         androidx.test.espresso.Espresso.closeSoftKeyboard()
         rule.onNodeWithText("Kipu").performScrollTo()
@@ -61,7 +61,7 @@ class AuthVisualFlowTest {
                     {}, {}, {}, {}, {}, initialRegisterMode = true)
             }
         } }
-        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true)
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"))
             .performTextInput("Password123")
         androidx.test.espresso.Espresso.closeSoftKeyboard()
         rule.waitForIdle()

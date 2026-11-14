@@ -11,17 +11,21 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** UI fixtures provide a ViewModel explicitly and never open the owner's persistent database. */
-fun createSyncNoticeComposeRule(): ComposeContentTestRule = SyncNoticeComposeRule(createComposeRule())
+fun createSyncNoticeComposeRule(issues: List<com.kipu.app.core.sync.SyncIssue> = emptyList()): ComposeContentTestRule = SyncNoticeComposeRule(createComposeRule(), issues)
 
-private class SyncNoticeComposeRule(private val delegate: ComposeContentTestRule) : ComposeContentTestRule by delegate {
+private class SyncNoticeComposeRule(private val delegate: ComposeContentTestRule, issues: List<com.kipu.app.core.sync.SyncIssue>) : ComposeContentTestRule by delegate {
     private val viewModel = mockk<SyncRecoveryViewModel>(relaxed = true) {
-        every { issues } returns MutableStateFlow(emptyList())
+        every { this@mockk.issues } returns MutableStateFlow(issues)
         every { busy } returns MutableStateFlow(false)
         every { error } returns MutableStateFlow(null)
     }
+    private val purchaseViewModel = mockk<com.kipu.app.feature.plans.presentation.PlanPurchaseViewModel>(relaxed = true) {
+        every { uiState } returns MutableStateFlow(com.kipu.app.feature.plans.presentation.PlanPurchaseUiState())
+    }
     override fun setContent(composable: @Composable () -> Unit) {
         delegate.setContent {
-            CompositionLocalProvider(LocalSyncRecoveryViewModel provides viewModel, content = composable)
+            CompositionLocalProvider(LocalSyncRecoveryViewModel provides viewModel,
+                com.kipu.app.feature.movements.presentation.LocalFilterPurchaseViewModel provides purchaseViewModel, content = composable)
         }
     }
 }

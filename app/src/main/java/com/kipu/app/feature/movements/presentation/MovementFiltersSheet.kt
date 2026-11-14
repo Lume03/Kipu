@@ -8,6 +8,11 @@ import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,6 +67,8 @@ import java.util.Locale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 
+internal val LocalFilterPurchaseViewModel = staticCompositionLocalOf<PlanPurchaseViewModel?> { null }
+
 /** A sheet owns its draft. Closing it never writes applied filters. */
 @Composable
 fun MovementFiltersSheet(
@@ -109,6 +116,7 @@ private fun MovementFiltersSheetContent(
     var showUpsell by remember { mutableStateOf(false) }
     val allowed = state.accessStatus == MovementHistoryAccessDecision.Allowed
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var footerHeightPx by remember { mutableIntStateOf(0) }
 
     fun updateDraft(updated: MovementFilterDraft) {
         draft = updated
@@ -241,6 +249,7 @@ private fun MovementFiltersSheetContent(
                 color = themeColors.surface,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onSizeChanged { footerHeightPx = it.height }
                     .testTag("sticky_filter_footer")
             ) {
                 FlowRow(
@@ -495,13 +504,18 @@ private fun MovementFiltersSheetContent(
             }
         }
     ) {
+        // IME visibility belongs to the sheet window, not its launching activity.
+        val keyboardOpen = WindowInsets.isImeVisible
+        val keyboardBottomPadding = if (keyboardOpen) with(LocalDensity.current) { footerHeightPx.toDp() } + 8.dp else 0.dp
         // Scrollable content body
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(bottom = 8.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = keyboardBottomPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // CARD 1: Periodo y Fecha
@@ -1125,7 +1139,7 @@ private fun MovementFiltersSheetContent(
 
     // MODAL UPSELL KIPU PRO
     if (showUpsell) {
-        val purchaseViewModel: PlanPurchaseViewModel = hiltViewModel()
+        val purchaseViewModel: PlanPurchaseViewModel = LocalFilterPurchaseViewModel.current ?: hiltViewModel()
         val purchaseState by purchaseViewModel.uiState.collectAsStateWithLifecycle()
         val annualOffer = purchaseState.offers.firstOrNull {
             it.product.option == CommercialOption.ANNUAL && !it.product.storeProductId.startsWith("dev:")
@@ -1321,6 +1335,7 @@ private fun LockedAdvancedRow(
 }
 
 /** Shared amount field for the compact and regular filter layouts. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterAmountInput(
     value: String,
@@ -1335,6 +1350,16 @@ private fun FilterAmountInput(
 ) {
     val themeColors = rememberKipuColors()
     val isMasked = LocalBalanceMasked.current
+    val bringIntoView = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val imeHeight = WindowInsets.ime.getBottom(density)
+    LaunchedEffect(focused, imeHeight) {
+        if (focused) {
+            withFrameNanos { }
+            bringIntoView.bringIntoView()
+        }
+    }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -1352,6 +1377,8 @@ private fun FilterAmountInput(
         ),
         shape = RoundedCornerShape(10.dp),
         modifier = modifier
+            .bringIntoViewRequester(bringIntoView)
+            .onFocusChanged { focused = it.isFocused }
             .testTag(testTag)
             .privateAmount(isMasked, enabled, hiddenDescription, onValueChange),
     )

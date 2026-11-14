@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -85,7 +86,7 @@ class MovementRefundScreenTest {
         }
 
         compose.onNodeWithTag("detail_void_rejected_refund").performScrollTo().assertIsDisplayed().performClick()
-        compose.onNodeWithText("La compra original y su fecha permanecerán intactas.").assertIsDisplayed()
+        compose.onNodeWithText("Se revertirá solo este reembolso. La compra original y su fecha permanecerán intactas.").assertIsDisplayed()
         compose.onNodeWithText("Anular reembolso").performClick()
         assertTrue(voided)
     }
@@ -116,7 +117,7 @@ class MovementRefundScreenTest {
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("refund_remaining_amount").assertContentDescriptionEquals("Monto oculto")
         compose.onNodeWithTag("refund_amount_input").assertContentDescriptionEquals("Importe oculto")
-        compose.onNodeWithTag("refund_amount_input").performTextInput("25.00")
+        compose.onNodeWithTag("refund_amount_input").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString("25.00")) }
         compose.onNodeWithTag("btn_confirm_refund").performClick()
 
         assertEquals(2_500L, submittedAmount)

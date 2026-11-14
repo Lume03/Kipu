@@ -7,6 +7,7 @@ import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.kipu.app.feature.debts.domain.model.DebtLifecycleStatus
@@ -87,6 +88,7 @@ class PayableDebtFlowTest {
         }
 
         compose.onNodeWithTag("debt-due-date-calendar").performScrollTo().performClick()
+        compose.onNode(androidx.compose.ui.test.hasText("15", substring = true) and androidx.compose.ui.test.hasClickAction()).performClick()
         compose.onNodeWithTag("debt-due-date-confirm").performClick()
         org.junit.Assert.assertNotNull(state.value.dueDate)
         assertEquals(state.value.dueDate.toString(), state.value.dueDateInput)
@@ -106,10 +108,15 @@ class PayableDebtFlowTest {
             )
         }
 
-        compose.onNodeWithText("Editar datos").performClick()
-        compose.onNodeWithText("Apertura histórica").assertIsDisplayed()
-        compose.onNodeWithText("Eliminar deuda").assertIsNotEnabled()
-        compose.onNodeWithText("El saldo pendiente, la apertura y cualquier movimiento se conservan como historial auditable para cumplimiento y control.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Más opciones").performClick()
+        compose.onNodeWithTag("debt_action_edit").performClick()
+        compose.onNodeWithText("Saldo pendiente").assertIsDisplayed()
+        compose.onNodeWithText("S/ 40.00").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Más opciones").performClick()
+        compose.onNodeWithTag("debt_action_manage").performScrollTo().performClick()
+        compose.onNodeWithText("Historial protegido").assertIsDisplayed()
+        compose.onNodeWithTag("confirm-delete-debt").assertIsNotEnabled()
+        compose.onNodeWithText("Tiene movimientos. Para resolverla, usa Cerrar deuda.").assertIsDisplayed()
 
         assertEquals(1, edits)
         assertEquals(0, deletes)
@@ -128,7 +135,8 @@ class PayableDebtFlowTest {
             )
         }
 
-        compose.onNodeWithText("Eliminar deuda").performClick()
+        compose.onNodeWithContentDescription("Más opciones").performClick()
+        compose.onNodeWithTag("debt_action_manage").performScrollTo().performClick()
         compose.onNodeWithText("¿Eliminar esta deuda?").assertIsDisplayed()
         assertEquals(0, deletes)
         compose.onNodeWithTag("confirm-delete-debt").performClick()

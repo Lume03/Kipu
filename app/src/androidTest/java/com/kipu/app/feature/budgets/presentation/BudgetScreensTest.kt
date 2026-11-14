@@ -170,10 +170,10 @@ class BudgetScreensTest {
         // Las estadísticas conservan grupos accesibles propios dentro de la tarjeta.
         val card = compose.onNodeWithTag("budget_card_b1")
         card.assertIsDisplayed()
-        compose.onNodeWithTag("budget_limit").assertTextContains("500.00", substring = true)
-        compose.onNodeWithTag("budget_consumed").assertTextContains("120.00", substring = true)
-        compose.onNodeWithTag("budget_remaining").assertTextContains("380.00", substring = true)
-        compose.onNodeWithTag("budget_remaining").assertTextContains("Restante", substring = true)
+        compose.onNodeWithTag("budget_limit", useUnmergedTree = true).assertTextContains("500.00", substring = true)
+        compose.onNodeWithTag("budget_consumed", useUnmergedTree = true).assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("120.00", substring = true)))
+        compose.onNodeWithTag("budget_remaining", useUnmergedTree = true).assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("380.00", substring = true)))
+        compose.onNodeWithTag("budget_remaining", useUnmergedTree = true).assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("Restante", substring = true)))
         card.assertContentDescriptionContains("Consumido 24 %", substring = true)
     }
 
@@ -196,8 +196,8 @@ class BudgetScreensTest {
             )
         }
         val card = compose.onNodeWithTag("budget_card_b1")
-        compose.onNodeWithTag("budget_remaining").assertTextContains("Te pasaste", substring = true)
-        compose.onNodeWithTag("budget_remaining").assertTextContains("100.00", substring = true)
+        compose.onNodeWithTag("budget_remaining", useUnmergedTree = true).assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("Te pasaste", substring = true)))
+        compose.onNodeWithTag("budget_remaining", useUnmergedTree = true).assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("100.00", substring = true)))
         card.assertContentDescriptionContains("Excedido por", substring = true)
     }
 
@@ -229,21 +229,21 @@ class BudgetScreensTest {
     fun thirdActiveBudgetOnFreeExplainsLimitAndOffersPlansWithoutCreating() {
         var created = false
         var plans = false
+        var requestCreate by mutableStateOf(false)
         val atLimit = BudgetQuotaState(activeCount = 2, limit = 2, isPremium = false)
         compose.setContent {
             BudgetListScreen(
-                BudgetListUiState.Content(listOf(item("a"), item("b")), atLimit), {}, { created = true }, {}, {}, { plans = true },
+                BudgetListUiState.Content(listOf(item("a"), item("b")), atLimit), {}, { created = true }, {}, {}, { plans = true }, createRequested = requestCreate,
             )
         }
         compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_card_a"))
         compose.onNodeWithTag("budget_card_a").assertIsDisplayed()
         compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_card_b"))
         compose.onNodeWithTag("budget_card_b").assertIsDisplayed()
-        compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_create_button"))
-        compose.onNodeWithTag("budget_create_button").performScrollTo().performClick()
+        compose.runOnIdle { requestCreate = true }
         compose.runOnIdle { assertFalse(created) }
         compose.onNodeWithTag("budget_quota_dialog").assertIsDisplayed()
-        compose.onNodeWithText("No se borró ni se ocultó ninguno", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Tienes 2 de 2 presupuestos activos. Finaliza uno para crear otro.").assertIsDisplayed()
         compose.onNodeWithText("Ver planes").performClick()
         compose.runOnIdle {
             assertTrue(plans)
@@ -321,7 +321,7 @@ class BudgetScreensTest {
             BudgetListScreen(BudgetListUiState.Content(listOf(finished), BudgetQuotaState(0, 2, false)), {}, {}, {}, {}, {})
         }
         compose.onNodeWithTag("budget_empty").assertIsDisplayed()
-        compose.onNodeWithTag("budget_create_button").assertIsDisplayed()
+        compose.onNodeWithTag("budget_archived_entry").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("budget_card_closed").assertDoesNotExist()
         compose.onNodeWithTag("budget_archived_entry").performScrollTo().performClick()
         compose.onNodeWithTag("budget_card_closed").performScrollTo().assertIsDisplayed()
@@ -421,10 +421,11 @@ class BudgetScreensTest {
     fun deleteDialogDistinguishesPlanningFromMovementsAndCancelChangesNothing() {
         var deleted = 0
         compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, { deleted++ }, {}) }
-        compose.onNodeWithTag("budget_delete").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithTag("budget_sheet_delete").performScrollTo().performClick()
         compose.onNodeWithTag("budget_delete_dialog").assertIsDisplayed()
-        compose.onNodeWithText("irreversible", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("NO se borra ningún movimiento", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Esta acción no se puede deshacer.").assertIsDisplayed()
+        compose.onNodeWithText("Se elimina el presupuesto y su historial de periodos. No se borran movimientos ni cuentas.").assertIsDisplayed()
         compose.onNodeWithTag("budget_delete_cancel").performClick()
         compose.onNodeWithTag("budget_delete_dialog").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, deleted) }
@@ -435,7 +436,8 @@ class BudgetScreensTest {
     fun deleteConfirmationInvokesDeleteOnce() {
         var deleted = 0
         compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, { deleted++ }, {}) }
-        compose.onNodeWithTag("budget_delete").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithTag("budget_sheet_delete").performScrollTo().performClick()
         compose.onNodeWithTag("budget_delete_confirm").performClick()
         compose.runOnIdle { assertEquals(1, deleted) }
     }
@@ -444,11 +446,13 @@ class BudgetScreensTest {
     fun finishRequiresConfirmationAndCancelKeepsBudgetActive() {
         var finished = 0
         compose.setContent { BudgetDetailScreen(detail(), {}, {}, { finished++ }, {}, {}) }
-        compose.onNodeWithTag("budget_finish").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithText("Finalizar").performScrollTo().performClick()
         compose.onNodeWithTag("budget_finish_dialog").assertIsDisplayed()
         compose.onNodeWithTag("budget_finish_cancel").performClick()
         compose.runOnIdle { assertEquals(0, finished) }
-        compose.onNodeWithTag("budget_finish").performScrollTo().performClick()
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithText("Finalizar").performScrollTo().performClick()
         compose.onNodeWithTag("budget_finish_confirm").performClick()
         compose.runOnIdle { assertEquals(1, finished) }
     }
@@ -459,7 +463,8 @@ class BudgetScreensTest {
         compose.onNodeWithTag("budget_edit").assertDoesNotExist()
         compose.onNodeWithTag("budget_finish").assertDoesNotExist()
         compose.onNodeWithTag("budget_history").assertExists()
-        compose.onNodeWithTag("budget_delete").assertExists()
+        compose.onNodeWithTag("budget_actions").performClick()
+        compose.onNodeWithTag("budget_sheet_delete").assertExists()
     }
 
     @Test
@@ -467,7 +472,7 @@ class BudgetScreensTest {
         compose.setContent { BudgetDetailScreen(detail(), {}, {}, {}, {}, {}) }
         compose.onNodeWithContentDescription("Volver").assertIsDisplayed()
         compose.onNodeWithContentDescription("Acciones del presupuesto").performClick()
-        compose.onNodeWithText("Editar").assertIsDisplayed()
+        compose.onNode(androidx.compose.ui.test.hasText("Editar") and androidx.compose.ui.test.hasAnyAncestor(hasTestTag("budget_actions_sheet"))).assertIsDisplayed()
     }
 
     @Test

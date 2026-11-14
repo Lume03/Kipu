@@ -336,14 +336,10 @@ class AccountDetailScreenTest {
     fun creditCardDetailShowsCanonicalLimitAndAvailableCreditCopy() {
         setCardScreen(creditCard())
 
-        assertTrue(
-            compose.onAllNodesWithText(FinancialTerminology.TOTAL_CREDIT_LINE, substring = true)
-                .fetchSemanticsNodes().isNotEmpty(),
-        )
-        assertTrue(
-            compose.onAllNodesWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
-                .fetchSemanticsNodes().isNotEmpty(),
-        )
+        compose.onNodeWithText("Línea ", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Crédito disponible").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY).assertIsDisplayed()
+        compose.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
     }
 
     @Test

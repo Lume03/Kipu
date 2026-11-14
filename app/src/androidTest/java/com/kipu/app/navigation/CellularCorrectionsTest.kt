@@ -114,7 +114,7 @@ class CellularCorrectionsTest {
             backingAccounts = listOf(GoalBackingAccount("bank", "Cuenta de prueba", Currency.PEN, balance, zero, balance, zero)), isLoading = false)
         compose.setContent { KipuTheme(darkTheme = false) { GoalDetailScreen(state, {}, {}, { _, _, _ -> }, { _, _, _ -> }, {}) } }
         compose.onNodeWithText("Respaldo real").assertIsDisplayed()
-        compose.onNodeWithText("Avance 0%").assertIsDisplayed()
+        compose.onNodeWithContentDescription("0 % reservado").assertIsDisplayed()
         capture("detalle-meta-claro")
     }
 

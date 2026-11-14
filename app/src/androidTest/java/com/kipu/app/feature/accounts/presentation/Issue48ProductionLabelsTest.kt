@@ -1,5 +1,7 @@
 package com.kipu.app.feature.accounts.presentation
 
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsDisplayed
 import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -83,12 +85,14 @@ class Issue48ProductionLabelsTest {
             ),
         )
         every { viewModel.creditNotifications } returns MutableStateFlow(emptyList())
+        every { viewModel.creditNotificationsError } returns MutableStateFlow(null)
         every { viewModel.isMasked } returns MutableStateFlow(false)
 
         compose.setContent {
             KipuTheme {
                 DashboardScreen(
                     viewModel = viewModel,
+                    profileViewModel = mockk<com.kipu.app.feature.accounts.presentation.dashboard.DashboardProfileViewModel> { every { displayName } returns MutableStateFlow(null) },
                     onNavigateToNewAccount = {},
                     onNavigateToNewCard = {},
                 )
@@ -99,14 +103,13 @@ class Issue48ProductionLabelsTest {
         compose.onNodeWithText(
             "Dinero propio en cuentas y efectivo \u00B7 No incluye cr\u00E9dito",
         ).assertIsDisplayed()
-        compose.onNodeWithText("Plan Básico · 2 de 4 cuentas y tarjetas")
-            .performScrollTo()
-            .assertIsDisplayed()
+        compose.onNodeWithTag("dashboard_hero").assert(androidx.compose.ui.test.hasAnyDescendant(androidx.compose.ui.test.hasText("S/ 2,300.00")))
+        compose.onNodeWithText("Plan Básico · 2 de 4 cuentas y tarjetas").assertDoesNotExist()
         compose.onNodeWithText("Tarjetas de cr\u00E9dito")
             .performScrollTo()
             .assertIsDisplayed()
         assertTrue(
-            compose.onAllNodesWithText(FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY)
+            compose.onAllNodesWithText("Crédito disponible")
                 .fetchSemanticsNodes()
                 .isNotEmpty(),
         )
