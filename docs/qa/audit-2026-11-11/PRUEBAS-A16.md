@@ -366,3 +366,107 @@ La validación de propagación hacia un segundo dispositivo queda **pendiente de
 - Sin código de producción modificado, sin SQL/MCP Supabase, desinstalaciones, borrado de datos, commits ni push. Se conservaron los **15 androidTest modificados** existentes, listados arriba; esta continuación no añadió arreglos de tests.
 - Pendientes externos: bloqueo/biometría no disponible en este teléfono, privacidad en release, propagación con **2 teléfonos** y certificación anterior/posterior de migración 40→41 por falta de evidencia previa. Cuatro clases instrumentadas siguen parciales por TIMEOUT, con las causas documentadas. Los cinco bugs reales quedan reportados para corrección posterior.
 
+## Nueva prueba tras FIX-A16 (2026-11-14)
+
+**Repetición cerrada con fallos pendientes; no constituye aprobación global de la rama.**
+
+La primera instalación y las 57 clases instrumentadas corresponden a `4253bffa`. Durante la prueba real se encontró un nuevo fallo al leer el reembolso ya sincronizado; se informó al coordinador y se conservó el caso hasta recibir su corrección `6e82e7d3`. Por instrucción expresa del coordinador se instaló después esa revisión y se verificaron el historial, ambos detalles y la limpieza financiera. No se repitieron las clases verdes después de esa instalación; esta distinción limita el alcance de cada evidencia.
+
+Se usó exclusivamente el adb del SDK con `-s RFGL70J9E2T`. Instalación inicial mediante `gradlew.bat :app:installDebug :app:installDebugAndroidTest`; instalación adicional autorizada mediante `:app:installDebug`, ambas BUILD SUCCESSFUL y conservando los datos. Se ejecutó `am force-stop com.kipu.app` después de instalar. No se usaron tareas connected, desinstalaciones, `pm clear`, acceso SQL manual ni MCP Supabase. Este despacho no modificó producción ni tests y no hizo commits ni push; el commit adicional fue entregado por el coordinador.
+
+FIX-A16 no incorpora migración Room: sigue en **41**, sin 41→42. Se guardó además `FIX-backup-before-open.tar` antes de la apertura explícita: **31.163.904 bytes, 117 entradas, TAR legible y encabezado de kipu.db 41**. No hubo restauración. La primera apertura conserva sesión y los saldos del informe anterior; no se tomó una captura inmediatamente anterior a esta instalación. La corrección adicional tampoco cambia el esquema.
+
+Las evidencias `FIX-*` y `FIXH-*` se encuentran en el mismo scratch privado `C:\Users\Alume\AppData\Local\Temp\kipu-a16-20261114`; contienen datos del dueño y no se versionaron. Inventario y resultados: `FIX-selected.json`, `FIX-results.json` y `FIX-reviewed-results.json`. Instalaciones: `FIX-install.txt` y `FIX-HISTORY-install.txt`.
+
+| Caso | Antes | Ahora | Evidencia |
+|---|---|---|---|
+| A16-05: compra directa S/4 y reembolso S/1 | Reembolso rechazado como no elegible | **PASS tras corrección adicional del historial.** Compra y reembolso muestran Sincronizado; detalle de ambos abre. Deuda 0→4→3; al anular reembolso 4 y al anular compra 0, crédito disponible 1.000. | `FIX-cards.png`, `FIX-purchase-detail.png`, `FIX-card-post-refund.png`, `FIXH-search-both.png`, `FIXH-refund-detail.png`, `FIXH-purchase-detail.png`, `FIXH-card-debt4.png`, `FIXH-card-debt0.png` |
+| A16-04: apertura 100→200→300 | Segunda vista previa +200 y 200→400, aunque guardaba 300 | **PASS.** Apertura efectiva registrada 200; diferencia +100 y saldo 200→300. Guarda 300. Se corrigió después a cero y se archivó QA-apertura2. | `FIX-account-100.png`, `FIX-correct300-preview.png`, `FIX-account-300.png`, `FIX-zero-ready.png`, `FIX-apertura-archived.png`, `FIXH-archived-list.png` |
+| A16-01: Fallo histórico | Filas FAILED excluidas globalmente; test fallaba | **PASS.** El filtro real devuelve una fila histórica del 5/11 con No se pudo sincronizar; al reabrir muestra contador 1. Se conservó esa fila preexistente. MovementHistoryQueryTest pasa 11 casos, incluido el mapeo de estados financieros. | `FIXH-failed-result-stable.png`, `FIXH-failed-count-reopened.png`, `FIX-com.kipu.app.feature.movements.data.local.MovementHistoryQueryTest.txt` |
+| A16-02: Máximo y acciones con teclado | Máximo recortado en viewport compacto oscuro, fontScale 1.6 | **SIGUE FALLANDO** el método solicitado: separación 0,91428 dp frente a los 8 dp exigidos y recorte inferior visible. Con fuente normal 0.9, la captura manual con teclado sí muestra Máximo completo y acciones visibles. | `FIX-compact-before-clearance-check.png`, `FIX-filter-keyboard-max.png`, `FIX-com.kipu.app.feature.movements.presentation.MovementFiltersIssue19Test.txt` |
+| A16-03: 10.000 movimientos | p95 1.692 ms; repetición 1.391 ms, presupuesto 300 ms | **PASS** de los dos métodos instrumentados, incluido p95 <300 ms y paginación de 1.000 IDs sin duplicados. La salida verde no imprime el valor exacto ni las 20 muestras: se certifica el límite, no se inventa una cifra puntual. | `FIX-com.kipu.app.feature.movements.presentation.MovementHistoryPerformanceTest.txt` |
+| Scroll del historial real | Sin nueva medición comparable en el informe anterior | Responde a tres gestos y sigue mostrando filas, sin pantalla vacía ni error de historial. gfxinfo debug: 484 cuadros, p95 de cuadro 29 ms; janky actual 3 (0,62%), legacy 108 (22,31%). Es una comprobación del scroll; no es el p95 de consulta anterior. | `FIXH-scroll-start.png`, `FIXH-scroll-1.png`, `FIXH-scroll-2.png`, `FIXH-scroll-3.png`, `FIXH-scroll-gfxinfo.txt` |
+| Fallo nuevo: historial tras reembolso sincronizado | No registrado en la prueba anterior, que rechazaba el reembolso | En 4253bffa aparece No pudimos cargar el historial / IllegalArgumentException después de sincronizar el reembolso. **Resuelto en dispositivo con 6e82e7d3:** historial, búsqueda, detalles y anulaciones funcionan. | `FIX-refund-result.png`, `FIX-after-retry.png`, `FIX-logcat-refund.txt`, `FIXH-history.png`, `FIXH-search-both.png`, `FIXH-refund-detail.png`, `FIXH-purchase-detail.png` |
+| Estabilidad | Prueba anterior contenía FATAL de fixtures Hilt | **Sin FATAL EXCEPTION de com.kipu.app durante esta repetición.** Hubo 21 errores recuperables History read failed antes del arreglo adicional; desde el marcador de las 15:39:18 hay cero History read failed y cero FATAL. Intervalo total: 15:18:25-15:47:44. | `FIX-stability-logcat.txt`, `FIX-stability-filtered.txt`, `FIX-stability-summary.json` |
+
+### Clases de Fase A repetidas
+
+Se volvieron a ejecutar las **55 clases** marcadas TEST ROTO/MIXTO, incluidas las que ya habían pasado tras ajustes de la prueba anterior: **32 PASS, 20 FAIL y 3 omitidas por variante lab**, sin timeouts. Junto a MovementHistoryQueryTest y al método compacto de MovementFiltersIssue19Test son **57 clases: 33 PASS, 21 FAIL y 3 omitidas**. No se ejecutaron las 19 clases prohibidas del inventario previo ni una suite global indiscriminada.
+
+Cada fila tiene su salida completa en `FIX-<FQCN>.txt`; el FQCN y la duración están en `FIX-reviewed-results.json`. FAIL significa que la clase no queda aprobada aunque algunos métodos pasen. Los tres tests lab imprimen OK desde el runner, pero su @Before usa Assume para omitir los cuerpos en com.kipu.app: aquí se cuentan como OMITIDOS. En SyncCategoryCommandsWorkerTest hay errores explícitos y no hay resumen final completo; no se certifican los métodos restantes.
+
+| Clase | Antes | Ahora | Detalle |
+|---|---|---|---|
+| `MovementHistoryPerformanceTest` | FAIL | PASS | OK (2 tests). |
+| `DashboardEmptyStateTest` | FAIL | PASS | OK (7 tests). |
+| `DashboardFinancialMessagingTest` | FAIL | PASS | OK (3 tests). |
+| `DashboardRedesignStatesTest` | FAIL | PASS | OK (8 tests). |
+| `MovementRoomMigrationTest` | FAIL | PASS | OK (10 tests). |
+| `LocalLockScreenTest` | PASS tras fixture/texto | PASS | OK (2 tests). |
+| `SyncInstrumentCommandsWorkerTest` | PASS tras fixture/texto | PASS | OK (7 tests). |
+| `FinancialRejectionCompensationTest` | PASS tras fixture/texto | PASS | OK (2 tests). |
+| `AccountDetailScreenTest` | TIMEOUT | FAIL | 1 error(es) explícito(s); primero: `creditCardDetailShowsCanonicalLimitAndAvailableCreditCopy`. |
+| `AccountPresetScreenshotTest` | TIMEOUT | PASS | OK (12 tests). |
+| `Issue48ProductionLabelsTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `populatedDashboardRouteUsesEpCtaFinancialLabels`. Host sin Hilt. |
+| `AuthVisualFlowTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `loginAndRegistrationRenderAndValidateConfirmation`. |
+| `BudgetCrudFinancialIsolationIntegrationTest` | PASS tras fixture/texto | PASS | OK (1 tests). |
+| `BudgetHierarchyAlertsIntegrationTest` | PASS tras fixture/texto | PASS | OK (1 tests). |
+| `OfflineFirstBudgetRepositoryRoomTest` | PASS tras fixture/texto | PASS | OK (3 tests). |
+| `BudgetTombstoneReplayIntegrationTest` | FAIL | PASS | OK (2 tests). |
+| `BudgetScreensTest` | TIMEOUT | FAIL | 8 error(es) explícito(s); primero: `deleteConfirmationInvokesDeleteOnce`. |
+| `SyncCategoryCommandsWorkerTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `workerDispatchesSourceAliasAndPreferenceCommandsAndAdvancesLocalRevisions`. Sin resumen final. |
+| `CategoriesScreenTest` | FAIL | PASS | OK (10 tests). |
+| `PickerSettingsDeviceTest` | FAIL | PASS | OK (2 tests). |
+| `DebtChangeFeedTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `nonIncreasingSequenceRejectsWholePageWithoutPartialWrites`. |
+| `DebtMovementDetailTest` | FAIL | PASS | OK (3 tests). |
+| `DebtPlanningTabTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `withRecordsTheListShowsTotalsCountsAndDueSoonInstallment`. |
+| `DebtScheduleAndClosureFlowTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `scheduledInstallmentIsClearlyNotAPaymentAndReminderOpensItsDebt`. |
+| `DebtSettlementFlowTest` | FAIL | FAIL | 3 error(es) explícito(s); primero: `payableSheetKeepsPrincipalAndInterestSeparateWhenSubmitting`. |
+| `PayableDebtFlowTest` | FAIL | FAIL | 3 error(es) explícito(s); primero: `dueDateFieldRetainsInputAndParsesACompleteDate`. |
+| `GoalContributionFlowTest` | PASS tras fixture/texto | PASS | OK (4 tests). |
+| `GoalLifecycleFlowTest` | TIMEOUT | FAIL | 1 error(es) explícito(s); primero: `synchronizationConflictOffersAllThreeResolutionOptions`. |
+| `GoalManagementFlowTest` | FAIL | FAIL | 5 error(es) explícito(s); primero: `freePlanShowsItsTwoGoalLimitAndHidesCreateActionAtQuota`. |
+| `MovementRevisionLocalTest` | FAIL | PASS | OK (7 tests). |
+| `SyncMovementsWorkerTest` | PASS tras fixture/texto | PASS | OK (28 tests). |
+| `MovementRefundBudgetIntegrationTest` | PASS tras fixture/texto | PASS | OK (2 tests). |
+| `Issue48ProductionCreditLabelsTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `creditCardDetailShowsAndExposesTheProductionFinancialLabels`. |
+| `MovementDetailCorrectionsTest` | FAIL | PASS | OK (1 tests). |
+| `MovementHistoryScreenTest` | FAIL | PASS | OK (11 tests). |
+| `MovementRefundScreenTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `showsPurchaseAndRefundPeriodsMasksMoneyAndSubmitsMinorUnits`. |
+| `MovementSwipeReceiptsTest` | FAIL | PASS | OK (7 tests). |
+| `MovementUxRefinementTest` | FAIL | PASS | OK (11 tests). |
+| `QuickMovementScreenTest` | PASS tras fixture/texto | PASS | OK (7 tests). |
+| `NotificationActionsTest` | PASS tras fixture/texto | PASS | OK (6 tests). |
+| `NotificationCenterScreenTest` | PASS tras fixture/texto | PASS | OK (5 tests). |
+| `PlanPurchaseScreenTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `processingToVerifiedKeepsStatusCardAnchoredAndPriceShimmerReservesSpace`. |
+| `ReceiptCandidateRoomTest` | FAIL | PASS | OK (5 tests). |
+| `ReceiptEvidenceTest` | FAIL | OMITIDO (requiere lab) | Asunción JUnit: requiere com.kipu.app.lab; cuerpo omitido. |
+| `RecurrenceLifecycleFlowTest` | FAIL | FAIL | 2 error(es) explícito(s); primero: `resumeShowsFutureDateAndBackOutSendsNoCommand`. |
+| `RecurrenceRegistrationFlowTest` | FAIL | PASS | OK (8 tests). |
+| `SyncProfilePreferencesWorkerTest` | FAIL | PASS | OK (3 tests). |
+| `PermissionsScreenTest` | FAIL | PASS | OK (4 tests). |
+| `SetupEvidenceTest` | FAIL | OMITIDO (requiere lab) | Asunción JUnit: requiere com.kipu.app.lab; cuerpo omitido. |
+| `StatementEvidenceTest` | FAIL | OMITIDO (requiere lab) | Asunción JUnit: requiere com.kipu.app.lab; cuerpo omitido. |
+| `CellularCorrectionsTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `lightGoalDetailGroupsProgressAndBackingIntoCards`. |
+| `ObjectSourceNavigationTest` | FAIL | PASS | OK (4 tests). |
+| `OptionalDateFormsTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `debtEditCalendarAndClearReachSave`. |
+| `PlanningVisualEvidenceTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `inspectReferenceStatesInBothThemesAndWithLargeLongText`. |
+| `ThemeScreenEvidenceTest` | FAIL | FAIL | 1 error(es) explícito(s); primero: `captureCorrectedScreensInBothThemes`. Host sin Hilt. |
+
+
+### Pendientes y límites
+
+- **A16-02 continúa abierto** en viewport compacto oscuro y fontScale 1.6. Campo bottom=281,6 dp; footer top=282,51428 dp. La captura del test sigue mostrando el borde inferior de Máximo recortado. No se rebajó la separación ni se modificó el test para hacerlo pasar.
+- **20 clases de Fase A siguen fallando**, detalladas arriba. Persisten errores de host Hilt, selectores/textos/interacciones y expectativas de fixtures. Su diagnóstico completo y corrección quedan pendientes; los fallos no se convierten automáticamente en decisiones de producto ni en aprobación de la implementación.
+- Observación adicional de UI: la fila del reembolso y los diálogos de anulación de operaciones de tarjeta usan la etiqueta genérica Cuenta; estos últimos muestran No hay una cuenta disponible para proyectar este movimiento. Los detalles sí identifican UX-tarjeta y las anulaciones restituyen correctamente la deuda. Evidencia: `FIXH-search-both.png`, `FIXH-refund-delete-dialog.png`, `FIXH-purchase-delete-dialog.png`. Queda pendiente revisar esta presentación.
+- El fallo de lectura del historial encontrado durante esta sesión queda **resuelto en la comprobación manual de 6e82e7d3**. El informe de su corrección es `FIX-HISTORY-delivery.md`; no se atribuye su autoría a este despacho.
+- No se modificó ningún test en esta repetición: **lista de arreglos de fixtures/textos vacía**. Las clases lab conservan su restricción; no se afirma validación de sus cuerpos.
+- Se mantienen fuera del alcance la propagación con dos teléfonos, bloqueo/biometría y validación release. No se consultó el servidor mediante SQL/MCP ni se deduce su despliegue a partir de las migraciones locales.
+
+### Estado final del teléfono
+
+- Sesión iniciada y dashboard visible. Disponible **S/ 584.29**, BCP **S/ 372.71**, efectivo **S/ 211.58**, iguales a la primera apertura y al informe anterior. UX-tarjeta: deuda **S/ 0**, disponible **S/ 1.000**.
+- QA-apertura2 se llevó a cero y se archivó; está fuera de cuentas activas y no aporta al saldo. Se conserva su historial contable. Compra QA-reembolso y reembolso anulados por UI, con impacto financiero cero; sus registros permanecen visibles como Anulado para auditoría. No se borraron físicamente datos ni se modificaron registros QA/UX anteriores.
+- Escalas de animación restauradas y leídas en **1.0** para animator, transition y window. Se usó 0 durante la pasada instrumentada y 1.0 en la comprobación final. Fuente **0.9**, sin cambios. Modo avión **0**. No se cambiaron credenciales, bloqueo ni preferencias de privacidad.
+- Logs privados filtrados desde FIX_A16_START y, por separado, FIX_HISTORY_START_6e82e7d3. Los FATAL antiguos del buffer, anteriores al marcador de esta sesión, se excluyen del dictamen actual sin borrarlos de la evidencia original.
+- Evidencia final: `FIXH-final-dashboard.png`, `FIXH-card-debt0.png`, `FIXH-archived-list.png`, `FIXH-archived-zero-detail.png`, `FIXH-final-settings.json`, `FIX-stability-summary.json`.
