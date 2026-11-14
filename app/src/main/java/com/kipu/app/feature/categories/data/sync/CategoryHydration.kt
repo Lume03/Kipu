@@ -19,6 +19,8 @@ class CategoryHydration @javax.inject.Inject constructor(
     private val merchantDao: MerchantCatalogDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val applicationContext: Context,
     private val api: CategoriesApi,
+    private val merchantRulesDao: com.kipu.app.feature.categories.data.local.MerchantRulesDao,
+    private val transactionRunner: com.kipu.app.core.database.DatabaseTransactionRunner,
 ) {
     private fun parseRemoteInstant(value: String): Instant = OffsetDateTime.parse(value).toInstant()
 
@@ -30,6 +32,7 @@ class CategoryHydration @javax.inject.Inject constructor(
     suspend fun hydrateFully(userId: String): Boolean {
         hydrateCategories(userId)
         hydrateMerchantCatalog(full = true)
+        hydrateMerchantRules(userId)
         return true
     }
     suspend fun hydrateCategories(userId: String) {
@@ -117,6 +120,42 @@ class CategoryHydration @javax.inject.Inject constructor(
             throw e
         } catch (e: Exception) {
             throw e
+        }
+    }
+
+    suspend fun hydrateMerchantRules(userId: String) {
+        val aliases = when (val response = api.fetchMerchantAliasRules(userId)) {
+            is CategoryApiResponse.Success -> response.data
+            else -> throw java.io.IOException("MERCHANT_ALIAS_FETCH_FAILED")
+        }
+        val preferences = when (val response = api.fetchMerchantPreferences(userId)) {
+            is CategoryApiResponse.Success -> response.data
+            else -> throw java.io.IOException("MERCHANT_PREFERENCE_FETCH_FAILED")
+        }
+        transactionRunner {
+            val pending = categoryDao.getUnresolvedCommands(userId)
+            for (remote in aliases.filter { it.userId == userId }) {
+                val local = merchantRulesDao.getAliasRule(userId, remote.id)
+                if (pending.any { it.aggregateType == "MERCHANT_ALIAS_RULE" && it.aggregateId == remote.id } ||
+                    (local != null && (local.syncState != "SYNCED" || local.remoteRevision > remote.revision))) continue
+                merchantRulesDao.upsertAliasRule(com.kipu.app.feature.categories.data.local.MerchantAliasRuleEntity(
+                    id = remote.id, userId = userId, normalizedPattern = remote.normalizedPattern,
+                    merchantId = remote.merchantId, remoteRevision = remote.revision,
+                    deletedAt = remote.deletedAt?.let { parseRemoteInstant(it).toEpochMilli() },
+                    updatedAt = parseRemoteInstant(remote.updatedAt).toEpochMilli(), syncState = "SYNCED",
+                ))
+            }
+            for (remote in preferences.filter { it.userId == userId }) {
+                val local = merchantRulesDao.getPreference(userId, remote.merchantId)
+                if (pending.any { it.aggregateType == "MERCHANT_CATEGORY_PREFERENCE" && it.aggregateId == remote.merchantId } ||
+                    (local != null && (local.syncState != "SYNCED" || local.remoteRevision > remote.revision))) continue
+                merchantRulesDao.upsertPreference(com.kipu.app.feature.categories.data.local.MerchantCategoryPreferenceEntity(
+                    id = remote.id, userId = userId, merchantId = remote.merchantId,
+                    categoryId = remote.categoryId, remoteRevision = remote.revision,
+                    deletedAt = remote.deletedAt?.let { parseRemoteInstant(it).toEpochMilli() },
+                    updatedAt = parseRemoteInstant(remote.updatedAt).toEpochMilli(), syncState = "SYNCED",
+                ))
+            }
         }
     }
 

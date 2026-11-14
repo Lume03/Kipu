@@ -3,7 +3,7 @@ package com.kipu.app.feature.debts.presentation
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
@@ -86,10 +86,10 @@ class PayableDebtFlowTest {
             )
         }
 
-        compose.onNodeWithTag("debt-due-date").performTextInput("2026-11-10")
-
-        assertEquals("2026-11-10", state.value.dueDateInput)
-        assertEquals(LocalDate.parse("2026-11-10"), state.value.dueDate)
+        compose.onNodeWithTag("debt-due-date-calendar").performScrollTo().performClick()
+        compose.onNodeWithTag("debt-due-date-confirm").performClick()
+        org.junit.Assert.assertNotNull(state.value.dueDate)
+        assertEquals(state.value.dueDate.toString(), state.value.dueDateInput)
     }
 
     @Test

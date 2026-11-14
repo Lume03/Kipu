@@ -3,7 +3,7 @@ package com.kipu.app.feature.movements.presentation
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -74,7 +74,7 @@ class Issue48ProductionCreditLabelsTest {
 
         val cardRow = compose.onNodeWithTag("card_item_${card.id.value}")
         cardRow.assertIsDisplayed().assertHasClickAction()
-        compose.onNodeWithText("Créd. disp.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Crédito disponible", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Usado:", substring = true).assertIsDisplayed()
         compose.onNodeWithContentDescription(
             "Crédito disponible, no es dinero propio:",

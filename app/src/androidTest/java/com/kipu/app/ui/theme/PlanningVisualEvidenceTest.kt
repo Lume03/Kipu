@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.unit.Density
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.core.finance.domain.model.Currency

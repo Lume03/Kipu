@@ -134,8 +134,9 @@ class BudgetTombstoneReplayIntegrationTest {
             assertTrue(worker.doWork() is ListenableWorker.Result.Success)
             val commands = database.budgetDao().allOutbox(ownerId)
             assertEquals("BUDGET_QUOTA_EXCEEDED", commands.single { it.commandType == "UPSERT_BUDGET" }.errorCode)
-            assertEquals("PARENT_COMMAND_FAILED", commands.single { it.commandType == "UPSERT_PERIOD" }.errorCode)
-            assertTrue(commands.all { it.state == "FAILED" })
+            assertEquals("BLOCKED_BY_PREVIOUS", commands.single { it.commandType == "UPSERT_PERIOD" }.errorCode)
+            assertEquals("FAILED_PERMANENT", commands.single { it.commandType == "UPSERT_BUDGET" }.state)
+            assertEquals("BLOCKED", commands.single { it.commandType == "UPSERT_PERIOD" }.state)
             assertEquals(1, requests.count { it.startsWith("POST:") })
             assertEquals(budget.name, repository.getBudget(ownerId, budgetId)?.name)
         } finally { client.close() }

@@ -32,6 +32,8 @@ interface FinancialInstrumentsRepository {
         const val FREE_TIER_MAX_COMPUTABLE_INSTRUMENTS = FreePlanLimits.DEFAULT_INSTRUMENTS
     }
 
+    fun observeEffectiveOpeningMinor(userId: String, accountId: String): Flow<Long?> = flowOf(null)
+
     // Account operations
     suspend fun createLiquidAccount(account: Account, operationId: OperationId): Result<Account>
     suspend fun recordOpeningAdjustment(accountId: AccountId, correctedAmount: Money, correctedDate: Instant, operationId: OperationId): Result<Unit>

@@ -37,7 +37,7 @@ class SetupEvidenceTest(private val mode: String) {
 
     @Before fun prepareLabHost() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        assertEquals("com.kipu.app.lab", instrumentation.targetContext.packageName)
+        org.junit.Assume.assumeTrue("Evidence capture requires the isolated lab application", instrumentation.targetContext.packageName == "com.kipu.app.lab")
         compose.runOnUiThread {
             compose.activity.setShowWhenLocked(true); compose.activity.setTurnScreenOn(true)
             compose.activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

@@ -32,7 +32,7 @@ class MovementRoomMigrationTest {
         helper.runMigrationsAndValidate(name, 27, true, MIGRATION_26_27).use { db ->
             assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='transaction_links'"))
             assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_transaction_links_user_id_source_transaction_id'"))
-            assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_transaction_links_user_id_target_transaction_id' AND `unique`=1"))
+            assertEquals(1L, db.scalarLong("SELECT COUNT(*) FROM pragma_index_list('transaction_links') WHERE name='index_transaction_links_user_id_target_transaction_id' AND `unique`=1"))
             db.query("PRAGMA foreign_key_list('transaction_links')").use { cursor ->
                 assertEquals(4, cursor.count)
             }

@@ -1,7 +1,7 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.Transaction
 import com.kipu.app.feature.movements.domain.model.TransactionItem

@@ -53,6 +53,7 @@ interface GoalRepository {
         destinationGoalId: String,
         backingAccountId: String,
         amount: Money,
+        hasPremiumAccess: Boolean = false,
     ): GoalCommandResult
 
     suspend fun archiveGoal(userId: String, goalId: String, expectedRevision: Long): GoalCommandResult

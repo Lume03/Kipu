@@ -161,7 +161,7 @@ interface GoalDao {
     @Query("UPDATE goals SET sync_state = :syncState, revision = MAX(revision, :revision) WHERE user_id = :userId AND id = :goalId")
     suspend fun updateRemoteRevision(userId: String, goalId: String, revision: Long, syncState: String): Int
 
-    @Query("UPDATE goals SET status = :status, sync_state = :syncState, revision = MAX(revision, :revision) WHERE user_id = :userId AND id = :goalId")
+    @Query("UPDATE goals SET status = CASE WHEN revision <= :revision THEN :status ELSE status END, sync_state = :syncState, revision = MAX(revision, :revision) WHERE user_id = :userId AND id = :goalId")
     suspend fun updateRemoteGoalResult(userId: String, goalId: String, status: String, revision: Long, syncState: String): Int
 
     @Query("DELETE FROM goals WHERE user_id = :userId AND id = :goalId AND NOT EXISTS (SELECT 1 FROM goal_events e WHERE e.user_id = :userId AND e.goal_id = :goalId) AND NOT EXISTS (SELECT 1 FROM goal_command_outbox o WHERE o.user_id = :userId AND o.goal_id = :goalId)")

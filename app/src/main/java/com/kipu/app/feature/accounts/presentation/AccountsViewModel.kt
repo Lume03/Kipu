@@ -96,6 +96,9 @@ class AccountsViewModel @Inject constructor(
         com.kipu.app.feature.accounts.domain.usecase.ObserveCardInstallments(financialInstrumentsRepository, java.time.Clock.systemUTC()),
 ) : ViewModel() {
 
+    fun observeEffectiveOpeningMinor(account: Account): Flow<Long?> =
+        financialInstrumentsRepository.observeEffectiveOpeningMinor(account.userId.value, account.id.value)
+
     private val _isMasked = MutableStateFlow(false)
     val isMasked: StateFlow<Boolean> = _isMasked.asStateFlow()
 

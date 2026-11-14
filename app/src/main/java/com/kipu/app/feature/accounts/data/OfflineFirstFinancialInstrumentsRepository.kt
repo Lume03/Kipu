@@ -103,6 +103,9 @@ class OfflineFirstFinancialInstrumentsRepository @Inject constructor(
     private val entitlementEvaluator: EffectiveEntitlementEvaluator = DenyUnverifiedEntitlementEvaluator,
 ) : FinancialInstrumentsRepository {
 
+    override fun observeEffectiveOpeningMinor(userId: String, accountId: String): Flow<Long?> =
+        movementDao.observeEffectiveOpeningMinor(userId, accountId)
+
     override suspend fun retryFailed(userId: String, commandId: String): Boolean {
         if (currentUserId() != userId) return false
         val changed = database.withTransaction {

@@ -31,6 +31,16 @@ class OpeningAdjustmentRetryRoomTest {
     @After fun tearDown() = f.close()
     private suspend fun create() = repository.createLiquidAccount(account, f.operation()).getOrThrow()
 
+    @Test fun `effective opening follows repeated corrections and excludes ordinary movements`() = runBlocking {
+        create()
+        assertEquals(10000L, repository.observeEffectiveOpeningMinor(f.owner, account.id.value).first())
+        repository.recordOpeningAdjustment(account.id, Money(20000, Currency.PEN), date, f.operation()).getOrThrow()
+        assertEquals(20000L, repository.observeEffectiveOpeningMinor(f.owner, account.id.value).first())
+        repository.recordOpeningAdjustment(account.id, Money(30000, Currency.PEN), date, f.operation()).getOrThrow()
+        assertEquals(30000L, repository.observeEffectiveOpeningMinor(f.owner, account.id.value).first())
+        assertEquals(10000L, f.db.accountDao().getById(f.owner, account.id.value)!!.initialBalanceMinorUnits)
+    }
+
     @Test fun `card commit succeeds when scheduler fails`() = runBlocking {
         create()
         every { scheduler.scheduleSync(any()) } throws IllegalStateException("scheduler unavailable")

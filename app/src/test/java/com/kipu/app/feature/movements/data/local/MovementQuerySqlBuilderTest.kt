@@ -7,6 +7,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MovementQuerySqlBuilderTest {
+    @Test fun historicalFailureIsIncludedOnlyWhenExplicitlyRequested() {
+        val query = MovementHistoryQuery(advancedCriteria = AdvancedHistoryCriteria(financialStates = setOf(com.kipu.app.feature.movements.domain.model.MovementFinancialState.LEGACY_FAILED)))
+        for (sql in listOf(MovementQuerySqlBuilder.build("owner", query), MovementQuerySqlBuilder.buildCount("owner", query))) {
+            org.junit.Assert.assertFalse(sql.sql.contains("status != 'FAILED'"))
+            assertTrue(sql.sql.contains("status IN (?)"))
+        }
+        assertTrue(MovementQuerySqlBuilder.build("owner", MovementHistoryQuery()).sql.contains("status != 'FAILED'"))
+    }
+
     @Test
     fun walletContextSurvivesFreeFallbackForItemsAndSummaries() {
         val query = MovementHistoryQuery(contextPaymentChannel = WalletPaymentChannel.YAPE,

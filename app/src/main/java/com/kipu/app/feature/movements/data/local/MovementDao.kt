@@ -12,6 +12,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MovementDao {
+    @Query("SELECT DISTINCT aggregate_id FROM movement_outbox WHERE user_id=:userId AND aggregate_id IN (:ids) AND state='FAILED_PERMANENT'")
+    suspend fun getFailedTransactionIds(userId: String, ids: List<String>): List<String>
+
+    @Query("""
+        SELECT DISTINCT i.transaction_id FROM credit_installments i
+        JOIN credit_payment_allocations a ON a.user_id=i.user_id AND a.installment_id=i.id
+        WHERE i.user_id=:userId AND i.transaction_id IN (:ids)
+        GROUP BY i.transaction_id, i.id HAVING SUM(a.allocated_minor)>0
+    """)
+    suspend fun getPurchasesWithPayments(userId: String, ids: List<String>): List<String>
+
     @Query("SELECT * FROM local_command_receipts WHERE user_id=:owner AND idempotency_key IN (:keys)")
     suspend fun getCorrelationReceipts(owner: String, keys: List<String>): List<LocalCommandReceiptEntity>
     @Query("SELECT * FROM transactions WHERE user_id=:owner AND id IN (:ids)")

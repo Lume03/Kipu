@@ -410,9 +410,10 @@ internal fun OpeningBalanceCorrectionSheet(
     onAmountChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    effectiveOpeningMinor: Long = account.initialBalance.minorUnits,
 ) {
     val colors = rememberCalmEmeraldColors()
-    val difference = parsedMinorUnits?.let { it - account.initialBalance.minorUnits }
+    val difference = parsedMinorUnits?.let { it - effectiveOpeningMinor }
     KipuBottomSheet(
         onDismissRequest = onDismiss,
         header = {
@@ -450,7 +451,7 @@ internal fun OpeningBalanceCorrectionSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("Saldo inicial registrado", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    MoneyText(account.initialBalance, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    MoneyText(Money(effectiveOpeningMinor, account.currency), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 }
             }
             OutlinedTextField(

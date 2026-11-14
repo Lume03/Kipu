@@ -43,7 +43,7 @@ class MovementPresentationObservationTest {
             )
         }
         every { source.observeTransactions(owner) } returns flowOf(entities)
-        coEvery { source.getVoidBlockCode(any(), any()) } returns null
+        coEvery { source.getVoidBlockCodes(any(), any()) } returns emptyMap()
         every { accountDao.observeAll(owner) } returns accounts
         every { cardDao.observeAll(owner) } returns flowOf(emptyList())
         every { categoryDao.observePresentationsForUser(owner) } returns flowOf(emptyList())

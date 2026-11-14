@@ -7,7 +7,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -55,7 +55,7 @@ class DebtSettlementFlowTest {
             )
         }
 
-        compose.onNodeWithText("El principal reduce el saldo exigible;", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("El inter?s se registra aparte como gasto o ingreso.", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("settlement-principal").performTextReplacement("35.00")
         compose.onNodeWithTag("settlement-interest").performTextReplacement("2.50")
         compose.onNodeWithTag("settlement-save").assertIsEnabled()

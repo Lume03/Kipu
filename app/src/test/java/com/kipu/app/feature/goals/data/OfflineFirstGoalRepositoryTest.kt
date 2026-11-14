@@ -42,6 +42,7 @@ class OfflineFirstGoalRepositoryTest {
 
     @Before
     fun setUp() {
+        coEvery { local.atomicCommand(any()) } coAnswers { firstArg<suspend () -> GoalCommandResult>()() }
         coEvery { local.getGoal(USER_ID, "completed") } returns completed
         coEvery { local.getGoal(USER_ID, "active-1") } returns activeOne
         coEvery { local.getGoal(USER_ID, "active-2") } returns activeTwo
@@ -183,6 +184,33 @@ class OfflineFirstGoalRepositoryTest {
         assertEquals(GoalStatus.COMPLETED, stagedGoals.captured.single().status)
         assertFalse(command.captured.payload.containsKey("replacement_goal_id"))
         assertEquals(4L, command.captured.expectedRevision)
+    }
+
+    @Test fun completedSourceReassignmentAtFreeLimitIsRejectedBeforeStaging() = runTest {
+        seedReassignmentReserve()
+        coEvery { local.countOperationalGoals(USER_ID) } returns 2
+        val result = repository.reassignGoalReserve(USER_ID, "completed", "active-1", "backing", Money(10, Currency.PEN), false)
+        assertEquals("REPLACEMENT_REQUIRED", (result as GoalCommandResult.Rejected).code)
+        coVerify(exactly=0) { local.stageCommand(any(), any(), any(), any(), any()) }
+    }
+
+    @Test fun destinationCompletingKeepsFinalFreeQuotaWithinLimit() = runTest {
+        seedReassignmentReserve()
+        coEvery { local.getGoal(USER_ID, "active-1") } returns activeOne.copy(targetMinor=10)
+        coEvery { local.countOperationalGoals(USER_ID) } returns 2
+        assertTrue(repository.reassignGoalReserve(USER_ID, "completed", "active-1", "backing", Money(10, Currency.PEN), false) is GoalCommandResult.Applied)
+    }
+
+    @Test fun premiumReassignmentCanReactivateSourceWithoutFreeQuota() = runTest {
+        seedReassignmentReserve()
+        coEvery { local.countOperationalGoals(USER_ID) } returns 2
+        assertTrue(repository.reassignGoalReserve(USER_ID, "completed", "active-1", "backing", Money(10, Currency.PEN), true) is GoalCommandResult.Applied)
+    }
+
+    private fun seedReassignmentReserve() {
+        coEvery { local.getEvents(USER_ID, "completed") } returns listOf(GoalEventWithTransactionStatusRow(
+            event=GoalEventEntity(id="reserve", userId=USER_ID, goalId="completed", eventType="ALLOCATION", deltaMinor=100,
+                currencyCode="PEN", backingAccountId="backing", operationId="reserve-op", occurredAt=1, createdAt=1), linkedTransactionStatus=null))
     }
 
     private fun updateCommand(

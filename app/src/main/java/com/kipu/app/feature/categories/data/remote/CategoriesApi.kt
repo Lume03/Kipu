@@ -69,6 +69,18 @@ class CategoriesApi @Inject constructor(
         return callRpc("resolve_category_conflict_v1", request, expectedOwner)
     }
 
+    suspend fun fetchMerchantAliasRules(owner: String): CategoryApiResponse<List<MerchantAliasRemoteDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
+        val auth = getAuthHeader(owner) ?: return CategoryApiResponse.Error(401, "Inactive owner")
+        val result = fetchPages<MerchantAliasRemoteDto>("merchant_alias_rules", "id,user_id,normalized_pattern,merchant_id,revision,updated_at,deleted_at", "id", auth)
+        if (getAuthHeader(owner) == null) CategoryApiResponse.Error(401, "Inactive owner") else result
+    }
+
+    suspend fun fetchMerchantPreferences(owner: String): CategoryApiResponse<List<MerchantPreferenceRemoteDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
+        val auth = getAuthHeader(owner) ?: return CategoryApiResponse.Error(401, "Inactive owner")
+        val result = fetchPages<MerchantPreferenceRemoteDto>("merchant_category_preferences", "id,user_id,merchant_id,category_id,revision,updated_at,deleted_at", "id", auth)
+        if (getAuthHeader(owner) == null) CategoryApiResponse.Error(401, "Inactive owner") else result
+    }
+
     suspend fun fetchMerchantCatalog(sinceVersion: Long = 0L): CategoryApiResponse<List<MerchantCatalogItemDto>> = remoteCall(onFailure = { CategoryApiResponse.NetworkFailure(it) }) {
         val auth = getAuthHeader() ?: return CategoryApiResponse.Error(401, "No active session")
         fetchPages("merchant_services", "id,name,normalized_name,is_active,version,default_category_id,priority,logo_key,brand_color,logo_path,logo_dark_path,logo_source,user_id,domain,logo_status,catalog_origin", "id", auth, sinceVersion)

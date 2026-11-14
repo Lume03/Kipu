@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import com.kipu.app.testing.createSyncNoticeAndroidComposeRule as createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -222,7 +222,7 @@ class CellularCorrectionsTest {
         compose.onNodeWithTag("goal_contribution_amount").performTextInput("abc12.50")
         capture("aporte-teclado-decimal")
         compose.onNodeWithTag("goal_contribution_amount").performImeAction()
-        compose.onNodeWithTag("goal_contribution_submit").performScrollTo().performClick()
+        compose.onNodeWithTag("goal_contribution_submit").performClick()
         compose.runOnIdle { assertEquals(Money(1250, Currency.PEN), reserved) }
     }
 

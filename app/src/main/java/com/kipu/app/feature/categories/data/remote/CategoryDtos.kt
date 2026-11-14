@@ -158,3 +158,25 @@ data class CategoryCommandResponseDto(
     @SerialName("preference_id") val preferenceId: String? = null,
     @SerialName("revision") val revision: Long? = null,
 )
+
+@Serializable
+data class MerchantAliasRemoteDto(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("normalized_pattern") val normalizedPattern: String,
+    @SerialName("merchant_id") val merchantId: String,
+    val revision: Long,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+)
+
+@Serializable
+data class MerchantPreferenceRemoteDto(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("merchant_id") val merchantId: String,
+    @SerialName("category_id") val categoryId: String,
+    val revision: Long,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null,
+)

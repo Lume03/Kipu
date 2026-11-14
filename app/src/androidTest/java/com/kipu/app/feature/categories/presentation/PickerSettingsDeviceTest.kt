@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.feature.categories.domain.model.MerchantCatalogEntry
 import com.kipu.app.feature.categories.domain.model.MerchantId

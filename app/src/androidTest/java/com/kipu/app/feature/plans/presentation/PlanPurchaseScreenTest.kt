@@ -190,11 +190,12 @@ class PlanPurchaseScreenTest {
         compose.onNodeWithText("Compra verificada").assertIsDisplayed()
 
         compose.runOnIdle { state.value = PlanPurchaseUiState(status = PlanPurchaseStatus.LOADING) }
-        val shimmer = compose.onNodeWithTag("purchase-price-shimmer").fetchSemanticsNode().size
+        compose.onAllNodes(androidx.compose.ui.test.hasTestTag("purchase-price-shimmer")).assertCountEquals(3)
+        val shimmer = compose.onAllNodes(androidx.compose.ui.test.hasTestTag("purchase-price-shimmer"))[0].fetchSemanticsNode().size
         assertEquals(132.dp, with(compose.density) { shimmer.width.toDp() })
         assertEquals(24.dp, with(compose.density) { shimmer.height.toDp() })
         compose.mainClock.advanceTimeBy(1000)
-        val afterAnimation = compose.onNodeWithTag("purchase-price-shimmer").fetchSemanticsNode().size
+        val afterAnimation = compose.onAllNodes(androidx.compose.ui.test.hasTestTag("purchase-price-shimmer"))[0].fetchSemanticsNode().size
         assertEquals(shimmer, afterAnimation)
     }
 

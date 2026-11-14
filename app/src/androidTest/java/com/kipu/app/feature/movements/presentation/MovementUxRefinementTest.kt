@@ -18,7 +18,7 @@ import com.kipu.app.feature.movements.domain.*
 import kotlinx.coroutines.flow.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.component.LocalBalanceMasked

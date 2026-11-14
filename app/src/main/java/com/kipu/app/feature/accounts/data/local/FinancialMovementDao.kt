@@ -11,6 +11,20 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FinancialMovementDao {
+    @Query("""
+        SELECT movement.amount_minor_units FROM financial_movements movement
+        JOIN financial_movements original ON original.user_id = movement.user_id
+          AND original.opening_account_id = :accountId AND original.kind = 'OPENING'
+        WHERE movement.user_id = :userId AND movement.status = 'POSTED'
+          AND (movement.id = original.id OR (movement.kind = 'ADJUSTMENT' AND movement.adjusts_movement_id = original.id))
+          AND NOT EXISTS (SELECT 1 FROM financial_movements reversal
+            WHERE reversal.user_id = movement.user_id AND reversal.kind = 'REVERSAL'
+              AND reversal.status = 'POSTED' AND reversal.reverses_movement_id = movement.id)
+        ORDER BY CASE WHEN movement.kind = 'ADJUSTMENT' THEN 1 ELSE 0 END DESC,
+          movement.created_at DESC, movement.operation_sequence DESC LIMIT 1
+    """)
+    fun observeEffectiveOpeningMinor(userId: String, accountId: String): Flow<Long?>
+
 
     @androidx.room.Upsert
     suspend fun upsertPulledOpening(movement: FinancialMovementEntity)

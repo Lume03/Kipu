@@ -39,13 +39,13 @@ class AuthVisualFlowTest {
         }
         capture("login")
         rule.onNodeWithText("Registrarse").performClick()
-        rule.onNodeWithContentDescription("Correo electrónico").performTextInput("demo@example.com")
-        rule.onNodeWithContentDescription("Contraseña", useUnmergedTree = true).performTextInput("Password123")
-        rule.onNodeWithContentDescription("Confirmar contraseña", useUnmergedTree = true).performTextInput("Different123")
+        rule.onNode(hasSetTextAction() and hasText("Correo electrónico")).performTextInput("demo@example.com")
+        rule.onNode(hasSetTextAction() and hasText("Contraseña"), useUnmergedTree = true).performTextInput("Password123")
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true).performTextInput("Different123")
         rule.onNodeWithText("Crear cuenta").performScrollTo().performClick()
         rule.runOnIdle { assertEquals(0, submitted) }
         capture("register-error")
-        rule.onNodeWithContentDescription("Confirmar contraseña", useUnmergedTree = true).performTextReplacement("Password123")
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true).performTextReplacement("Password123")
         rule.onNodeWithText("Crear cuenta").performScrollTo()
         androidx.test.espresso.Espresso.closeSoftKeyboard()
         rule.onNodeWithText("Kipu").performScrollTo()
@@ -61,7 +61,7 @@ class AuthVisualFlowTest {
                     {}, {}, {}, {}, {}, initialRegisterMode = true)
             }
         } }
-        rule.onNodeWithContentDescription("Confirmar contraseña", useUnmergedTree = true)
+        rule.onNode(hasSetTextAction() and hasText("Confirmar contraseña"), useUnmergedTree = true)
             .performTextInput("Password123")
         androidx.test.espresso.Espresso.closeSoftKeyboard()
         rule.waitForIdle()
@@ -108,16 +108,16 @@ class AuthVisualFlowTest {
             LoginScreen(state.value, { state.value = state.value.copy(email = it) },
                 { state.value = state.value.copy(password = it) }, {}, {}, {})
         } }
-        val before = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
+        val before = rule.onNode(hasSetTextAction() and hasText("Correo electrónico")).fetchSemanticsNode().boundsInRoot.top
         rule.mainClock.autoAdvance = false
         rule.onNodeWithText("Registrarse").performClick()
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(100)
-        val during = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
+        val during = rule.onNode(hasSetTextAction() and hasText("Correo electrónico")).fetchSemanticsNode().boundsInRoot.top
         rule.mainClock.advanceTimeBy(400)
         rule.mainClock.autoAdvance = true
         rule.waitForIdle()
-        val after = rule.onNodeWithContentDescription("Correo electrónico").fetchSemanticsNode().boundsInRoot.top
+        val after = rule.onNode(hasSetTextAction() and hasText("Correo electrónico")).fetchSemanticsNode().boundsInRoot.top
         assertTrue("The shorter header lifts the form", after < before)
         assertTrue("The form must pass through an intermediate position", during < before && during > after)
         rule.runOnIdle { assertEquals("demo@example.com", state.value.email); assertEquals("", state.value.password) }

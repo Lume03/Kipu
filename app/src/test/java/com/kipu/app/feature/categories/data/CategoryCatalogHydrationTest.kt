@@ -31,7 +31,7 @@ class CategoryCatalogHydrationTest {
         dao.insertPresentation(CategoryPresentationEntity(roots[2].id, owner, "Mi servicio", "work", "#123456", 8, 1))
         dao.insertOutboxCommand(CategorySyncOutboxEntity("op", owner, "UPDATE_PRESENTATION", "CATEGORY",
             roots[3].id, payloadJson = "{}", payloadHash = "hash", createdAt = 1, updatedAt = 1))
-        CategoryHydration(dao, FakeMerchantCatalogDao(), mockk<Context>(), api).hydrateCategories(owner)
+        CategoryHydration(dao, FakeMerchantCatalogDao(), mockk<Context>(), api, mockk(relaxed = true), mockk(relaxed = true)).hydrateCategories(owner)
         assertEquals(roots[0].iconKey, dao.getPresentation(owner, roots[0].id)?.icon)
         assertEquals(roots[0].color, dao.getPresentation(owner, roots[0].id)?.color)
         assertEquals("Mi transporte", dao.getPresentation(owner, roots[1].id)?.name)

@@ -10,7 +10,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import com.kipu.app.testing.createSyncNoticeAndroidComposeRule as createAndroidComposeRule
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText

@@ -415,13 +415,14 @@ class OfflineFirstGoalRepository @Inject constructor(
         destinationGoalId: String,
         backingAccountId: String,
         amount: Money,
-    ): GoalCommandResult {
+        hasPremiumAccess: Boolean,
+    ): GoalCommandResult = local.atomicCommand {
         val sourceRow = local.getGoal(userId, sourceGoalId)
-            ?: return GoalCommandResult.Rejected("SOURCE_GOAL_NOT_FOUND")
+            ?: return@atomicCommand GoalCommandResult.Rejected("SOURCE_GOAL_NOT_FOUND")
         val destinationRow = local.getGoal(userId, destinationGoalId)
-            ?: return GoalCommandResult.Rejected("DESTINATION_GOAL_NOT_FOUND")
+            ?: return@atomicCommand GoalCommandResult.Rejected("DESTINATION_GOAL_NOT_FOUND")
         if (sourceRow.syncState == DELETE_PENDING || destinationRow.syncState == DELETE_PENDING) {
-            return GoalCommandResult.Rejected("GOAL_DELETE_PENDING")
+            return@atomicCommand GoalCommandResult.Rejected("GOAL_DELETE_PENDING")
         }
         val source = sourceRow.toDomain()
         val destination = destinationRow.toDomain()
@@ -450,7 +451,7 @@ class OfflineFirstGoalRepository @Inject constructor(
             )
         ) {
             is GoalPlanResult.Valid -> result.value
-            is GoalPlanResult.Invalid -> return GoalCommandResult.Rejected(result.code)
+            is GoalPlanResult.Invalid -> return@atomicCommand GoalCommandResult.Rejected(result.code)
         }
         val updatedSource = source.copy(
             status = GoalProgressCalculator.calculate(source, sourceEvents + plan.sourceEvent).status,
@@ -462,6 +463,13 @@ class OfflineFirstGoalRepository @Inject constructor(
             revision = Math.addExact(destination.revision, 1L),
             updatedAt = clock.instant(),
         )
+        val finalActiveCount = local.countOperationalGoals(userId) +
+            (if (source.status != GoalStatus.ACTIVE && updatedSource.status == GoalStatus.ACTIVE) 1 else 0) -
+            (if (destination.status == GoalStatus.ACTIVE && updatedDestination.status != GoalStatus.ACTIVE) 1 else 0)
+        if (!hasPremiumAccess && source.status == GoalStatus.COMPLETED &&
+            updatedSource.status == GoalStatus.ACTIVE && finalActiveCount > FREE_ACTIVE_GOAL_LIMIT) {
+            return@atomicCommand GoalCommandResult.Rejected("REPLACEMENT_REQUIRED")
+        }
         val payload = buildJsonObject {
             put("source_goal_id", sourceGoalId)
             put("destination_goal_id", destinationGoalId)
@@ -473,7 +481,7 @@ class OfflineFirstGoalRepository @Inject constructor(
             put("source_event_id", plan.sourceEvent.id)
             put("destination_event_id", plan.destinationEvent.id)
         }
-        return stage(
+        return@atomicCommand stage(
             userId,
             updatedSource,
             mapOf(sourceGoalId to source.revision, destinationGoalId to destination.revision),

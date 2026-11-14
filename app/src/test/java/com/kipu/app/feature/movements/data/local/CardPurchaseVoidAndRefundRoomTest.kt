@@ -49,6 +49,18 @@ class CardPurchaseVoidAndRefundRoomTest {
         val cmd = MovementRevisionCommand.Void(UUID.randomUUID().toString(),id,head.commandBaseRevision)
         return local.commitVoidAtomic(owner,cmd,MovementRevisionRequestHasher().computeHash(cmd))
     }
+    @Test fun batchedEligibilityMatchesSingleMovementRules() = runTest {
+        insertPurchase()
+        suspend fun check() {
+            val row = db.movementDao().getTransactionById(owner, purchase)!!
+            assertEquals(local.getVoidBlockCode(owner, purchase), local.getVoidBlockCodes(owner, listOf(row))[purchase])
+        }
+        check()
+        db.movementDao().insertTransaction(TransactionEntity(id="payment",userId=owner,type="TRANSFER",amountMinor=100,currencyCode="PEN",occurredAt=2))
+        db.creditDao().insertAllocations(listOf(CreditPaymentAllocationEntity("allocation",owner,"payment","installment",100,2)))
+        check()
+    }
+
     @Test fun unpaidPurchaseVoidIsAtomicAndIdempotent() = runTest {
         insertPurchase()
         assertTrue(void(purchase) is MovementMutationResult.Success)
@@ -69,6 +81,8 @@ class CardPurchaseVoidAndRefundRoomTest {
         val refund = RegisterRefundTransaction(local)(RefundTransactionCommand(UUID.randomUUID().toString(),owner,purchase,
             UUID.randomUUID().toString(),4000,"PEN",1000)) as RefundTransactionResult.Success
         assertEquals(6000L,db.creditDao().getOutstandingPrincipalForCard(owner,"card"))
+        val row = db.movementDao().getTransactionById(owner, purchase)!!
+        assertEquals("PURCHASE_HAS_ACTIVE_REFUNDS", local.getVoidBlockCodes(owner, listOf(row))[purchase])
         assertEquals(MovementMutationResult.Rejected("PURCHASE_HAS_ACTIVE_REFUNDS"),void(purchase))
         assertTrue(void(refund.transaction.id) is MovementMutationResult.Success)
         assertEquals(10000L,db.creditDao().getOutstandingPrincipalForCard(owner,"card"))

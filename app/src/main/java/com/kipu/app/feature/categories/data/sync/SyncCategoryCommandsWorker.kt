@@ -86,7 +86,7 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
         }
 
         // Fill missing server categories without overwriting pending local edits.
-        val hydration = CategoryHydration(categoryDao, merchantDao, applicationContext, api)
+        val hydration = CategoryHydration(categoryDao, merchantDao, applicationContext, api, merchantRulesDao, transactionRunner)
         var needsRetry = false
         try {
             hydration.hydrateCategories(userId)
@@ -132,6 +132,10 @@ class SyncCategoryCommandsWorker @AssistedInject constructor(
             }
         }
 
+        try {
+            if ((sessionCoordinator.localAccess.value as? LocalAccess.Available)?.userId != userId) return Result.success()
+            hydration.hydrateMerchantRules(userId)
+        } catch (e: CancellationException) { throw e } catch (_: Exception) { needsRetry = true }
         return if (needsRetry || categoryDao.hasOutstanding(userId)) Result.retry() else Result.success()
     }
 

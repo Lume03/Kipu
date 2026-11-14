@@ -2,7 +2,7 @@ package com.kipu.app.feature.movements.presentation
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.theme.KipuTheme

@@ -75,7 +75,7 @@ class SyncProfilePreferencesWorkerTest {
     }
 
     @Test
-    fun doWork_returns_failure_when_conflict_detected() = runBlocking {
+    fun doWork_retries_untyped_repository_failure() = runBlocking {
         val repo = FakeRepo()
         repo.syncResult = Result.failure(IllegalStateException("Revision conflict detected during sync"))
         val coordinator = FakeCoordinator(LocalOwner(userId.toString(), false))
@@ -86,7 +86,7 @@ class SyncProfilePreferencesWorkerTest {
         val worker = SyncProfilePreferencesWorker(context, workerParams, repo, coordinator)
         val result = worker.doWork()
 
-        assertEquals(ListenableWorker.Result.failure(), result)
+        assertEquals(ListenableWorker.Result.retry(), result)
     }
 
     @Test

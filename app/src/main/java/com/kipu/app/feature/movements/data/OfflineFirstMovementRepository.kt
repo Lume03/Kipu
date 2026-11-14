@@ -74,8 +74,9 @@ class OfflineFirstMovementRepository @Inject constructor(
             val merchantsById = merchants.associateBy { it.id }
             val accountsById = accounts.associateBy { it.id }
             val cardsById = cards.associateBy { it.id }
+            val voidBlockCodes = localDataSource.getVoidBlockCodes(userId, entities)
             entities.map { entity ->
-                buildTransactionItem(userId, entity, categoriesById, merchantsById, accountsById, cardsById)
+                buildTransactionItem(userId, entity, categoriesById, merchantsById, accountsById, cardsById, voidBlockCodes[entity.id])
             }
         }
 
@@ -273,8 +274,9 @@ class OfflineFirstMovementRepository @Inject constructor(
         val merchants = merchantDao.observeMerchants(userId).first().associateBy { it.id }
         val accounts = accountDao.observeAll(userId).first().associateBy { it.id }
         val cards = cardDao.observeAll(userId).first().associateBy { it.id }
+        val voidBlockCodes = localDataSource.getVoidBlockCodes(userId, entities)
         return entities.map { entity ->
-            buildTransactionItem(userId, entity, presentations, merchants, accounts, cards)
+            buildTransactionItem(userId, entity, presentations, merchants, accounts, cards, voidBlockCodes[entity.id])
         }
     }
 
@@ -285,6 +287,7 @@ class OfflineFirstMovementRepository @Inject constructor(
         merchantsById: Map<String, com.kipu.app.feature.categories.data.local.MerchantCatalogEntity>,
         accountsById: Map<String, com.kipu.app.feature.accounts.data.local.AccountEntity>,
         cardsById: Map<String, com.kipu.app.feature.accounts.data.local.CardEntity>,
+        voidBlockCode: String?,
     ): TransactionItem {
         val domain = entity.toDomain()
         val sourceAlias = domain.sourceAccountId?.let { accountsById[it]?.alias }
@@ -294,7 +297,7 @@ class OfflineFirstMovementRepository @Inject constructor(
         val merchant = domain.merchantId?.let(merchantsById::get)
         return TransactionItem(
             transaction = domain,
-            voidBlockCode = localDataSource.getVoidBlockCode(userId, domain.id),
+            voidBlockCode = voidBlockCode,
             sourceAccountAlias = sourceAlias,
             destinationAccountAlias = destAlias,
             cardAlias = card?.alias,

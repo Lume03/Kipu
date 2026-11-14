@@ -32,11 +32,13 @@ fun UnsyncedNotice(modifier: Modifier = Modifier, compact: Boolean = false,
     }
 }
 
+val LocalSyncRecoveryViewModel = staticCompositionLocalOf<SyncRecoveryViewModel?> { null }
+
 /** Presentation binding only; all data work belongs to the ViewModel/repository. */
 @Composable
 fun EntitySyncNotice(module: SyncModule, entityId: String, modifier: Modifier = Modifier, compact: Boolean = false) {
     if (LocalInspectionMode.current) return
-    val viewModel: SyncRecoveryViewModel = hiltViewModel()
+    val viewModel: SyncRecoveryViewModel = LocalSyncRecoveryViewModel.current ?: hiltViewModel()
     val issues by viewModel.issues.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -50,7 +52,7 @@ fun EntitySyncNotice(module: SyncModule, entityId: String, modifier: Modifier = 
 @Composable
 fun RejectedInstrumentList(onOpen: (String, Boolean) -> Unit) {
     if (LocalInspectionMode.current) return
-    val viewModel: SyncRecoveryViewModel = hiltViewModel()
+    val viewModel: SyncRecoveryViewModel = LocalSyncRecoveryViewModel.current ?: hiltViewModel()
     val issues by viewModel.issues.collectAsStateWithLifecycle()
     val rejected = issues.filter { it.rejectedCreation && it.module in setOf(SyncModule.ACCOUNT, SyncModule.CARD) }
     if (rejected.isEmpty()) return

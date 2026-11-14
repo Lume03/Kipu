@@ -3,7 +3,7 @@ package com.kipu.app.feature.movements.presentation
 import android.content.Context
 import android.os.SystemClock
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.room.Room
@@ -63,6 +63,7 @@ class MovementHistoryPerformanceTest {
         )
         val viewModel = mockk<MovementHistoryViewModel>(relaxed = true) {
             every { uiState } returns renderedState
+            every { remoteSession } returns MutableStateFlow<com.kipu.app.core.session.RemoteSession>(com.kipu.app.core.session.RemoteSession.Absent)
         }
 
         val startedAt = SystemClock.elapsedRealtime()

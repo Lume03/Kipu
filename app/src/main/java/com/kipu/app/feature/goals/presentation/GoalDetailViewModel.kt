@@ -98,7 +98,7 @@ class GoalDetailViewModel @Inject constructor(
     }
 
     fun reassign(destinationGoalId: String, backingAccountId: String, amount: Money) = mutate { userId, goal ->
-        repository.reassignGoalReserve(userId, goal.id, destinationGoalId, backingAccountId, amount)
+        repository.reassignGoalReserve(userId, goal.id, destinationGoalId, backingAccountId, amount, _state.value.hasPremiumAccess)
     }
 
     fun archive() = mutate { userId, goal ->

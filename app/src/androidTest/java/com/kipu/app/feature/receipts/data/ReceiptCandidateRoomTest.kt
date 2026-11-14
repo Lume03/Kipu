@@ -33,17 +33,17 @@ class ReceiptCandidateRoomTest {
 
     @After fun tearDown() = database.close()
 
-    @Test fun deduplicatesImageAndReferencePerOwnerButNotSameAmountWithAnotherReference() = runBlocking {
+    @Test fun deduplicatesImagePerOwnerWithoutTreatingOcrReferenceAsAccountIdentity() = runBlocking {
         val owner = UUID.randomUUID().toString()
         val one = YapeReceiptFields(1200, 10, "Persona", "ref-1", emptyList())
         val created = store.import(owner, "image-hash-1", one, false) as ReceiptCandidateSaveResult.Saved
         val imageDuplicate = store.import(owner, "image-hash-1", one, false)
         assertIs<ReceiptCandidateSaveResult.Duplicate>(imageDuplicate)
         val referenceDuplicate = store.import(owner, "image-hash-2", one, false)
-        assertIs<ReceiptCandidateSaveResult.Duplicate>(referenceDuplicate)
+        assertIs<ReceiptCandidateSaveResult.Saved>(referenceDuplicate)
         val distinctPayment = store.import(owner, "image-hash-3", one.copy(reference = "ref-2"), false)
         assertIs<ReceiptCandidateSaveResult.Saved>(distinctPayment)
-        assertEquals(2, store.observe(owner).first().size)
+        assertEquals(3, store.observe(owner).first().size)
         assertNotEquals(created.candidate.id, (distinctPayment as ReceiptCandidateSaveResult.Saved).candidate.id)
     }
 
@@ -65,16 +65,16 @@ class ReceiptCandidateRoomTest {
         assertEquals(emptyList<Any>(), store.observe(owner).first())
     }
 
-    @Test fun correctedReferenceParticipatesInDeduplicationAndCannotStealAnotherCandidateReference() = runBlocking {
+    @Test fun correctedReferenceIsEditableWithoutInventingAnAccountFingerprint() = runBlocking {
         val owner = UUID.randomUUID().toString()
         val first = (store.import(owner, "unreadable", YapeReceiptFields(), null) as ReceiptCandidateSaveResult.Saved).candidate
         val edit = com.kipu.app.feature.receipts.domain.ReceiptCandidateEdit(500, 1, "Persona", "00012345", false)
         val corrected = store.edit(owner, first.id, edit)
-        org.junit.Assert.assertNotNull(corrected?.referenceFingerprint)
-        assertEquals(ReceiptCandidateSaveResult.Duplicate(first.id), store.import(owner, "another-photo", YapeReceiptFields(reference = "00012345"), false))
+        org.junit.Assert.assertNull(corrected?.referenceFingerprint)
+        assertIs<ReceiptCandidateSaveResult.Saved>(store.import(owner, "another-photo", YapeReceiptFields(reference = "00012345"), false))
         val other = (store.import(owner, "other-payment", YapeReceiptFields(reference = "00012346"), false) as ReceiptCandidateSaveResult.Saved).candidate
-        assertEquals(null, store.edit(owner, other.id, edit))
-        assertEquals("00012346", store.get(owner, other.id)?.reference)
+        org.junit.Assert.assertNotNull(store.edit(owner, other.id, edit))
+        assertEquals("00012345", store.get(owner, other.id)?.reference)
     }
 
     @Test fun restoreOnlyRevivesDiscardedReceiptOfSameOwnerAndKeepsDedupIdentity() = runBlocking {
@@ -90,7 +90,7 @@ class ReceiptCandidateRoomTest {
         assertEquals(candidate.imageFingerprint, restored.imageFingerprint)
         assertEquals(candidate.referenceFingerprint, restored.referenceFingerprint)
         assertEquals(ReceiptCandidateSaveResult.Duplicate(candidate.id),
-            store.import(owner, "other-photo", YapeReceiptFields(reference = "00123456"), false))
+            store.import(owner, "restore-image", YapeReceiptFields(reference = "00123456"), false))
         assertEquals(true, store.markConfirmed(owner, candidate.id))
         assertEquals(false, store.restore(owner, candidate.id))
     }

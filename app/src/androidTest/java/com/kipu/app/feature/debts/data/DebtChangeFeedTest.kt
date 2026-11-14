@@ -131,10 +131,10 @@ class DebtChangeFeedTest {
             nextSequence = 1L,
         ))
 
-        assertEquals(DebtChangeApplyResult.Conflict(DEBT_ID, localRevision = 3L, remoteRevision = 2L), result)
+        assertEquals(DebtChangeApplyResult.Applied(1, 0), result)
         assertEquals("Local newer name", database.debtDao().getDebt("owner", DEBT_ID)?.counterpartyName)
         assertEquals("CONFLICT", database.debtDao().getDebt("owner", DEBT_ID)?.syncState)
-        assertNull(database.debtDao().getSyncCheckpoint("owner"))
+        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
     }
 
     @Test
@@ -147,7 +147,7 @@ class DebtChangeFeedTest {
 
         assertEquals(DebtChangeApplyResult.Rejected("SYNC_SEQUENCE_GAP"), result)
         assertNull(database.debtDao().getDebt("owner", DEBT_ID))
-        assertNull(database.debtDao().getSyncCheckpoint("owner"))
+        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
     }
 
     @Test
@@ -230,7 +230,7 @@ class DebtChangeFeedTest {
         assertEquals(DebtChangeApplyResult.Rejected("REMOTE_DELETE_WOULD_REMOVE_FINANCIAL_HISTORY"), result)
         assertEquals(5_000L, database.debtDao().getDebtIncludingDeleted("owner", DEBT_ID)?.totalMinor)
         assertEquals(EVENT_ID, database.debtDao().getEvent("owner", EVENT_ID)?.id)
-        assertNull(database.debtDao().getSyncCheckpoint("owner"))
+        assertEquals(1L, database.debtDao().getSyncCheckpoint("owner")?.sequence)
     }
 
     private fun page(vararg changes: SyncChangeItemDto, nextSequence: Long) = PullChangesResponseDto(

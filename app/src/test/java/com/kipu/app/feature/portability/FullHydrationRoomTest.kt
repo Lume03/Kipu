@@ -180,7 +180,9 @@ class FullHydrationRoomTest {
         coEvery { remote.fetchCategories() } returns CategoryApiResponse.Success(listOf(CategoryCatalogItemDto("cat", "Comida", null, owner, null, "USER", "EXPENSE", true, 1, "2026-11-01T00:00:00Z", "2026-11-01T00:00:00Z")))
         coEvery { remote.fetchCategoryPresentations() } returns CategoryApiResponse.Success(emptyList())
         coEvery { remote.fetchMerchantCatalog(any()) } returns CategoryApiResponse.Success(emptyList())
-        val hydrate = CategoryHydration(db.categoryDao(), db.merchantCatalogDao(), context, remote)
+        coEvery { remote.fetchMerchantAliasRules(owner) } returns CategoryApiResponse.Success(emptyList())
+        coEvery { remote.fetchMerchantPreferences(owner) } returns CategoryApiResponse.Success(emptyList())
+        val hydrate = CategoryHydration(db.categoryDao(), db.merchantCatalogDao(), context, remote, db.merchantRulesDao(), runner)
         repeat(2) { assertTrue(hydrate.hydrateFully(owner)) }
         assertEquals(1, count("categories"))
         coEvery { remote.fetchCategories() } returns CategoryApiResponse.Error(503, null)

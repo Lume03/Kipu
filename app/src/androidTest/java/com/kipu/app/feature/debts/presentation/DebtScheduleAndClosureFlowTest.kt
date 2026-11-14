@@ -130,7 +130,7 @@ class DebtScheduleAndClosureFlowTest {
             )
         }
 
-        compose.onNodeWithText("Las cuotas planificadas organizan tu calendario", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Las cuotas son planificaci?n: no registran pagos", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Pendiente").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("33.34", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("debt-schedule-cancel").performScrollTo().performClick()
@@ -183,7 +183,7 @@ class DebtScheduleAndClosureFlowTest {
         }
 
         compose.onAllNodesWithContentDescription("Ayuda sobre cuotas y cronograma")[0].performClick()
-        compose.onNodeWithText("no registra un pago ni reduce el saldo", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("No registran pagos ni reducen el saldo", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Entendido").assertIsDisplayed()
         compose.onNodeWithText("Entendido").performClick()
         compose.onNodeWithText("Entendido").assertDoesNotExist()
@@ -191,8 +191,7 @@ class DebtScheduleAndClosureFlowTest {
         compose.onNodeWithText("Ajustes y cierre").performClick()
         compose.onNodeWithText("Ajustes y cierre").assertIsSelected()
         compose.onAllNodesWithContentDescription("Ayuda sobre ajustes y cierre contable")[0].performClick()
-        compose.onNodeWithText("queda registrado en el historial", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("saldo pendiente es cero", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("queda en el historial con su motivo", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Entendido").assertIsDisplayed()
 
         pressBack()

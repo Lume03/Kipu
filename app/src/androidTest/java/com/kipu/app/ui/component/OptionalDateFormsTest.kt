@@ -57,7 +57,7 @@ class OptionalDateFormsTest {
             compose.onNodeWithTag("goal_form_target").performTextInput("100.00")
             save(scene)
             compose.runOnIdle { assertEquals(listOf<LocalDate?>(null), saved); saved.clear() }
-            compose.onNodeWithTag(scene.field).performScrollTo().performTextReplacement("2026-11-10")
+
         }
         compose.onNodeWithTag("${scene.field}-calendar").performScrollTo().performClick()
         compose.onNode(hasText("15", substring = true) and hasClickAction()).performClick()
@@ -67,10 +67,9 @@ class OptionalDateFormsTest {
         compose.onNodeWithTag("${scene.field}-clear").performScrollTo().performClick()
         save(scene)
         compose.runOnIdle { assertEquals(listOf(LocalDate.parse("2026-11-15"), null), saved) }
-        if (scene == Scene.GOAL_NEW || scene == Scene.GOAL_EDIT) {
-            compose.onNodeWithTag(scene.field).performScrollTo().performTextReplacement("2026-02-30")
-            compose.onNodeWithTag(scene.save).assertIsNotEnabled()
-        }
+        // The date is selected through the calendar; invalid typed dates are no longer a UI path.
+        compose.onNodeWithTag(scene.field).assert(androidx.compose.ui.test.SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.IsEditable, false))
     }
 
     private fun save(scene: Scene) {

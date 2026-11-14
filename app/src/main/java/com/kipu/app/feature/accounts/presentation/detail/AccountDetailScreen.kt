@@ -186,6 +186,9 @@ fun AccountDetailScreen(
     } else {
         null
     }
+    val effectiveOpeningMinor by remember(viewModel, account?.id, account?.userId) {
+        account?.let(viewModel::observeEffectiveOpeningMinor) ?: kotlinx.coroutines.flow.flowOf(null)
+    }.collectAsStateWithLifecycle(initialValue = null)
     val linkedAccount = account?.linkedAccountId?.let { parentId ->
         (instruments.activeAccounts + instruments.archivedAccounts).firstOrNull { it.id == parentId }
     }
@@ -285,6 +288,7 @@ fun AccountDetailScreen(
             }
         },
         currentBalance = currentBalance,
+        effectiveOpeningMinor = effectiveOpeningMinor,
         creditCardSummary = creditCardSummary,
         creditNotifications = creditNotifications.filter { it.cardId == instrumentId },
         cardMovements = effectiveCardMovements,
@@ -532,6 +536,7 @@ fun AccountDetailContent(
     focusInstallments: Boolean = false,
     linkedDebitCard: DebitCard? = null,
     onSaveDebitIdentity: (String, AccountPreset?, DebitCard?, String, CardNetwork?) -> Unit = { _, _, _, _, _ -> },
+    effectiveOpeningMinor: Long? = null,
 ) {
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
@@ -544,8 +549,8 @@ fun AccountDetailContent(
     var showReactivateConfirmation by remember(instrumentKey) { mutableStateOf(false) }
     var showAppearanceEditor by remember(instrumentKey) { mutableStateOf(false) }
     var showOpeningCorrection by remember(instrumentKey) { mutableStateOf(false) }
-    var openingAmount by remember(instrumentKey, account?.initialBalance?.minorUnits) {
-        mutableStateOf(account?.initialBalance?.minorUnits?.let(::formatMinorUnits).orEmpty())
+    var openingAmount by remember(instrumentKey, effectiveOpeningMinor, account?.initialBalance?.minorUnits) {
+        mutableStateOf((effectiveOpeningMinor ?: account?.initialBalance?.minorUnits)?.let(::formatMinorUnits).orEmpty())
     }
     val defaultDebitNetwork = remember(account) {
         if (account?.preset == AccountPreset.SCOTIABANK) CardNetwork.MASTERCARD else CardNetwork.VISA
@@ -1012,6 +1017,7 @@ fun AccountDetailContent(
             amountText = openingAmount,
             amountError = openingAmountError,
             parsedMinorUnits = MoneyInputParser.parseMinorUnits(openingAmount),
+            effectiveOpeningMinor = effectiveOpeningMinor ?: account.initialBalance.minorUnits,
             onAmountChange = { value ->
                 openingAmount = value
                 openingAmountError = null

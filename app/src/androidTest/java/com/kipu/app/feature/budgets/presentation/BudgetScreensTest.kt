@@ -10,7 +10,7 @@ import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -210,7 +210,7 @@ class BudgetScreensTest {
             )
         }
         compose.onNodeWithTag("budget_empty").assertIsDisplayed()
-        compose.onNodeWithTag("budget_create_button").performClick()
+        compose.onNodeWithTag("budget_create_button").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(created) }
     }
 
@@ -240,7 +240,7 @@ class BudgetScreensTest {
         compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_card_b"))
         compose.onNodeWithTag("budget_card_b").assertIsDisplayed()
         compose.onNodeWithTag("budget_items").performScrollToNode(hasTestTag("budget_create_button"))
-        compose.onNodeWithTag("budget_create_button").performClick()
+        compose.onNodeWithTag("budget_create_button").performScrollTo().performClick()
         compose.runOnIdle { assertFalse(created) }
         compose.onNodeWithTag("budget_quota_dialog").assertIsDisplayed()
         compose.onNodeWithText("No se borró ni se ocultó ninguno", substring = true).assertIsDisplayed()
@@ -288,6 +288,7 @@ class BudgetScreensTest {
         compose.onNodeWithTag("budget_category_picker").performScrollTo().performClick()
         compose.onNodeWithTag("pastel_category_picker_sheet").assertIsDisplayed()
         compose.onNodeWithTag("category_root_cat-food").performClick()
+        compose.onNodeWithTag("category_use_root_cat-food").performClick()
         compose.runOnIdle { assertEquals("cat-food", input.categoryId) }
     }
 

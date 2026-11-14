@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kipu.app.core.finance.domain.model.*
 import com.kipu.app.feature.accounts.domain.model.*

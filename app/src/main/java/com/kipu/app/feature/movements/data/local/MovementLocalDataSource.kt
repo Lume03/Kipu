@@ -300,7 +300,12 @@ class MovementLocalDataSource @Inject constructor(
     }
 
     suspend fun queryTransactions(query: SupportSQLiteQuery): List<TransactionEntity> {
-        return movementDao.queryTransactions(query).map { withOutboxStatus(it) }
+        val rows = movementDao.queryTransactions(query)
+        val failed = rows.groupBy { it.userId }.flatMap { (owner, transactions) ->
+            transactions.map { it.id }.chunked(500).flatMap { movementDao.getFailedTransactionIds(owner, it) }
+                .map { owner to it }
+        }.toSet()
+        return rows.map { if ((it.userId to it.id) in failed) it.copy(syncStatus = "FAILED_PERMANENT") else it }
     }
 
     suspend fun queryHistoryCount(query: SupportSQLiteQuery): Long {
@@ -647,6 +652,20 @@ class MovementLocalDataSource @Inject constructor(
             localProposedRevision = localProposedRevision,
             baselineRevision = baselineRevision,
         )
+    }
+
+    suspend fun getVoidBlockCodes(userId: String, rows: List<TransactionEntity>): Map<String, String> {
+        if (rows.isEmpty()) return emptyMap()
+        val refunds = rows.map { it.id }.chunked(500).flatMap {
+            database.transactionLinkDao().getValidRefundAmounts(userId, it)
+        }.filter { it.amountMinor > 0L }.map { it.purchaseId }.toSet()
+        val paid = rows.filter { it.operationKind == "CARD_PURCHASE" }.map { it.id }.chunked(500).flatMap {
+            movementDao.getPurchasesWithPayments(userId, it)
+        }.toSet()
+        return buildMap {
+            paid.forEach { put(it, "CARD_PURCHASE_HAS_PAYMENTS") }
+            refunds.forEach { put(it, "PURCHASE_HAS_ACTIVE_REFUNDS") }
+        }
     }
 
     suspend fun getVoidBlockCode(userId: String, transactionId: String): String? {

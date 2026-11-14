@@ -170,6 +170,9 @@ class MovementRevisionLocalTest {
         assertNotNull(receipt)
         assertEquals("APPLIED", receipt?.status)
 
+        // The successor is eligible only after the registration predecessor is acknowledged.
+        val predecessor = dao.getAllOutboxForTransaction(userId, txId).first { it.commandType == "REGISTER" }
+        dao.updateOutboxResult(userId, predecessor.id, "SYNCED", null, null, System.currentTimeMillis())
         val outbox = dao.findClaimableOutbox(userId, System.currentTimeMillis() + 1000L, 10)
         assertTrue(outbox.any { it.idempotencyKey == reviseKey })
     }

@@ -233,6 +233,107 @@ private fun MovementFiltersSheetContent(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         modifier = Modifier.testTag("panel_advanced_filters"),
+        footer = {
+            // STICKY BOTTOM BAR
+            Surface(
+                tonalElevation = 4.dp,
+                shadowElevation = 8.dp,
+                color = themeColors.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("sticky_filter_footer")
+            ) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    maxItemsInEachRow = if (compactLayout) 1 else 2,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            draft = MovementFilterDraft()
+                            errors = emptyMap()
+                            validationAttempted = false
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, themeColors.border),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = themeColors.inkSecondary),
+                        modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.32f))
+                            .heightIn(min = 48.dp)
+                            .testTag("btn_reset_advanced_filters")
+                    ) {
+                        Text("Limpiar", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    }
+
+                    val hasZeroMatches = matchingMovementsCount == 0
+                    val ctaText = when {
+                        activeFilterCount == 0 -> "Ver todos ($matchingMovementsCount movimientos)"
+                        matchingMovementsCount > 0 -> "Ver $matchingMovementsCount movimientos"
+                        else -> "Ver 0 movimientos"
+                    }
+
+                    Button(
+                        onClick = {
+                            val draftToApply = if (!allowed) {
+                                val prev = MovementFilterDraft.fromApplied(state.appliedFilters)
+                                MovementFilterDraft(
+                                    fromDate = draft.fromDate,
+                                    toDate = draft.toDate,
+                                    movementType = draft.movementType,
+                                    accountIds = prev.accountIds,
+                                    categoryIds = prev.categoryIds,
+                                    cardIds = prev.cardIds,
+                                    merchantIds = prev.merchantIds,
+                                    paymentChannels = prev.paymentChannels,
+                                    financialStates = prev.financialStates,
+                                    syncStatuses = prev.syncStatuses,
+                                    sources = prev.sources,
+                                    minAmount = prev.minAmount,
+                                    maxAmount = prev.maxAmount,
+                                    currency = prev.currency
+                                )
+                            } else {
+                                draft
+                            }
+                            val validation = onApply(draftToApply)
+                            validationAttempted = true
+                            errors = validation.errors
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (hasZeroMatches) themeColors.border else themeColors.primary,
+                            contentColor = if (hasZeroMatches) themeColors.inkSecondary else themeColors.onPrimary,
+                            disabledContainerColor = themeColors.border,
+                            disabledContentColor = themeColors.inkSecondary,
+                        ),
+                        modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.68f))
+                            .heightIn(min = 48.dp)
+                            .testTag("btn_apply_filters")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = ctaText,
+                                modifier = if (compactLayout) Modifier.weight(1f) else Modifier,
+                                textAlign = if (compactLayout) TextAlign.Center else TextAlign.Start,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
         header = {
             Column(Modifier.fillMaxWidth()) {
                 // Header Top Row
@@ -942,105 +1043,7 @@ private fun MovementFiltersSheetContent(
 
         if (compactLayout) Spacer(Modifier.height(12.dp))
 
-        // STICKY BOTTOM BAR
-        Surface(
-            tonalElevation = 4.dp,
-            shadowElevation = 8.dp,
-            color = themeColors.surface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("sticky_filter_footer")
-        ) {
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                maxItemsInEachRow = if (compactLayout) 1 else 2,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        draft = MovementFilterDraft()
-                        errors = emptyMap()
-                        validationAttempted = false
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, themeColors.border),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = themeColors.inkSecondary),
-                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.32f))
-                        .heightIn(min = 48.dp)
-                        .testTag("btn_reset_advanced_filters")
-                ) {
-                    Text("Limpiar", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                }
 
-                val hasZeroMatches = matchingMovementsCount == 0
-                val ctaText = when {
-                    activeFilterCount == 0 -> "Ver todos ($matchingMovementsCount movimientos)"
-                    matchingMovementsCount > 0 -> "Ver $matchingMovementsCount movimientos"
-                    else -> "Ver 0 movimientos"
-                }
-
-                Button(
-                    onClick = {
-                        val draftToApply = if (!allowed) {
-                            val prev = MovementFilterDraft.fromApplied(state.appliedFilters)
-                            MovementFilterDraft(
-                                fromDate = draft.fromDate,
-                                toDate = draft.toDate,
-                                movementType = draft.movementType,
-                                accountIds = prev.accountIds,
-                                categoryIds = prev.categoryIds,
-                                cardIds = prev.cardIds,
-                                merchantIds = prev.merchantIds,
-                                paymentChannels = prev.paymentChannels,
-                                financialStates = prev.financialStates,
-                                syncStatuses = prev.syncStatuses,
-                                sources = prev.sources,
-                                minAmount = prev.minAmount,
-                                maxAmount = prev.maxAmount,
-                                currency = prev.currency
-                            )
-                        } else {
-                            draft
-                        }
-                        val validation = onApply(draftToApply)
-                        validationAttempted = true
-                        errors = validation.errors
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (hasZeroMatches) themeColors.border else themeColors.primary,
-                        contentColor = if (hasZeroMatches) themeColors.inkSecondary else themeColors.onPrimary,
-                        disabledContainerColor = themeColors.border,
-                        disabledContentColor = themeColors.inkSecondary,
-                    ),
-                    modifier = (if (compactLayout) Modifier.fillMaxWidth() else Modifier.weight(0.68f))
-                        .heightIn(min = 48.dp)
-                        .testTag("btn_apply_filters")
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = ctaText,
-                            modifier = if (compactLayout) Modifier.weight(1f) else Modifier,
-                            textAlign = if (compactLayout) TextAlign.Center else TextAlign.Start,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
     }
 
     // DATE RANGE PICKER DIALOG

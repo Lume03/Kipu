@@ -1117,11 +1117,22 @@ private fun refundErrorMessage(error: RefundTransactionError): String = when (er
     RefundTransactionError.INVALID_COMMAND -> "No se pudo registrar el reembolso. Inténtalo de nuevo."
 }
 
-private fun refundRejectionMessage(code: String): String = when (code.uppercase(Locale.ROOT)) {
+internal fun refundRejectionMessage(code: String): String = when (code.uppercase(Locale.ROOT)) {
     "REFUND_EXCEEDS_REMAINDER" -> "Otro dispositivo ya utilizó parte del remanente. Este reembolso fue rechazado; puedes anularlo. La compra original no cambió."
     "PURCHASE_NOT_FOUND" -> "No se encontró la compra original. Puedes anular el reembolso rechazado."
     "PURCHASE_NOT_ELIGIBLE" -> "La compra no cumple las condiciones para reembolso. Puedes anular el reembolso rechazado."
-    else -> "El servidor rechazó este reembolso. Puedes anularlo sin cambiar la compra original."
+    "REFUND_REQUIRES_CARD_PURCHASE" -> "Solo las compras con tarjeta admiten reembolso. Puedes anular el reembolso rechazado."
+    "CURRENCY_MISMATCH" -> "La moneda del reembolso no coincide con la compra. Puedes anularlo y corregirla."
+    "INVALID_AMOUNT_OR_CURRENCY" -> "El importe o la moneda del reembolso no son válidos. Puedes anularlo y registrar uno nuevo."
+    "INVALID_REFUND_DATE" -> "La fecha del reembolso debe estar entre la compra y hoy. Puedes anularlo y corregir la fecha."
+    "INVALID_TIMESTAMP_PRECISION" -> "La fecha del reembolso tiene una precisión no admitida. Puedes anularlo y registrar uno nuevo."
+    "INVALID_REQUEST_HASH" -> "No se pudo verificar el contenido de la solicitud de reembolso. Puedes anularlo y registrar uno nuevo."
+    "IDEMPOTENCY_CONFLICT" -> "La solicitud de reembolso cambió durante un reintento. Puedes anularla y registrar una nueva."
+    "TRANSACTION_ID_ALREADY_EXISTS" -> "El identificador del reembolso ya está en uso. Puedes anularlo y registrar uno nuevo."
+    "UNAUTHORIZED" -> "No se pudo autorizar el reembolso. Vuelve a iniciar sesión."
+    "HTTP_401" -> "La sesión no permite sincronizar el reembolso. Vuelve a iniciar sesión."
+    "INVALID_COMMAND" -> "La solicitud de reembolso tiene un formato inválido. Puedes anularla y registrar una nueva."
+    else -> "El servidor rechazó este reembolso ($code). Puedes anularlo sin cambiar la compra original."
 }
 
 internal fun movementVoidError(code: String): String = when (code) {

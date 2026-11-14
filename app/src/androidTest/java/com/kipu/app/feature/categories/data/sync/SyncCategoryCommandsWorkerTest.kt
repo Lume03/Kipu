@@ -59,6 +59,11 @@ class SyncCategoryCommandsWorkerTest {
         io.mockk.every { sessionCoordinator.remoteSession } returns MutableStateFlow<RemoteSession>(
             RemoteSession.Valid(testUserId, java.time.Instant.now().plusSeconds(3600)),
         )
+        coEvery { api.fetchMerchantAliasRules(testUserId) } returns CategoryApiResponse.Success(emptyList())
+        coEvery { api.fetchMerchantPreferences(testUserId) } returns CategoryApiResponse.Success(emptyList())
+        coEvery { api.fetchMerchantCatalog(any()) } returns CategoryApiResponse.Success(emptyList())
+        coEvery { categoryDao.claim(testUserId, any()) } returns null
+        coEvery { categoryDao.getUnresolvedCommands(testUserId) } returns emptyList()
         io.mockk.every { sessionCoordinator.currentOwner } returns com.kipu.app.core.session.LocalOwner(testUserId)
     }
 
@@ -78,7 +83,7 @@ class SyncCategoryCommandsWorkerTest {
             updatedAt = 1000L
         )
 
-        coEvery { categoryDao.getPendingOutboxCommands(testUserId) } returns listOf(pendingCmd)
+        prepareCommands(listOf(pendingCmd))
         coEvery { api.createCategory(any(), any()) } returns CategoryApiResponse.Success(
             CategoryCommandResponseDto(success = true)
         )
@@ -121,14 +126,14 @@ class SyncCategoryCommandsWorkerTest {
         val result = worker.doWork()
         assertEquals(ListenableWorker.Result.success(), result)
 
-        coVerify { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+        coVerify { categoryDao.complete(any(), "COMPLETED", null, null, any()) }
         coVerify { merchantDao.insertMerchants(match { it.size == 1 && it.first().id == "m1" }) }
         coVerify {
             categoryDao.insertCategory(match { it.id == "00000000-0000-0000-0000-000000000001" })
             categoryDao.insertCategory(match { it.id == "00000000-0000-0000-0000-000000000002" })
             categoryDao.insertCategory(match { it.id == "00000000-0000-0000-0000-000000000003" })
         }
-        coVerify { categoryDao.insertPresentationsIfAbsent(match { it.map { presentation -> presentation.name }.toSet() == setOf("Alimentación", "Transporte", "Servicios") }) }
+        coVerify(exactly = 3) { categoryDao.insertPresentation(any()) }
     }
 
     @Test
@@ -145,7 +150,7 @@ class SyncCategoryCommandsWorkerTest {
             command(preferenceUpsertOperation, "UPSERT_MERCHANT_CATEGORY_PREFERENCE", "merchant-1", """{"operation_id":"$preferenceUpsertOperation","preference_id":"preference-1","merchant_id":"merchant-1","category_id":"category-1","payload_hash":"h4"}"""),
             command(preferenceDeleteOperation, "DELETE_MERCHANT_CATEGORY_PREFERENCE", "merchant-1", """{"operation_id":"$preferenceDeleteOperation","preference_id":"preference-1","expected_revision":1,"payload_hash":"h5"}"""),
         )
-        coEvery { categoryDao.getPendingOutboxCommands(testUserId) } returns commands
+        prepareCommands(commands)
         coEvery { api.fetchCategories() } returns CategoryApiResponse.Success(emptyList())
         coEvery { api.fetchCategoryPresentations() } returns CategoryApiResponse.Success(emptyList())
         coEvery { merchantDao.getLatestVersion() } returns 0L
@@ -176,7 +181,7 @@ class SyncCategoryCommandsWorkerTest {
         coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-1", "SYNCED", 2L, null) }
         coVerify { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 1L, null) }
         coVerify { merchantRulesDao.setPreferenceSyncState(testUserId, "merchant-1", "SYNCED", 2L, null) }
-        coVerify(exactly = 5) { categoryDao.updateOutboxCommand(match { it.state == "COMPLETED" }) }
+        coVerify(exactly = 5) { categoryDao.complete(any(), "COMPLETED", null, null, any()) }
     }
 
     @Test
@@ -188,7 +193,7 @@ class SyncCategoryCommandsWorkerTest {
             "rule-rejected",
             """{"operation_id":"$operationId","rule_id":"rule-rejected","normalized_pattern":"tambo","merchant_id":"merchant-1","payload_hash":"hash"}""",
         )
-        coEvery { categoryDao.getPendingOutboxCommands(testUserId) } returns listOf(pending)
+        prepareCommands(listOf(pending))
         coEvery { api.fetchCategories() } returns CategoryApiResponse.Success(emptyList())
         coEvery { api.fetchCategoryPresentations() } returns CategoryApiResponse.Success(emptyList())
         coEvery { merchantDao.getLatestVersion() } returns 0L
@@ -198,15 +203,26 @@ class SyncCategoryCommandsWorkerTest {
         val worker = SyncCategoryCommandsWorker(context, workerParams, categoryDao, merchantDao, merchantRulesDao, api, sessionCoordinator, transactionRunner)
         assertEquals(ListenableWorker.Result.success(), worker.doWork())
 
-        coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-rejected", "CONFLICT", null, "COMMAND_REJECTED") }
-        coVerify { categoryDao.updateOutboxCommand(match { it.operationId == operationId && it.state == "FAILED" && it.errorCode == "COMMAND_REJECTED" }) }
+        coVerify { merchantRulesDao.setAliasSyncState(testUserId, "rule-rejected", "FAILED", null, "HTTP_400") }
+        coVerify { categoryDao.complete(match { it.operationId == operationId }, "FAILED_PERMANENT", "HTTP_400", null, any()) }
+    }
+
+    private fun prepareCommands(commands: List<CategorySyncOutboxEntity>) {
+        val leased = commands.map { it.copy(state="IN_FLIGHT", nextAttemptAt=61_000, updatedAt=1_000) }
+        coEvery { categoryDao.claim(testUserId, any()) } returnsMany (leased + listOf(null))
+        coEvery { categoryDao.getUnresolvedCommands(testUserId) } returns commands
+        coEvery { categoryDao.getCommand(testUserId, any()) } answers { leased.firstOrNull { it.operationId == secondArg<String>() } }
     }
 
     private fun command(operationId: String, type: String, aggregateId: String, payload: String) = CategorySyncOutboxEntity(
         operationId = operationId,
         userId = testUserId,
         commandType = type,
-        aggregateType = type,
+        aggregateType = when {
+            type.contains("ALIAS_RULE") -> "MERCHANT_ALIAS_RULE"
+            type.contains("CATEGORY_PREFERENCE") -> "MERCHANT_CATEGORY_PREFERENCE"
+            else -> "MOVEMENT"
+        },
         aggregateId = aggregateId,
         payloadJson = payload,
         payloadHash = "hash-$operationId",
@@ -242,7 +258,7 @@ class SyncCategoryCommandsWorkerTest {
             updatedAt = 1000L,
         )
 
-        coEvery { categoryDao.getPendingOutboxCommands(testUserId) } returns listOf(pendingCmd)
+        prepareCommands(listOf(pendingCmd))
         coEvery { categoryDao.getCategoryById(pendingCatId) } returns existingLocal
         coEvery { api.fetchCategories() } returns CategoryApiResponse.Success(
             listOf(

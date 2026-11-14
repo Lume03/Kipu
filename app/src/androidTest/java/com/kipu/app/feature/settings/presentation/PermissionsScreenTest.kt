@@ -114,7 +114,7 @@ class PermissionsScreenTest {
     }
 
     @Test
-    fun clicking_explanation_opens_rationale_dialog() {
+    fun clicking_notification_explanation_opens_visual_explainer() {
         val viewModel = viewModel()
 
         composeTestRule.setContent {
@@ -128,8 +128,10 @@ class PermissionsScreenTest {
         val explanationButtons = composeTestRule.onAllNodes(androidx.compose.ui.test.hasText("Explicación"))
         explanationButtons[0].performClick()
 
-        composeTestRule.onNodeWithText("Aceptar y Continuar").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Cerrar").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("notifications_explainer_sheet").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("notifications_explainer_enable").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("notifications_explainer_dismiss").performClick()
+        composeTestRule.onNodeWithTag("notifications_explainer_sheet").assertDoesNotExist()
     }
 
     @Test

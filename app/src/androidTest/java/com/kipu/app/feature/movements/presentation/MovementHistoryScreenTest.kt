@@ -3,7 +3,7 @@ package com.kipu.app.feature.movements.presentation
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.junit4.createComposeRule
+import com.kipu.app.testing.createSyncNoticeComposeRule as createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -287,7 +287,7 @@ class MovementHistoryScreenTest {
     }
 
     @Test
-    fun voidMovementDialogSpecializedDisablesVoidAndWarns() {
+    fun unpaidCardPurchaseCanBeVoidedAfterL2Refinement() {
         val item = TransactionItem(
             transaction = Transaction(
                 id = "tx-specialized-card",
@@ -318,11 +318,8 @@ class MovementHistoryScreenTest {
         }
 
         compose.onNodeWithTag("dialog_void_movement").assertIsDisplayed()
-        compose.onNodeWithTag("text_void_specialized_warning").assertIsDisplayed()
-        compose.onNodeWithText("Este movimiento tiene cuotas o una deuda asociada. Revísalo desde su gestión específica.").assertIsDisplayed()
-
-        // Confirm button must NOT exist for specialized operations
-        compose.onNodeWithTag("btn_confirm_void").assertDoesNotExist()
+        compose.onNodeWithTag("text_void_specialized_warning").assertDoesNotExist()
+        compose.onNodeWithTag("btn_confirm_void").assertIsDisplayed()
 
         // Cancel button is available
         compose.onNodeWithTag("btn_cancel_void").performClick()
