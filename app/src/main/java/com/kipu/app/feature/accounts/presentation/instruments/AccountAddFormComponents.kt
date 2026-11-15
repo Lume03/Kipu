@@ -50,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -93,17 +95,40 @@ internal fun BankLogoTile(bank: BankChoice, size: androidx.compose.ui.unit.Dp, m
 @Composable
 internal fun AddFormTopBar(title: String, onBack: () -> Unit) {
     val calmColors = rememberCalmEmeraldColors()
+    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
+    val displayTitle = if (compactLargeText) {
+        title.removePrefix("Agregar ").replaceFirstChar { it.titlecase() }
+    } else {
+        title
+    }
     Surface(color = calmColors.background, modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
+        if (compactLargeText) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
+                }
+                Text(
+                    displayTitle,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
+                    color = calmColors.primaryText,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                )
             }
-            Text(
-                title,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
-                color = calmColors.primaryText,
-                modifier = Modifier.weight(1f),
-            )
+        } else {
+            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
+                }
+                Text(
+                    displayTitle,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
+                    color = calmColors.primaryText,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -363,6 +388,7 @@ internal fun AddFormBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val calmColors = rememberCalmEmeraldColors()
+    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
     Surface(
         color = calmColors.surfaceCard,
         border = BorderStroke(1.dp, calmColors.borderSubtle),
@@ -382,11 +408,13 @@ internal fun AddFormBottomBar(
             ) {
                 Text(label, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             }
-            Text(
-                if (hasErrors) "Revisa los campos marcados en rojo" else "Todo listo para guardar",
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                color = if (hasErrors) calmColors.expenseText else calmColors.secondaryMuted,
-            )
+            if (hasErrors || !compactLargeText) {
+                Text(
+                    if (hasErrors) "Revisa los campos marcados en rojo" else "Todo listo para guardar",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (hasErrors) calmColors.expenseText else calmColors.secondaryMuted,
+                )
+            }
         }
     }
 }
