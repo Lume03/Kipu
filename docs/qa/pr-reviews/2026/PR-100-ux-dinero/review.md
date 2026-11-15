@@ -47,6 +47,7 @@ Los defectos confirmados de legibilidad del detalle de tarjeta, del aviso de sal
 - **Confirmación de archivo, 200 % y oscuro (alto, corregido):** el importe se partía carácter por carácter; se apiló el aviso y se verificó manualmente sin confirmar el archivado. Evidencia: [comparativa sanitizada](evidence/archive-warning-200-comparison.png).
 - **Barra inferior compartida (pendiente de integrador):** las etiquetas se amontonan a escala grande; no se modificó por exclusión expresa de #95.
 - **Alta de cuenta bancaria, 200 % y ancho compacto (medio, corregido):** Atrás y “Agregar cuenta bancaria” competían en una fila y el título ocupaba tres líneas. Se separó Atrás, se conserva el título “Cuenta bancaria” y se retira el texto de estado redundante del footer en este breakpoint. Se comprobó visualmente y se activó Atrás sin guardar. Evidencia: [comparativa sanitizada](evidence/account-form-compact-200-comparison.png).
+- **Desconexión sin indicación (candidato medio, pendiente de decisión):** offline, el dashboard conserva contenido cacheado y el formulario/simulador siguen utilizables sin mensaje explícito de estado de red. Registrar para que producto confirme si el contenido potencialmente desactualizado debe señalarse; no se implementó sin requisito aprobado.
 - No se encontraron otros defectos altos confirmados en los escenarios alcanzados; esto no cubre los estados no disponibles.
 
 ### Menores / sugerencias
@@ -84,5 +85,5 @@ Los defectos confirmados de legibilidad del detalle de tarjeta, del aviso de sal
 ## Acciones en GitHub
 
 - **Aprobación formal:** No enviada.
-- **Comentarios publicados:** [Avance en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6889721991).
+- **Comentarios publicados:** [Avance en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897013839).
 - **Solicitudes de cambio:** No.
