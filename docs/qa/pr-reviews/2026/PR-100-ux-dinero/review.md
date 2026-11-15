@@ -5,7 +5,7 @@
 - **Autor / asignado:** LeonidasGarcia
 - **Fecha de revisión:** 2026-11-15
 - **Rama:** `ux/dinero` → `main`
-- **Commit revisado:** `ef2e8b5c` más cambios locales aún no publicados al redactar este informe
+- **Commits revisados:** `39e6171c` (UI) y `8ad27c1b` (informe y evidencia), sobre `ef2e8b5c`
 - **Estado del PR al revisar:** abierto, borrador
 
 ## Dictamen breve
@@ -72,5 +72,5 @@ Los defectos confirmados de legibilidad a escala de fuente grande en el detalle 
 ## Acciones en GitHub
 
 - **Aprobación formal:** No enviada.
-- **Comentarios publicados:** Pendiente de publicar junto al push de los cambios.
+- **Comentarios publicados:** [Avance en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6889721991).
 - **Solicitudes de cambio:** No.
