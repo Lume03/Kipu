@@ -74,6 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -849,45 +850,64 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                 )
             }
 
-            // Bottom row: Authorized line + personal rate status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Keep the rate status from collapsing beside a long credit line at large font scales.
+            if (LocalDensity.current.fontScale >= 1.3f) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Shield,
-                        contentDescription = null,
-                        tint = Color(0xFF14B8A6),
-                        modifier = Modifier.size(14.dp),
-                    )
-                    val isMasked = LocalBalanceMasked.current
-                    val limitDisplay = if (isMasked) "••••••" else "${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}"
-                    Text(
-                        text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: $limitDisplay",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFCBD5E1),
-                        modifier = Modifier.semantics {
-                            if (isMasked) {
-                                contentDescription = "${FinancialTerminology.TOTAL_CREDIT_LINE}: Monto oculto"
-                            }
-                        },
-                    )
+                    CreditCardLimitLabel(card)
+                    PersonalTeaStatusLabel(card)
                 }
-
-                Text(
-                    text = if (card.personalTeaBps != null) "Tasa personalizada" else "Sin tasa personalizada",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (card.personalTeaBps != null) Color(0xFF10B981) else Color(0xFFF59E0B),
-                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CreditCardLimitLabel(card)
+                    PersonalTeaStatusLabel(card)
+                }
             }
         }
     }
+}
+
+@Composable
+private fun CreditCardLimitLabel(card: CreditCard) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Shield,
+            contentDescription = null,
+            tint = Color(0xFF14B8A6),
+            modifier = Modifier.size(14.dp),
+        )
+        val isMasked = LocalBalanceMasked.current
+        val limitDisplay = if (isMasked) "••••••" else "${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}"
+        Text(
+            text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: $limitDisplay",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFCBD5E1),
+            modifier = Modifier.semantics {
+                if (isMasked) {
+                    contentDescription = "${FinancialTerminology.TOTAL_CREDIT_LINE}: Monto oculto"
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PersonalTeaStatusLabel(card: CreditCard) {
+    Text(
+        text = if (card.personalTeaBps != null) "Tasa personalizada" else "Sin tasa personalizada",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = if (card.personalTeaBps != null) Color(0xFF10B981) else Color(0xFFF59E0B),
+    )
 }
 
 @Composable

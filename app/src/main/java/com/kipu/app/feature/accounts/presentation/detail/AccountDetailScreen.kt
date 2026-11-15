@@ -2071,11 +2071,37 @@ private fun CreditCardActionsSection(
     onReactivateClick: () -> Unit,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val largeFontScale = LocalDensity.current.fontScale >= 1.3f
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!isArchived) {
             val hasDebt = summary == null || summary.debt.minorUnits > 0L
-            if (hasDebt) {
+            if (hasDebt && largeFontScale) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onPayCreditCard,
+                        enabled = !isSubmitting,
+                        colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Icon(Icons.Rounded.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Pagar tarjeta", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(
+                        onClick = onStartCreditPurchase,
+                        enabled = !isSubmitting,
+                        border = BorderStroke(1.5.dp, emeraldColors.primaryDeep),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Registrar consumo", modifier = Modifier.weight(1f), color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            } else if (hasDebt) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -2086,7 +2112,7 @@ private fun CreditCardActionsSection(
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(
@@ -2104,7 +2130,7 @@ private fun CreditCardActionsSection(
                         border = BorderStroke(1.5.dp, emeraldColors.primaryDeep),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(
@@ -2114,7 +2140,7 @@ private fun CreditCardActionsSection(
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Registrar consumo", color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold)
+                        Text("Registrar consumo", modifier = Modifier.weight(1f), color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold)
                     }
                 }
             } else {
@@ -2124,7 +2150,7 @@ private fun CreditCardActionsSection(
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Icon(
@@ -2133,7 +2159,7 @@ private fun CreditCardActionsSection(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Registrar consumo", fontWeight = FontWeight.Bold)
+                    Text("Registrar consumo", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -2144,15 +2170,16 @@ private fun CreditCardActionsSection(
                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -2175,6 +2202,7 @@ private fun CreditCardActionsSection(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
@@ -2206,7 +2234,7 @@ private fun CreditCardActionsSection(
                 onClick = onEditCreditTerms,
                 enabled = !isSubmitting,
                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
@@ -2219,7 +2247,11 @@ private fun CreditCardActionsSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
-                    Text("Editar línea total de crédito, ciclo y fechas", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Editar línea total de crédito, ciclo y fechas",
+                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.Medium,
+                    )
                 }
             }
 
@@ -2229,7 +2261,7 @@ private fun CreditCardActionsSection(
                 border = BorderStroke(1.dp, emeraldColors.expenseBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = if (largeFontScale) 64.dp else 48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
@@ -2300,6 +2332,7 @@ private fun CreditCardMovementsSection(
     var selectedPeriodFilter by remember { mutableStateOf("ALL") } // "ALL", "CYCLE"
 
     val activeFilterCount = (if (selectedTypeFilter != "ALL") 1 else 0) + (if (selectedPeriodFilter != "ALL") 1 else 0)
+    val largeFontScale = LocalDensity.current.fontScale >= 1.3f
 
     val dateFormatter = remember {
         DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.forLanguageTag("es-PE"))
@@ -2328,12 +2361,32 @@ private fun CreditCardMovementsSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
+        val movementTitle: @Composable () -> Unit = {
+            if (largeFontScale) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "Movimientos de la tarjeta",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Surface(
+                        modifier = Modifier.align(Alignment.End),
+                        shape = CircleShape,
+                        color = emeraldColors.pillTrack,
+                    ) {
+                        Text(
+                            text = "${filteredMovements.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = emeraldColors.primaryDeep,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            } else Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -2357,7 +2410,9 @@ private fun CreditCardMovementsSection(
                     )
                 }
             }
+        }
 
+        val filterButton: @Composable () -> Unit = {
             Surface(
                 onClick = { showFilterSheet = true },
                 shape = RoundedCornerShape(8.dp),
@@ -2382,6 +2437,27 @@ private fun CreditCardMovementsSection(
                         color = if (activeFilterCount > 0) emeraldColors.primaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+        }
+
+        if (largeFontScale) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                movementTitle()
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    filterButton()
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                movementTitle()
+                filterButton()
             }
         }
 
