@@ -74,6 +74,31 @@ class FinancialInstrumentsApiTest {
         } finally { client.close() }
     }
 
+    @Test fun `financial feed joins refunds to owner scoped links before checkpointing`() = runTest {
+        val sessions = Sessions()
+        val owner = sessions.currentSession().userId.toString()
+        var requests = 0
+        val client = HttpClient(MockEngine { request ->
+            requests++
+            val body = if (request.url.encodedPath.endsWith("transaction_links")) {
+                assertEquals("eq.$owner", request.url.parameters["user_id"])
+                assertEquals("eq.REFUND", request.url.parameters["link_type"])
+                assertEquals("in.(refund)", request.url.parameters["target_transaction_id"])
+                """[{"source_transaction_id":"purchase","target_transaction_id":"refund"}]"""
+            } else """{"changes":[{"sequence":1,"entity_type":"TRANSACTION","entity_id":"refund","revision":1,"operation":"UPSERT","payload":{"operation_kind":"REFUND"}}],"next_sequence":1,"has_more":false}"""
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            defaultRequest { url("https://kipu.test/") }
+        }
+        try {
+            val result = FinancialInstrumentsApi(client, sessions).pullChanges(PullChangesRequestDto(afterSequence=0), owner)
+            assertTrue(result is FinancialApiResponse.Success)
+            assertTrue((result as FinancialApiResponse.Success).data.changes.single().payload.toString().contains("purchase"))
+            assertEquals(2, requests)
+        } finally { client.close() }
+    }
+
     private class Sessions : AuthenticatedSessionProvider {
         private val session = AuthenticatedSession(UUID.randomUUID(), "test-token")
         override suspend fun currentSession(): AuthenticatedSession = session

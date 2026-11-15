@@ -49,6 +49,22 @@ class MovementLocalDataSource @Inject constructor(
             movementDao.updateTransaction(transaction.copy(status = "FAILED"))
             return@withTransaction true
         }
+        // Hydration has already reconciled this conflict to an authoritative server head.
+        // Compensating its old local revision would reverse the accepted remote value.
+        val head = transaction?.currentRevisionId?.let { movementDao.getRevision(userId, it) }
+        if (cmd.state == "CONFLICT" && transaction?.syncStatus == "SYNCED" &&
+            head?.provenance == "REMOTE" && transaction.acknowledgedRevision == transaction.revision) {
+            val commands = movementDao.getAllOutboxForTransaction(userId, cmd.aggregateId)
+            if (commands.any { it.state in setOf("PENDING", "RETRY", "IN_FLIGHT") }) return@withTransaction false
+            commands.filter { com.kipu.app.core.sync.OutboxPolicy.isTerminal(it.state) || it.state == "BLOCKED" }.forEach {
+                movementDao.updateOutboxResult(userId, it.id, "DISCARDED", null, it.lastErrorCode)
+                movementDao.updateCommandReceiptStatus(userId, it.idempotencyKey, "REJECTED", System.currentTimeMillis())
+            }
+            movementDao.getConflictProposals(userId, cmd.aggregateId).forEach {
+                movementDao.updateConflictProposalResolution(userId, it.proposalId, "DISCARDED")
+            }
+            return@withTransaction true
+        }
         if (!MovementRejectionResolver(database, movementDao).discardTerminal(userId, cmd.aggregateId)) return@withTransaction false
         movementDao.unblock(userId, cmd.aggregateId)
         true
@@ -1503,12 +1519,15 @@ class MovementLocalDataSource @Inject constructor(
         return database.withTransaction {
             val proposal = movementDao.getConflictProposalById(userId, proposalId) ?: return@withTransaction false
             if (proposal.resolution != "UNRESOLVED") return@withTransaction false
+            val terminal = movementDao.getAllOutboxForTransaction(userId, proposal.transactionId)
+                .firstOrNull { it.idempotencyKey == proposal.commandId && it.state == "CONFLICT" }
+            if (terminal != null) return@withTransaction discardLocal(userId, terminal.id)
             val now = System.currentTimeMillis()
             movementDao.updateConflictProposalResolution(userId, proposalId, "DISCARDED", now)
             val pendingOutbox = movementDao.getPendingOutboxForTransaction(userId, proposal.transactionId)
                 .firstOrNull { it.idempotencyKey == proposal.commandId }
             if (pendingOutbox != null) {
-                movementDao.updateOutboxResult(userId, pendingOutbox.id, "FAILED_PERMANENT", null, "PROPOSAL_DISCARDED", now)
+                movementDao.updateOutboxResult(userId, pendingOutbox.id, "DISCARDED", null, "PROPOSAL_DISCARDED", now)
             }
             true
         }

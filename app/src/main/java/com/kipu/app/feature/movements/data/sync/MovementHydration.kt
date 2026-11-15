@@ -511,7 +511,17 @@ class MovementHydration @javax.inject.Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             )
 
-            if (isRefund) database.creditDao().refreshInstallmentStatuses(userId)
+            if (isRefund && !applyRefundLink(userId, remote, occurredAt)) return@ownerTransaction false
+            if (movementDao.getAllOutboxForTransaction(userId, remote.id).any { it.state == "CONFLICT" }) {
+                val official = requireNotNull(movementDao.getTransactionById(userId, remote.id))
+                val headId = "remote:hydrated:${remote.id}:$revision"
+                if (movementDao.getRevision(userId, headId) == null) movementDao.insertRevision(
+                    com.kipu.app.feature.movements.data.local.TransactionRevisionEntity(userId, headId, remote.id, headId,
+                        "REVISE", maxOf(0L, revision - 1), revision, null,
+                        com.kipu.app.feature.movements.data.local.MovementRevisionSnapshotCodec.encode(official), null,
+                        "REMOTE", System.currentTimeMillis()))
+                movementDao.updateTransaction(official.copy(acknowledgedRevision = revision, currentRevisionId = headId))
+            }
             val allAccountIds = (accountIds + listOfNotNull(existing.sourceAccountId, existing.destinationAccountId)).distinct()
             allAccountIds.forEach { accountId ->
                 val account = accountDao.getById(userId, accountId) ?: return@forEach
@@ -538,12 +548,23 @@ class MovementHydration @javax.inject.Inject constructor(
         if (isCardPurchase && !applyPulledInstallmentSnapshot(userId, remote, occurredAt)) return@ownerTransaction false
         if (isCardPayment && !applyPulledPaymentAllocations(userId, remote, occurredAt)) return@ownerTransaction false
         if (!reconcilePulledLedgerEntries(userId, remote, occurredAt, revision)) return@ownerTransaction false
-        if (isRefund) database.creditDao().refreshInstallmentStatuses(userId)
+        if (isRefund && !applyRefundLink(userId, remote, occurredAt)) return@ownerTransaction false
         accountIds.forEach { accountId ->
             val account = accountDao.getById(userId, accountId) ?: return@ownerTransaction false
             balanceProjectionStore.rebuildBalanceFromLedger(userId, accountId, account.currency)
         }
         true
+    }
+
+    private suspend fun applyRefundLink(userId: String, remote: SyncTransactionPayload, occurredAt: Long): Boolean {
+        val links = database.transactionLinkDao()
+        val existing = links.getByRefundId(userId, remote.id)
+        val purchase = remote.refundPurchaseId ?: existing?.sourceTransactionId ?: return false
+        if (movementDao.getTransactionById(userId, purchase) == null ||
+            (existing != null && (existing.sourceTransactionId != purchase || existing.linkType != "REFUND"))) return false
+        links.insertHydrated(com.kipu.app.feature.movements.data.local.TransactionLinkEntity(userId, purchase, remote.id, "REFUND", occurredAt))
+        database.creditDao().refreshInstallmentStatuses(userId)
+        return true
     }
 
     private suspend fun reconcilePulledLedgerEntries(

@@ -41,6 +41,7 @@ data class MerchantCategoryPreferenceUiState(
     val selectedMerchant: MerchantCatalogEntry? = null,
     val eligibleCategories: List<MerchantCategoryChoice> = emptyList(),
     val selectedCategoryId: com.kipu.app.feature.categories.domain.model.CategoryId? = null,
+    val categoryChoiceDirty: Boolean = false,
     val allPreferences: List<MerchantCategoryPreference> = emptyList(),
     val existingPreference: MerchantCategoryPreference? = null,
     val needsNewChoice: Boolean = false,
@@ -84,7 +85,7 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
 
     fun onMerchantQueryChange(value: String) {
         merchantSearchJob?.cancel()
-        _uiState.update { it.copy(merchantQuery = value, merchants = emptyList(), selectedMerchant = null) }
+        _uiState.update { it.copy(merchantQuery = value, merchants = emptyList(), selectedMerchant = null, categoryChoiceDirty = false) }
         if (value.isBlank()) return
         merchantSearchJob = viewModelScope.launch {
             repository.searchMerchants(value).collectLatest { results ->
@@ -103,6 +104,7 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedMerchant = merchant,
+                categoryChoiceDirty = false,
                 merchantQuery = merchant.name,
                 merchants = emptyList(),
                 selectedCategoryId = preference?.categoryId?.takeIf { categoryAvailable },
@@ -116,7 +118,7 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
 
     fun onSelectCategory(categoryId: com.kipu.app.feature.categories.domain.model.CategoryId) {
         if (_uiState.value.eligibleCategories.none { it.category.id == categoryId }) return
-        _uiState.update { it.copy(selectedCategoryId = categoryId, needsNewChoice = false, message = null) }
+        _uiState.update { it.copy(selectedCategoryId = categoryId, categoryChoiceDirty = true, needsNewChoice = false, message = null) }
     }
 
     fun onSave() {
@@ -130,6 +132,7 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSaving = false,
+                    categoryChoiceDirty = it.categoryChoiceDirty && !(result.isSuccess && it.selectedCategoryId == categoryId),
                     message = if (result.isSuccess) "Preferencia guardada para operaciones futuras." else
                         result.exceptionOrNull()?.message ?: "No se pudo guardar la preferencia.",
                     needsNewChoice = false,
@@ -147,6 +150,7 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     selectedCategoryId = null,
+                    categoryChoiceDirty = false,
                     existingPreference = null,
                     message = if (result.isSuccess) "Preferencia eliminada." else
                         result.exceptionOrNull()?.message ?: "No se pudo eliminar la preferencia.",
@@ -183,19 +187,24 @@ class MerchantCategoryPreferenceViewModel @Inject constructor(
         }
         val preferenceIsEligible = preference?.categoryId?.let { id -> eligible.any { it.category.id == id } } == true
         _uiState.update {
+            // A background snapshot may refresh labels and eligibility, but must not
+            // replace a valid category the user is still choosing in this form.
+            val keepDraft = it.categoryChoiceDirty && eligible.any { choice -> choice.category.id == it.selectedCategoryId }
             it.copy(
                 ownerId = owner,
                 catalog = snapshot.catalog,
                 eligibleCategories = eligible,
                 allPreferences = snapshot.preferences,
                 existingPreference = preference,
+                categoryChoiceDirty = keepDraft,
                 selectedCategoryId = when {
+                    keepDraft -> it.selectedCategoryId
                     preferenceIsEligible -> preference?.categoryId
                     it.selectedCategoryId != null && eligible.any { item -> item.category.id == it.selectedCategoryId } -> it.selectedCategoryId
                     else -> null
                 },
-                needsNewChoice = preference != null && !preferenceIsEligible,
-                message = if (preference != null && !preferenceIsEligible) {
+                needsNewChoice = !keepDraft && preference != null && !preferenceIsEligible,
+                message = if (!keepDraft && preference != null && !preferenceIsEligible) {
                     "La categoría guardada ya no está disponible. Elige otra."
                 } else it.message,
             )

@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.kipu.app.feature.plans.data.sync.PlanEntitlementRefreshCoordinator
@@ -120,6 +121,13 @@ import kotlinx.coroutines.currentCoroutineContext
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    @Inject lateinit var foregroundSync: com.kipu.app.core.sync.ForegroundSyncCoordinator
+
+    override fun onStart() {
+        super.onStart()
+        (sessionCoordinator.localAccess.value as? LocalAccess.Available)?.let { foregroundSync.requestSync(it.userId) }
+    }
+
     @Inject lateinit var planEntitlementRefresh: PlanEntitlementRefreshCoordinator
 
     @Inject
@@ -327,6 +335,19 @@ class MainActivity : FragmentActivity() {
                         Box(modifier = Modifier.fillMaxSize()) {
                             val navBackStackEntry by navController.currentBackStackEntryAsState()
                             val currentRoute = navBackStackEntry?.destination?.route
+                            LaunchedEffect(accessState, currentRoute) {
+                                val owner = (accessState as? LocalAccess.Available)?.userId
+                                if (owner != null && isTopLevelRoute(currentRoute)) foregroundSync.requestSync(owner)
+                            }
+                            LaunchedEffect(accessState) {
+                                val owner = (accessState as? LocalAccess.Available)?.userId ?: return@LaunchedEffect
+                                lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                                    while (true) {
+                                        foregroundSync.requestSync(owner)
+                                        kotlinx.coroutines.delay(com.kipu.app.core.sync.ForegroundSyncCoordinator.MIN_INTERVAL_MILLIS)
+                                    }
+                                }
+                            }
                             // Every bottom-bar page lives in the dashboard entry, which keeps the selected page
                             // and Planning's tab; the bar and the (+) button adapt to them.
                             val dashboardHandle = remember(navBackStackEntry) {

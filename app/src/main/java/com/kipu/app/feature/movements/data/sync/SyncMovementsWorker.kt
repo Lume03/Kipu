@@ -155,6 +155,13 @@ class SyncMovementsWorker @AssistedInject constructor(
         val hadAppliedFeed = movementDao.getSyncCheckpoint(targetUserId) != null
         if (!sharedChangeFeed.pullChanges(targetUserId)) anyFailed = true
 
+        val hydrationRepairKey = "refund-links-conflict-head-20261114-v1:$targetUserId"
+        if (!recovery.getBoolean(hydrationRepairKey, false)) {
+            if (!hadAppliedFeed || hydration.hydrateFully(targetUserId)) {
+                recovery.edit().putBoolean(hydrationRepairKey, true).apply()
+            } else anyFailed = true
+        }
+
         // Earlier pulls appended the server's copy of offline-registered entries, posting them twice.
         // Runs after pushing, so pending user changes never wait behind this one-time pass.
         val ledgerRepairKey = "ledger-net-20261026-v1:$targetUserId"

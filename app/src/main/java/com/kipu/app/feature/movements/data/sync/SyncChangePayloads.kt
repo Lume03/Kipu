@@ -74,6 +74,7 @@ internal data class SyncTransactionPayload(
     @SerialName("ledger_entries") val ledgerEntries: List<SyncLedgerEntryPayload> = emptyList(),
     val installments: List<SyncInstallmentPayload> = emptyList(),
     val allocations: List<SyncAllocationPayload> = emptyList(),
+    @SerialName("refund_purchase_id") val refundPurchaseId: String? = null,
 )
 
 internal typealias SyncInstallmentPayload = com.kipu.app.feature.accounts.data.remote.CreditInstallmentResponseDto

@@ -11,6 +11,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -137,7 +138,36 @@ class FinancialInstrumentsApi @Inject constructor(
                 setBody(request)
             }
             when (response.status) {
-                HttpStatusCode.OK -> FinancialApiResponse.Success(response.body<PullChangesResponseDto>())
+                HttpStatusCode.OK -> {
+                    val page = response.body<PullChangesResponseDto>()
+                    // The deployed financial projection omits transaction_links. Read the existing
+                    // owner-scoped REST relation before committing a page, never infer a purchase.
+                    val refunds = page.changes.filter {
+                        it.entityType.uppercase() in setOf("TRANSACTION", "MOVEMENT") &&
+                            it.payload?.jsonObject?.get("operation_kind")?.jsonPrimitive?.content == "REFUND"
+                    }
+                    if (refunds.isEmpty()) return FinancialApiResponse.Success(page)
+                    val links = httpClient.get("rest/v1/transaction_links") {
+                        header(HttpHeaders.Authorization, auth)
+                        url {
+                            parameters.append("select", "source_transaction_id,target_transaction_id")
+                            parameters.append("link_type", "eq.REFUND")
+                            expectedOwner?.let { parameters.append("user_id", "eq.$it") }
+                            parameters.append("target_transaction_id", "in.(${refunds.joinToString(",") { it.entityId }})")
+                        }
+                    }
+                    if (links.status != HttpStatusCode.OK) return FinancialApiResponse.Error(links.status.value, "Refund links unavailable")
+                    val byRefund = links.body<JsonArray>().associate {
+                        it.jsonObject.getValue("target_transaction_id").jsonPrimitive.content to
+                            it.jsonObject.getValue("source_transaction_id")
+                    }
+                    if (refunds.any { it.entityId !in byRefund }) return FinancialApiResponse.Error(409, "Refund link missing")
+                    FinancialApiResponse.Success(page.copy(changes = page.changes.map { change ->
+                        val purchase = byRefund[change.entityId]
+                        if (purchase == null) change else change.copy(payload = JsonObject(requireNotNull(change.payload).jsonObject +
+                            ("refund_purchase_id" to purchase)))
+                    }))
+                }
                 else -> FinancialApiResponse.Error(response.status.value, response.body<String>())
             }
         } catch (e: kotlinx.coroutines.CancellationException) {

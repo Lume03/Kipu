@@ -141,12 +141,13 @@ class CardPurchaseVoidAndRefundRoomTest {
     }
     private fun hydration() = MovementHydration(db.movementDao(),api,db.accountDao(),db.cardDao(),db,session)
     @Test fun canonicalRefundPullSucceedsOnOriginAndFreshDevice() = runTest {
+        insertPurchase()
         for(origin in listOf(true,false)) {
             val id=UUID.randomUUID().toString()
             if(origin) db.movementDao().insertTransaction(TransactionEntity(id=id,userId=owner,type="INCOME",amountMinor=4000,currencyCode="PEN",
                 occurredAt=1,status="CONFIRMED",syncStatus="SYNCED",cardId="card",operationKind="REFUND",revision=1))
             db.movementDao().saveSyncCheckpoint(MovementSyncCheckpointEntity(owner,0))
-            feed(id,"""{"id":"$id","type":"INCOME","operation_kind":"REFUND","amount_minor":4000,"currency_code":"PEN","source_account_id":"liability","occurred_at":"2026-10-01T12:00:00Z","status":"CONFIRMED","ledger_entries":[{"account_id":"liability","role":"LIABILITY","signed_amount_minor":4000,"currency_code":"PEN"}]}""")
+            feed(id,"""{"id":"$id","type":"INCOME","operation_kind":"REFUND","refund_purchase_id":"$purchase","amount_minor":4000,"currency_code":"PEN","source_account_id":"liability","occurred_at":"2026-10-01T12:00:00Z","status":"CONFIRMED","ledger_entries":[{"account_id":"liability","role":"LIABILITY","signed_amount_minor":4000,"currency_code":"PEN"}]}""")
             assertTrue(hydration().hydrateFully(owner))
             assertEquals(2L,db.movementDao().getSyncCheckpoint(owner)?.sequence)
         }
@@ -159,6 +160,44 @@ class CardPurchaseVoidAndRefundRoomTest {
         assertEquals("VOIDED",db.creditDao().getInstallmentsForTransaction(owner,purchase).single().status)
         assertEquals(0L,db.movementDao().calculateLedgerSumForAccount(owner,"liability"))
     }
+    @Test fun hydratedRefundReducesDebtAndReplayAndVoidRemainIdempotent() = runTest {
+        insertPurchase(400)
+        val payload = """{"id":"refund-feed","type":"INCOME","operation_kind":"REFUND","refund_purchase_id":"$purchase","card_id":"card","amount_minor":100,"currency_code":"PEN","source_account_id":"liability","occurred_at":"2026-11-14T12:00:00Z","status":"CONFIRMED","ledger_entries":[{"account_id":"liability","role":"PRIMARY","signed_amount_minor":100,"currency_code":"PEN"}]}"""
+        feed("refund-feed", payload, 1)
+        repeat(2) { assertTrue(hydration().hydrateFully(owner)) }
+        assertEquals(300L, db.creditDao().getOutstandingPrincipalForCard(owner,"card"))
+        assertEquals(purchase, db.transactionLinkDao().getByRefundId(owner,"refund-feed")?.sourceTransactionId)
+        feed("refund-feed", payload.replace("CONFIRMED", "VOIDED").replace("100,\"currency_code\":\"PEN\"}]", "0,\"currency_code\":\"PEN\"}]"), 2)
+        repeat(2) { assertTrue(hydration().hydrateFully(owner)) }
+        assertEquals(400L, db.creditDao().getOutstandingPrincipalForCard(owner,"card"))
+    }
+
+    @Test fun acceptingHydratedServerHeadClosesConflictWithoutCompensatingRemoteLedger() = runTest { acceptHydratedConflict(false) }
+    @Test fun discardingHydratedProposalClosesTerminalConflict() = runTest { acceptHydratedConflict(true) }
+
+    private suspend fun acceptHydratedConflict(viaProposal: Boolean) {
+        val id = UUID.randomUUID().toString()
+        db.movementDao().insertTransaction(TransactionEntity(id=id,userId=owner,type="INCOME",amountMinor=100,currencyCode="PEN",
+            sourceAccountId="liability",occurredAt=1,status="CONFIRMED",syncStatus="SYNCED",revision=1))
+        db.movementDao().insertLedgerEntries(listOf(LedgerEntryEntity("base-conflict",owner,id,"liability","PRIMARY",100,"PEN",1)))
+        val cmd = MovementRevisionCommand.Revise(UUID.randomUUID().toString(), id, 1, payload=requireNotNull(local.getRevisionHead(owner,id)).payload.copy(amountMinor=220))
+        assertTrue(local.commitRevisionAtomic(owner,cmd,MovementRevisionRequestHasher().computeHash(cmd)) is MovementMutationResult.Success)
+        val pending = db.movementDao().getPendingOutboxForTransaction(owner,id).single()
+        db.movementDao().updateOutboxResult(owner,pending.id,"CONFLICT",null,"CONFLICT")
+        db.movementDao().updateTransactionSyncStatus(owner,id,"CONFLICT")
+        val proposalId = "proposal-conflict"
+        db.movementDao().insertConflictProposal(MovementConflictProposalEntity(owner,proposalId,id,pending.idempotencyKey,
+            1,requireNotNull(pending.revisionId),pending.payload,requireNotNull(pending.revisionId),null,"UNRESOLVED",1,1))
+        feed(id,"""{"id":"$id","type":"INCOME","operation_kind":"STANDARD","amount_minor":210,"currency_code":"PEN","source_account_id":"liability","occurred_at":"2026-11-14T12:00:00Z","status":"REVISED","ledger_entries":[{"account_id":"liability","role":"PRIMARY","signed_amount_minor":210,"currency_code":"PEN"}]}""",2)
+        assertTrue(hydration().hydrateFully(owner))
+        assertTrue(if (viaProposal) local.discardProposal(owner,proposalId) else local.discardLocal(owner,pending.id))
+        assertEquals("DISCARDED",db.movementDao().getOutboxById(owner,pending.id)?.state)
+        assertEquals(210L,db.movementDao().getTransactionById(owner,id)?.amountMinor)
+        assertEquals(210L,db.movementDao().calculateLedgerSumForAccount(owner,"liability"))
+        assertEquals("SYNCED",db.movementDao().getTransactionById(owner,id)?.syncStatus)
+        assertTrue(db.movementDao().getConflictProposals(owner,id).isEmpty())
+    }
+
     @Test fun hydratedProposalsCanBeDiscardedAndRedone() = runTest {
         for (discard in listOf(true,false)) {
             val id=UUID.randomUUID().toString()
