@@ -53,6 +53,8 @@ Los defectos confirmados de legibilidad a escala de fuente grande en el detalle 
 | --- | --- | --- |
 | `:app:assembleDebug` y `:app:testDebugUnitTest --tests com.kipu.app.feature.accounts.presentation.instruments.RateCatalogContextTest` | Pasa | Ejecutado localmente el 2026-11-15. |
 | `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.kipu.app.feature.accounts.presentation.detail.AccountDetailScreenTest` | Pasa | Pixel 8 AVD, Android 16/API 36; 23 pruebas, 0 fallas. |
+| `DashboardEmptyStateTest`, `UnifiedInstrumentFormScreenTest` y `CreditAccessibilitySemanticsTest` | Pasan | Fixtures de Compose; 7/7, 2/2 y 4/4 pruebas, respectivamente. Verifican estados vacíos, presentación del formulario y semántica accesible; no sustituyen el recorrido de producción con sesión real. |
+| `DashboardRedesignStatesTest` | Parcial | 7 de 8 casos terminan sin fallas de aserción; `h4ArchivedInstrumentsExpand` falla durante el cierre de `ActivityScenario` (se queda en `PAUSED`, no llega a `DESTROYED`). No se cuenta como suite verde ni como defecto visual confirmado. |
 | Revisión manual a escala de fuente 200 % | Pasa en los escenarios revisados | Detalle/acciones, encabezado de movimientos, estado vacío de cuotas y catálogo de tasas. No se realizó un recorrido completo del inventario. |
 | `git diff --check` | Pasa | Sin errores de whitespace. |
 
@@ -66,6 +68,7 @@ Los defectos confirmados de legibilidad a escala de fuente grande en el detalle 
 ## Pendientes / límites de la revisión
 
 - Completar el inventario y checklist restante de #95, incluidas las pantallas y variantes aún no recorridas.
+- Continuar la verificación manual autenticada: la app dejó de estar instalada en el emulador tras ejecutar pruebas instrumentadas y la sesión dummy ya no está disponible localmente. No se intentará crear una cuenta, registrarse, ni recuperar credenciales del chat.
 - Revisar si la barra inferior a 200 % requiere corrección en la rama del integrador.
 - El informe no implica aprobación formal ni cierre del issue.
 
