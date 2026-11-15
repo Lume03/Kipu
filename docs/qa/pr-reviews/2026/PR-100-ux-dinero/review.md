@@ -85,5 +85,5 @@ Los defectos confirmados de legibilidad del detalle de tarjeta, del aviso de sal
 ## Acciones en GitHub
 
 - **Aprobación formal:** No enviada.
-- **Comentarios publicados:** [Avance en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897013839).
+- **Comentarios publicados:** [Avance final de verificación en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897279538).
 - **Solicitudes de cambio:** No.
