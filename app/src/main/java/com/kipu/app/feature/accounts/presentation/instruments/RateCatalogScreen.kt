@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.border
@@ -34,7 +33,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Lock
@@ -167,14 +165,6 @@ fun RateCatalogScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Atrás")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* Share info */ }) {
-                        Icon(Icons.Rounded.Share, contentDescription = "Compartir tarifario")
-                    }
-                    IconButton(onClick = { /* Help info */ }) {
-                        Icon(Icons.Rounded.HelpOutline, contentDescription = "Ayuda sobre tasas")
                     }
                 },
             )
