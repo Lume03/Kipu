@@ -95,6 +95,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -1652,6 +1653,7 @@ private fun CreditCardPeriodPanel(
     }
 
     val isMasked = LocalBalanceMasked.current
+    val largeFontScale = LocalDensity.current.fontScale >= 1.3f
     val targetProgress = if (isMasked) 0f else (utilization / 100.0).toFloat().coerceIn(0f, 1f)
     val reducedMotion = rememberReducedMotionEnabled()
     val animatedProgress by animateFloatAsState(
@@ -1699,7 +1701,43 @@ private fun CreditCardPeriodPanel(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // Header: ESTADO DEL PERIODO ACTUAL + Badge Cierre en X días
-            Row(
+            if (largeFontScale) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(emeraldColors.incomeText),
+                        )
+                        Text(
+                            text = "ESTADO DEL PERIODO ACTUAL",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = emeraldColors.incomeBg,
+                        border = BorderStroke(1.dp, emeraldColors.incomeBorder),
+                    ) {
+                        Text(
+                            text = "Cierre en $daysUntilBilling días",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emeraldColors.incomeText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            } else Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -1738,7 +1776,43 @@ private fun CreditCardPeriodPanel(
             }
 
             // Dual Column Metrics: Deuda actual vs Disponible de crédito
-            Row(
+            if (largeFontScale) Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Deuda actual",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    MoneyText(
+                        money = debt,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (debt.minorUnits > 0L) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Facturado",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Crédito disponible",
+                        modifier = Modifier.semantics { contentDescription = FinancialTerminology.AVAILABLE_CREDIT_NOT_OWN_MONEY },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    MoneyText(
+                        money = available,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldColors.primaryDeep,
+                    )
+                }
+            } else Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -1791,7 +1865,59 @@ private fun CreditCardPeriodPanel(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
+                if (largeFontScale) Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(emeraldColors.pillTrack),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarToday,
+                                contentDescription = null,
+                                tint = emeraldColors.primaryDeep,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Fecha de pago configurada",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = nextDue.format(dueFormatter),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.align(Alignment.End),
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (daysUntilDue <= 2) emeraldColors.expenseBg else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (daysUntilDue <= 2) emeraldColors.expenseBorder else MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Text(
+                            text = if (daysUntilDue <= 2) "¡Vence en $daysUntilDue días!" else "En $daysUntilDue días",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (daysUntilDue <= 2) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (daysUntilDue <= 2) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                } else Row(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),

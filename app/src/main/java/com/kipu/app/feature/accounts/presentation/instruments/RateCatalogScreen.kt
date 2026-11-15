@@ -924,7 +924,12 @@ private fun PersonalTeaComparisonCard(
     }
 
     val deltaMaxPercent = if (maxFloat > 0f) (((teaFloat - maxFloat) / maxFloat) * 100.0).roundToInt() else 0
-    val chipText = if (!hasSbsRange) "Sin dato SBS" else if (deltaMaxPercent <= 0) "$deltaMaxPercent% del máximo" else "+$deltaMaxPercent% del máximo"
+    val chipText = when {
+        teaBps == null -> "Sin TEA personal"
+        !hasSbsRange -> "Sin dato SBS"
+        deltaMaxPercent <= 0 -> "$deltaMaxPercent% del máximo"
+        else -> "+$deltaMaxPercent% del máximo"
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(
@@ -964,7 +969,11 @@ private fun PersonalTeaComparisonCard(
                 }
 
                 Text(
-                    text = "Visualiza dónde se ubica tu tasa acordada frente al rango tarifario publicado por ${card.issuer} y registrado ante la SBS.",
+                    text = if (teaBps == null) {
+                        "Agrega una TEA personal para compararla con el rango tarifario publicado por ${card.issuer} y registrado ante la SBS."
+                    } else {
+                        "Visualiza dónde se ubica tu tasa acordada frente al rango tarifario publicado por ${card.issuer} y registrado ante la SBS."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = themeColors.inkSecondary,
                 )
