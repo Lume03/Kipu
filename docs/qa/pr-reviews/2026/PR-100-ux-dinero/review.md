@@ -82,10 +82,10 @@ Los defectos confirmados de legibilidad del detalle de tarjeta, del aviso de sal
 - Integrador: revisar barra inferior compartida a 200 %; queda fuera de esta rama.
 - Los datos `QA95_*` de prueba autorizados permanecen en la cuenta dummy: cuenta/débito activos; billetera Plin y efectivo archivados; consumo ficticio pagado y deuda de tarjeta en cero. El saldo de la cuenta QA refleja el pago de prueba. La app puede sincronizar estos cambios con el proyecto configurado en el APK.
 - TalkBack quedó desactivado; fuente 1.0×, modo avión desactivado y `show_ime_with_hard_keyboard=0`. Resolución 1080×2400; tema oscuro conservado, consistente con el estado inicial.
-- El informe no implica aprobación formal ni cierre del issue. PR #100 puede marcarse listo para revisión de código con este dictamen inconcluso; #95 sigue abierto hasta resolver los pendientes de aceptación.
+- El informe no implica aprobación formal ni cierre del issue. PR #100 está listo para revisión de código con este dictamen inconcluso; #95 sigue abierto hasta resolver los pendientes de aceptación.
 
 ## Acciones en GitHub
 
 - **Aprobación formal:** No enviada.
-- **Comentarios publicados:** [Avance final de verificación en issue #95](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897279538).
+- **Comentarios publicados:** [Ampliación del recorrido con sesión dummy](https://github.com/Lume03/Kipu/issues/95#issuecomment-6898202625); [avance anterior de TalkBack y desconexión](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897279538).
 - **Solicitudes de cambio:** No.
