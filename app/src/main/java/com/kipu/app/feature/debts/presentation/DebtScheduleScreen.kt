@@ -2,8 +2,6 @@ package com.kipu.app.feature.debts.presentation
 
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -213,12 +211,13 @@ fun DebtScheduleScreen(
                         onClick = { selectedTab = 0 },
                         text = {
                             Text(
-                                if (isLargeFont) "Cuotas" else "Cuotas y cronograma",
+                                "Cuotas y cronograma",
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 0) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
-                                maxLines = if (isLargeFont) 1 else 2,
-                                overflow = if (isLargeFont) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                maxLines = 2,
+                                overflow = TextOverflow.Clip,
                                 textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         },
                     )
@@ -227,12 +226,13 @@ fun DebtScheduleScreen(
                         onClick = { selectedTab = 1 },
                         text = {
                             Text(
-                                if (isLargeFont) "Ajustes" else "Ajustes y cierre",
+                                "Ajustes y cierre",
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 1) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
-                                maxLines = if (isLargeFont) 1 else 2,
-                                overflow = if (isLargeFont) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                maxLines = 2,
+                                overflow = TextOverflow.Clip,
                                 textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         },
                     )
@@ -832,14 +832,18 @@ private fun ScheduleProjectionTab(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(if (state.isSaving) "Guardando…" else "Guardar cronograma", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(
+                if (state.isSaving) "Guardando…" else "Guardar cronograma",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 
     AnimatedVisibility(
         visible = state.errorMessage != null || state.successMessage != null,
-        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+        enter = reducedMotionEnterTransition(reducedMotion),
+        exit = reducedMotionExitTransition(reducedMotion),
     ) {
         val feedback = state.errorMessage ?: state.successMessage.orEmpty()
         Surface(
@@ -1014,10 +1018,7 @@ private fun AdjustmentsAndClosureTab(
                 MoneyText(
                     minorUnits = debt.remainingPrincipalMinor,
                     currency = kipuCurrency,
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 34.sp,
-                    ),
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     color = if (hasValidationError && !isZeroBalance) semanticColors.expenseText else MaterialTheme.colorScheme.onSurface,
                 )
                 if (isZeroBalance) {
@@ -1081,8 +1082,8 @@ private fun AdjustmentsAndClosureTab(
     // Validation Error Banner (if error message exists or client validation fails)
     AnimatedVisibility(
         visible = hasValidationError,
-        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+        enter = reducedMotionEnterTransition(reducedMotion),
+        exit = reducedMotionExitTransition(reducedMotion),
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -1159,8 +1160,8 @@ private fun AdjustmentsAndClosureTab(
 
             AnimatedVisibility(
                 visible = isSection1Expanded && !isZeroBalance,
-                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Monto del ajuste (+/-)", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
@@ -1514,7 +1515,11 @@ private fun AdjustmentsAndClosureTab(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("Liquidar obligación (Cierre definitivo)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            "Liquidar obligación (Cierre definitivo)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
 

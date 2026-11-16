@@ -5,8 +5,6 @@ import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -178,8 +176,8 @@ fun DebtSettlementSheet(
                 )
                 AnimatedVisibility(
                     visible = principalTooHigh,
-                    enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                    exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                    enter = reducedMotionEnterTransition(reducedMotion),
+                    exit = reducedMotionExitTransition(reducedMotion),
                 ) {
                     Text(
                         "El principal supera el saldo pendiente.",
@@ -213,8 +211,8 @@ fun DebtSettlementSheet(
             )
             AnimatedVisibility(
                 visible = interestMinor == null,
-                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
             ) {
                 Text(
                     "Revisa el interés; usa hasta dos decimales y no un monto negativo.",
@@ -251,8 +249,8 @@ fun DebtSettlementSheet(
 
             AnimatedVisibility(
                 visible = needsInterestCategory,
-                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().animateContentSize(),

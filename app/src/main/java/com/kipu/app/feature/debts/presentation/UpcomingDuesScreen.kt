@@ -1,8 +1,6 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -139,8 +137,8 @@ fun UpcomingDuesScreen(
                     }
                     AnimatedVisibility(
                         visible = moreFilters,
-                        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                        enter = reducedMotionEnterTransition(reducedMotion),
+                        exit = reducedMotionExitTransition(reducedMotion),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterLabel("Obligación", colors)

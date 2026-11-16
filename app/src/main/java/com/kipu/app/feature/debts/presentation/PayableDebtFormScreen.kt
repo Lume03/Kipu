@@ -1,8 +1,6 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -266,8 +264,8 @@ private fun DebtOpeningFormScreen(
 
             AnimatedVisibility(
                 visible = state.openingMode == DebtOpeningMode.NEW_CASH_FLOW,
-                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
-                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     DebtSectionLabel(if (payable) "Cuenta que recibió el dinero" else "Cuenta de origen")

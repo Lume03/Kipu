@@ -86,7 +86,7 @@ fun RecurrenceLifecycleScreen(
                 modifier = Modifier.testTag("recurrence_lifecycle_error"),
             )
         }
-        if (pendingOperation) CircularProgressIndicator(Modifier.testTag("recurrence_lifecycle_loading"))
+        if (pendingOperation) CircularProgressIndicator(Modifier.testTag("recurrence_lifecycle_pending_operation"))
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver") }
     }
     reviewTarget?.let { rule -> AlertDialog(
