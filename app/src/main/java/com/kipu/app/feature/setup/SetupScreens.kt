@@ -220,7 +220,7 @@ internal fun Segmented(options: List<String>, selected: Int, onSelected: (Int) -
         options.forEachIndexed { i, label ->
             val on = i == selected
             Box(
-                Modifier.weight(1f).heightIn(min = 44.dp).background(if (on) colors.surfaceCard else Color.Transparent, RoundedCornerShape(13.dp))
+                Modifier.weight(1f).heightIn(min = 48.dp).background(if (on) colors.surfaceCard else Color.Transparent, RoundedCornerShape(13.dp))
                     .selectable(on, role = Role.RadioButton) { onSelected(i) },
                 contentAlignment = Alignment.Center,
             ) {
@@ -262,7 +262,7 @@ internal fun SetupCategoriesContent(
             Text(
                 if (hidden.isEmpty()) "Desmarcar todas" else "Activar todas", color = colors.primaryDeep,
                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.heightIn(min = 44.dp).clickable { onAll(hidden.isNotEmpty()) }.padding(vertical = 12.dp).testTag("setup-categories-all"),
+                modifier = Modifier.heightIn(min = 48.dp).clickable { onAll(hidden.isNotEmpty()) }.padding(vertical = 12.dp).testTag("setup-categories-all"),
             )
         }
         CategorySection("Gastos", expenses, catalog, hidden, onToggle)
@@ -455,7 +455,7 @@ private fun SummaryCard(label: String, locked: Boolean, onEdit: () -> Unit, cont
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, Modifier.weight(1f), color = colors.secondaryMuted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                 Row(
-                    Modifier.heightIn(min = 44.dp).then(if (locked) Modifier else Modifier.clickable(role = Role.Button, onClick = onEdit)).padding(horizontal = 8.dp)
+                    Modifier.heightIn(min = 48.dp).then(if (locked) Modifier else Modifier.clickable(role = Role.Button, onClick = onEdit)).padding(horizontal = 8.dp)
                         .testTag("setup-edit-$label"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

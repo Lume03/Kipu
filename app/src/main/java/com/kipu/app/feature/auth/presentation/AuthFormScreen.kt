@@ -141,7 +141,7 @@ internal fun AuthFormScreen(
             val loginHeader = (viewport * 0.34f).coerceIn(228.dp, 300.dp)
             val registerHeader = (viewport * 0.26f).coerceIn(184.dp, 236.dp)
             val headerTarget by animateFloatAsState(
-                if (register) registerHeader.value else loginHeader.value, tween(duration + 150), label = "auth-header-height",
+                if (register) registerHeader.value else loginHeader.value, tween(if (reducedMotion) 0 else duration + 150), label = "auth-header-height",
             )
             val scroll = rememberScrollState()
             val sectionGap = if (viewport < 700.dp) 10.dp else 12.dp
@@ -153,9 +153,9 @@ internal fun AuthFormScreen(
                 ) {
                     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.fillMaxWidth()) {
-                            AuthHero(register, clock, headerTarget.dp + statusTop, duration + 150)
+                            AuthHero(register, clock, headerTarget.dp + statusTop, if (reducedMotion) 0 else duration + 150)
                             AuthModeTabs(
-                                register, canAct, duration + 100, ::changeMode,
+                                register, canAct, if (reducedMotion) 0 else duration + 100, ::changeMode,
                                 Modifier.align(Alignment.BottomCenter).offset(y = 29.dp).widthIn(max = 480.dp)
                                     .padding(horizontal = 24.dp).sceneReveal(clock, 0.15f, 0.6f, dy = 16.dp),
                             )
@@ -239,7 +239,7 @@ internal fun AuthFormScreen(
                 }
             }
             // Keeps the status bar icons readable once the teal header has scrolled away.
-            val scrimAlpha by animateFloatAsState(if (scroll.value > 0) 1f else 0f, tween(150), label = "auth-status-scrim")
+            val scrimAlpha by animateFloatAsState(if (scroll.value > 0) 1f else 0f, tween(if (reducedMotion) 0 else 150), label = "auth-status-scrim")
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
                 .background((if (colors.isDark) Color(0xFF052E2A) else Color(0xFF0A5A54)).copy(alpha = scrimAlpha)))
         }

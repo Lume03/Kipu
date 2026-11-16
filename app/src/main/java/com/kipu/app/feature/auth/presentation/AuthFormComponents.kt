@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -186,8 +188,9 @@ internal fun AuthModeTabs(
 ) {
     val colors = rememberCalmEmeraldColors()
     val outer = RoundedCornerShape(20.dp)
+    val tabHeight = 58.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
     BoxWithConstraints(
-        modifier.fillMaxWidth().height(58.dp)
+        modifier.fillMaxWidth().height(tabHeight)
             .shadow(10.dp, outer, ambientColor = Color(0x330F172A), spotColor = Color(0x330F172A))
             .background(colors.surfaceCard, outer).padding(5.dp),
     ) {
@@ -240,6 +243,7 @@ internal fun AuthFloatingField(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     var visible by rememberSaveable { mutableStateOf(false) }
+    val motionDuration = if (rememberReducedMotionEnabled()) 0 else 180
     val shape = RoundedCornerShape(16.dp)
     val errorColor = MaterialTheme.colorScheme.error
     val ringColor = if (error != null) errorColor else colors.primaryDeep
@@ -248,9 +252,9 @@ internal fun AuthFloatingField(
             error != null -> errorColor
             focused -> colors.primaryDeep
             else -> colors.borderSubtle
-        }, tween(180), label = "auth-field-border",
+        }, tween(motionDuration), label = "auth-field-border",
     )
-    val ring by animateFloatAsState(if (focused || error != null) 1f else 0f, tween(180), label = "auth-field-ring")
+    val ring by animateFloatAsState(if (focused || error != null) 1f else 0f, tween(motionDuration), label = "auth-field-ring")
     val labelFocused = if (colors.isDark) colors.primaryDeep else Color(0xFF0B5F58)
     Column(modifier.fillMaxWidth()) {
         TextField(
@@ -322,25 +326,26 @@ internal fun AuthRequirementChips(password: String, showErrors: Boolean, modifie
 private fun RequirementChip(text: String, description: String, satisfied: Boolean, showErrors: Boolean) {
     val colors = rememberCalmEmeraldColors()
     val error = MaterialTheme.colorScheme.error
+    val motionDuration = if (rememberReducedMotionEnabled()) 0 else 250
     val missed = !satisfied && showErrors
-    val container by animateColorAsState(if (satisfied) colors.primaryDeep else colors.surfaceCard, tween(250), label = "chip-bg")
+    val container by animateColorAsState(if (satisfied) colors.primaryDeep else colors.surfaceCard, tween(motionDuration), label = "chip-bg")
     val content by animateColorAsState(
         when {
             satisfied -> colors.onPrimaryDeep
             missed -> error
             else -> colors.secondaryMuted
-        }, tween(250), label = "chip-content",
+        }, tween(motionDuration), label = "chip-content",
     )
     val border by animateColorAsState(
         when {
             satisfied -> colors.primaryDeep
             missed -> error
             else -> colors.borderSubtle
-        }, tween(250), label = "chip-border",
+        }, tween(motionDuration), label = "chip-border",
     )
-    val tick by animateFloatAsState(if (satisfied) 1f else 0f, tween(250), label = "chip-tick")
+    val tick by animateFloatAsState(if (satisfied) 1f else 0f, tween(motionDuration), label = "chip-tick")
     Row(
-        Modifier.height(28.dp).clip(CircleShape).background(container, CircleShape).border(1.dp, border, CircleShape)
+        Modifier.heightIn(min = 28.dp).clip(CircleShape).background(container, CircleShape).border(1.dp, border, CircleShape)
             .padding(start = 7.dp, end = 10.dp)
             .semantics(mergeDescendants = true) {
                 contentDescription = description
@@ -364,7 +369,8 @@ private fun RequirementChip(text: String, description: String, satisfied: Boolea
 @Composable
 internal fun AuthBanner(message: String?, modifier: Modifier = Modifier) {
     val colors = rememberCalmEmeraldColors()
-    AnimatedVisibility(message != null, modifier, enter = fadeIn(tween(200)), exit = fadeOut(tween(200))) {
+    val motionDuration = if (rememberReducedMotionEnabled()) 0 else 200
+    AnimatedVisibility(message != null, modifier, enter = fadeIn(tween(motionDuration)), exit = fadeOut(tween(motionDuration))) {
         Row(
             Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 .background(colors.expenseBg, RoundedCornerShape(14.dp))
@@ -392,6 +398,7 @@ internal fun AuthCtaButton(
     val colors = rememberCalmEmeraldColors()
     val focus = LocalFocusManager.current
     val shape = RoundedCornerShape(18.dp)
+    val reducedMotion = rememberReducedMotionEnabled()
     val active = enabled && !loading
     Box(
         modifier.fillMaxWidth().heightIn(min = 58.dp)
@@ -401,7 +408,7 @@ internal fun AuthCtaButton(
             .clickable(enabled = active, role = Role.Button) { focus.clearFocus(); onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        AnimatedContent(loading, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "auth-cta") { busy ->
+        AnimatedContent(loading, transitionSpec = { fadeIn(tween(if (reducedMotion) 0 else 200)) togetherWith fadeOut(tween(if (reducedMotion) 0 else 150)) }, label = "auth-cta") { busy ->
             Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 if (busy) {
                     CircularProgressIndicator(Modifier.size(22.dp), color = colors.onPrimaryDeep, strokeWidth = 2.5.dp)
