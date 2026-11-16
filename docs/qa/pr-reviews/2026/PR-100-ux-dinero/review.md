@@ -5,8 +5,8 @@
 - **Autor / asignado:** LeonidasGarcia
 - **Fecha de revisión:** 2026-11-15; seguimiento: 2026-11-16
 - **Rama:** `ux/dinero` → `main`
-- **HEAD de partida:** `08478d5a`; seguimiento de los seis comentarios de Lume03 en el árbol de trabajo posterior a ese HEAD.
-- **Estado del PR:** abierto, con cambios solicitados; la nueva revisión aún no se ha solicitado.
+- **HEAD revisado en este seguimiento:** `d63d542f` (documentación QA: `611a7b65`).
+- **Estado del PR:** abierto, con cambios solicitados; nueva revisión solicitada a Lume03.
 
 ## Dictamen breve
 
@@ -92,11 +92,12 @@ En el seguimiento se atendieron en código los seis comentarios de Lume03 sobre 
 - La desconexión se probó en dashboard, catálogo, formularios, simulador y pago. El dashboard conserva contenido en caché; formulario, simulador y pago no presentan aviso explícito de conexión. Modo avión se desactivó y Wi-Fi volvió a conectar.
 - Integrador: revisar barra inferior compartida a 200 %; queda fuera de esta rama.
 - La sesión autorizada descrita en la auditoría del 15-nov se considera histórica; tras las pruebas instrumentadas actuales el AVD no tiene sesión iniciada. No se verificó la persistencia/sincronización remota de los datos QA ni se inició una nueva sesión para repetir el flujo de archivo.
-- El informe no implica aprobación formal ni cierre del issue. PR #100 permanece abierto; tras publicar las correcciones se solicitará nueva revisión a Lume03. #95 sigue abierto hasta resolver los pendientes de aceptación.
+- El informe no implica aprobación formal ni cierre del issue. PR #100 permanece abierto y se solicitó una nueva revisión a Lume03. #95 sigue abierto hasta resolver los pendientes de aceptación.
 
 ## Acciones en GitHub
 
 - **Aprobación formal:** No enviada.
 - **Comentarios publicados:** [Ampliación del recorrido con sesión dummy](https://github.com/Lume03/Kipu/issues/95#issuecomment-6898202625); [avance anterior de TalkBack y desconexión](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897279538).
-- **Seguimiento de #95 pendiente:** registrar la corrección de los seis comentarios de #100, las dos capturas aisladas y la limitación de sesión actual sin elevar el resultado parcial a aprobación.
-- **Solicitudes de cambio / aprobación formal:** no se envía aprobación ni se cierra #95. Se solicitará re-review del PR #100 una vez publicado el nuevo HEAD.
+- **Seguimiento de #95:** [auditoría parcial y límites](https://github.com/Lume03/Kipu/issues/95#issuecomment-6930663491), sin elevar el resultado a aprobación.
+- **Respuestas a los seis hilos de Lume03:** [aviso de archivo](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195994), [breakpoint común](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195971), [FlowRow](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195986), [título compacto](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195996), [acciones reutilizadas](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195989), [tokens](https://github.com/Lume03/Kipu/pull/100#discussion_r4592196001).
+- **Revisión y cierre:** se solicitó nueva revisión a Lume03; no se envió aprobación, no se cerró #95 y no se fusionó PR #100.
