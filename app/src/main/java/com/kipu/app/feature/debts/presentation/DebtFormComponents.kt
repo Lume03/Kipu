@@ -145,7 +145,7 @@ private fun DebtCurrencyToggle(selected: String, onSelect: (String) -> Unit, ena
                     .clip(RoundedCornerShape(11.dp))
                     .background(if (isSelected) MaterialTheme.colorScheme.surface else colors.pillTrack)
                     .selectable(isSelected, enabled = enabled, role = Role.RadioButton) { onSelect(currency) }
-                    .heightIn(min = 44.dp)
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {

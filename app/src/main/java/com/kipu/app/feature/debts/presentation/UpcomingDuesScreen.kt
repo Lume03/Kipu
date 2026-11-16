@@ -1,7 +1,11 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -45,6 +49,7 @@ import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.theme.CalmEmeraldColors
 import com.kipu.app.ui.theme.rememberPlanningColors
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -84,6 +89,7 @@ fun UpcomingDuesScreen(
     modifier: Modifier = Modifier,
 ) {
     val colors = rememberPlanningColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     var paidExpanded by rememberSaveable(state.ownerId) { mutableStateOf(false) }
     val secondaryFiltersActive = state.obligationType != null || state.currency != null
     var moreFilters by rememberSaveable(state.ownerId) { mutableStateOf(secondaryFiltersActive) }
@@ -109,7 +115,11 @@ fun UpcomingDuesScreen(
                             KipuFilterChip(state.origin == origin, { onOriginSelected(origin) }, label = { Text(origin.label) },
                                 modifier = Modifier.semantics { contentDescription = "Origen: ${origin.label}" })
                         }
-                        val chevron by animateFloatAsState(if (moreFilters) 180f else 0f, label = "filters-chevron")
+                        val chevron by animateFloatAsState(
+                            targetValue = if (moreFilters) 180f else 0f,
+                            animationSpec = if (reducedMotion) snap() else tween(),
+                            label = "filters-chevron",
+                        )
                         TextButton(
                             onClick = { moreFilters = !moreFilters },
                             modifier = Modifier.heightIn(min = 48.dp)
@@ -127,7 +137,11 @@ fun UpcomingDuesScreen(
                                 modifier = Modifier.semantics { contentDescription = "Estado: ${status.label}" })
                         }
                     }
-                    AnimatedVisibility(moreFilters) {
+                    AnimatedVisibility(
+                        visible = moreFilters,
+                        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                    ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterLabel("Obligación", colors)
                             ChipRow {
@@ -178,7 +192,11 @@ fun UpcomingDuesScreen(
                     if (rows.isNotEmpty()) {
                         item("heading_${period.name}") {
                             if (period == DuePeriod.RECENTLY_PAID) {
-                                val chevron by animateFloatAsState(if (paidExpanded) 180f else 0f, label = "paid-chevron")
+                                val chevron by animateFloatAsState(
+                                    targetValue = if (paidExpanded) 180f else 0f,
+                                    animationSpec = if (reducedMotion) snap() else tween(),
+                                    label = "paid-chevron",
+                                )
                                 TextButton(
                                     onClick = { paidExpanded = !paidExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                         .semantics { stateDescription = if (paidExpanded) "Expandido" else "Contraído" },

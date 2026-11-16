@@ -2,6 +2,8 @@ package com.kipu.app.feature.debts.presentation
 
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,6 +51,7 @@ import androidx.compose.material.icons.rounded.VolunteerActivism
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +80,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -84,6 +88,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.feature.debts.domain.DebtAmountParser
@@ -97,6 +102,7 @@ import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.symbol
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -122,6 +128,8 @@ fun DebtScheduleScreen(
 ) {
     val debt = state.debt
     val emeraldColors = rememberPlanningColors()
+    val reducedMotion = rememberReducedMotionEnabled()
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
     var attemptedAction by remember(debt?.debtId) { mutableStateOf<CloseDebtAction?>(null) }
     var showScheduleReplacementConfirmation by remember(debt?.debtId) { mutableStateOf(false) }
     var selectedTab by remember(debt?.debtId) {
@@ -137,40 +145,50 @@ fun DebtScheduleScreen(
                     .statusBarsPadding()
                     .background(MaterialTheme.colorScheme.surface),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
+                if (isLargeFont) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        IconButton(onClick = onNavigateBack, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
+                        }
+                        ScheduleHelpButton(selectedTab, onClick = { showContextualHelp = true })
+                    }
+                    Text(
+                        if (selectedTab == 0) "Cuotas y cronograma" else "Ajustes y cierre contable",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconButton(onClick = onNavigateBack, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
                         }
                         Text(
                             if (selectedTab == 0) "Cuotas y cronograma" else "Ajustes y cierre contable",
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                    IconButton(
-                        onClick = { showContextualHelp = true },
-                        modifier = Modifier.testTag("debt-contextual-help"),
-                    ) {
-                        Icon(
-                            if (selectedTab == 0) Icons.Rounded.HelpOutline else Icons.Rounded.Info,
-                            contentDescription = if (selectedTab == 0) {
-                                "Ayuda sobre cuotas y cronograma"
-                            } else {
-                                "Ayuda sobre ajustes y cierre contable"
-                            },
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        ScheduleHelpButton(selectedTab, onClick = { showContextualHelp = true })
                     }
                 }
 
@@ -195,9 +213,12 @@ fun DebtScheduleScreen(
                         onClick = { selectedTab = 0 },
                         text = {
                             Text(
-                                "Cuotas y cronograma",
+                                if (isLargeFont) "Cuotas" else "Cuotas y cronograma",
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 0) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
+                                maxLines = if (isLargeFont) 1 else 2,
+                                overflow = if (isLargeFont) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                textAlign = TextAlign.Center,
                             )
                         },
                     )
@@ -206,9 +227,12 @@ fun DebtScheduleScreen(
                         onClick = { selectedTab = 1 },
                         text = {
                             Text(
-                                "Ajustes y cierre",
+                                if (isLargeFont) "Ajustes" else "Ajustes y cierre",
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 1) emeraldColors.primaryDeep else emeraldColors.secondaryMuted,
+                                maxLines = if (isLargeFont) 1 else 2,
+                                overflow = if (isLargeFont) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                textAlign = TextAlign.Center,
                             )
                         },
                     )
@@ -225,7 +249,21 @@ fun DebtScheduleScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (debt == null) {
-                Text(state.errorMessage ?: "Cargando deuda…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.isLoading) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(color = emeraldColors.primaryDeep)
+                        Text("Cargando deuda…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Text(
+                        state.errorMessage ?: "No se encontró esta deuda.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 if (selectedTab == 0) {
                     // ==========================================
@@ -235,6 +273,7 @@ fun DebtScheduleScreen(
                         debt = debt,
                         state = state,
                         emeraldColors = emeraldColors,
+                        reducedMotion = reducedMotion,
                         onInstallmentCountChange = onInstallmentCountChange,
                         onFirstDueDateChange = onFirstDueDateChange,
                         onReminderLeadDaysChange = onReminderLeadDaysChange,
@@ -255,6 +294,7 @@ fun DebtScheduleScreen(
                         debt = debt,
                         state = state,
                         emeraldColors = emeraldColors,
+                        reducedMotion = reducedMotion,
                         onAdjustmentAmountChange = onAdjustmentAmountChange,
                         onForgivenessAmountChange = onForgivenessAmountChange,
                         onClosureReasonChange = onClosureReasonChange,
@@ -326,6 +366,29 @@ fun DebtScheduleScreen(
     }
 }
 
+@Composable
+private fun ScheduleHelpButton(
+    selectedTab: Int,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(48.dp)
+            .testTag("debt-contextual-help"),
+    ) {
+        Icon(
+            if (selectedTab == 0) Icons.Rounded.HelpOutline else Icons.Rounded.Info,
+            contentDescription = if (selectedTab == 0) {
+                "Ayuda sobre cuotas y cronograma"
+            } else {
+                "Ayuda sobre ajustes y cierre contable"
+            },
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 // =========================================================================
 // TAB 0: CUOTAS Y CRONOGRAMA IMPLEMENTATION
 // =========================================================================
@@ -336,6 +399,7 @@ private fun ScheduleProjectionTab(
     debt: DebtSummary,
     state: DebtScheduleUiState,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
+    reducedMotion: Boolean,
     onInstallmentCountChange: (String) -> Unit,
     onFirstDueDateChange: (String) -> Unit,
     onReminderLeadDaysChange: (Int?) -> Unit,
@@ -359,13 +423,12 @@ private fun ScheduleProjectionTab(
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, emeraldColors.borderSubtle),
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -377,32 +440,40 @@ private fun ScheduleProjectionTab(
                 ) {
                     Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = null, tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(debt.counterpartyName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseBg else semanticColors.incomeBg,
-                        ) {
-                            Text(
-                                when (debt.status) {
-                                    DebtLifecycleStatus.ACTIVE -> "Activa"
-                                    DebtLifecycleStatus.SETTLED -> "Liquidada"
-                                    DebtLifecycleStatus.CANCELLED -> "Cancelada"
-                                },
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseText else semanticColors.incomeText,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
-                        }
-                    }
-                    Text("Saldo pendiente a programar", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
-                    if (debt.status == DebtLifecycleStatus.CANCELLED && debt.remainingPrincipalMinor > 0L) {
-                        Text("Saldo pendiente no pagado", style = MaterialTheme.typography.bodySmall, color = semanticColors.expenseText)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        debt.counterpartyName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseBg else semanticColors.incomeBg,
+                    ) {
+                        Text(
+                            when (debt.status) {
+                                DebtLifecycleStatus.ACTIVE -> "Activa"
+                                DebtLifecycleStatus.SETTLED -> "Liquidada"
+                                DebtLifecycleStatus.CANCELLED -> "Cancelada"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (debt.status == DebtLifecycleStatus.CANCELLED) semanticColors.expenseText else semanticColors.incomeText,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
                     }
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Text("Saldo pendiente a programar", style = MaterialTheme.typography.bodySmall, color = emeraldColors.secondaryMuted)
+            if (debt.status == DebtLifecycleStatus.CANCELLED && debt.remainingPrincipalMinor > 0L) {
+                Text("Saldo pendiente no pagado", style = MaterialTheme.typography.bodySmall, color = semanticColors.expenseText)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text("Total", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
                 MoneyText(
                     minorUnits = debt.remainingPrincipalMinor,
@@ -469,13 +540,13 @@ private fun ScheduleProjectionTab(
     }
 
     // Steppers Grid: Cantidad de cuotas & Avisar días antes
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // Cantidad de cuotas
         Surface(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             color = emeraldColors.surfaceCard,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, emeraldColors.borderSubtle),
@@ -498,7 +569,7 @@ private fun ScheduleProjectionTab(
                     ) {
                         IconButton(
                             onClick = { if (count > 1) onInstallmentCountChange((count - 1).toString()) },
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Rounded.Remove, contentDescription = "Menos", modifier = Modifier.size(18.dp))
                         }
@@ -508,7 +579,7 @@ private fun ScheduleProjectionTab(
                         )
                         IconButton(
                             onClick = { if (count < 48) onInstallmentCountChange((count + 1).toString()) },
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Rounded.Add, contentDescription = "Más", modifier = Modifier.size(18.dp))
                         }
@@ -533,7 +604,7 @@ private fun ScheduleProjectionTab(
         // Avisar días antes
         val leadDays = state.reminderLeadDays ?: 2
         Surface(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             color = emeraldColors.surfaceCard,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, emeraldColors.borderSubtle),
@@ -556,7 +627,7 @@ private fun ScheduleProjectionTab(
                     ) {
                         IconButton(
                             onClick = { onReminderLeadDaysChange(if (leadDays > 0) leadDays - 1 else 0) },
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Rounded.Remove, contentDescription = "Menos", modifier = Modifier.size(18.dp))
                         }
@@ -570,7 +641,7 @@ private fun ScheduleProjectionTab(
                         }
                         IconButton(
                             onClick = { onReminderLeadDaysChange(leadDays + 1) },
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Rounded.Add, contentDescription = "Más", modifier = Modifier.size(18.dp))
                         }
@@ -765,7 +836,11 @@ private fun ScheduleProjectionTab(
         }
     }
 
-    AnimatedVisibility(visible = state.errorMessage != null || state.successMessage != null) {
+    AnimatedVisibility(
+        visible = state.errorMessage != null || state.successMessage != null,
+        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+    ) {
         val feedback = state.errorMessage ?: state.successMessage.orEmpty()
         Surface(
             shape = RoundedCornerShape(12.dp),
@@ -836,6 +911,7 @@ private fun AdjustmentsAndClosureTab(
     debt: DebtSummary,
     state: DebtScheduleUiState,
     emeraldColors: com.kipu.app.ui.theme.CalmEmeraldColors,
+    reducedMotion: Boolean,
     onAdjustmentAmountChange: (String) -> Unit,
     onForgivenessAmountChange: (String) -> Unit,
     onClosureReasonChange: (String) -> Unit,
@@ -1003,7 +1079,11 @@ private fun AdjustmentsAndClosureTab(
     }
 
     // Validation Error Banner (if error message exists or client validation fails)
-    AnimatedVisibility(visible = hasValidationError) {
+    AnimatedVisibility(
+        visible = hasValidationError,
+        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+    ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -1077,14 +1157,17 @@ private fun AdjustmentsAndClosureTab(
                 }
             }
 
-            AnimatedVisibility(visible = isSection1Expanded && !isZeroBalance) {
+            AnimatedVisibility(
+                visible = isSection1Expanded && !isZeroBalance,
+                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Monto del ajuste (+/-)", style = MaterialTheme.typography.labelSmall, color = emeraldColors.secondaryMuted)
 
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
@@ -1123,7 +1206,7 @@ private fun AdjustmentsAndClosureTab(
                         OutlinedTextField(
                             value = state.adjustmentAmount.removePrefix("-").removePrefix("+"),
                             onValueChange = { onAdjustmentAmountChange(signedDebtAdjustment(it, isReduce)) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Ej: 10.00") },
                             prefix = { Text(if (debt.currencyCode == "PEN") "S/ " else "${debt.currencyCode} ") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

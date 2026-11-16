@@ -5,6 +5,8 @@ import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -58,6 +60,7 @@ import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberPlanningColors
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +76,7 @@ fun DebtSettlementSheet(
 ) {
     val themeColors = rememberKipuColors()
     val colors = rememberPlanningColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val principalMinor = DebtAmountParser.toMinorUnits(state.principalAmount)
     val interestMinor = DebtAmountParser.toNonNegativeMinorUnits(state.interestAmount)
     val principalTooHigh = principalMinor != null && principalMinor > debt.remainingPrincipalMinor
@@ -172,7 +176,11 @@ fun DebtSettlementSheet(
                         selectedLabelColor = colors.onPrimaryDeep,
                     ),
                 )
-                AnimatedVisibility(visible = principalTooHigh) {
+                AnimatedVisibility(
+                    visible = principalTooHigh,
+                    enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                    exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+                ) {
                     Text(
                         "El principal supera el saldo pendiente.",
                         color = colors.expenseText,
@@ -203,7 +211,11 @@ fun DebtSettlementSheet(
                 isError = interestMinor == null,
                 modifier = Modifier.fillMaxWidth().testTag("settlement-interest"),
             )
-            AnimatedVisibility(visible = interestMinor == null) {
+            AnimatedVisibility(
+                visible = interestMinor == null,
+                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+            ) {
                 Text(
                     "Revisa el interés; usa hasta dos decimales y no un monto negativo.",
                     color = colors.expenseText,
@@ -237,7 +249,11 @@ fun DebtSettlementSheet(
                 }
             }
 
-            AnimatedVisibility(visible = needsInterestCategory) {
+            AnimatedVisibility(
+                visible = needsInterestCategory,
+                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().animateContentSize(),
                     color = MaterialTheme.colorScheme.surface,

@@ -1,6 +1,8 @@
 package com.kipu.app.feature.debts.presentation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -50,6 +52,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.R
 import com.kipu.app.feature.debts.domain.DebtAmountParser
 import com.kipu.app.feature.debts.domain.model.DebtObligationType
@@ -128,6 +131,7 @@ private fun DebtOpeningFormScreen(
     onNavigateBack: () -> Unit,
     onSwitchType: (() -> Unit)?,
 ) {
+    val reducedMotion = rememberReducedMotionEnabled()
     val payable = obligationType == DebtObligationType.PAYABLE
     val personLabel = if (payable) "Acreedor (a quién le debes)" else "Deudor (a quién le prestaste)"
     val movementTitle = if (payable) "Me prestaron" else "Presté dinero ahora"
@@ -260,7 +264,11 @@ private fun DebtOpeningFormScreen(
                 onClick = { onOpeningModeChange(DebtOpeningMode.HISTORICAL) },
             )
 
-            AnimatedVisibility(visible = state.openingMode == DebtOpeningMode.NEW_CASH_FLOW) {
+            AnimatedVisibility(
+                visible = state.openingMode == DebtOpeningMode.NEW_CASH_FLOW,
+                enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.fadeIn(),
+                exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.fadeOut(),
+            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     DebtSectionLabel(if (payable) "Cuenta que recibió el dinero" else "Cuenta de origen")
                     if (state.availableAccounts.isEmpty()) {

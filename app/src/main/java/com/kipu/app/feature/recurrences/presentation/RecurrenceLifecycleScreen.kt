@@ -53,8 +53,15 @@ fun RecurrenceLifecycleScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Mis recurrencias", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        if (isLoading && recurrences.isEmpty()) CircularProgressIndicator()
-        if (recurrences.isEmpty() && !isLoading) Text("Todavía no tienes recurrencias")
+        if (isLoading && recurrences.isEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CircularProgressIndicator(modifier = Modifier.testTag("recurrence_lifecycle_loading"))
+                Text("Cargando recurrencias…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (recurrences.isEmpty() && !isLoading && errorMessage == null) {
+            Text("Todavía no tienes recurrencias")
+        }
         recurrences.forEach { rule ->
             Surface(tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -72,7 +79,13 @@ fun RecurrenceLifecycleScreen(
                 }
             }
         }
-        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("recurrence_lifecycle_error")) }
+        errorMessage?.let {
+            Text(
+                it,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("recurrence_lifecycle_error"),
+            )
+        }
         if (pendingOperation) CircularProgressIndicator(Modifier.testTag("recurrence_lifecycle_loading"))
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver") }
     }
