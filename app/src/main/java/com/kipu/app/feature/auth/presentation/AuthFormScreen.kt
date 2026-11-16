@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -91,6 +92,8 @@ internal fun AuthFormScreen(
     val colors = rememberCalmEmeraldColors()
     val reducedMotion = rememberReducedMotionEnabled()
     val duration = if (reducedMotion) 0 else KipuMotionTokens.FastMillis
+    // Grow below the hero instead of letting enlarged tabs cover its title or the fields.
+    val modeTabsExtraHeight = authModeTabsHeight(LocalDensity.current.fontScale) - 58.dp
     val canAct = !uiState.isLoading && uiState.cooldownSeconds == 0
     val focus = LocalFocusManager.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -156,12 +159,12 @@ internal fun AuthFormScreen(
                             AuthHero(register, clock, headerTarget.dp + statusTop, if (reducedMotion) 0 else duration + 150)
                             AuthModeTabs(
                                 register, canAct, if (reducedMotion) 0 else duration + 100, ::changeMode,
-                                Modifier.align(Alignment.BottomCenter).offset(y = 29.dp).widthIn(max = 480.dp)
+                                Modifier.align(Alignment.BottomCenter).offset(y = 29.dp + modeTabsExtraHeight).widthIn(max = 480.dp)
                                     .padding(horizontal = 24.dp).sceneReveal(clock, 0.15f, 0.6f, dy = 16.dp),
                             )
                         }
                         Column(
-                            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 49.dp),
+                            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 49.dp + modeTabsExtraHeight),
                         ) {
                             AuthBanner(uiState.generalError)
                             AuthBanner(if (uiState.cooldownSeconds > 0)

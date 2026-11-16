@@ -188,7 +188,7 @@ internal fun AuthModeTabs(
 ) {
     val colors = rememberCalmEmeraldColors()
     val outer = RoundedCornerShape(20.dp)
-    val tabHeight = 58.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val tabHeight = authModeTabsHeight(LocalDensity.current.fontScale)
     BoxWithConstraints(
         modifier.fillMaxWidth().height(tabHeight)
             .shadow(10.dp, outer, ambientColor = Color(0x330F172A), spotColor = Color(0x330F172A))
@@ -219,6 +219,8 @@ internal fun AuthModeTabs(
         }
     }
 }
+
+internal fun authModeTabsHeight(fontScale: Float): Dp = 58.dp * fontScale.coerceAtLeast(1f)
 
 /**
  * Filled field with a floating label, a leading icon, a focus halo and, for passwords, a visibility toggle.
