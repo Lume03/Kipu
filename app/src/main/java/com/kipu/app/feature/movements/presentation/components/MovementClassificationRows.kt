@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -203,6 +204,7 @@ internal fun CalmEmeraldSelectionRow(
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
     val borderColor = if (isError) emeraldColors.expenseText else emeraldColors.borderSubtle
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
 
     Card(
         onClick = onClick,
@@ -220,11 +222,12 @@ internal fun CalmEmeraldSelectionRow(
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = if (isLargeFont) Alignment.Top else Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
                     modifier = Modifier
+                        .padding(top = if (isLargeFont) 2.dp else 0.dp)
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(iconContainer),
@@ -259,26 +262,64 @@ internal fun CalmEmeraldSelectionRow(
                     }
                 }
 
-                if (trailingContent != null) {
-                    trailingContent()
-                } else if (trailingActionText != null && onTrailingActionClick != null) {
-                    TextButton(
-                        onClick = onTrailingActionClick,
-                        modifier = Modifier.heightIn(min = 48.dp)
-                    ) {
-                        Text(
-                            text = trailingActionText,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = emeraldColors.expenseText,
+                if (!isLargeFont) {
+                    if (trailingContent != null) {
+                        trailingContent()
+                    } else if (trailingActionText != null && onTrailingActionClick != null) {
+                        TextButton(
+                            onClick = onTrailingActionClick,
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) {
+                            Text(
+                                text = trailingActionText,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = emeraldColors.expenseText,
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = trailingIcon,
+                            contentDescription = null,
+                            tint = emeraldColors.secondaryMuted,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                } else {
+                } else if (trailingContent == null && trailingActionText == null) {
                     Icon(
                         imageVector = trailingIcon,
                         contentDescription = null,
                         tint = emeraldColors.secondaryMuted,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.padding(top = 2.dp).size(20.dp),
                     )
+                }
+            }
+
+            if (isLargeFont) {
+                if (trailingContent != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 50.dp, top = 4.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        trailingContent()
+                    }
+                } else if (trailingActionText != null && onTrailingActionClick != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 50.dp, top = 4.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = onTrailingActionClick,
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) {
+                            Text(
+                                text = trailingActionText,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = emeraldColors.expenseText,
+                            )
+                        }
+                    }
                 }
             }
 
