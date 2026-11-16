@@ -2,6 +2,8 @@ package com.kipu.app.feature.capture.presentation
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -118,6 +120,7 @@ import com.kipu.app.ui.component.KipuFieldRowDivider
 import com.kipu.app.ui.component.KipuIconTile
 import com.kipu.app.ui.component.KipuSegmentedControl
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneOffset
@@ -441,6 +444,9 @@ private fun ReviewForm(
     onRememberCategory: (Boolean) -> Unit,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
+    val enterAnim = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically()
+    val exitAnim = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically()
     val candidate = requireNotNull(state.candidate)
     val editable = state.canConfirm && !state.isSaving
     val formAlpha by animateFloatAsState(if (state.canConvertToManual) 0.55f else 1f, label = "formAlpha")
@@ -453,7 +459,7 @@ private fun ReviewForm(
         AccessBanner(state, onOpenPermissions)
         mergeSuggestion()
 
-        AnimatedVisibility(state.generalError != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(state.generalError != null, enter = enterAnim, exit = exitAnim) {
             val (errorTitle, errorBody) = splitErrorMessage(state.generalError.orEmpty())
             CaptureNotice(
                 tone = CaptureNoticeTone.ERROR,
@@ -467,7 +473,7 @@ private fun ReviewForm(
 
         SourceCard(state, onShowEvidence, onShowConfidence)
 
-        AnimatedVisibility(isDuplicate && state.canConfirm) {
+        AnimatedVisibility(isDuplicate && state.canConfirm, enter = enterAnim, exit = exitAnim) {
             CaptureNotice(
                 tone = CaptureNoticeTone.WARNING,
                 title = "Parece un movimiento ya registrado",
@@ -476,7 +482,7 @@ private fun ReviewForm(
                 onAction = onDiscard,
             )
         }
-        AnimatedVisibility(state.isCredit && !isDuplicate, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(state.isCredit && !isDuplicate, enter = enterAnim, exit = exitAnim) {
             CaptureNotice(tone = CaptureNoticeTone.INFO, body = "Las compras con tarjeta de crédito siempre se confirman.")
         }
 
@@ -577,11 +583,11 @@ private fun ReviewForm(
                 InstrumentRow(state, editable, onPickInstrument)
             }
 
-            AnimatedVisibility(state.instrumentChoiceRequired, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            AnimatedVisibility(state.instrumentChoiceRequired, enter = enterAnim, exit = exitAnim) {
                 AmbiguousInstrumentChoices(state, editable, onInstrument, onPickInstrument)
             }
 
-            AnimatedVisibility(state.showCreditMode, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            AnimatedVisibility(state.showCreditMode, enter = enterAnim, exit = exitAnim) {
                 CreditModeSection(state, editable, onCreditMode, onInstallments)
             }
         }
@@ -619,6 +625,7 @@ private fun AccessBanner(state: CaptureReviewUiState, onOpenPermissions: () -> U
 @Composable
 private fun SourceCard(state: CaptureReviewUiState, onShowEvidence: () -> Unit, onShowConfidence: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val candidate = requireNotNull(state.candidate)
     val statuses = state.fieldStatuses()
     val ready = statuses.count { it.second != FieldStatus.MISSING }
@@ -693,7 +700,7 @@ private fun SourceCard(state: CaptureReviewUiState, onShowEvidence: () -> Unit, 
                             verify.isNotEmpty() -> "Verifica: ${verify.joinNatural()}" to palette.warningText
                             else -> "Todo listo" to palette.incomeText
                         },
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        transitionSpec = { if (reducedMotion) EnterTransition.None togetherWith ExitTransition.None else fadeIn() togetherWith fadeOut() },
                         label = "progressLabel",
                     ) { (text, color) ->
                         Text(text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = color, textAlign = TextAlign.End)
@@ -892,6 +899,7 @@ private fun CreditModeSection(
     onInstallments: (String) -> Unit,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = palette.surfaceCard,
@@ -908,7 +916,11 @@ private fun CreditModeSection(
                 enabled = editable,
                 tag = { if (it == CreditMode.DIRECT) "capture_credit_direct" else "capture_credit_installments" },
             )
-            AnimatedVisibility(state.creditMode == CreditMode.INSTALLMENTS, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            AnimatedVisibility(
+                state.creditMode == CreditMode.INSTALLMENTS,
+                enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
                 InstallmentsStepper(state, editable, onInstallments)
             }
         }
@@ -918,6 +930,7 @@ private fun CreditModeSection(
 @Composable
 private fun InstallmentsStepper(state: CaptureReviewUiState, editable: Boolean, onInstallments: (String) -> Unit) {
     val palette = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val count = state.installmentsText.toIntOrNull()
     val total = parseCaptureAmountMinor(state.amountText)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -937,7 +950,11 @@ private fun InstallmentsStepper(state: CaptureReviewUiState, editable: Boolean, 
                     .testTag("capture_installments"),
                 contentAlignment = Alignment.Center,
             ) {
-                AnimatedContent(count, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "installments") { value ->
+                AnimatedContent(
+                    count,
+                    transitionSpec = { if (reducedMotion) EnterTransition.None togetherWith ExitTransition.None else fadeIn() togetherWith fadeOut() },
+                    label = "installments",
+                ) { value ->
                     Text(value?.toString() ?: "–", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = palette.primaryText)
                 }
             }
@@ -984,6 +1001,7 @@ private fun StepButton(icon: ImageVector, description: String, enabled: Boolean,
 @Composable
 private fun ReviewFooter(state: CaptureReviewUiState, onConfirm: () -> Unit, onConvertToManual: () -> Unit) {
     val palette = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val missing = state.fieldStatuses().filter { it.second == FieldStatus.MISSING }.map { it.first }
     val installments = state.installmentsText.toIntOrNull()?.takeIf { state.isCredit && state.creditMode == CreditMode.INSTALLMENTS && it in 2..36 }
     val hint: Pair<String, Color>? = when {
@@ -999,7 +1017,11 @@ private fun ReviewFooter(state: CaptureReviewUiState, onConfirm: () -> Unit, onC
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AnimatedVisibility(hint != null) {
+            AnimatedVisibility(
+                hint != null,
+                enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
                 hint?.let { (text, color) ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(if (color == palette.incomeText) Icons.Outlined.CheckCircle else Icons.Outlined.Info, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
@@ -1031,7 +1053,7 @@ private fun ReviewFooter(state: CaptureReviewUiState, onConfirm: () -> Unit, onC
                         installments != null -> "Confirmar compra en $installments cuotas"
                         else -> "Confirmar movimiento"
                     },
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    transitionSpec = { if (reducedMotion) EnterTransition.None togetherWith ExitTransition.None else fadeIn() togetherWith fadeOut() },
                     label = "confirmLabel",
                 ) { label ->
                     if (label == null) {
