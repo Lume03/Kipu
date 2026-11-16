@@ -201,7 +201,7 @@ fun ReceiptReviewScreen(
                         .border(1.dp, palette.tealTint(.3f), RoundedCornerShape(24.dp)).padding(20.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(Modifier.size(56.dp).shadow(8.dp, CircleShape, spotColor = palette.primaryDeep).clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF12998C)))), contentAlignment = Alignment.Center) {
+                            .background(Brush.linearGradient(listOf(palette.primaryDeep, palette.incomeEmerald))), contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.CheckCircle, null, Modifier.size(30.dp), tint = Color.White)
                         }
                         Column {
@@ -255,18 +255,11 @@ private fun ReceiptBalanceCard(ready: Int, effect: java.math.BigInteger) {
             Text("tu saldo cambiaría en", style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
         }
         val sign = if (positive) "+" else "−"
-        val displayAmount = formatMoneyTextDisplay(BigDecimal(effect.abs(), 2).toPlainString(), "${sign}S/", isMasked)
-        Text(
-            text = displayAmount,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
+        MoneyText(
+            amount = "$sign${BigDecimal(effect.abs(), 2).toPlainString()}",
+            currencySymbol = "S/",
             color = if (positive) palette.incomeText else palette.expenseText,
-            maxLines = 1,
-            modifier = Modifier.semantics {
-                if (isMasked) {
-                    contentDescription = "Cambio de saldo oculto"
-                }
-            },
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
         )
     }
 }
@@ -305,26 +298,15 @@ internal fun ReceiptInboxRow(candidate: ReceiptCandidate, isNew: Boolean, onClic
             }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            candidate.amountMinor?.let {
-                val isMasked = LocalBalanceMasked.current
+            candidate.amountMinor?.let { amountMinor ->
                 val sign = if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else ""
-                val sym = if (sign.isNotEmpty()) "${sign}S/" else "S/"
-                val amountDisplay = formatMoneyTextDisplay(
-                    BigDecimal.valueOf(it, 2).setScale(2).toPlainString(),
-                    sym,
-                    isMasked,
-                )
-                Text(
-                    text = amountDisplay,
-                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                MoneyText(
+                    amount = "$sign${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}",
+                    currencySymbol = "S/",
                     color = tone,
-                    maxLines = 1,
-                    modifier = Modifier.semantics {
-                        if (isMasked) {
-                            contentDescription = if (candidate.isIncome == true) "Ingreso oculto" else "Gasto oculto"
-                        }
-                    },
+                    style = (if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium).copy(
+                        fontWeight = FontWeight.ExtraBold,
+                    ),
                 )
             }
             if (!registered) when {

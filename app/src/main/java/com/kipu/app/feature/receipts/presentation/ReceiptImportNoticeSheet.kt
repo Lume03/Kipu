@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.feature.receipts.domain.ReceiptImportNotice
+import com.kipu.app.ui.theme.CalmEmeraldColors
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import androidx.compose.foundation.layout.width
 
@@ -72,8 +73,8 @@ fun ReceiptImportNoticeSheet(
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 12.dp)) {
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(look.tint(palette.isDark)), contentAlignment = Alignment.Center) {
-                    Icon(look.icon, null, Modifier.size(32.dp), tint = look.ink(palette.isDark))
+                Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(look.tint(palette)), contentAlignment = Alignment.Center) {
+                    Icon(look.icon, null, Modifier.size(32.dp), tint = look.ink(palette))
                 }
                 Text(look.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
                     color = palette.primaryText, modifier = Modifier.padding(horizontal = 8.dp))
@@ -110,17 +111,17 @@ fun ReceiptImportNoticeSheet(
 }
 
 private class NoticeLook(val icon: ImageVector, val title: String, val body: String, val primary: String, private val amber: Boolean, private val green: Boolean = false, private val teal: Boolean = false) {
-    fun tint(dark: Boolean): Color = when {
-        green -> if (dark) Color(0xFF0A301D) else Color(0xFFDCFCE7)
-        teal -> if (dark) Color(0xFF0B3B36) else Color(0xFFE1F4F0)
-        amber -> if (dark) Color(0xFF3A2A0B) else Color(0xFFFEF3C7)
-        else -> if (dark) Color(0xFF1F2A3D) else Color(0xFFEEF2F6)
+    fun tint(palette: CalmEmeraldColors): Color = when {
+        green -> palette.incomeBg
+        teal -> palette.tealTint(.14f)
+        amber -> palette.warningBg
+        else -> palette.pillTrack
     }
-    fun ink(dark: Boolean): Color = when {
-        green -> if (dark) Color(0xFF86EFAC) else Color(0xFF166534)
-        teal -> if (dark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
-        amber -> if (dark) Color(0xFFFCD34D) else Color(0xFF8A4B00)
-        else -> if (dark) Color(0xFFCBD5E1) else Color(0xFF475569)
+    fun ink(palette: CalmEmeraldColors): Color = when {
+        green -> palette.incomeText
+        teal -> palette.primaryDeep
+        amber -> palette.warningText
+        else -> palette.secondaryMuted
     }
 }
 

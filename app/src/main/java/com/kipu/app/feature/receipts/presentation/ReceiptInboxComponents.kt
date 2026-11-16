@@ -90,7 +90,7 @@ internal fun ReceiptEmptyHero(onHowToShare: () -> Unit, modifier: Modifier = Mod
         Column(Modifier.padding(20.dp)) {
             ReceiptTravelArt(Modifier.fillMaxWidth().height(132.dp))
             Text("Pasa tus Yapes a Kipu en 3 toques", Modifier.padding(top = 16.dp), color = Color.White,
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp, lineHeight = 30.sp)
+                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             Text("Comparte el comprobante desde Yape y Kipu lo lee por ti.", Modifier.padding(top = 8.dp),
                 color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyLarge)
             Surface(onClick = onHowToShare, shape = RoundedCornerShape(16.dp), color = Color.White, contentColor = Color(0xFF0B5F58),

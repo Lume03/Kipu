@@ -608,7 +608,7 @@ private fun ReceiptDirectionSelector(
     val scheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(if (palette.isDark) scheme.surfaceContainer else Color(0xFFEFF3F7), RoundedCornerShape(16.dp))
+            .background(if (palette.isDark) scheme.surfaceContainer else palette.pillTrack, RoundedCornerShape(16.dp))
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
