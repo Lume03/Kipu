@@ -694,7 +694,11 @@ fun MovementHistoryRoute(
                     isSaving = recurrenceState.isSaving,
                     saveError = recurrenceState.errorMessage,
                     savedRule = recurrenceState.savedRule,
-                    onManageRecurrences = { showRecurrenceList = true },
+                    onManageRecurrences = {
+                        recurrenceSource = null
+                        recurrenceVm.clearSavedRule()
+                        showRecurrenceList = true
+                    },
                 )
             }
         }

@@ -1,6 +1,12 @@
 package com.kipu.app.feature.movements.presentation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,12 +52,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
 fun isSpecializedMovement(item: TransactionItem): Boolean {
@@ -87,6 +93,7 @@ fun VoidMovementDialog(
     var reasonText by remember { mutableStateOf("") }
     val isSpecialized = remember(item) { !canVoidMovement(item) }
     val emeraldColors = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val tx = item.transaction
 
     val title = when {
@@ -128,7 +135,6 @@ fun VoidMovementDialog(
                 text = stringResource(R.string.movement_void_dialog_title),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -276,7 +282,7 @@ fun VoidMovementDialog(
                         )
                         Text(
                             text = stringResource(R.string.movement_void_dialog_audit_notice),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            style = MaterialTheme.typography.bodySmall,
                             color = emeraldColors.secondaryMuted,
                         )
                     }
@@ -299,7 +305,11 @@ fun VoidMovementDialog(
                     )
                 }
 
-                AnimatedVisibility(visible = !errorMessage.isNullOrBlank()) {
+                AnimatedVisibility(
+                    visible = !errorMessage.isNullOrBlank(),
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                ) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = emeraldColors.expenseBg,

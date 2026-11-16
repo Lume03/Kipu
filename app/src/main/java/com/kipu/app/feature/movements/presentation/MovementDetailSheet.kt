@@ -1,6 +1,12 @@
 package com.kipu.app.feature.movements.presentation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,7 +32,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.component.KipuBottomSheet
@@ -34,6 +39,7 @@ import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.formatMoneyTextDisplay
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
@@ -63,6 +69,7 @@ fun MovementDetailSheet(
     onVoidRejectedRefund: () -> Unit = {},
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val tx = item.transaction
     val voided = tx.status == TransactionStatus.VOIDED
     val terminalError = tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT
@@ -126,14 +133,13 @@ fun MovementDetailSheet(
                     text = "Detalle del movimiento",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
                     ),
                     modifier = Modifier.semantics { heading() },
                 )
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .testTag("btn_close_movement_detail"),
                 ) {
                     Icon(
@@ -204,7 +210,7 @@ fun MovementDetailSheet(
                             Column {
                                 if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
                                     text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = emeraldColors.secondaryMuted,
                                     fontWeight = FontWeight.SemiBold,
                                 )
@@ -314,7 +320,6 @@ fun MovementDetailSheet(
                             color = amountColor,
                             style = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 32.sp,
                             ),
                             modifier = Modifier.testTag("detail_amount"),
                         )
@@ -559,7 +564,11 @@ fun MovementDetailSheet(
                 )
             }
 
-            AnimatedVisibility(visible = showRevisions) {
+            AnimatedVisibility(
+                visible = showRevisions,
+                enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
