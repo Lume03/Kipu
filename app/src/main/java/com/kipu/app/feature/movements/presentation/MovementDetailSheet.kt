@@ -176,57 +176,8 @@ fun MovementDetailSheet(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     // Merchant Header with badges
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        when (tx.type) {
-                                            MovementType.EXPENSE -> emeraldColors.expenseBg
-                                            MovementType.INCOME -> emeraldColors.incomeBg
-                                            MovementType.TRANSFER -> emeraldColors.transferBg
-                                        }
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = typeIcon,
-                                    contentDescription = null,
-                                    tint = when (tx.type) {
-                                        MovementType.EXPENSE -> emeraldColors.expenseText
-                                        MovementType.INCOME -> emeraldColors.incomeText
-                                        MovementType.TRANSFER -> emeraldColors.primaryDeep
-                                    },
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
-                            Column {
-                                if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
-                                    text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = emeraldColors.secondaryMuted,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = merchantDisplay,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-
-                        // Badges: Type & Verification
+                    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+                    val badgesContent = @Composable {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             // Type pill
                             Surface(
@@ -290,6 +241,117 @@ fun MovementDetailSheet(
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    if (isLargeFont) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            when (tx.type) {
+                                                MovementType.EXPENSE -> emeraldColors.expenseBg
+                                                MovementType.INCOME -> emeraldColors.incomeBg
+                                                MovementType.TRANSFER -> emeraldColors.transferBg
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = typeIcon,
+                                        contentDescription = null,
+                                        tint = when (tx.type) {
+                                            MovementType.EXPENSE -> emeraldColors.expenseText
+                                            MovementType.INCOME -> emeraldColors.incomeText
+                                            MovementType.TRANSFER -> emeraldColors.primaryDeep
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
+                                        text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = emeraldColors.secondaryMuted,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = merchantDisplay,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.padding(start = 56.dp),
+                            ) {
+                                badgesContent()
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            when (tx.type) {
+                                                MovementType.EXPENSE -> emeraldColors.expenseBg
+                                                MovementType.INCOME -> emeraldColors.incomeBg
+                                                MovementType.TRANSFER -> emeraldColors.transferBg
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = typeIcon,
+                                        contentDescription = null,
+                                        tint = when (tx.type) {
+                                            MovementType.EXPENSE -> emeraldColors.expenseText
+                                            MovementType.INCOME -> emeraldColors.incomeText
+                                            MovementType.TRANSFER -> emeraldColors.primaryDeep
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column {
+                                    if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
+                                        text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = emeraldColors.secondaryMuted,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = merchantDisplay,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            badgesContent()
                         }
                     }
 
