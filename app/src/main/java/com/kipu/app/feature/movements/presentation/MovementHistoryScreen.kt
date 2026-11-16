@@ -91,7 +91,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kipu.app.R
@@ -120,6 +119,7 @@ import com.kipu.app.ui.component.loadingSemantics
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.movementAvatarPresentation
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.launch
 
@@ -230,6 +230,7 @@ fun MovementHistoryRoute(
     val mostUsedAccountId = uiState.mostUsedAccountId
     val masked = LocalBalanceMasked.current
     val offline = rememberNetworkOffline()
+    val reducedMotion = rememberReducedMotionEnabled()
     val pendingSyncCount = remember(uiState.allTransactions) {
         uiState.allTransactions.count {
             it.transaction.syncStatus == MovementSyncStatus.PENDING || it.transaction.syncStatus == MovementSyncStatus.IN_FLIGHT
@@ -251,9 +252,8 @@ fun MovementHistoryRoute(
                 title = {
                     Text(
                         text = stringResource(R.string.movements_title),
-                        style = MaterialTheme.typography.titleLarge.copy(
+                        style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp,
                         ),
                         color = emeraldColors.primaryText,
                     )
@@ -345,7 +345,7 @@ fun MovementHistoryRoute(
                                 Text(
                                     stringResource(R.string.movements_search_placeholder),
                                     color = emeraldColors.secondaryMuted,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -433,6 +433,11 @@ fun MovementHistoryRoute(
                                 "$pendingSyncCount movimientos pendientes de sincronizar; tus saldos ya están actualizados."
                             },
                             modifier = Modifier.testTag("banner_pending_sync"),
+                        )
+                    } else if (offline) {
+                        KipuOfflineBanner(
+                            message = "Sin conexión a internet. Mostrando los movimientos guardados en tu dispositivo.",
+                            modifier = Modifier.testTag("banner_offline"),
                         )
                     }
 
@@ -532,8 +537,7 @@ fun MovementHistoryRoute(
                                 enabled = !uiState.isDeleting,
                                 offline = offline || needsReauthentication,
                                 onClick = { viewModel.onOpenDetail(item) },
-                                modifier = Modifier
-                                    .animateItem()
+                                modifier = (if (reducedMotion) Modifier else Modifier.animateItem())
                                     .fillMaxWidth()
                                     .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
                             )
@@ -885,7 +889,6 @@ fun TransactionRow(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
                         textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
                     ),
                     color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
@@ -898,7 +901,7 @@ fun TransactionRow(
                 ) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        style = MaterialTheme.typography.bodySmall,
                         color = emeraldColors.secondaryMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -942,7 +945,6 @@ fun TransactionRow(
                 color = amountColor,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                     fontFeatureSettings = "tnum",
                     textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
                 ),
