@@ -64,10 +64,10 @@ internal fun StatementMerchantSuggestion(
             StatementMerchantLogo(merchant, size = 22.dp)
             Text("¿Es ${merchant.name}?", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
                 color = palette.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            IconButton(onClick = onAccept, enabled = enabled, modifier = Modifier.size(44.dp).testTag("statement_suggestion_accept_$lineId")) {
+            IconButton(onClick = onAccept, enabled = enabled, modifier = Modifier.size(48.dp).testTag("statement_suggestion_accept_$lineId")) {
                 Icon(Icons.Filled.Check, "Sí, es ${merchant.name}", Modifier.size(18.dp), tint = tone.fg)
             }
-            IconButton(onClick = onReject, enabled = enabled, modifier = Modifier.size(44.dp).testTag("statement_suggestion_reject_$lineId")) {
+            IconButton(onClick = onReject, enabled = enabled, modifier = Modifier.size(48.dp).testTag("statement_suggestion_reject_$lineId")) {
                 Icon(Icons.Filled.Close, "No es ${merchant.name}", Modifier.size(18.dp), tint = palette.secondaryMuted)
             }
         }
