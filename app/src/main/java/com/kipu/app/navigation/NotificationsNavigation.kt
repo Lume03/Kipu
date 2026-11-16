@@ -55,6 +55,7 @@ fun NavGraphBuilder.notificationDestinations(
             onOpenNotification = viewModel::openNotification,
             onNavigateBack = { navController.popBackStack() },
             snackbarHostState = snackbarHostState,
+            onRefresh = viewModel::refresh,
         )
     }
 }

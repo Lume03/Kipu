@@ -3,6 +3,7 @@ package com.kipu.app.feature.notifications.presentation
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -22,6 +23,60 @@ import org.junit.Test
 
 class NotificationCenterScreenTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun failedReadShowsRetryWithoutTheEmptySuccessMessage() {
+        var retries = 0
+        compose.setContent {
+            KipuTheme {
+                NotificationCenterScreen(
+                    state = NotificationsUiState(errorMessage = "No pudimos cargar tus notificaciones.", hasLoadError = true),
+                    unreadCount = 0, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
+                    onDismiss = {}, onOpenNotification = {}, onNavigateBack = {},
+                    onRefresh = { retries++ }, reducedMotion = true,
+                )
+            }
+        }
+        compose.onNodeWithTag("notification-error").assertIsDisplayed()
+        compose.onNodeWithText("Todo al día. No tienes avisos pendientes").assertDoesNotExist()
+        compose.onNodeWithText("Reintentar").performClick()
+        assertEquals(1, retries)
+        captureIssue99("notifications-read-error")
+    }
+
+    @Test
+    fun refreshingKeepsCachedContentVisibleAtTwoHundredPercent() {
+        val notice = AppNotification(
+            id = "qa", userId = "qa-owner", title = "Aviso de prueba", body = "Datos sintéticos",
+            notificationType = "SYSTEM", referenceEntityType = null, referenceEntityId = null,
+            isRead = false, createdAt = Instant.parse("2026-11-16T00:00:00Z"), deletedAt = null,
+        )
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                KipuTheme(darkTheme = true) {
+                    NotificationCenterScreen(
+                        state = NotificationsUiState(notifications = listOf(notice), visibleNotifications = listOf(notice), isRefreshing = true),
+                        unreadCount = 1, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
+                        onDismiss = {}, onOpenNotification = {}, onNavigateBack = {}, reducedMotion = true,
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Actualizando…").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Aviso de prueba", useUnmergedTree = true).assertIsDisplayed()
+        captureIssue99("notifications-dark-font200-refresh")
+    }
+
+    private fun captureIssue99(name: String) {
+        compose.waitForIdle()
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val file = java.io.File(instrumentation.targetContext.filesDir, "issue99-evidence/$name.png")
+        file.parentFile!!.mkdirs()
+        val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+    }
 
     @Test
     fun emptyCenterShowsApprovedCopyOnFirstLocalRender() {
