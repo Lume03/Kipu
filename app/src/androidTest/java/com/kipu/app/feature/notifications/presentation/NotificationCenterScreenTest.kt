@@ -5,11 +5,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.hasText
@@ -18,6 +21,7 @@ import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -51,12 +55,13 @@ class NotificationCenterScreenTest {
             notificationType = "SYSTEM", referenceEntityType = null, referenceEntityId = null,
             isRead = false, createdAt = Instant.parse("2026-11-16T00:00:00Z"), deletedAt = null,
         )
+        val notices = listOf(notice, notice.copy(id = "qa-read", title = "Otro aviso de prueba", isRead = true))
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                 KipuTheme(darkTheme = true) {
                     NotificationCenterScreen(
-                        state = NotificationsUiState(notifications = listOf(notice), visibleNotifications = listOf(notice), isRefreshing = true),
+                        state = NotificationsUiState(notifications = notices, visibleNotifications = notices, isRefreshing = true),
                         unreadCount = 1, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
                         onDismiss = {}, onOpenNotification = {}, onNavigateBack = {}, reducedMotion = true,
                     )
@@ -66,6 +71,11 @@ class NotificationCenterScreenTest {
         compose.onNodeWithText("Actualizando…").assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithText("Aviso de prueba", useUnmergedTree = true).assertIsDisplayed()
         captureIssue99("notifications-dark-font200-refresh")
+        compose.onNodeWithContentDescription("Borrar leídas").assertIsDisplayed()
+        val actionBounds = compose.onNodeWithText("Marcar todas como leídas").getUnclippedBoundsInRoot()
+        val screenBounds = compose.onRoot().getUnclippedBoundsInRoot()
+        assertTrue("La acción debe caber al 200 % sin recortes laterales",
+            actionBounds.left >= screenBounds.left && actionBounds.right <= screenBounds.right)
     }
 
     private fun captureIssue99(name: String) {

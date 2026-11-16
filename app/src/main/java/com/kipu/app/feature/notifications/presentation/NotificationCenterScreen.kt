@@ -190,7 +190,11 @@ fun NotificationCenterScreen(
                             }
                         }
                         if (largeText && (unreadCount > 0 || readVisibleCount > 0)) {
-                            Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                itemVerticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 HeaderActions(
                                     showMarkAllRead = unreadCount > 0,
                                     showDismissRead = readVisibleCount > 0,
