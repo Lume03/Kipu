@@ -93,9 +93,3 @@ docs/qa/**/capturas/_local-only/
 /.claude/
 /.agents/skills/
 /skills-lock.json
-
-# Local files kept outside GitHub
-/PLAN_INSTALACION_ISSUE_99.md
-/PLAN_ISSUE_99.md
-/CONTINUAR_ISSUE_99_LAPTOP.md
-/local.properties.txt
