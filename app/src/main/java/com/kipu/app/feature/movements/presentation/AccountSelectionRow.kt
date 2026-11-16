@@ -40,7 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
@@ -109,7 +108,6 @@ internal fun AccountSelectionRow(
                 text = alias,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                     color = TextPrimarySlate,
                 ),
                 maxLines = 1,
@@ -122,7 +120,6 @@ internal fun AccountSelectionRow(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = TextSecondarySlate,
-                    fontSize = 12.sp,
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -141,7 +138,6 @@ internal fun AccountSelectionRow(
                     color = amountColor,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
                     ),
                 )
                 Text(
@@ -149,14 +145,13 @@ internal fun AccountSelectionRow(
                     color = statusColor,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
                     ),
                 )
             } else {
                 Text(
                     text = missingBalanceText,
                     color = TextSecondarySlate,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.End,
                     modifier = Modifier.width(88.dp),
                 )

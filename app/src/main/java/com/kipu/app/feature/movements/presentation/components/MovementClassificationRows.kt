@@ -22,11 +22,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.feature.categories.presentation.resolveCategoryIcon
 import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
+import com.kipu.app.ui.theme.at
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.ui.theme.rememberPastelTones
 import java.util.Locale
 
 /** Identical merchant trigger for movement entry and credit simulation. */
@@ -37,11 +38,8 @@ fun MerchantSelectionRow(
     onClearMerchant: () -> Unit,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
-    val (merchantBg, merchantTint) = if (emeraldColors.isDark) {
-        Color(0xFF451A03) to Color(0xFFFDBA74)
-    } else {
-        Color(0xFFFEF3C7) to emeraldColors.warningText
-    }
+    val merchantBg = emeraldColors.warningBg
+    val merchantTint = emeraldColors.warningText
     val hasMerchant = merchantName.isNotBlank()
 
     CalmEmeraldSelectionRow(
@@ -130,7 +128,7 @@ fun RememberToggleRow(
             )
             Text(
                 text = helper,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                style = MaterialTheme.typography.labelSmall,
                 color = emeraldColors.secondaryMuted,
             )
         }
@@ -166,9 +164,8 @@ fun CategorySelectionRow(
             colorsPair.second,
         )
     } else {
-        val bg = if (emeraldColors.isDark) Color(0xFF2E1065) else Color(0xFFF3E8FF)
-        val tint = if (emeraldColors.isDark) Color(0xFFC4B5FD) else Color(0xFF7E22CE)
-        Triple(Icons.Default.Label, bg, tint)
+        val tone = rememberPastelTones().at(3)
+        Triple(Icons.Default.Label, tone.tile, tone.ink)
     }
 
     CalmEmeraldSelectionRow(
@@ -243,21 +240,20 @@ internal fun CalmEmeraldSelectionRow(
                 ) {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
                     )
                     Text(
                         text = value,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
                         ),
                         color = emeraldColors.primaryText,
                     )
                     if (supportingText != null) {
                         Text(
                             text = supportingText,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            style = MaterialTheme.typography.labelSmall,
                             color = if (isError) emeraldColors.expenseText else emeraldColors.secondaryMuted,
                         )
                     }
@@ -301,23 +297,16 @@ internal fun CalmEmeraldSelectionRow(
 @Composable
 private fun categoryPastelColors(categoryName: String): Pair<Color, Color> {
     val name = categoryName.lowercase(Locale.ROOT)
-    val dark = rememberCalmEmeraldColors().isDark
-    return when {
-        "aliment" in name || "mercado" in name || "comida" in name || "restauran" in name ->
-            if (dark) Color(0xFF7C2D12) to Color(0xFFFDBA74) else Color(0xFFFFEDD5) to Color(0xFF9A3412)
-        "suscrip" in name || "stream" in name || "entreten" in name ->
-            if (dark) Color(0xFF4C1D95) to Color(0xFFC4B5FD) else Color(0xFFEDE9FE) to Color(0xFF5B21B6)
-        "transp" in name || "movil" in name || "auto" in name || "gas" in name ->
-            if (dark) Color(0xFF0C4A6E) to Color(0xFF7DD3FC) else Color(0xFFE0F2FE) to Color(0xFF075985)
-        "salud" in name || "cuidado" in name || "medic" in name || "farmac" in name ->
-            if (dark) Color(0xFF881337) to Color(0xFFFDA4AF) else Color(0xFFFFE4E6) to Color(0xFF9F1239)
-        "hogar" in name || "servicio" in name || "casa" in name || "luz" in name || "agua" in name ->
-            if (dark) Color(0xFF78350F) to Color(0xFFFCD34D) else Color(0xFFFEF3C7) to Color(0xFF92400E)
-        "educ" in name || "libro" in name || "curso" in name ->
-            if (dark) Color(0xFF064E3B) to Color(0xFF6EE7B7) else Color(0xFFD1FAE5) to Color(0xFF065F46)
-        "compr" in name || "ropa" in name || "tienda" in name ->
-            if (dark) Color(0xFF831843) to Color(0xFFF472B6) else Color(0xFFFCE7F3) to Color(0xFF9D174D)
-        else ->
-            if (dark) Color(0xFF1E293B) to Color(0xFF94A3B8) else Color(0xFFF1F5F9) to Color(0xFF475569)
+    val pastels = rememberPastelTones()
+    val tone = when {
+        "aliment" in name || "mercado" in name || "comida" in name || "restauran" in name -> pastels.at(2)
+        "suscrip" in name || "stream" in name || "entreten" in name -> pastels.at(3)
+        "transp" in name || "movil" in name || "auto" in name || "gas" in name -> pastels.at(1)
+        "salud" in name || "cuidado" in name || "medic" in name || "farmac" in name -> pastels.at(4)
+        "hogar" in name || "servicio" in name || "casa" in name || "luz" in name || "agua" in name -> pastels.at(5)
+        "educ" in name || "libro" in name || "curso" in name -> pastels.at(0)
+        "compr" in name || "ropa" in name || "tienda" in name -> pastels.at(4)
+        else -> pastels.at(6)
     }
+    return tone.tile to tone.ink
 }

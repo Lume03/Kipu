@@ -55,7 +55,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
@@ -81,7 +80,7 @@ private val TextPrimarySlate: Color @Composable get() = rememberKipuColors().ink
 private val TextSecondarySlate: Color @Composable get() = rememberKipuColors().inkSecondary
 private val TextPillInactive: Color @Composable get() = rememberKipuColors().inkSecondary
 private val DragHandleSlate: Color @Composable get() = rememberKipuColors().dragHandle
-private val MintBadgeContent: Color @Composable get() = if (rememberKipuColors().isDark) Color(0xFF86EFAC) else Color(0xFF166534)
+private val MintBadgeContent: Color @Composable get() = rememberKipuColors().positive
 private val CoralDebtText: Color @Composable get() = rememberKipuColors().debt
 
 /**
@@ -115,10 +114,13 @@ enum class AccountSelectorPurpose {
 /** Copy and card rules per [AccountSelectorPurpose], so every caller shows the same wording. */
 object AccountSelectorDefaults {
     fun title(purpose: AccountSelectorPurpose): String = when (purpose) {
-        AccountSelectorPurpose.INCOME_DESTINATION -> "Seleccionar cuenta destino"
+        AccountSelectorPurpose.EXPENSE_SOURCE,
+        AccountSelectorPurpose.TRANSFER_SOURCE,
+        AccountSelectorPurpose.CARD_PAYMENT -> "Seleccionar cuenta de origen"
+        AccountSelectorPurpose.INCOME_DESTINATION,
         AccountSelectorPurpose.TRANSFER_DESTINATION -> "Seleccionar cuenta destino"
         AccountSelectorPurpose.FILTER -> "Filtrar por cuenta o tarjeta"
-        else -> "Seleccionar cuenta"
+        AccountSelectorPurpose.GENERIC -> "Seleccionar cuenta"
     }
 
     fun subtitle(purpose: AccountSelectorPurpose): String = when (purpose) {
@@ -295,7 +297,6 @@ fun AccountSelectorBottomSheet(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 19.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextPrimarySlate,
                         ),
@@ -303,8 +304,7 @@ fun AccountSelectorBottomSheet(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall.copy(
                             color = TextSecondarySlate,
                         ),
                     )
@@ -518,7 +518,6 @@ fun AccountSelectorBottomSheet(
                             text = "+ Nueva cuenta",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
                             ),
                         )
                     }
@@ -576,7 +575,6 @@ fun AccountSelectorBottomSheet(
                         },
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
                         ),
                     )
                 }
@@ -621,7 +619,6 @@ private fun FilterPill(
             color = contentColor,
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
             ),
         )
     }
@@ -739,7 +736,6 @@ private fun CreditCardItemRow(
                 text = cardTitle,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                     color = TextPrimarySlate,
                 ),
                 maxLines = 1,
@@ -752,7 +748,6 @@ private fun CreditCardItemRow(
                 text = cardSubtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = TextSecondarySlate,
-                    fontSize = 12.sp,
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -770,7 +765,6 @@ private fun CreditCardItemRow(
                     text = "Crédito disponible: ",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = TextSecondarySlate,
-                        fontSize = 11.sp,
                     ),
                 )
                 if (availableCredit != null) {
@@ -779,7 +773,6 @@ private fun CreditCardItemRow(
                         color = TextPrimarySlate,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp,
                         ),
                     )
                 } else {
@@ -792,7 +785,6 @@ private fun CreditCardItemRow(
                     text = "Deuda: ",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = CoralDebtText,
-                        fontSize = 11.sp,
                     ),
                 )
                 if (debt != null) {
@@ -801,7 +793,6 @@ private fun CreditCardItemRow(
                         color = CoralDebtText,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp,
                         ),
                     )
                 } else {
@@ -852,7 +843,6 @@ private fun DebitCardItemRow(
                 text = cardTitle,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                     color = TextPrimarySlate,
                 ),
                 maxLines = 1,
@@ -865,7 +855,6 @@ private fun DebitCardItemRow(
                 text = cardSubtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = TextSecondarySlate,
-                    fontSize = 12.sp,
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

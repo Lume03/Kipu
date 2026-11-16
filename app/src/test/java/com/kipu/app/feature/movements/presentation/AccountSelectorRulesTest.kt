@@ -52,7 +52,13 @@ class AccountSelectorRulesTest {
 
     @Test
     fun copyFollowsTheFlow() {
+        assertEquals("Seleccionar cuenta de origen", AccountSelectorDefaults.title(AccountSelectorPurpose.EXPENSE_SOURCE))
+        assertEquals("Seleccionar cuenta de origen", AccountSelectorDefaults.title(AccountSelectorPurpose.TRANSFER_SOURCE))
+        assertEquals("Seleccionar cuenta de origen", AccountSelectorDefaults.title(AccountSelectorPurpose.CARD_PAYMENT))
         assertEquals("Seleccionar cuenta destino", AccountSelectorDefaults.title(AccountSelectorPurpose.INCOME_DESTINATION))
+        assertEquals("Seleccionar cuenta destino", AccountSelectorDefaults.title(AccountSelectorPurpose.TRANSFER_DESTINATION))
+        assertEquals("Filtrar por cuenta o tarjeta", AccountSelectorDefaults.title(AccountSelectorPurpose.FILTER))
+        assertEquals("Seleccionar cuenta", AccountSelectorDefaults.title(AccountSelectorPurpose.GENERIC))
         assertEquals("Elige dónde recibir el ingreso", AccountSelectorDefaults.subtitle(AccountSelectorPurpose.INCOME_DESTINATION))
         assertEquals("Elige desde dónde sale el dinero", AccountSelectorDefaults.subtitle(AccountSelectorPurpose.TRANSFER_SOURCE))
         assertEquals("Elige a dónde llega el dinero", AccountSelectorDefaults.subtitle(AccountSelectorPurpose.TRANSFER_DESTINATION))
