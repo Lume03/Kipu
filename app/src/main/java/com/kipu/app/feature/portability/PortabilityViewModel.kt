@@ -15,11 +15,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class PortabilityMessageKind { SUCCESS, WARNING, ERROR }
+
 data class PortabilityState(
     val busy: Boolean = true,
     val pending: PendingLocalSummary? = null,
     val message: String? = null,
     val restore: RestoreResult? = null,
+    val messageKind: PortabilityMessageKind? = null,
 )
 
 @HiltViewModel
@@ -54,20 +57,24 @@ class PortabilityViewModel @Inject constructor(
             }
         }
         checkedOwner()
-        mutableState.value = mutableState.value.copy(message = "Exportación guardada.")
+        mutableState.value = mutableState.value.copy(message = "Exportación guardada.", messageKind = PortabilityMessageKind.SUCCESS)
     }
 
     fun restore(retryFailed: Boolean = false) = runOperation {
         val currentOwner = checkedOwner()
         val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
         if (connectivity != null && connectivity.activeNetwork == null) {
-            mutableState.value = mutableState.value.copy(message = "Sin conexión. La restauración necesita Internet; puedes exportar tus datos locales.")
+            mutableState.value = mutableState.value.copy(message = "Sin conexión. La restauración necesita Internet; puedes exportar tus datos locales.", messageKind = PortabilityMessageKind.WARNING)
             return@runOperation
         }
         mutableState.value = mutableState.value.copy(pending = pendingChanges(currentOwner))
         val result = restoreData(currentOwner, if (retryFailed) mutableState.value.restore else null)
         checkedOwner()
-        mutableState.value = mutableState.value.copy(restore = result, message = when (result.status) {
+        mutableState.value = mutableState.value.copy(restore = result, messageKind = when (result.status) {
+            RestoreStatus.COMPLETED -> PortabilityMessageKind.SUCCESS
+            RestoreStatus.PARTIAL -> PortabilityMessageKind.WARNING
+            RestoreStatus.ERROR -> PortabilityMessageKind.ERROR
+        }, message = when (result.status) {
             RestoreStatus.COMPLETED -> "Restauración completada."
             RestoreStatus.PARTIAL -> "Restauración parcial. Reintenta los módulos fallidos."
             RestoreStatus.ERROR -> "No se completó la restauración. Comprueba tu conexión y reintenta."
@@ -76,10 +83,10 @@ class PortabilityViewModel @Inject constructor(
 
     private fun runOperation(block: suspend () -> Unit) {
         if (mutableState.value.busy && mutableState.value.pending != null) return
-        mutableState.value = mutableState.value.copy(busy = true, message = null)
+        mutableState.value = mutableState.value.copy(busy = true, message = null, messageKind = null)
         viewModelScope.launch {
             try { block() } catch (e: CancellationException) { throw e } catch (_: Exception) {
-                mutableState.value = mutableState.value.copy(restore = null, message = "No se pudo completar. Comprueba tu conexión y vuelve a intentarlo.")
+                mutableState.value = mutableState.value.copy(restore = null, message = "No se pudo completar. Comprueba tu conexión y vuelve a intentarlo.", messageKind = PortabilityMessageKind.ERROR)
             } finally { mutableState.value = mutableState.value.copy(busy = false) }
         }
     }
