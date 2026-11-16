@@ -7,7 +7,13 @@ import com.kipu.app.ui.theme.KipuThemePreviews
 import com.kipu.app.ui.theme.KipuTheme
 import com.kipu.app.ui.theme.rememberKipuColors
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -56,6 +62,7 @@ import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerBottomSheet
 import com.kipu.app.feature.categories.presentation.components.MerchantPickerState
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.LocalDate
@@ -237,6 +244,8 @@ private fun MovementFiltersSheetContent(
         else -> "Personalizado: ${fromDateObj?.format(shortDateFormatter) ?: "…"} — ${toDateObj?.format(shortDateFormatter) ?: "…"}"
     }
 
+    val reducedMotion = rememberReducedMotionEnabled()
+
     KipuBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -363,7 +372,6 @@ private fun MovementFiltersSheetContent(
                             text = "Filtros de movimientos",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
                             ),
                             color = themeColors.inkPrimary
                         )
@@ -376,7 +384,6 @@ private fun MovementFiltersSheetContent(
                                     text = "$activeFilterCount activos",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
                                     ),
                                     color = semanticColors.incomeText,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -398,7 +405,11 @@ private fun MovementFiltersSheetContent(
                 }
 
                 // Active Filter Chips Bar (Dismissible)
-                AnimatedVisibility(visible = activeFilterCount > 0) {
+                AnimatedVisibility(
+                    visible = activeFilterCount > 0,
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                ) {
                     FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -464,9 +475,9 @@ private fun MovementFiltersSheetContent(
                         draft.paymentChannels.forEach { channel ->
                             ActiveFilterDismissChip(
                                 text = "Billetera ${channel.label}",
-                                bgColor = Color(0xFFE6F4EA),
-                                borderColor = Color(0xFFA7F3D0),
-                                textColor = Color(0xFF0F766E),
+                                bgColor = themeColors.selectedSurface,
+                                borderColor = semanticColors.incomeBorder,
+                                textColor = themeColors.primary,
                                 onDismiss = { updateDraft(draft.copy(paymentChannels = draft.paymentChannels - channel)) }
                             )
                         }
@@ -609,7 +620,11 @@ private fun MovementFiltersSheetContent(
                     }
 
                     // Expanded Content for Card 1
-                    AnimatedVisibility(visible = showPeriodOptions) {
+                    AnimatedVisibility(
+                        visible = showPeriodOptions,
+                        enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                        exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                    ) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             // Preset buttons row
                             Row(
@@ -1413,13 +1428,14 @@ private fun AdvancedFiltersControls(
             onChange = { onDraftChange(draft.copy(accountIds = it)) },
             selectorContent = catalog?.let { data -> { dismiss ->
                 AccountSelectorBottomSheet(
-                    accounts = data.accounts, creditCards = data.cards,
+                    accounts = data.accounts,
+                    creditCards = emptyList(),
                     purpose = AccountSelectorPurpose.FILTER,
-                    title = AccountSelectorDefaults.title(AccountSelectorPurpose.FILTER),
+                    title = "Filtrar por cuenta",
                     subtitle = AccountSelectorDefaults.subtitle(AccountSelectorPurpose.FILTER),
-                    selectedAccountIds = draft.accountIds, selectedCardIds = draft.cardIds,
-                    onSelectionConfirmed = { accountIds, cardIds ->
-                        onDraftChange(draft.copy(accountIds = accountIds, cardIds = cardIds))
+                    selectedAccountIds = draft.accountIds,
+                    onSelectionConfirmed = { accountIds, _ ->
+                        onDraftChange(draft.copy(accountIds = accountIds))
                     },
                     onDismissRequest = dismiss,
                 )
@@ -1704,7 +1720,7 @@ private fun KipuProUpsellDialog(
         ) {
             // Close button on top-right
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Rounded.Close, contentDescription = "Cerrar", tint = themeColors.inkSecondary)
                 }
             }
@@ -1747,7 +1763,7 @@ private fun KipuProUpsellDialog(
             // Title & Description
             Text(
                 text = "Filtra sin límites con Kipu Pro",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = themeColors.inkPrimary,
                 textAlign = TextAlign.Center
             )
@@ -1825,8 +1841,7 @@ private fun KipuProUpsellDialog(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Obtener Kipu Pro",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                         color = themeColors.onPrimary
                     )
                 }
@@ -1840,8 +1855,7 @@ private fun KipuProUpsellDialog(
                 Text(
                     text = "Continuar con Plan Free",
                     color = themeColors.inkSecondary,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 )
             }
         }
@@ -1863,7 +1877,7 @@ private fun UpsellBenefitItem(text: String) {
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+            style = MaterialTheme.typography.bodyMedium,
             color = themeColors.inkPrimary
         )
     }
