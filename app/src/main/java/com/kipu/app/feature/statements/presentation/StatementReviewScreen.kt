@@ -639,7 +639,7 @@ private fun StatementSuccess(state: StatementReviewUiState, lines: List<Statemen
                 SuccessStat("${registered.size - categorized}", "sin categoría", Modifier.weight(1f))
             }
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onViewMovements, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = palette.primaryDeep),
+            Button(onClick = onViewMovements, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF0B5F58)),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Ver movimientos", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium) }
             TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Listo", color = Color.White.copy(alpha = .9f), fontWeight = FontWeight.Bold) }
         }

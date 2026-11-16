@@ -50,6 +50,7 @@ import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.KipuChipTone
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
 /** Official mark of the bank or wallet that sent the notification (initials only if the asset is missing). */
@@ -163,6 +164,8 @@ internal fun CaptureDiscardDialog(
     amount: String? = null,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
+    val effectiveAmount = if (isMasked && amount != null) "monto oculto" else amount
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).testTag("capture_discard_dialog"),
@@ -186,9 +189,9 @@ internal fun CaptureDiscardDialog(
                         if (merchant != null) {
                             append("La captura de ")
                             withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(merchant) }
-                            if (amount != null) {
+                            if (effectiveAmount != null) {
                                 append(" por ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(amount) }
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(effectiveAmount) }
                             }
                             append(" saldrá de tus pendientes y se borrará el texto detectado.")
                         } else {

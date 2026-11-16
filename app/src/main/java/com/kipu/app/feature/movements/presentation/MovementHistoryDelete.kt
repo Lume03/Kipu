@@ -104,9 +104,9 @@ internal fun DeleteMovementDialog(
                 val counterpart = item.merchantName ?: item.categoryName ?: "Movimiento"
                 val currency = if (item.transaction.currency == "PEN") "S/" else item.transaction.currency
                 val isMasked = LocalBalanceMasked.current
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.semantics {
                         if (isMasked) {
                             contentDescription = "$counterpart · Monto oculto"
@@ -114,7 +114,7 @@ internal fun DeleteMovementDialog(
                     },
                 ) {
                     Text(
-                        text = "$counterpart · ",
+                        text = counterpart,
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Center,
                         color = palette.primaryText,

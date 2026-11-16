@@ -82,6 +82,7 @@ import com.kipu.app.feature.capture.domain.CaptureInstrumentKind
 import com.kipu.app.feature.capture.domain.CaptureReason
 import com.kipu.app.ui.component.KipuChipTone
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -380,14 +381,32 @@ private fun AssociationCard(candidate: CaptureCandidateRecord, onClick: () -> Un
                 Icon(Icons.Outlined.SyncAlt, contentDescription = null, tint = palette.primaryDeep)
             }
             Column(Modifier.weight(1f)) {
-                Text(
-                    listOfNotNull(candidate.merchantSourceText ?: candidate.provider.displayName(), amount?.let { "$sign$it" }).joinToString(" · "),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = palette.primaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        candidate.merchantSourceText ?: candidate.provider.displayName(),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.primaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (candidate.amountMinor != null) {
+                        Text("·", style = MaterialTheme.typography.titleSmall, color = palette.secondaryMuted)
+                        val rawAmount = formatMinorUnits(candidate.amountMinor)
+                        val sym = currencySymbol(candidate.currency)
+                        MoneyText(
+                            amount = "$sign$rawAmount",
+                            currencySymbol = sym,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = palette.primaryText,
+                        )
+                    }
+                }
                 Text("Elige a qué pago esperado corresponde.", style = MaterialTheme.typography.bodySmall, color = palette.incomeText)
             }
             Button(
@@ -497,6 +516,7 @@ private fun CaptureCandidateCard(
     modifier: Modifier = Modifier,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
     val amount = formatCaptureAmount(candidate.amountMinor, candidate.currency)
     val missing = candidate.missingFields()
     val title = candidate.merchantSourceText?.takeIf(String::isNotBlank) ?: "Comercio sin identificar"
@@ -511,7 +531,8 @@ private fun CaptureCandidateCard(
         null -> "Movimiento"
     }
     val whenLabel = captureRelativeDateTime(candidate.occurredAt ?: candidate.createdAt)
-    val summary = "$directionLabel de ${amount ?: "monto pendiente"} en $title, ${candidate.provider.displayName()}, $whenLabel, " +
+    val amountSpoken = if (isMasked) "monto oculto" else (amount ?: "monto pendiente")
+    val summary = "$directionLabel de $amountSpoken en $title, ${candidate.provider.displayName()}, $whenLabel, " +
         candidate.confidence.displayName().lowercase() + if (missing.isNotEmpty()) ", faltan ${missing.size} datos" else ""
     val primaryReason = candidate.confidenceReasons.firstOrNull()
 

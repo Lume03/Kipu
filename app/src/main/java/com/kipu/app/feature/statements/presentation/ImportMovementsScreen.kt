@@ -169,7 +169,7 @@ internal fun ImportMovementsContent(
                         StatementToneChip("Ahorros / débito", "blue", Icons.Filled.AccountBalance)
                     }
                     if (state.premiumLocked) Button(onClick = onPlans, shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = statementTone("violet").fg, contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6E2A8C), contentColor = Color.White),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                         Icon(Icons.Filled.WorkspacePremium, null, Modifier.size(20.dp)); Spacer(Modifier.width(9.dp))
                         Text("Ver Premium", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)

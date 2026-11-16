@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -728,6 +730,8 @@ private fun CreditCardItemRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center,
@@ -752,51 +756,96 @@ private fun CreditCardItemRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Crédito disponible: ",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = TextSecondarySlate,
-                    ),
-                )
-                if (availableCredit != null) {
-                    MoneyText(
-                        money = availableCredit,
-                        color = TextPrimarySlate,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
+            if (isLargeFont) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Crédito: ",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = TextSecondarySlate,
                         ),
                     )
-                } else {
-                    Text("No disponible", color = TextSecondarySlate, style = MaterialTheme.typography.labelSmall)
+                    if (availableCredit != null) {
+                        MoneyText(
+                            money = availableCredit,
+                            color = TextPrimarySlate,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                            ),
+                        )
+                    } else {
+                        Text("No disponible", color = TextSecondarySlate, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Deuda: ",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = CoralDebtText,
+                        ),
+                    )
+                    if (debt != null) {
+                        MoneyText(
+                            money = debt,
+                            color = CoralDebtText,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        )
+                    } else {
+                        Text("No disponible", color = CoralDebtText, style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
+        }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Deuda: ",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = CoralDebtText,
-                    ),
-                )
-                if (debt != null) {
-                    MoneyText(
-                        money = debt,
-                        color = CoralDebtText,
+        if (!isLargeFont) {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.widthIn(max = 160.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Crédito disponible: ",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.SemiBold,
+                            color = TextSecondarySlate,
                         ),
                     )
-                } else {
-                    Text("No disponible", color = CoralDebtText, style = MaterialTheme.typography.labelSmall)
+                    if (availableCredit != null) {
+                        MoneyText(
+                            money = availableCredit,
+                            color = TextPrimarySlate,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                            ),
+                        )
+                    } else {
+                        Text("No disponible", color = TextSecondarySlate, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Deuda: ",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = CoralDebtText,
+                        ),
+                    )
+                    if (debt != null) {
+                        MoneyText(
+                            money = debt,
+                            color = CoralDebtText,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                        )
+                    } else {
+                        Text("No disponible", color = CoralDebtText, style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
         }

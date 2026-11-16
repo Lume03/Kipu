@@ -627,54 +627,115 @@ private fun MovementFiltersSheetContent(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             // Preset buttons row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                FilterPresetChip(
-                                    label = "Hoy",
-                                    selected = isTodayPreset,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
-                                )
-                                FilterPresetChip(
-                                    label = "7 días",
-                                    selected = is7DaysPreset,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
-                                )
-                                FilterPresetChip(
-                                    label = "Este mes",
-                                    selected = isMonthPreset,
-                                    modifier = Modifier.weight(1.2f),
-                                    onClick = {
-                                        val firstDay = today.withDayOfMonth(1)
-                                        val lastDay = today.withDayOfMonth(today.lengthOfMonth())
-                                        updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
+                            val isLargeScale = LocalDensity.current.fontScale >= 1.2f
+                            if (isLargeScale) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        FilterPresetChip(
+                                            label = "Hoy",
+                                            selected = isTodayPreset,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
+                                        )
+                                        FilterPresetChip(
+                                            label = "7 días",
+                                            selected = is7DaysPreset,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
+                                        )
                                     }
-                                )
-                                if (isCustomRange) {
-                                    FilterPresetChip(
-                                        label = "Personalizado",
-                                        selected = true,
-                                        modifier = Modifier.weight(1.5f),
-                                        onClick = { dates = true }
-                                    )
-                                } else {
-                                    FilterPresetChip(
-                                        label = if (isYearPreset) "Año" else "Todos",
-                                        selected = !isPeriodActive || isYearPreset,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = {
-                                            if (isPeriodActive && !isYearPreset) {
-                                                // Toggle to Year
-                                                updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
-                                            } else {
-                                                // Clean
-                                                updateDraft(draft.copy(fromDate = "", toDate = ""))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        FilterPresetChip(
+                                            label = "Este mes",
+                                            selected = isMonthPreset,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = {
+                                                val firstDay = today.withDayOfMonth(1)
+                                                val lastDay = today.withDayOfMonth(today.lengthOfMonth())
+                                                updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
                                             }
+                                        )
+                                        if (isCustomRange) {
+                                            FilterPresetChip(
+                                                label = "Personalizado",
+                                                selected = true,
+                                                modifier = Modifier.weight(1f),
+                                                onClick = { dates = true }
+                                            )
+                                        } else {
+                                            FilterPresetChip(
+                                                label = if (isYearPreset) "Año" else "Todos",
+                                                selected = !isPeriodActive || isYearPreset,
+                                                modifier = Modifier.weight(1f),
+                                                onClick = {
+                                                    if (isPeriodActive && !isYearPreset) {
+                                                        // Toggle to Year
+                                                        updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
+                                                    } else {
+                                                        // Clean
+                                                        updateDraft(draft.copy(fromDate = "", toDate = ""))
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilterPresetChip(
+                                        label = "Hoy",
+                                        selected = isTodayPreset,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
+                                    )
+                                    FilterPresetChip(
+                                        label = "7 días",
+                                        selected = is7DaysPreset,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
+                                    )
+                                    FilterPresetChip(
+                                        label = "Este mes",
+                                        selected = isMonthPreset,
+                                        modifier = Modifier.weight(1.2f),
+                                        onClick = {
+                                            val firstDay = today.withDayOfMonth(1)
+                                            val lastDay = today.withDayOfMonth(today.lengthOfMonth())
+                                            updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
                                         }
                                     )
+                                    if (isCustomRange) {
+                                        FilterPresetChip(
+                                            label = "Personalizado",
+                                            selected = true,
+                                            modifier = Modifier.weight(1.5f),
+                                            onClick = { dates = true }
+                                        )
+                                    } else {
+                                        FilterPresetChip(
+                                            label = if (isYearPreset) "Año" else "Todos",
+                                            selected = !isPeriodActive || isYearPreset,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = {
+                                                if (isPeriodActive && !isYearPreset) {
+                                                    // Toggle to Year
+                                                    updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
+                                                } else {
+                                                    // Clean
+                                                    updateDraft(draft.copy(fromDate = "", toDate = ""))
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             }
 
@@ -851,46 +912,96 @@ private fun MovementFiltersSheetContent(
                     modifier = Modifier.padding(start = 4.dp)
                 )
 
+                val isLargeScaleTypes = LocalDensity.current.fontScale >= 1.2f
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = themeColors.surfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        MovementTypeSegment(
-                            title = "Todos",
-                            isSelected = draft.movementType == null,
-                            activeColor = themeColors.primary,
-                            modifier = Modifier.weight(1f),
-                            onClick = { updateDraft(draft.copy(movementType = null)) }
-                        )
-                        MovementTypeSegment(
-                            title = "Gastos",
-                            isSelected = draft.movementType == MovementType.EXPENSE,
-                            bulletColor = semanticColors.expenseText,
-                            activeColor = semanticColors.expenseText,
-                            modifier = Modifier.weight(1f),
-                            onClick = { updateDraft(draft.copy(movementType = MovementType.EXPENSE)) }
-                        )
-                        MovementTypeSegment(
-                            title = "Ingresos",
-                            isSelected = draft.movementType == MovementType.INCOME,
-                            bulletColor = semanticColors.incomeText,
-                            activeColor = semanticColors.incomeText,
-                            modifier = Modifier.weight(1f),
-                            onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
-                        )
-                        MovementTypeSegment(
-                            title = "Transferencias",
-                            isSelected = draft.movementType == MovementType.TRANSFER,
-                            bulletColor = semanticColors.transferBlue,
-                            activeColor = semanticColors.transferBlue,
-                            modifier = Modifier.weight(1f),
-                            onClick = { updateDraft(draft.copy(movementType = MovementType.TRANSFER)) }
-                        )
+                    if (isLargeScaleTypes) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                MovementTypeSegment(
+                                    title = "Todos",
+                                    isSelected = draft.movementType == null,
+                                    activeColor = themeColors.primary,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(movementType = null)) }
+                                )
+                                MovementTypeSegment(
+                                    title = "Gastos",
+                                    isSelected = draft.movementType == MovementType.EXPENSE,
+                                    bulletColor = semanticColors.expenseText,
+                                    activeColor = semanticColors.expenseText,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(movementType = MovementType.EXPENSE)) }
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                MovementTypeSegment(
+                                    title = "Ingresos",
+                                    isSelected = draft.movementType == MovementType.INCOME,
+                                    bulletColor = semanticColors.incomeText,
+                                    activeColor = semanticColors.incomeText,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
+                                )
+                                MovementTypeSegment(
+                                    title = "Transferencias",
+                                    isSelected = draft.movementType == MovementType.TRANSFER,
+                                    bulletColor = semanticColors.transferBlue,
+                                    activeColor = semanticColors.transferBlue,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(movementType = MovementType.TRANSFER)) }
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            MovementTypeSegment(
+                                title = "Todos",
+                                isSelected = draft.movementType == null,
+                                activeColor = themeColors.primary,
+                                modifier = Modifier.weight(1f),
+                                onClick = { updateDraft(draft.copy(movementType = null)) }
+                            )
+                            MovementTypeSegment(
+                                title = "Gastos",
+                                isSelected = draft.movementType == MovementType.EXPENSE,
+                                bulletColor = semanticColors.expenseText,
+                                activeColor = semanticColors.expenseText,
+                                modifier = Modifier.weight(1f),
+                                onClick = { updateDraft(draft.copy(movementType = MovementType.EXPENSE)) }
+                            )
+                            MovementTypeSegment(
+                                title = "Ingresos",
+                                isSelected = draft.movementType == MovementType.INCOME,
+                                bulletColor = semanticColors.incomeText,
+                                activeColor = semanticColors.incomeText,
+                                modifier = Modifier.weight(1f),
+                                onClick = { updateDraft(draft.copy(movementType = MovementType.INCOME)) }
+                            )
+                            MovementTypeSegment(
+                                title = "Transferencias",
+                                isSelected = draft.movementType == MovementType.TRANSFER,
+                                bulletColor = semanticColors.transferBlue,
+                                activeColor = semanticColors.transferBlue,
+                                modifier = Modifier.weight(1f),
+                                onClick = { updateDraft(draft.copy(movementType = MovementType.TRANSFER)) }
+                            )
+                        }
                     }
                 }
             }
@@ -1224,15 +1335,16 @@ private fun FilterPresetChip(
         shape = RoundedCornerShape(12.dp),
         color = if (selected) themeColors.primary else themeColors.surface,
         border = BorderStroke(1.dp, if (selected) themeColors.primary else themeColors.border),
-        modifier = modifier.height(36.dp)
+        modifier = modifier.heightIn(min = 36.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),
-                color = if (selected) themeColors.onPrimary else themeColors.inkPrimary
+                color = if (selected) themeColors.onPrimary else themeColors.inkPrimary,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -1255,12 +1367,12 @@ private fun MovementTypeSegment(
             color = themeColors.surface,
             shadowElevation = 1.dp,
             border = BorderStroke(1.dp, themeColors.border),
-            modifier = modifier.height(34.dp)
+            modifier = modifier.heightIn(min = 34.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
             ) {
                 if (bulletColor != null) {
                     Box(Modifier.size(6.dp).background(bulletColor, CircleShape))
@@ -1269,21 +1381,24 @@ private fun MovementTypeSegment(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                    color = activeColor
+                    color = activeColor,
+                    textAlign = TextAlign.Center,
                 )
             }
         }
     } else {
         Box(
             modifier = modifier
-                .height(34.dp)
-                .clickable(role = Role.RadioButton, onClick = onClick),
+                .heightIn(min = 34.dp)
+                .clickable(role = Role.RadioButton, onClick = onClick)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = themeColors.inkSecondary
+                color = themeColors.inkSecondary,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -1438,6 +1553,7 @@ private fun AdvancedFiltersControls(
                         onDraftChange(draft.copy(accountIds = accountIds))
                     },
                     onDismissRequest = dismiss,
+                    allowCreditCards = false,
                 )
             } },
         )
@@ -1714,9 +1830,8 @@ private fun KipuProUpsellDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Close button on top-right
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -1725,108 +1840,120 @@ private fun KipuProUpsellDialog(
                 }
             }
 
-            // Top Badge Icon
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = semanticColors.incomeBg,
-                modifier = Modifier.size(56.dp)
+            // Scrollable content
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.MilitaryTech,
-                        contentDescription = null,
-                        tint = themeColors.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-
-            // KIPU PRO Pill
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = semanticColors.incomeBg
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, tint = themeColors.primary, modifier = Modifier.size(13.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "KIPU PRO",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = themeColors.primary
-                    )
-                }
-            }
-
-            // Title & Description
-            Text(
-                text = "Filtra sin límites con Kipu Pro",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = themeColors.inkPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Encuentra cualquier transacción filtrando por cuentas específicas, múltiples categorías, comercios frecuentes y rango de importes exactos.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = themeColors.inkSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            // Benefits Container
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = semanticColors.incomeBg,
-                border = BorderStroke(1.dp, semanticColors.incomeBg),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    UpsellBenefitItem("Filtro por cuentas bancarias y billeteras")
-                    UpsellBenefitItem("Múltiples categorías y subcategorías simultáneas")
-                    UpsellBenefitItem("Búsqueda por comercio y notas personalizadas")
-                    UpsellBenefitItem("Rango de importes mínimo y máximo sin tope")
-                }
-            }
-
-            annualOffer?.let { offer ->
+                // Top Badge Icon
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = semanticColors.incomeBg,
-                    border = BorderStroke(1.5.dp, themeColors.primary),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.size(56.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Plan Anual",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = themeColors.inkPrimary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = offer.formattedPrice,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = themeColors.primary,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.End
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.MilitaryTech,
+                            contentDescription = null,
+                            tint = themeColors.primary,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
+
+                // KIPU PRO Pill
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = semanticColors.incomeBg
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Rounded.Star, contentDescription = null, tint = themeColors.primary, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "KIPU PRO",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = themeColors.primary
+                        )
+                    }
+                }
+
+                // Title & Description
+                Text(
+                    text = "Filtra sin límites con Kipu Pro",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = themeColors.inkPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Encuentra cualquier transacción filtrando por cuentas específicas, múltiples categorías, comercios frecuentes y rango de importes exactos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = themeColors.inkSecondary,
+                    textAlign = TextAlign.Center
+                )
+
+                // Benefits Container
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = semanticColors.incomeBg,
+                    border = BorderStroke(1.dp, semanticColors.incomeBg),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        UpsellBenefitItem("Filtro por cuentas bancarias y billeteras")
+                        UpsellBenefitItem("Múltiples categorías y subcategorías simultáneas")
+                        UpsellBenefitItem("Búsqueda por comercio y notas personalizadas")
+                        UpsellBenefitItem("Rango de importes mínimo y máximo sin tope")
+                    }
+                }
+
+                annualOffer?.let { offer ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = semanticColors.incomeBg,
+                        border = BorderStroke(1.5.dp, themeColors.primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Plan Anual",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = themeColors.inkPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = offer.formattedPrice,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = themeColors.primary,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                    }
+                }
             }
+
+            Spacer(Modifier.height(16.dp))
 
             // CTA Button
             Button(
                 onClick = onGetPro,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = themeColors.primary),
-                modifier = Modifier.fillMaxWidth().height(52.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1850,7 +1977,7 @@ private fun KipuProUpsellDialog(
             // Dismiss link
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Text(
                     text = "Continuar con Plan Free",

@@ -224,7 +224,7 @@ private fun ScanScene(clock: () -> Float, summary: StatementScanSummary?, waitin
                     }
                 }
             }
-            Surface(onClick = onSkip, shape = RoundedCornerShape(16.dp), color = Color.White, contentColor = palette.primaryDeep,
+            Surface(onClick = onSkip, shape = RoundedCornerShape(16.dp), color = Color.White, contentColor = Color(0xFF0B5F58),
                 modifier = Modifier.padding(bottom = 24.dp).fillMaxWidth().heightIn(min = 56.dp).graphicsLayer { alpha = easeIn(ramp(clock(), 4.8f, .1f)) }.testTag("statement_scan_continue")) {
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text("Revisar movimientos", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
