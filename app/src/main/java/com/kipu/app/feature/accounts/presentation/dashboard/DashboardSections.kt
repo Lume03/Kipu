@@ -97,6 +97,14 @@ internal const val DASHBOARD_HERO_TAG = "dashboard_hero"
 internal const val DASHBOARD_LOADING_TAG = "dashboard_loading"
 internal const val DASHBOARD_ERROR_TAG = "dashboard_error"
 
+/**
+ * Shared responsive breakpoint for Dinero presentation. Use a compact arrangement when text is
+ * enlarged (1.3× or more) or the available window is narrower than 360dp.
+ */
+@Composable
+internal fun isCompactAccountsLayout(): Boolean =
+    LocalDensity.current.fontScale >= 1.3f || LocalConfiguration.current.screenWidthDp < 360
+
 private val HeroLabel = Color(0xFFBDEFE6)
 private val HeroDot = Color(0xFF7DE0CF)
 private val HeroSubtitle = Color(0xFFCFEFE9)
@@ -154,7 +162,7 @@ internal fun DashboardHero(
 ) {
     val colors = rememberCalmEmeraldColors()
     val fontScale = LocalDensity.current.fontScale
-    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && fontScale >= 1.3f
+    val compactLayout = isCompactAccountsLayout()
     val hasUsd = totalUsd != null
     Surface(
         modifier = modifier.fillMaxWidth().testTag(DASHBOARD_HERO_TAG),
@@ -189,8 +197,17 @@ internal fun DashboardHero(
                     }
                 }
             }
-            if (compactLargeText) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Box(Modifier.size(8.dp).clip(CircleShape).background(HeroDot))
                     Text(
                         text = FinancialTerminology.REAL_MONEY_AVAILABLE,
@@ -200,23 +217,10 @@ internal fun DashboardHero(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) { visibilityControl() }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(HeroDot))
-                    Text(
-                        text = FinancialTerminology.REAL_MONEY_AVAILABLE,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, letterSpacing = 0.7.sp),
-                        fontWeight = FontWeight.ExtraBold,
-                        color = HeroLabel,
-                        modifier = Modifier.weight(1f),
-                    )
-                    visibilityControl()
-                }
+                visibilityControl()
             }
             val heroSize = when {
                 hasUsd -> 28.sp
-                compactLargeText -> 24.sp
                 fontScale >= 1.25f -> 32.sp
                 else -> 38.sp
             }
@@ -250,19 +254,14 @@ internal fun DashboardHero(
                 modifier = Modifier.padding(top = 2.dp),
             )
             Spacer(Modifier.height(14.dp))
-            val stack = fontScale >= 1.3f
-            val panels: @Composable (Modifier, Modifier) -> Unit = { first, second ->
-                HeroPanel("En cuentas bancarias", bankByCurrency, isMasked, first)
-                HeroPanel("En efectivo", cashByCurrency, isMasked, second)
-            }
-            if (stack) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    panels(Modifier.fillMaxWidth(), Modifier.fillMaxWidth())
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    panels(Modifier.weight(1f), Modifier.weight(1f))
-                }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = if (compactLayout) 1 else 2,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                HeroPanel("En cuentas bancarias", bankByCurrency, isMasked, Modifier.weight(1f))
+                HeroPanel("En efectivo", cashByCurrency, isMasked, Modifier.weight(1f))
             }
         }
     }
@@ -294,7 +293,6 @@ private fun HeroPanel(label: String, byCurrency: Map<Currency, Long>, isMasked: 
 @Composable
 internal fun DashboardCalendarEntryCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = rememberCalmEmeraldColors()
-    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("home_calendar_entry"),
@@ -302,16 +300,15 @@ internal fun DashboardCalendarEntryCard(onClick: () -> Unit, modifier: Modifier 
         color = colors.surfaceCard,
         shadowElevation = 1.dp,
     ) {
-        if (compactLargeText) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(Icons.Outlined.CalendarMonth, background = colors.navSelectedPill.copy(alpha = if (colors.isDark) 1f else 0.12f), tint = if (colors.isDark) colors.navSelectedContent else colors.primaryDeep)
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.secondaryMuted)
-                }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)
+                .semantics(mergeDescendants = true) {},
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconTile(Icons.Outlined.CalendarMonth, background = colors.navSelectedPill.copy(alpha = if (colors.isDark) 1f else 0.12f), tint = if (colors.isDark) colors.navSelectedContent else colors.primaryDeep)
+            Column(Modifier.weight(1f)) {
                 Text("Calendario financiero", style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp), fontWeight = FontWeight.ExtraBold, color = colors.primaryText)
                 Text(
                     "Movimientos, cierres, vencimientos y cuotas del mes",
@@ -319,23 +316,7 @@ internal fun DashboardCalendarEntryCard(onClick: () -> Unit, modifier: Modifier 
                     color = colors.secondaryMuted,
                 )
             }
-        } else {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                IconTile(Icons.Outlined.CalendarMonth, background = colors.navSelectedPill.copy(alpha = if (colors.isDark) 1f else 0.12f), tint = if (colors.isDark) colors.navSelectedContent else colors.primaryDeep)
-                Column(Modifier.weight(1f)) {
-                    Text("Calendario financiero", style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp), fontWeight = FontWeight.ExtraBold, color = colors.primaryText)
-                    Text(
-                        "Movimientos, cierres, vencimientos y cuotas del mes",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = colors.secondaryMuted,
-                    )
-                }
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.secondaryMuted)
-            }
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = colors.secondaryMuted)
         }
     }
 }
@@ -423,7 +404,7 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
     val colors = rememberCalmEmeraldColors()
     val account = item.account
     val preset = AccountPreset.normalizedFor(account.type, account.preset)
-    val stack = LocalDensity.current.fontScale > 1.15f || LocalConfiguration.current.screenWidthDp < 360
+    val compactLayout = isCompactAccountsLayout()
     val issuer = preset?.takeIf { it != AccountPreset.CASH && it != AccountPreset.GENERIC }?.defaultName
         ?.takeUnless { account.alias.contains(it, ignoreCase = true) }
     val typeLabel = if (account.linkedAccountId != null) "Saldo compartido" else account.type.dashboardLabel()
@@ -453,33 +434,23 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
         }
     }
 
-    if (stack) {
-        Column(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp).clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AccountIdentityIcon(account, size = 48.dp)
-                AccountDetails(Modifier.weight(1f))
-            }
-            MoneyText(
-                money = item.balance,
-                isMasked = isMasked,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, fontFeatureSettings = "tnum"),
-                color = colors.primaryText,
-                modifier = Modifier.align(Alignment.End),
-            )
-        }
-    } else {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp).clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        maxItemsInEachRow = if (compactLayout) 1 else 2,
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp).clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AccountIdentityIcon(account, size = 48.dp)
             AccountDetails(Modifier.weight(1f))
+        }
+        Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
             MoneyText(
                 money = item.balance,
                 isMasked = isMasked,
@@ -494,13 +465,11 @@ private fun AccountRow(item: AccountWithBalance, isMasked: Boolean, onClick: () 
 private fun WalletRow(wallet: AccountWithBalance, parentName: String, onClick: () -> Unit) {
     val colors = rememberCalmEmeraldColors()
     val brand = KipuBrand.from(wallet.account.preset?.name)
-    val isYape = brand == KipuBrand.YAPE
     val rowBg = accountSurfaceColor(wallet.account)
-    val divider = if (colors.isDark) colors.borderSubtle else if (isYape) Color(0xFFE9E1F3) else Color(0xFFE1EEF3)
-    val chipBg = if (colors.isDark) colors.surfaceCard else if (isYape) Color(0xFFE8DAF5) else Color(0xFFCFF5F3)
-    val chipText = if (colors.isDark) colors.primaryText else if (isYape) Color(0xFF5B1F8F) else Color(0xFF0B6B68)
+    val divider = colors.borderSubtle
+    val chipBg = colors.pillTrack
+    val chipText = colors.primaryDeep
     val name = brand?.displayName ?: wallet.account.alias
-    val stack = LocalDensity.current.fontScale > 1.15f
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -513,9 +482,9 @@ private fun WalletRow(wallet: AccountWithBalance, parentName: String, onClick: (
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
+            ) {
             Row(
-                modifier = if (stack) Modifier.fillMaxWidth() else Modifier.weight(1f),
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {

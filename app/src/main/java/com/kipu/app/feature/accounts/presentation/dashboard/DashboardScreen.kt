@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,8 +40,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -53,8 +52,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -264,7 +261,7 @@ private fun DashboardTopBar(
     val emeraldColors = rememberCalmEmeraldColors()
     val initials = dashboardInitials(displayName)
     val settingsContentDescription = stringResource(R.string.settings_access_content_description)
-    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
+    val compactLayout = isCompactAccountsLayout()
     val profileAvatar: @Composable () -> Unit = {
         Surface(
             shape = CircleShape,
@@ -287,84 +284,71 @@ private fun DashboardTopBar(
         }
     }
     val topBarActions: @Composable () -> Unit = {
-        // The badge and settings control keep their 48dp touch targets in both layouts.
-        UnreadNotificationBadge(
-            unreadCount = unreadNotificationCount,
-            onClick = onNavigateToNotifications,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        IconButton(
-            onClick = onNavigateToSettings,
-            modifier = Modifier.size(48.dp).semantics { contentDescription = settingsContentDescription },
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = emeraldColors.surfaceCard,
-                border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.size(44.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = emeraldColors.primaryText,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-    }
-
-    if (compactLargeText) {
-        Column(
-            modifier = Modifier.fillMaxWidth().background(emeraldColors.background).statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                profileAvatar()
-                Spacer(Modifier.weight(1f))
-                topBarActions()
-            }
-            Text(
-                text = "Mi dinero",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 21.sp),
-                color = emeraldColors.primaryText,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // The badge and settings control keep their 48dp touch targets in both layouts.
+            UnreadNotificationBadge(
+                unreadCount = unreadNotificationCount,
+                onClick = onNavigateToNotifications,
             )
-        }
-    } else {
-        TopAppBar(
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Spacer(modifier = Modifier.width(6.dp))
+            IconButton(
+                onClick = onNavigateToSettings,
+                modifier = Modifier.size(48.dp).semantics { contentDescription = settingsContentDescription },
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = emeraldColors.surfaceCard,
+                    border = BorderStroke(1.dp, emeraldColors.borderSubtle),
+                    modifier = Modifier.size(44.dp),
                 ) {
-                    profileAvatar()
-                    Column {
-                        Text(
-                            text = "Bienvenido",
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
-                            color = emeraldColors.secondaryMuted,
-                        )
-                        Text(
-                            text = "Mi dinero",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 21.sp),
-                            color = emeraldColors.primaryText,
-                            maxLines = 1,
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = emeraldColors.primaryText,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
-            },
-            actions = { topBarActions() },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = emeraldColors.background),
-        )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+    }
+
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().background(emeraldColors.background).statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        maxItemsInEachRow = if (compactLayout) 1 else 2,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            profileAvatar()
+            Column(Modifier.weight(1f)) {
+                if (!compactLayout) {
+                    Text(
+                        text = "Bienvenido",
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                        color = emeraldColors.secondaryMuted,
+                    )
+                }
+                Text(
+                    text = "Mi dinero",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 21.sp),
+                    color = emeraldColors.primaryText,
+                    maxLines = if (compactLayout) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
+            topBarActions()
+        }
     }
 }
 

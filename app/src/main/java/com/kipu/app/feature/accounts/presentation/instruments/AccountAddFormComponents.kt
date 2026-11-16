@@ -50,8 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -68,6 +66,7 @@ import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
+import com.kipu.app.feature.accounts.presentation.dashboard.isCompactAccountsLayout
 
 /** Name shown for a bank in account flows ("Otro banco" for the generic entry). */
 internal fun accountBankLabel(bank: BankChoice): String = if (bank.code == "OTHER") "Otro banco" else bank.name
@@ -76,16 +75,17 @@ internal fun accountBankLabel(bank: BankChoice): String = if (bank.code == "OTHE
 @Composable
 internal fun BankLogoTile(bank: BankChoice, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
     val brand = KipuBrand.from(bank.code)
+    val calmColors = rememberCalmEmeraldColors()
     if (bank.code == "OTHER" || brand == null) {
         Box(
             modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(size * 0.28f))
-                .background(Color(0xFF475569))
+                .background(calmColors.primaryDeep)
                 .semantics { contentDescription = accountBankLabel(bank) },
             contentAlignment = Alignment.Center,
         ) {
-            Text("…", color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.4f).sp)
+            Text("…", color = calmColors.onPrimaryDeep, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.4f).sp)
         }
     } else {
         BrandLogo(brand = brand, fallbackName = bank.name, contentDescription = bank.name, size = size, modifier = modifier)
@@ -93,16 +93,12 @@ internal fun BankLogoTile(bank: BankChoice, size: androidx.compose.ui.unit.Dp, m
 }
 
 @Composable
-internal fun AddFormTopBar(title: String, onBack: () -> Unit) {
+internal fun AddFormTopBar(title: String, compactTitle: String, onBack: () -> Unit) {
     val calmColors = rememberCalmEmeraldColors()
-    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
-    val displayTitle = if (compactLargeText) {
-        title.removePrefix("Agregar ").replaceFirstChar { it.titlecase() }
-    } else {
-        title
-    }
+    val compactLayout = isCompactAccountsLayout()
+    val displayTitle = if (compactLayout) compactTitle else title
     Surface(color = calmColors.background, modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-        if (compactLargeText) {
+        if (compactLayout) {
             Column(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -318,8 +314,8 @@ internal fun AddFormBalanceModeCard(
     onClick: () -> Unit,
 ) {
     val calmColors = rememberCalmEmeraldColors()
-    val tileColor = if (isLink) Color(0xFFDCE8F7) else Color(0xFFEBDDF5)
-    val iconColor = if (isLink) Color(0xFF1E4FA8) else Color(0xFF6B2FA0)
+    val tileColor = if (isLink) calmColors.transferBg else calmColors.pillTrack
+    val iconColor = if (isLink) calmColors.transferBlue else calmColors.primaryDeep
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = if (selected) calmColors.incomeBg else calmColors.surfaceCard,
@@ -388,7 +384,7 @@ internal fun AddFormBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val calmColors = rememberCalmEmeraldColors()
-    val compactLargeText = LocalConfiguration.current.screenWidthDp < 360 && LocalDensity.current.fontScale >= 1.3f
+    val compactLayout = isCompactAccountsLayout()
     Surface(
         color = calmColors.surfaceCard,
         border = BorderStroke(1.dp, calmColors.borderSubtle),
@@ -408,7 +404,7 @@ internal fun AddFormBottomBar(
             ) {
                 Text(label, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             }
-            if (hasErrors || !compactLargeText) {
+            if (hasErrors || !compactLayout) {
                 Text(
                     if (hasErrors) "Revisa los campos marcados en rojo" else "Todo listo para guardar",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),

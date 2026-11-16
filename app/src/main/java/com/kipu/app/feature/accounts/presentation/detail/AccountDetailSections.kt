@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -515,26 +516,20 @@ internal fun ColumnScope.ArchiveAccountNotes(
     remainingBalance: Money?,
 ) {
     val colors = rememberCalmEmeraldColors()
-    val largeFontScale = LocalDensity.current.fontScale >= 1.3f
     affiliatedWallets.forEach { wallet ->
         ArchiveNote("${wallet.alias} está afiliada a esta cuenta y comparte su saldo.", colors.warningBg, colors.warningText)
     }
     if (remainingBalance != null && remainingBalance.minorUnits > 0L) {
         Surface(shape = RoundedCornerShape(12.dp), color = colors.warningBg, modifier = Modifier.fillMaxWidth()) {
-            if (largeFontScale) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text("Aún tiene saldo:", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
-                    MoneyText(remainingBalance, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = colors.warningText)
-                    Text("Considera transferirlo antes de archivar.", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
-                }
-            } else {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("Aún tiene saldo:", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
                     MoneyText(remainingBalance, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = colors.warningText)
@@ -543,7 +538,6 @@ internal fun ColumnScope.ArchiveAccountNotes(
                     "Considera transferirlo antes de archivar.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.warningText,
-                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
                 )
             }
         }
