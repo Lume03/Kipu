@@ -806,11 +806,13 @@ private fun CreditCardItemRow(
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.widthIn(max = 160.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     Text(
-                        text = "Crédito disponible: ",
+                        text = "Crédito:",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = TextSecondarySlate,
                         ),
@@ -828,9 +830,12 @@ private fun CreditCardItemRow(
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     Text(
-                        text = "Deuda: ",
+                        text = "Deuda:",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = CoralDebtText,
                         ),

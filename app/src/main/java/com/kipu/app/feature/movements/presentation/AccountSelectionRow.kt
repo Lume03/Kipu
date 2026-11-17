@@ -162,7 +162,6 @@ internal fun AccountSelectionRow(
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.widthIn(max = 140.dp),
             ) {
                 if (balance != null) {
                     MoneyText(
@@ -185,7 +184,6 @@ internal fun AccountSelectionRow(
                         color = TextSecondarySlate,
                         style = MaterialTheme.typography.labelSmall,
                         textAlign = TextAlign.End,
-                        modifier = Modifier.width(88.dp),
                     )
                 }
             }
