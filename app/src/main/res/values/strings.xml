@@ -333,15 +333,30 @@
     <string name="analytics_masked_amount">monto oculto</string>
     <string name="analytics_empty_title">Sin gastos operativos</string>
     <string name="analytics_empty_body">No hay gastos que coincidan con este periodo y filtros.</string>
-    <string name="analytics_comparison_title">Comparación</string>
+    <string name="analytics_comparison_title">Gastos</string>
+    <string name="analytics_comparison_income_title">Ingresos</string>
+    <string name="analytics_comparison_title_currency">%1$s · %2$s</string>
+    <string name="analytics_comparison_period">%1$s de %2$d</string>
+    <string name="analytics_comparison_partial_period">%1$s de %2$d (hasta el %3$d)</string>
+    <string name="analytics_comparison_expense_more">Gastaste %1$s más en %2$s que en %3$s.</string>
+    <string name="analytics_comparison_expense_less">Gastaste %1$s menos en %2$s que en %3$s.</string>
+    <string name="analytics_comparison_expense_more_masked">Gastaste más en %1$s que en %2$s.</string>
+    <string name="analytics_comparison_expense_less_masked">Gastaste menos en %1$s que en %2$s.</string>
+    <string name="analytics_comparison_expense_same">Gastaste lo mismo en %1$s y en %2$s.</string>
+    <string name="analytics_comparison_income_more">Ingresaste %1$s más en %2$s que en %3$s.</string>
+    <string name="analytics_comparison_income_less">Ingresaste %1$s menos en %2$s que en %3$s.</string>
+    <string name="analytics_comparison_income_more_masked">Ingresaste más en %1$s que en %2$s.</string>
+    <string name="analytics_comparison_income_less_masked">Ingresaste menos en %1$s que en %2$s.</string>
+    <string name="analytics_comparison_income_same">Ingresaste lo mismo en %1$s y en %2$s.</string>
     <string name="analytics_comparison_previous">Periodo anterior</string>
     <string name="analytics_comparison_current">Periodo comparado</string>
     <string name="analytics_comparison_difference">Diferencia</string>
     <string name="analytics_comparison_percentage">Variación</string>
     <string name="analytics_no_base">Sin base de comparación</string>
-    <string name="analytics_no_base_note">El periodo anterior no tuvo gasto en esta moneda, así que no hay porcentaje válido.</string>
+    <string name="analytics_no_base_note">El periodo anterior no registró este tipo de movimiento en esta moneda; no hay porcentaje válido.</string>
     <string name="analytics_comparison_chart_description">Gráfico comparativo en %1$s: periodo anterior %2$s, periodo comparado %3$s</string>
-    <string name="analytics_comparison_empty">Ninguno de los dos periodos tiene gastos con estos filtros.</string>
+    <string name="analytics_comparison_empty_title">Sin movimientos en estos periodos</string>
+    <string name="analytics_comparison_empty">No hay gastos ni ingresos en ninguno de los periodos con estos filtros.</string>
     <string name="analytics_premium_title">Los reportes históricos son Premium</string>
     <string name="analytics_premium_body">Con Free ves las estadísticas básicas del mes actual. Premium agrega periodos anteriores, filtros combinados y comparación entre dos periodos.</string>
     <string name="analytics_premium_cta">Ver planes Premium</string>
@@ -368,6 +383,10 @@
     <string name="analytics_period_compare">Comparar periodos</string>
     <string name="analytics_period_compare_sub">Dos periodos, lado a lado</string>
     <string name="analytics_range_title">Rango personalizado</string>
+    <string name="analytics_range_start">Inicio</string>
+    <string name="analytics_range_end">Fin</string>
+    <string name="analytics_range_choose_date">Elegir fecha</string>
+    <string name="analytics_range_date_summary">%1$d %2$s %3$d</string>
     <string name="analytics_range_apply">Aplicar</string>
     <string name="analytics_range_cancel">Cancelar</string>
     <string name="analytics_range_label">%1$s – %2$s</string>
@@ -471,5 +490,19 @@
         <item>oct</item>
         <item>nov</item>
         <item>dic</item>
+    </string-array>
+    <string-array name="analytics_month_full">
+        <item>enero</item>
+        <item>febrero</item>
+        <item>marzo</item>
+        <item>abril</item>
+        <item>mayo</item>
+        <item>junio</item>
+        <item>julio</item>
+        <item>agosto</item>
+        <item>septiembre</item>
+        <item>octubre</item>
+        <item>noviembre</item>
+        <item>diciembre</item>
     </string-array>
 </resources>

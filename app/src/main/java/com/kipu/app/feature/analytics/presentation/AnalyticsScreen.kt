@@ -209,6 +209,7 @@ fun AnalyticsScreen(
 ) {
     val colors = rememberCalmEmeraldColors()
     val monthNames = stringArrayResource(R.array.analytics_month_short).toList()
+    val fullMonthNames = stringArrayResource(R.array.analytics_month_full).toList()
     val inheritedMask = LocalBalanceMasked.current
     var masked by rememberSaveable(inheritedMask) { mutableStateOf(inheritedMask) }
     var showFilters by rememberSaveable { mutableStateOf(false) }
@@ -332,7 +333,7 @@ fun AnalyticsScreen(
                                 MonthSelector(stringResource(R.string.analytics_current_period_label), "current", months, ui.currentMonth, monthNames) { onCompare(month(ui.previousMonth), month(it), ui.filters) }
                             }
                         }
-                        comparisonItems(state.result, monthNames)
+                        comparisonItems(state.result, monthNames, fullMonthNames)
                     }
                 }
             }
@@ -701,6 +702,17 @@ private fun RangeDialog(today: LocalDate, onDismiss: () -> Unit, onApply: (Local
     fun date(millis: Long?): LocalDate? = millis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
     val start = date(state.selectedStartDateMillis)
     val end = date(state.selectedEndDateMillis) ?: start
+    val monthNames = stringArrayResource(R.array.analytics_month_short).toList()
+    val startLabel = if (start != null) {
+        stringResource(R.string.analytics_range_date_summary, start.dayOfMonth, monthNames[start.monthValue - 1], start.year)
+    } else {
+        stringResource(R.string.analytics_range_choose_date)
+    }
+    val endLabel = if (end != null) {
+        stringResource(R.string.analytics_range_date_summary, end.dayOfMonth, monthNames[end.monthValue - 1], end.year)
+    } else {
+        stringResource(R.string.analytics_range_choose_date)
+    }
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -713,6 +725,21 @@ private fun RangeDialog(today: LocalDate, onDismiss: () -> Unit, onApply: (Local
         DateRangePicker(
             state = state,
             title = { Text(stringResource(R.string.analytics_range_title), modifier = Modifier.padding(start = 24.dp, top = 16.dp), style = MaterialTheme.typography.titleMedium) },
+            headline = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.analytics_range_start), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(startLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.analytics_range_end), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(endLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            },
             modifier = Modifier.heightIn(max = 560.dp),
         )
     }
@@ -826,20 +853,43 @@ private fun HorizontalBar(fraction: Float, color: Color, track: Color, modifier:
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.comparisonItems(result: AnalyticsComparison, monthNames: List<String>) {
+private fun androidx.compose.foundation.lazy.LazyListScope.comparisonItems(
+    result: AnalyticsComparison,
+    monthNames: List<String>,
+    fullMonthNames: List<String>,
+) {
     item(key = "previous_period") { PeriodCard(labelOf(R.string.analytics_comparison_previous), result.previous, monthNames) }
     item(key = "current_period") { PeriodCard(labelOf(R.string.analytics_comparison_current), result.current, monthNames) }
     if (!result.previous.hasMovements && !result.current.hasMovements) {
         item(key = "comparison_empty") {
-            KipuEmptyState(title = stringResource(R.string.analytics_empty_title), message = stringResource(R.string.analytics_comparison_empty))
+            KipuEmptyState(title = stringResource(R.string.analytics_comparison_empty_title), message = stringResource(R.string.analytics_comparison_empty))
         }
         return
     }
     (if (result.previous.hasRecords || result.current.hasRecords) result.byCurrency.keys else emptySet()).ordered().forEach { currency ->
-        item(key = "comparison_$currency") { ComparisonCard(currency, result.byCurrency.getValue(currency), multiCurrency = result.byCurrency.size > 1) }
+        item(key = "comparison_$currency") {
+            ComparisonCard(
+                currency = currency,
+                comparison = result.byCurrency.getValue(currency),
+                previousPeriod = result.previous,
+                currentPeriod = result.current,
+                fullMonthNames = fullMonthNames,
+                multiCurrency = result.byCurrency.size > 1,
+            )
+        }
     }
     result.incomeByCurrency.keys.ordered().forEach { currency ->
-        item(key = "income_comparison_$currency") { ComparisonCard(currency, result.incomeByCurrency.getValue(currency), multiCurrency = result.incomeByCurrency.size > 1, income = true) }
+        item(key = "income_comparison_$currency") {
+            ComparisonCard(
+                currency = currency,
+                comparison = result.incomeByCurrency.getValue(currency),
+                previousPeriod = result.previous,
+                currentPeriod = result.current,
+                fullMonthNames = fullMonthNames,
+                multiCurrency = result.incomeByCurrency.size > 1,
+                income = true,
+            )
+        }
     }
 }
 
@@ -848,16 +898,64 @@ private fun androidx.compose.foundation.lazy.LazyListScope.comparisonItems(resul
 private fun labelOf(id: Int): String = stringResource(id)
 
 @Composable
-private fun ComparisonCard(currency: Currency, comparison: CurrencyComparison, multiCurrency: Boolean, income: Boolean = false) {
+private fun ComparisonCard(
+    currency: Currency,
+    comparison: CurrencyComparison,
+    previousPeriod: PeriodResult,
+    currentPeriod: PeriodResult,
+    fullMonthNames: List<String>,
+    multiCurrency: Boolean,
+    income: Boolean = false,
+) {
     val colors = rememberCalmEmeraldColors()
     val masked = LocalBalanceMasked.current
     val hidden = stringResource(R.string.analytics_masked_amount)
     fun text(money: Money) = if (masked) hidden else "${currency.symbol()} ${formatMinorUnits(money.minorUnits)}"
     val chartDescription = stringResource(R.string.analytics_comparison_chart_description, currency.label(), text(comparison.previous), text(comparison.current))
+    val currentPeriodLabel = comparisonPeriodLabel(currentPeriod, fullMonthNames)
+    val previousPeriodLabel = comparisonPeriodLabel(previousPeriod, fullMonthNames)
+    val absoluteChange = Money(kotlin.math.abs(comparison.difference.minorUnits), currency)
+    val explanationAmount = text(absoluteChange)
+    val explanation = when {
+        comparison.difference.minorUnits > 0L -> if (masked) {
+            stringResource(
+                if (income) R.string.analytics_comparison_income_more_masked else R.string.analytics_comparison_expense_more_masked,
+                currentPeriodLabel,
+                previousPeriodLabel,
+            )
+        } else {
+            stringResource(
+                if (income) R.string.analytics_comparison_income_more else R.string.analytics_comparison_expense_more,
+                explanationAmount,
+                currentPeriodLabel,
+                previousPeriodLabel,
+            )
+        }
+        comparison.difference.minorUnits < 0L -> if (masked) {
+            stringResource(
+                if (income) R.string.analytics_comparison_income_less_masked else R.string.analytics_comparison_expense_less_masked,
+                currentPeriodLabel,
+                previousPeriodLabel,
+            )
+        } else {
+            stringResource(
+                if (income) R.string.analytics_comparison_income_less else R.string.analytics_comparison_expense_less,
+                explanationAmount,
+                currentPeriodLabel,
+                previousPeriodLabel,
+            )
+        }
+        else -> stringResource(
+            if (income) R.string.analytics_comparison_income_same else R.string.analytics_comparison_expense_same,
+            currentPeriodLabel,
+            previousPeriodLabel,
+        )
+    }
     val (previousFraction, currentFraction) = comparisonFractions(comparison.previous, comparison.current)
     val tones = rememberPastelTones()
     AnalyticsCard(Modifier.testTag(ANALYTICS_COMPARISON_TAG_PREFIX + currency.name)) {
-        SectionTitle(if (multiCurrency) "${stringResource(R.string.analytics_comparison_title)} · ${currency.label()}" else stringResource(R.string.analytics_comparison_title))
+        val title = stringResource(if (income) R.string.analytics_comparison_income_title else R.string.analytics_comparison_title)
+        SectionTitle(if (multiCurrency) stringResource(R.string.analytics_comparison_title_currency, title, currency.label()) else title)
         Column(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.clearAndSetSemantics { contentDescription = chartDescription },
@@ -892,6 +990,18 @@ private fun ComparisonCard(currency: Currency, comparison: CurrencyComparison, m
         if (comparison.percentage.toLabel() == PercentLabel.NoBase) {
             Text(stringResource(R.string.analytics_no_base_note), style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
         }
+        Text(explanation, style = MaterialTheme.typography.bodySmall, color = colors.secondaryMuted)
+    }
+}
+
+@Composable
+private fun comparisonPeriodLabel(result: PeriodResult, fullMonthNames: List<String>): String {
+    val period = result.period
+    val month = fullMonthNames[period.start.monthValue - 1]
+    return if (result.partial) {
+        stringResource(R.string.analytics_comparison_partial_period, month, period.start.year, period.endInclusive.dayOfMonth)
+    } else {
+        stringResource(R.string.analytics_comparison_period, month, period.start.year)
     }
 }
 
