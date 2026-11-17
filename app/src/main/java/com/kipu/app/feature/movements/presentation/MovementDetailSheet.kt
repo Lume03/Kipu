@@ -210,10 +210,43 @@ fun MovementDetailSheet(
 
                             // Verified badge
                             if (!voided) {
+                                val isSynced = tx.syncStatus == MovementSyncStatus.SYNCED
+                                val badgeBg = when {
+                                    pending -> emeraldColors.warningBg
+                                    isSynced -> emeraldColors.incomeBg
+                                    correctionRejected -> MaterialTheme.colorScheme.errorContainer
+                                    else -> emeraldColors.expenseBg
+                                }
+                                val badgeBorder = when {
+                                    pending -> emeraldColors.warningBorder
+                                    isSynced -> emeraldColors.incomeBorder
+                                    correctionRejected -> MaterialTheme.colorScheme.error
+                                    else -> emeraldColors.expenseBorder
+                                }
+                                val badgeTint = when {
+                                    pending -> emeraldColors.warningText
+                                    isSynced -> emeraldColors.incomeText
+                                    correctionRejected -> MaterialTheme.colorScheme.onErrorContainer
+                                    else -> emeraldColors.expenseText
+                                }
+                                val badgeIcon = when {
+                                    pending -> Icons.Rounded.Sync
+                                    isSynced -> Icons.Rounded.CheckCircle
+                                    else -> Icons.Rounded.Cancel
+                                }
+                                val badgeText = when {
+                                    terminalError -> "No sincronizado"
+                                    pending -> "Pendiente de sincronizar"
+                                    correctionRejected -> "Corrección no aplicada"
+                                    isSynced -> "Sincronizado"
+                                    tx.syncStatus == MovementSyncStatus.CONFLICT -> "Conflicto de sincronización"
+                                    else -> "No se pudo sincronizar"
+                                }
+
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (pending) emeraldColors.warningBg else if (correctionRejected) MaterialTheme.colorScheme.errorContainer else emeraldColors.incomeBg,
-                                    border = BorderStroke(1.dp, if (pending) emeraldColors.warningBorder else if (correctionRejected) MaterialTheme.colorScheme.error else emeraldColors.incomeBorder),
+                                    color = badgeBg,
+                                    border = BorderStroke(1.dp, badgeBorder),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -221,22 +254,15 @@ fun MovementDetailSheet(
                                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     ) {
                                         Icon(
-                                            imageVector = if (pending) Icons.Rounded.Sync else if (correctionRejected) Icons.Rounded.Cancel else Icons.Rounded.CheckCircle,
+                                            imageVector = badgeIcon,
                                             contentDescription = null,
-                                            tint = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
+                                            tint = badgeTint,
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
-                                            text = when {
-                                                terminalError -> "No sincronizado"
-                                                pending -> "Pendiente de sincronizar"
-                                                correctionRejected -> "Corrección no aplicada"
-                                                tx.syncStatus == MovementSyncStatus.SYNCED -> "Sincronizado"
-                                                tx.syncStatus == MovementSyncStatus.CONFLICT -> "Conflicto de sincronización"
-                                                else -> "No se pudo sincronizar"
-                                            },
+                                            text = badgeText,
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
+                                            color = badgeTint,
                                         )
                                     }
                                 }
