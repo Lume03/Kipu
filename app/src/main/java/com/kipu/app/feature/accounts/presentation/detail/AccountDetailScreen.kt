@@ -81,6 +81,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -200,21 +201,28 @@ fun AccountDetailScreen(
     val affiliatedWallets = account?.let { parent ->
         instruments.activeAccounts.filter { it.linkedAccountId == parent.id && it.type == AccountType.DIGITAL_WALLET }
     }.orEmpty()
-    val accountBalanceFlow = remember(account?.id, debitAccount?.id) {
+    var summaryRetry by rememberSaveable(instrumentId) { mutableStateOf(0) }
+    val accountBalanceState by remember(account?.id, debitAccount?.id, summaryRetry) {
         (account ?: debitAccount)?.let { target ->
-            viewModel.observeAccountBalance(target.id).map { it as Money? }
-        } ?: flowOf(null)
-    }
-    val currentBalance by accountBalanceFlow.collectAsStateWithLifecycle(initialValue = null)
+            viewModel.observeAccountBalance(target.id)
+                .map { DetailLoadState(value = it, isLoading = false) }
+                .catch { emit(DetailLoadState<Money>(isLoading = false, failed = true)) }
+        } ?: flowOf(DetailLoadState<Money>(isLoading = false))
+    }.collectAsStateWithLifecycle(initialValue = DetailLoadState())
+    val currentBalance = accountBalanceState.value
     val creditCardSummary = (card as? CreditCard)?.let { target ->
         dashboard.dashboardData?.creditCards?.firstOrNull { it.card.id == target.id }
+            ?.takeIf { dashboard.errorMessage == null }
     }
-    val observedCardMovements by remember(card?.id) {
+    var movementsRetry by rememberSaveable(instrumentId) { mutableStateOf(0) }
+    val movementsState by remember(card?.id, movementsRetry) {
         (card as? CreditCard)?.let { target ->
             viewModel.observeCardMovements(target.id)
-        } ?: flowOf(emptyList())
-    }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val effectiveCardMovements = cardMovements ?: observedCardMovements
+                .map { DetailLoadState(value = it, isLoading = false) }
+                .catch { emit(DetailLoadState<List<CardMovementDisplay>>(isLoading = false, failed = true)) }
+        } ?: flowOf(DetailLoadState<List<CardMovementDisplay>>(value = emptyList(), isLoading = false))
+    }.collectAsStateWithLifecycle(initialValue = DetailLoadState())
+    val effectiveCardMovements = cardMovements ?: movementsState.value.orEmpty()
     var cardInstallmentsRetry by rememberSaveable(instrumentId) { mutableStateOf(0) }
     val cardInstallmentsState by remember(card?.id, cardInstallmentsRetry, viewModel) {
         (card as? CreditCard)?.let { target ->
@@ -294,6 +302,11 @@ fun AccountDetailScreen(
         creditCardSummary = creditCardSummary,
         creditNotifications = creditNotifications.filter { it.cardId == instrumentId },
         cardMovements = effectiveCardMovements,
+        cardMovementsLoading = cardMovements == null && movementsState.isLoading,
+        cardMovementsError = cardMovements == null && movementsState.failed,
+        onRetryCardMovements = { movementsRetry++ },
+        summaryError = accountBalanceState.failed || dashboard.errorMessage != null,
+        onRetrySummary = { summaryRetry++; viewModel.retryDashboard() },
         cardInstallmentsState = cardInstallmentsState,
         focusInstallments = focusInstallments,
         onRetryCardInstallments = { cardInstallmentsRetry++ },
@@ -503,7 +516,8 @@ fun AccountDetailScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Suppress("DEPRECATION")
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun AccountDetailContent(
     account: Account?,
@@ -538,8 +552,21 @@ fun AccountDetailContent(
     focusInstallments: Boolean = false,
     linkedDebitCard: DebitCard? = null,
     onSaveDebitIdentity: (String, AccountPreset?, DebitCard?, String, CardNetwork?) -> Unit = { _, _, _, _, _ -> },
+    cardMovementsLoading: Boolean = false,
+    cardMovementsError: Boolean = false,
+    onRetryCardMovements: () -> Unit = {},
+    summaryError: Boolean = false,
+    onRetrySummary: () -> Unit = {},
     effectiveOpeningMinor: Long? = null,
 ) {
+    val reducedMotion = rememberReducedMotionEnabled()
+    val defaultBringIntoViewSpec = androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
+    val instantBringIntoViewSpec = remember(defaultBringIntoViewSpec) {
+        object : androidx.compose.foundation.gestures.BringIntoViewSpec by defaultBringIntoViewSpec {
+            override val scrollAnimationSpec: androidx.compose.animation.core.AnimationSpec<Float> = snap()
+        }
+    }
+
     val instrumentKey = account?.id?.value ?: card?.id?.value
     val title = account?.alias ?: card?.alias ?: card?.let { "${it.issuer} ${it.network}" } ?: "Detalle"
     var alias by remember(instrumentKey, account?.alias) { mutableStateOf(account?.alias.orEmpty()) }
@@ -688,7 +715,10 @@ fun AccountDetailContent(
                 )
                 TextButton(onClick = onNavigateBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Volver") }
             }
-            else -> Column(
+            else -> CompositionLocalProvider(
+                androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides
+                    if (reducedMotion) instantBringIntoViewSpec else defaultBringIntoViewSpec,
+            ) { Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -696,6 +726,14 @@ fun AccountDetailContent(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                if (summaryError) {
+                    KipuErrorState(
+                        title = "No pudimos cargar el saldo",
+                        message = "Intenta de nuevo para consultar cifras actualizadas.",
+                        onRetry = onRetrySummary,
+                        modifier = Modifier.testTag("account_detail_summary_error"),
+                    )
+                }
                 if (card != null) com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.CARD, card.id.value)
                 if (account != null) com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.ACCOUNT, account.id.value)
                 if (card is CreditCard) {
@@ -763,7 +801,17 @@ fun AccountDetailContent(
                     )
 
                     // R10 Movements Section
-                    CreditCardMovementsSection(
+                    if (cardMovementsLoading) {
+                        Text("Cargando movimientos...", modifier = Modifier.testTag("card_movements_loading"))
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                    } else if (cardMovementsError) {
+                        KipuErrorState(
+                            title = "No pudimos cargar los movimientos",
+                            message = "Intenta de nuevo para consultar tus movimientos.",
+                            onRetry = onRetryCardMovements,
+                            modifier = Modifier.testTag("card_movements_error"),
+                        )
+                    } else CreditCardMovementsSection(
                         movements = cardMovements,
                         closingDay = card.billingDay,
                     )
@@ -878,7 +926,7 @@ fun AccountDetailContent(
                 }
 
                 Spacer(Modifier.height(24.dp))
-            }
+            } }
         }
     }
 
@@ -2045,10 +2093,11 @@ private fun CreditCardActionsSection(
                     .heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
                 ) {
                     Row(
                         modifier = Modifier.weight(1f),

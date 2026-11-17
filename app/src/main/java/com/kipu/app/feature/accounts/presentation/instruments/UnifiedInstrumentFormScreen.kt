@@ -5,6 +5,12 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
@@ -1127,7 +1133,10 @@ fun UnifiedInstrumentFormScreen(
                                 hint = "Si tienes una tarjeta asociada, puedes identificarla con sus últimos 4 dígitos.",
                             )
                         }
-                        AnimatedVisibility(visible = lastFourDigits.isNotEmpty()) {
+                        AnimatedVisibility(visible = lastFourDigits.isNotEmpty(),
+                            enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                            exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                        ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 AddFormLabel("Red de tu tarjeta de débito")
                                 AddFormChoiceRow {

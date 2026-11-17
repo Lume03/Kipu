@@ -8,6 +8,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
@@ -78,6 +86,17 @@ class RateCatalogResponsiveLayoutTest {
                 compose.onNodeWithText("Comparativa vs. Tarifario Oficial").assertIsDisplayed()
                 list.performScrollToNode(hasText(expectedChip))
                 compose.onNodeWithText(expectedChip).assertIsDisplayed()
+                captureFixture("catalog-header-$scale-${teaBps ?: 0}")
+                if (teaBps != null) {
+                    list.performScrollToNode(hasText("Tasa máxima SBS"))
+                    val maximumLabel = compose.onNodeWithText("Tasa máxima SBS").getUnclippedBoundsInRoot()
+                    org.junit.Assert.assertTrue(maximumLabel.right - maximumLabel.left > maximumLabel.bottom - maximumLabel.top)
+                    captureFixture("catalog-track-$scale-${teaBps ?: 0}")
+                }
+                list.performScrollToNode(hasText("Ejemplo SBS"))
+                val exampleChip = compose.onNodeWithText("Ejemplo SBS").getUnclippedBoundsInRoot()
+                org.junit.Assert.assertTrue(exampleChip.right - exampleChip.left > exampleChip.bottom - exampleChip.top)
+                captureFixture("catalog-technical-$scale-${teaBps ?: 0}")
             }
         }
     }
@@ -107,9 +126,11 @@ class RateCatalogResponsiveLayoutTest {
             compose.waitForIdle()
             compose.onNodeWithTag("rate_catalog_list").performScrollToNode(hasText("Membresía anual"))
             compose.onNodeWithText("Membresía anual").assertIsDisplayed()
+            captureFixture("membership-masked-$isMasked")
 
             if (isMasked) {
                 compose.onAllNodesWithText("100.00", substring = true).assertCountEquals(0)
+                compose.onAllNodesWithText("999.99", substring = true).assertCountEquals(0)
             } else {
                 compose.onNodeWithText("100.00", substring = true).assertIsDisplayed()
             }
@@ -148,6 +169,32 @@ class RateCatalogResponsiveLayoutTest {
         }
     }
 
+    @Test
+    fun initialBalanceLabelStacksWithoutSqueezingAt200Percent() {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                KipuTheme {
+                    Box(Modifier.width(320.dp)) {
+                        AddFormLabel("Saldo inicial", "Opcional por defecto 0")
+                    }
+                }
+            }
+        }
+        val label = compose.onNodeWithText("Saldo inicial").getUnclippedBoundsInRoot()
+        val tag = compose.onNodeWithText("Opcional por defecto 0").getUnclippedBoundsInRoot()
+        org.junit.Assert.assertTrue(tag.top >= label.bottom)
+        captureFixture("initial-balance-label-200")
+    }
+
+    private fun captureFixture(name: String) {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val file = java.io.File(context.getExternalFilesDir(null), "qa95-$name.png")
+        file.outputStream().use {
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
     private fun fixtureCard(personalTeaBps: Int?) = CreditCard(
         id = CardId("a2000000-0000-4000-8000-000000000001"),
         userId = UserId("a2000000-0000-4000-8000-000000000002"),
@@ -177,7 +224,7 @@ class RateCatalogResponsiveLayoutTest {
         publishedTceaSummary = "Referencia ficticia para pruebas",
         membershipFeePenMinor = 10_000L,
         membershipFeeUsdMinor = null,
-        membershipCondition = "Condición ficticia",
+        membershipCondition = "Consumo mensual S/ 999.99",
         sourceUrl = null,
         verificationStatus = "FIXTURE",
         catalogAsOf = LocalDate.of(2026, 1, 1),

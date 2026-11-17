@@ -602,7 +602,7 @@ private fun DashboardContent(
 }
 
 @Composable
-private fun InstrumentQuotaSelectionDialog(
+internal fun InstrumentQuotaSelectionDialog(
     accounts: List<Account>,
     cards: List<DomainCard>,
     selectedIds: Set<String>,
@@ -630,7 +630,7 @@ private fun InstrumentQuotaSelectionDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     "Elige hasta $maxQuota. Los demás conservarán su historial y saldos, pero no podrán usarse mientras superes el límite Free.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -644,6 +644,8 @@ private fun InstrumentQuotaSelectionDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Checkbox(
+                            modifier = Modifier.semantics { contentDescription = account.alias },
+                            enabled = id in selected || selected.size < maxQuota,
                             checked = id in selected,
                             onCheckedChange = { checked ->
                                 if (checked && selected.size < maxQuota) selected.add(id)
@@ -660,6 +662,8 @@ private fun InstrumentQuotaSelectionDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Checkbox(
+                            modifier = Modifier.semantics { contentDescription = card.alias ?: "${card.issuer} ${card.lastFourDigits}" },
+                            enabled = id in selected || selected.size < maxQuota,
                             checked = id in selected,
                             onCheckedChange = { checked ->
                                 if (checked && selected.size < maxQuota) selected.add(id)

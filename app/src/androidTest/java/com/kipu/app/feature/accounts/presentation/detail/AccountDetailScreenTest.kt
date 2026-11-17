@@ -526,12 +526,63 @@ class AccountDetailScreenTest {
         }
     }
 
+    @Test
+    fun loadedCardShowsSummaryErrorWithoutLosingIdentity() {
+        setCardScreen(creditCard(), summaryError = true)
+        compose.onNodeWithTag("account_detail_summary_error").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun cardMovementsLoadingDoesNotClaimEmptyHistory() {
+        setCardScreen(creditCard(), movementsLoading = true)
+        compose.onNodeWithTag("card_movements_loading").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("Sin movimientos").assertCountEquals(0)
+    }
+
+    @Test
+    fun cardMovementsFailureOffersRetry() {
+        var retries = 0
+        setCardScreen(creditCard(), movementsError = true, onRetryMovements = { retries++ })
+        compose.onNodeWithTag("card_movements_error").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("Reintentar") and hasAnyAncestor(hasTestTag("card_movements_error")))
+            .performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, retries) }
+    }
+
+    @Test
+    fun installmentsFocusReachesTargetWithReducedMotionWithoutAdvancingAnimation() {
+        val originalScale = android.provider.Settings.Global.getFloat(
+            compose.activity.contentResolver, android.provider.Settings.Global.WINDOW_ANIMATION_SCALE, 1f)
+        val automation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+        fun setWindowScale(value: Float) {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                automation.executeShellCommand("settings put global window_animation_scale $value"),
+            ).use { it.readBytes() }
+        }
+        try {
+            setWindowScale(0f)
+            compose.mainClock.autoAdvance = false
+            setCardScreen(creditCard(), focusInstallments = true)
+            compose.mainClock.advanceTimeBy(64)
+            compose.onNodeWithText("Cuotas").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+            setWindowScale(originalScale)
+        }
+    }
+
     private fun setCardScreen(
         card: CreditCard,
         onPayCreditCard: () -> Unit = {},
         onEditCreditCardTerms: () -> Unit = {},
         onReactivate: () -> Unit = {},
         masked: Boolean = false,
+        movementsLoading: Boolean = false,
+        movementsError: Boolean = false,
+        summaryError: Boolean = false,
+        focusInstallments: Boolean = false,
+        onRetryMovements: () -> Unit = {},
+
     ) {
         compose.setContent {
             CompositionLocalProvider(LocalBalanceMasked provides masked) {
@@ -543,6 +594,11 @@ class AccountDetailScreenTest {
                     creditCardSummary = cardSummary(card),
                     cardInstallmentsState = com.kipu.app.feature.accounts.presentation.components.CardInstallmentsUiState(
                         summary = com.kipu.app.feature.accounts.domain.model.CardInstallmentsSummary.from(emptyList(), card.currency), isLoading = false),
+                    cardMovementsLoading = movementsLoading,
+                    cardMovementsError = movementsError,
+                    summaryError = summaryError,
+                    focusInstallments = focusInstallments,
+                    onRetryCardMovements = onRetryMovements,
                     isLoading = false,
                     onNavigateBack = {},
                     onSaveAppearance = { _, _ -> },

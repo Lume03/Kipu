@@ -1,5 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -118,16 +119,21 @@ internal fun AddFormTopBar(title: String, compactTitle: String, onBack: () -> Un
     }
 }
 
-/** Section label with an optional right-aligned tag ("Obligatorio", "Opcional · por defecto 0"). */
+/** Section label with an optional tag that wraps on compact layouts. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AddFormLabel(label: String, tag: String? = null, isError: Boolean = false, modifier: Modifier = Modifier) {
     val calmColors = rememberCalmEmeraldColors()
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
+    ) {
         Text(
             label,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
             color = if (isError) calmColors.expenseText else calmColors.primaryText,
-            modifier = Modifier.weight(1f),
         )
         if (tag != null) {
             Text(tag, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp), color = calmColors.secondaryMuted)

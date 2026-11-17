@@ -1,6 +1,14 @@
 package com.kipu.app.feature.accounts.presentation.instruments
 
 import com.kipu.app.ui.theme.rememberKipuColors
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -380,6 +388,7 @@ private fun PersonalTeaSimulatorCard(
     onSave: (Int) -> Unit,
     onError: (String) -> Unit,
 ) {
+    val reducedMotion = rememberReducedMotionEnabled()
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -406,10 +415,11 @@ private fun PersonalTeaSimulatorCard(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // Header with Tune icon and Kipu Calc badge
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
             ) {
                 Row(
                     modifier = Modifier.weight(1f),
@@ -430,7 +440,7 @@ private fun PersonalTeaSimulatorCard(
                             modifier = Modifier.size(20.dp),
                         )
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             text = "Simulador de TEA acordada",
                             style = MaterialTheme.typography.titleMedium,
@@ -679,7 +689,10 @@ private fun PersonalTeaSimulatorCard(
             }
 
             // Error notice if validation failed
-            AnimatedVisibility(visible = personalTeaError != null) {
+            AnimatedVisibility(visible = personalTeaError != null,
+            enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+            exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+        ) {
                 Text(
                     text = personalTeaError.orEmpty(),
                     color = MaterialTheme.colorScheme.error,
@@ -711,7 +724,10 @@ private fun PersonalTeaSimulatorCard(
             }
 
             // Saved success banner
-            AnimatedVisibility(visible = personalTeaSaved) {
+            AnimatedVisibility(visible = personalTeaSaved,
+            enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+            exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+        ) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = emeraldColors.incomeBg),
@@ -861,26 +877,24 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
 @Composable
 private fun CreditCardLimitLabel(card: CreditCard) {
     val emeraldColors = rememberCalmEmeraldColors()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Shield,
-            contentDescription = null,
-            tint = emeraldColors.primaryDeep,
-            modifier = Modifier.size(14.dp),
-        )
-        val isMasked = LocalBalanceMasked.current
-        Text(
-            text = "${FinancialTerminology.TOTAL_CREDIT_LINE}:",
-            style = MaterialTheme.typography.labelSmall,
-            color = emeraldColors.primaryText,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(Icons.Rounded.Shield, contentDescription = null,
+                tint = emeraldColors.primaryDeep, modifier = Modifier.size(14.dp))
+            Text(
+                text = "${FinancialTerminology.TOTAL_CREDIT_LINE}:",
+                style = MaterialTheme.typography.labelSmall,
+                color = emeraldColors.primaryText,
+            )
+        }
         MoneyText(
             minorUnits = card.creditLimitMinorUnits,
             currency = card.currency,
-            isMasked = isMasked,
+            isMasked = LocalBalanceMasked.current,
             style = MaterialTheme.typography.labelSmall,
             color = emeraldColors.primaryText,
         )
@@ -905,6 +919,7 @@ private fun PersonalTeaComparisonCard(
     teaBps: Int?,
     saved: Boolean,
 ) {
+    val reducedMotion = rememberReducedMotionEnabled()
     val themeColors = rememberKipuColors()
     val semanticColors = rememberCalmEmeraldColors()
     val emeraldColors = rememberCalmEmeraldColors()
@@ -1059,10 +1074,11 @@ private fun PersonalTeaComparisonCard(
                             }
 
                             // Labels below track
-                            Row(
+                            FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 3,
                             ) {
                                 Column {
                                     Text("${"%.2f".format(Locale.US, minFloat)}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = themeColors.inkPrimary)
@@ -1118,7 +1134,10 @@ private fun PersonalTeaComparisonCard(
         }
 
         // Test tag required out of range warning
-        AnimatedVisibility(visible = outsideRange) {
+        AnimatedVisibility(visible = outsideRange,
+            enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+            exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+        ) {
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = emeraldColors.expenseBg),
@@ -1198,8 +1217,8 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                 }
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    FlowRow(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
@@ -1412,7 +1431,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                         )
                         Text(
                             text = if (rate.membershipCondition != null) {
-                                "100% Exonerable: " + rate.membershipCondition
+                                "100% Exonerable: " + formatMoneyTextDisplay(rate.membershipCondition, null, LocalBalanceMasked.current)
                             } else {
                                 "Sin dato SBS"
                             },
