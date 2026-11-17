@@ -83,7 +83,7 @@ import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
-import com.kipu.app.feature.accounts.presentation.dashboard.isCompactAccountsLayout
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.RateReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
@@ -950,10 +950,12 @@ private fun PersonalTeaComparisonCard(
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 // Header with title and delta chip
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
+                    maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "Comparativa vs. Tarifario Oficial",
@@ -1369,7 +1371,7 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
                             MoneyText(
                                 minorUnits = feeMinor,
                                 currency = currency,
-                                isMasked = false,
+                                isMasked = LocalBalanceMasked.current,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = themeColors.inkPrimary,

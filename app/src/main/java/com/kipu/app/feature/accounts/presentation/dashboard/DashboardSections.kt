@@ -52,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -78,6 +77,7 @@ import com.kipu.app.feature.accounts.domain.model.AccountType
 import com.kipu.app.feature.accounts.domain.model.AccountWithBalance
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.accounts.presentation.components.CardStylePresets
 import com.kipu.app.feature.accounts.presentation.components.colorFromHex
 import com.kipu.app.ui.component.CardArtThumbnail
@@ -96,14 +96,6 @@ import java.util.Locale
 internal const val DASHBOARD_HERO_TAG = "dashboard_hero"
 internal const val DASHBOARD_LOADING_TAG = "dashboard_loading"
 internal const val DASHBOARD_ERROR_TAG = "dashboard_error"
-
-/**
- * Shared responsive breakpoint for Dinero presentation. Use a compact arrangement when text is
- * enlarged (1.3× or more) or the available window is narrower than 360dp.
- */
-@Composable
-internal fun isCompactAccountsLayout(): Boolean =
-    LocalDensity.current.fontScale >= 1.3f || LocalConfiguration.current.screenWidthDp < 360
 
 private val HeroLabel = Color(0xFFBDEFE6)
 private val HeroDot = Color(0xFF7DE0CF)

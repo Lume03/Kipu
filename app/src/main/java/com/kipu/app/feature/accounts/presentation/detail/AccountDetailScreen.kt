@@ -126,7 +126,7 @@ import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
-import com.kipu.app.feature.accounts.presentation.dashboard.isCompactAccountsLayout
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
 import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
@@ -971,7 +971,12 @@ fun AccountDetailContent(
             onDismissRequest = { showArchiveConfirmation = false },
             title = { Text("¿Archivar ${if (card == null) "la cuenta" else "la tarjeta"}?") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .testTag("archive_confirmation_content"),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text("No se eliminarán los movimientos ni el historial. Podrás encontrar el instrumento en Archivados y reactivarlo después.")
                     if (account != null) {
                         ArchiveAccountNotes(

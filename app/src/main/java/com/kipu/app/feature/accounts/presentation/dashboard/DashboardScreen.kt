@@ -75,6 +75,7 @@ import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.home.presentation.NetWorthCard
 import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet

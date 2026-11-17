@@ -66,7 +66,7 @@ import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
-import com.kipu.app.feature.accounts.presentation.dashboard.isCompactAccountsLayout
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 
 /** Name shown for a bank in account flows ("Otro banco" for the generic entry). */
 internal fun accountBankLabel(bank: BankChoice): String = if (bank.code == "OTHER") "Otro banco" else bank.name
@@ -92,39 +92,28 @@ internal fun BankLogoTile(bank: BankChoice, size: androidx.compose.ui.unit.Dp, m
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AddFormTopBar(title: String, compactTitle: String, onBack: () -> Unit) {
     val calmColors = rememberCalmEmeraldColors()
     val compactLayout = isCompactAccountsLayout()
     val displayTitle = if (compactLayout) compactTitle else title
     Surface(color = calmColors.background, modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-        if (compactLayout) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
-                }
-                Text(
-                    displayTitle,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
-                    color = calmColors.primaryText,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            maxItemsInEachRow = if (compactLayout) 1 else 2,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
             }
-        } else {
-            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver", tint = calmColors.primaryText)
-                }
-                Text(
-                    displayTitle,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
-                    color = calmColors.primaryText,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            Text(
+                displayTitle,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
+                color = calmColors.primaryText,
+                modifier = Modifier.weight(1f, fill = false).padding(horizontal = if (compactLayout) 8.dp else 0.dp),
+            )
         }
     }
 }
