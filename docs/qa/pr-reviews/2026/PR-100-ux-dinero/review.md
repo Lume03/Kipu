@@ -5,8 +5,8 @@
 - **Autor / asignado:** LeonidasGarcia
 - **Fecha de revisión:** 2026-11-15; seguimientos: 2026-11-16 y 2026-11-17 UTC
 - **Rama:** `ux/dinero` → `main`
-- **HEAD de esta iteración:** `e17aa122` (cambios de código publicados en `ux/dinero`).
-- **Estado del PR:** abierto, con cambios solicitados; se está actualizando descripción y seguimiento de #95.
+- **HEAD de código revisado:** `e17aa122`; el informe y la matriz de Fase 0 están publicados en `ux/dinero`.
+- **Estado del PR:** abierto, con cambios solicitados; descripción y seguimiento Fase 0 actualizados, pendiente nueva revisión.
 
 ## Dictamen breve
 
@@ -98,6 +98,7 @@ La matriz justifica los hallazgos no implementados sin convertirlos en verificad
 | `:app:testDebugUnitTest --tests ...DashboardAccountGroupingTest --tests ...RateCatalogContextTest` | Pasa | 26 pruebas focalizadas (4 + 22), 0 fallas; no se repitió la suite legacy completa. |
 | `:app:connectedDebugAndroidTest ...AccountDetailScreenTest` | Pasa | Pixel 8 AVD / Android 16 API 36; 24 pruebas, 0 fallas, incluida la confirmación de archivo con billetera/saldo ficticios a 1.0×/1.3×/2.0×; canceló sin archivar. |
 | `:app:connectedDebugAndroidTest ...RateCatalogResponsiveLayoutTest` | Pasa | Pixel 8 AVD / Android 16 API 36; 3/3: chip con/sin TEA a 1.0×/1.3×/2.0×, membresía visible/oculta y top bar con una acción Atrás/título. |
+| CI `build-and-test` para el HEAD publicado | En curso al documentar | [Run 43998475650](https://github.com/Lume03/Kipu/actions/runs/43998475650); resultado remoto aún no disponible. |
 | `DashboardEmptyStateTest`, `UnifiedInstrumentFormScreenTest` y `CreditAccessibilitySemanticsTest` | Pasan | Fixtures de Compose; 7/7, 2/2 y 4/4 pruebas, respectivamente. Verifican estados vacíos, presentación del formulario y semántica accesible; no sustituyen el recorrido de producción con sesión real. |
 | `DashboardRedesignStatesTest` | Parcial | `h6UnavailableNetWorthIsNeverZero`, `h7LoadingShowsSkeletonWithoutFigures` y `h8ErrorOffersRetryAndNoFigures` se ejecutaron de forma focalizada y pasaron (1/1 cada uno). La suite completa sigue parcial: en la ejecución previa, 7 de 8 casos no fallaron por aserción y `h4ArchivedInstrumentsExpand` falla al cerrar `ActivityScenario` (queda en `PAUSED`, no llega a `DESTROYED`). No se cuenta como suite verde ni como defecto visual confirmado. |
 | Revisión manual a escala de fuente 200 % | Parcial | Detalle/acciones, encabezado de movimientos, vacío de cuotas, catálogo, aviso de archivo, dashboard y formulario bancario se revisaron en oscuro; dashboard también se comprobó en claro. La barra inferior compartida sigue congestionada. |
@@ -124,6 +125,8 @@ La matriz justifica los hallazgos no implementados sin convertirlos en verificad
 
 - **Aprobación formal:** No enviada.
 - **Comentarios históricos:** [ampliación de sesión dummy](https://github.com/Lume03/Kipu/issues/95#issuecomment-6898202625), [TalkBack/desconexión](https://github.com/Lume03/Kipu/issues/95#issuecomment-6897279538) y [auditoría parcial anterior](https://github.com/Lume03/Kipu/issues/95#issuecomment-6930663491).
-- **Respuestas a los cuatro comentarios nuevos:** pendientes de publicar tras subir esta iteración.
+- **Matriz Fase 0 publicada en #95:** [comentario de seguimiento](https://github.com/Lume03/Kipu/issues/95#issuecomment-6935441213), sin solicitud de aprobación/cierre.
+- **Respuestas a los cuatro comentarios nuevos:** [scroll del diálogo de archivo](https://github.com/Lume03/Kipu/pull/100#discussion_r4594254221), [chip TEA](https://github.com/Lume03/Kipu/pull/100#discussion_r4594254228), [ocultamiento de membresía](https://github.com/Lume03/Kipu/pull/100#discussion_r4594254231), [top bar](https://github.com/Lume03/Kipu/pull/100#discussion_r4594254239).
+- **Descripción de PR:** actualizada con un bloque Antes/Después por cambio; se conservaron las seis comparativas y los dos enlaces de fixture.
 - **Respuestas a los seis hilos anteriores:** [archivo](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195994), [breakpoint](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195971), [FlowRow](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195986), [título compacto](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195996), [acciones reutilizadas](https://github.com/Lume03/Kipu/pull/100#discussion_r4592195989), [tokens](https://github.com/Lume03/Kipu/pull/100#discussion_r4592196001).
-- **Revisión y cierre:** no se envió aprobación, no se cerró #95 y no se fusionó PR #100.
+- **Revisión y cierre:** no se envió aprobación, no se cerró #95 y no se fusionó PR #100. Ambos permanecen abiertos.
