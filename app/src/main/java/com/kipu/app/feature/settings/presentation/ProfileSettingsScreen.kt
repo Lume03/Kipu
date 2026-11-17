@@ -77,6 +77,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.platform.LocalUriHandler
@@ -280,9 +283,11 @@ fun ProfileSettingsScreen(
                                         viewModel.stepMonthStart(-1)
                                     },
                                     enabled = state.monthStart > 1,
-                                    modifier = Modifier.size(36.dp),
+                                    modifier = Modifier.size(36.dp).semantics {
+                                        contentDescription = "Disminuir día de corte"
+                                    },
                                 ) {
-                                    Text("−", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text("−", modifier = Modifier.clearAndSetSemantics {}, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Text(
@@ -297,9 +302,11 @@ fun ProfileSettingsScreen(
                                         viewModel.stepMonthStart(1)
                                     },
                                     enabled = state.monthStart < 28,
-                                    modifier = Modifier.size(36.dp),
+                                    modifier = Modifier.size(36.dp).semantics {
+                                        contentDescription = "Aumentar día de corte"
+                                    },
                                 ) {
-                                    Text("+", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text("+", modifier = Modifier.clearAndSetSemantics {}, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
