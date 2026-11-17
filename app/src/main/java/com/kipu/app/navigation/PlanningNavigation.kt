@@ -284,7 +284,7 @@ fun PlanningSegmentedTabs(
             modifier = Modifier
                 .offset(x = indicatorOffset)
                 .width(tabWidth)
-                .height(if (largeText) 64.dp else 48.dp),
+                .height(if (largeText) 72.dp else 48.dp),
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp,
@@ -296,7 +296,7 @@ fun PlanningSegmentedTabs(
                 Row(
                     modifier = Modifier
                         .width(tabWidth)
-                        .heightIn(min = if (largeText) 64.dp else 48.dp)
+                        .heightIn(min = if (largeText) 72.dp else 48.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -317,12 +317,12 @@ fun PlanningSegmentedTabs(
                         Icon(tab.icon(), contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                     }
-                    // Typography token scales with the user's font preference.
+                    // Large text may use a second line instead of cutting a tab label.
                     BasicText(
                         tab.label,
                         color = { contentColor },
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = if (largeText) 2 else 1,
+                        softWrap = largeText,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             textAlign = TextAlign.Center,
