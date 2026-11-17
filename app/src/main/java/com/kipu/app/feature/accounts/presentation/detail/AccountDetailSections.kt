@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -519,14 +521,24 @@ internal fun ColumnScope.ArchiveAccountNotes(
     }
     if (remainingBalance != null && remainingBalance.minorUnits > 0L) {
         Surface(shape = RoundedCornerShape(12.dp), color = colors.warningBg, modifier = Modifier.fillMaxWidth()) {
-            Row(
+            Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Aún tiene saldo (", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
-                MoneyText(remainingBalance, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = colors.warningText)
-                Text("). Considera transferirlo antes de archivar.", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Aún tiene saldo:", style = MaterialTheme.typography.bodySmall, color = colors.warningText)
+                    MoneyText(remainingBalance, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = colors.warningText)
+                }
+                Text(
+                    "Considera transferirlo antes de archivar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.warningText,
+                )
             }
         }
     }

@@ -963,9 +963,9 @@ fun UnifiedInstrumentFormScreen(
                                 style = MaterialTheme.typography.bodyMedium)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf(
-                                    Triple("50% atención", Color(0xFFFEF3C7), Color(0xFF5A3200)),
-                                    Triple("80% casi al límite", Color(0xFFFFE8D6), Color(0xFF5C2500)),
-                                    Triple("100% agotada", Color(0xFFFDECEC), Color(0xFF8B1F1F)),
+                                    Triple("50% atención", calmColors.warningBg, calmColors.warningText),
+                                    Triple("80% casi al límite", calmColors.warningBg, calmColors.warningText),
+                                    Triple("100% agotada", calmColors.expenseBg, calmColors.expenseText),
                                 ).forEach { (label, bg, fg) ->
                                     Surface(color = bg, shape = RoundedCornerShape(10.dp)) {
                                         Text(label, color = fg, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
@@ -987,6 +987,11 @@ fun UnifiedInstrumentFormScreen(
                 InstrumentKind.CASH -> "Agregar efectivo"
                 else -> "Agregar cuenta bancaria"
             }
+            val compactFormTitle = when (kind) {
+                InstrumentKind.WALLET -> "Billetera digital"
+                InstrumentKind.CASH -> "Efectivo"
+                else -> "Cuenta bancaria"
+            }
             val saveTitle = when (kind) {
                 InstrumentKind.WALLET -> "Guardar billetera"
                 InstrumentKind.CASH -> "Guardar efectivo"
@@ -996,7 +1001,7 @@ fun UnifiedInstrumentFormScreen(
             Scaffold(
                 containerColor = calmColors.background,
                 topBar = {
-                    AddFormTopBar(formTitle) {
+                    AddFormTopBar(formTitle, compactFormTitle) {
                         if (initialBankAccount) onNavigateBack() else currentStep = InstrumentFlowStep.INTRO
                     }
                 },

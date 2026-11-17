@@ -1,17 +1,21 @@
 package com.kipu.app.feature.accounts.presentation.dashboard
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,8 +40,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -72,6 +75,7 @@ import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.home.presentation.NetWorthCard
 import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
@@ -258,49 +262,31 @@ private fun DashboardTopBar(
     val emeraldColors = rememberCalmEmeraldColors()
     val initials = dashboardInitials(displayName)
     val settingsContentDescription = stringResource(R.string.settings_access_content_description)
-    TopAppBar(
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = emeraldColors.incomeBg,
-                    border = BorderStroke(1.5.dp, emeraldColors.incomeBorder),
-                    modifier = Modifier.size(46.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (initials != null) {
-                            Text(
-                                text = initials,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
-                                color = emeraldColors.primaryDeep,
-                            )
-                        } else {
-                            Icon(Icons.Outlined.PersonOutline, contentDescription = null,
-                                tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-                Column {
+    val compactLayout = isCompactAccountsLayout()
+    val profileAvatar: @Composable () -> Unit = {
+        Surface(
+            shape = CircleShape,
+            color = emeraldColors.incomeBg,
+            border = BorderStroke(1.5.dp, emeraldColors.incomeBorder),
+            modifier = Modifier.size(46.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (initials != null) {
                     Text(
-                        text = "Bienvenido",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
-                        color = emeraldColors.secondaryMuted,
+                        text = initials,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 15.sp),
+                        color = emeraldColors.primaryDeep,
                     )
-                    Text(
-                        text = "Mi dinero",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 21.sp),
-                        color = emeraldColors.primaryText,
-                        maxLines = 1,
-                    )
+                } else {
+                    Icon(Icons.Outlined.PersonOutline, contentDescription = null,
+                        tint = emeraldColors.primaryDeep, modifier = Modifier.size(24.dp))
                 }
             }
-        },
-        actions = {
-            // White circular buttons; each keeps a 48dp touch target.
-            // The badge draws its own circle and keeps the counter outside it (KIP-16).
+        }
+    }
+    val topBarActions: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // The badge and settings control keep their 48dp touch targets in both layouts.
             UnreadNotificationBadge(
                 unreadCount = unreadNotificationCount,
                 onClick = onNavigateToNotifications,
@@ -327,9 +313,44 @@ private fun DashboardTopBar(
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = emeraldColors.background),
-    )
+        }
+    }
+
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().background(emeraldColors.background).statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        maxItemsInEachRow = if (compactLayout) 1 else 2,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            profileAvatar()
+            Column(Modifier.weight(1f)) {
+                if (!compactLayout) {
+                    Text(
+                        text = "Bienvenido",
+                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp),
+                        color = emeraldColors.secondaryMuted,
+                    )
+                }
+                Text(
+                    text = "Mi dinero",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, fontSize = 21.sp),
+                    color = emeraldColors.primaryText,
+                    maxLines = if (compactLayout) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
+            topBarActions()
+        }
+    }
 }
 
 internal fun shouldShowEmptyDashboard(

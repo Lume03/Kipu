@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -125,6 +126,7 @@ import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.domain.model.DebitCard
 import com.kipu.app.feature.accounts.domain.model.CreditCardWithSummary
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.accounts.domain.model.CreditUtilizationNotification
 import com.kipu.app.feature.accounts.domain.model.PurchaseCandidate
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
@@ -969,7 +971,12 @@ fun AccountDetailContent(
             onDismissRequest = { showArchiveConfirmation = false },
             title = { Text("¿Archivar ${if (card == null) "la cuenta" else "la tarjeta"}?") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .testTag("archive_confirmation_content"),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text("No se eliminarán los movimientos ni el historial. Podrás encontrar el instrumento en Archivados y reactivarlo después.")
                     if (account != null) {
                         ArchiveAccountNotes(
@@ -1039,6 +1046,24 @@ fun AccountDetailContent(
 @Composable
 private fun displayCreditLimit(card: CreditCard): String =
     if (LocalBalanceMasked.current) "••••" else formatMinorUnits(card.creditLimitMinorUnits)
+
+@Composable
+private fun CreditCardLimitArtLine(card: CreditCard, cardForeground: Color, label: String) {
+    val isMasked = LocalBalanceMasked.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "$label: ${card.currency.name} ",
+            style = MaterialTheme.typography.labelSmall,
+            color = cardForeground.copy(alpha = 0.75f),
+        )
+        MoneyText(
+            amount = formatMinorUnits(card.creditLimitMinorUnits),
+            isMasked = isMasked,
+            style = MaterialTheme.typography.labelSmall,
+            color = cardForeground.copy(alpha = 0.75f),
+        )
+    }
+}
 
 @Composable
 internal fun Kibo3DCreditCard(
@@ -1329,11 +1354,7 @@ private fun CreditCardFrontContent(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = "${FinancialTerminology.TOTAL_CREDIT_LINE.uppercase()}: ${card.currency.name} ${displayCreditLimit(card)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = cardForeground.copy(alpha = 0.75f),
-            )
+            CreditCardLimitArtLine(card, cardForeground, FinancialTerminology.TOTAL_CREDIT_LINE.uppercase())
         }
 
         // Bottom row: Masked Digits + Network
@@ -1466,12 +1487,7 @@ private fun CreditCardBackContent(
                 style = MaterialTheme.typography.labelSmall,
                 color = cardForeground.copy(alpha = 0.70f),
             )
-            Text(
-                text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: ${card.currency.name} ${displayCreditLimit(card)}",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = cardForeground.copy(alpha = 0.85f),
-            )
+            CreditCardLimitArtLine(card, cardForeground, FinancialTerminology.TOTAL_CREDIT_LINE)
         }
     }
 }
@@ -1652,6 +1668,7 @@ private fun CreditCardPeriodPanel(
     }
 
     val isMasked = LocalBalanceMasked.current
+    val compactLayout = isCompactAccountsLayout()
     val targetProgress = if (isMasked) 0f else (utilization / 100.0).toFloat().coerceIn(0f, 1f)
     val reducedMotion = rememberReducedMotionEnabled()
     val animatedProgress by animateFloatAsState(
@@ -1699,12 +1716,15 @@ private fun CreditCardPeriodPanel(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // Header: ESTADO DEL PERIODO ACTUAL + Badge Cierre en X días
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = if (compactLayout) 1 else 2,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -1721,26 +1741,29 @@ private fun CreditCardPeriodPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = emeraldColors.incomeBg,
-                    border = BorderStroke(1.dp, emeraldColors.incomeBorder),
-                ) {
-                    Text(
-                        text = "Cierre en $daysUntilBilling días",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = emeraldColors.incomeText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
+                Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = emeraldColors.incomeBg,
+                        border = BorderStroke(1.dp, emeraldColors.incomeBorder),
+                    ) {
+                        Text(
+                            text = "Cierre en $daysUntilBilling días",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emeraldColors.incomeText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
                 }
             }
 
             // Dual Column Metrics: Deuda actual vs Disponible de crédito
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                maxItemsInEachRow = if (compactLayout) 1 else 2,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
@@ -1763,7 +1786,6 @@ private fun CreditCardPeriodPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                 }
-
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.End,
@@ -1791,55 +1813,60 @@ private fun CreditCardPeriodPanel(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    maxItemsInEachRow = if (compactLayout) 1 else 2,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(emeraldColors.pillTrack),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.CalendarToday,
-                            contentDescription = null,
-                            tint = emeraldColors.primaryDeep,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-
-                    Column(
+                    Row(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(
-                            text = "Fecha de pago configurada",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = nextDue.format(dueFormatter),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(emeraldColors.pillTrack),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CalendarToday,
+                                contentDescription = null,
+                                tint = emeraldColors.primaryDeep,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Fecha de pago configurada",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = nextDue.format(dueFormatter),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
-
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (daysUntilDue <= 2) emeraldColors.expenseBg else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, if (daysUntilDue <= 2) emeraldColors.expenseBorder else MaterialTheme.colorScheme.outlineVariant),
-                    ) {
-                        Text(
-                            text = if (daysUntilDue <= 2) "¡Vence en $daysUntilDue días!" else "En $daysUntilDue días",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (daysUntilDue <= 2) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (daysUntilDue <= 2) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
+                    Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (daysUntilDue <= 2) emeraldColors.expenseBg else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (daysUntilDue <= 2) emeraldColors.expenseBorder else MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Text(
+                                text = if (daysUntilDue <= 2) "¡Vence en $daysUntilDue días!" else "En $daysUntilDue días",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (daysUntilDue <= 2) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (daysUntilDue <= 2) emeraldColors.expenseText else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -1863,10 +1890,11 @@ private fun CreditCardPeriodPanel(
             }
 
             // Utilization and credit limit
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = when {
@@ -1945,40 +1973,36 @@ private fun CreditCardActionsSection(
     onReactivateClick: () -> Unit,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val compactLayout = isCompactAccountsLayout()
+    val minActionHeight = if (compactLayout) 64.dp else 48.dp
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!isArchived) {
             val hasDebt = summary == null || summary.debt.minorUnits > 0L
             if (hasDebt) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
+                    maxItemsInEachRow = if (compactLayout) 1 else 2,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = onPayCreditCard,
                         enabled = !isSubmitting,
                         colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = minActionHeight),
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Payments,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        Icon(Icons.Rounded.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Pagar tarjeta", fontWeight = FontWeight.Bold)
+                        Text("Pagar tarjeta", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
                         onClick = onStartCreditPurchase,
                         enabled = !isSubmitting,
                         border = BorderStroke(1.5.dp, emeraldColors.primaryDeep),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = minActionHeight),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(
@@ -1988,7 +2012,7 @@ private fun CreditCardActionsSection(
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Registrar consumo", color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold)
+                        Text("Registrar consumo", modifier = Modifier.weight(1f), color = emeraldColors.primaryDeep, fontWeight = FontWeight.SemiBold)
                     }
                 }
             } else {
@@ -1998,7 +2022,7 @@ private fun CreditCardActionsSection(
                     colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = minActionHeight),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Icon(
@@ -2007,7 +2031,7 @@ private fun CreditCardActionsSection(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Registrar consumo", fontWeight = FontWeight.Bold)
+                    Text("Registrar consumo", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -2018,15 +2042,16 @@ private fun CreditCardActionsSection(
                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -2049,6 +2074,7 @@ private fun CreditCardActionsSection(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
@@ -2080,7 +2106,7 @@ private fun CreditCardActionsSection(
                 onClick = onEditCreditTerms,
                 enabled = !isSubmitting,
                 border = BorderStroke(1.dp, emeraldColors.borderSubtle),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
@@ -2093,7 +2119,11 @@ private fun CreditCardActionsSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
-                    Text("Editar línea total de crédito, ciclo y fechas", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Editar línea total de crédito, ciclo y fechas",
+                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.Medium,
+                    )
                 }
             }
 
@@ -2103,7 +2133,7 @@ private fun CreditCardActionsSection(
                 border = BorderStroke(1.dp, emeraldColors.expenseBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Row(
@@ -2126,7 +2156,7 @@ private fun CreditCardActionsSection(
                 colors = ButtonDefaults.buttonColors(containerColor = emeraldColors.primaryDeep),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Icon(
@@ -2144,7 +2174,7 @@ private fun CreditCardActionsSection(
                 border = BorderStroke(1.dp, emeraldColors.expenseBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = minActionHeight),
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Icon(
@@ -2174,6 +2204,7 @@ private fun CreditCardMovementsSection(
     var selectedPeriodFilter by remember { mutableStateOf("ALL") } // "ALL", "CYCLE"
 
     val activeFilterCount = (if (selectedTypeFilter != "ALL") 1 else 0) + (if (selectedPeriodFilter != "ALL") 1 else 0)
+    val compactLayout = isCompactAccountsLayout()
 
     val dateFormatter = remember {
         DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.forLanguageTag("es-PE"))
@@ -2197,41 +2228,16 @@ private fun CreditCardMovementsSection(
             matchesType && matchesPeriod
         }.sortedByDescending { it.movement.effectiveAt }
     }
+    val clearAllMovementFilters = {
+        selectedTypeFilter = "ALL"
+        selectedPeriodFilter = "ALL"
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = "Movimientos de la tarjeta",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(emeraldColors.pillTrack),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "${filteredMovements.size}",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = emeraldColors.primaryDeep,
-                    )
-                }
-            }
-
+        val filterButton: @Composable () -> Unit = {
             Surface(
                 onClick = { showFilterSheet = true },
                 shape = RoundedCornerShape(8.dp),
@@ -2259,12 +2265,49 @@ private fun CreditCardMovementsSection(
             }
         }
 
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            maxItemsInEachRow = if (compactLayout) 1 else 2,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Movimientos de la tarjeta",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Surface(
+                    shape = CircleShape,
+                    color = emeraldColors.pillTrack,
+                ) {
+                    Text(
+                        text = "${filteredMovements.size}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = emeraldColors.primaryDeep,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            }
+            Box(Modifier.weight(0.55f), contentAlignment = Alignment.CenterEnd) {
+                filterButton()
+            }
+        }
+
         // Active filter chips row if filters are active
         if (activeFilterCount > 0) {
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 if (selectedTypeFilter != "ALL") {
                     AssistChip(
@@ -2296,14 +2339,13 @@ private fun CreditCardMovementsSection(
                         colors = AssistChipDefaults.assistChipColors(containerColor = emeraldColors.pillTrack),
                     )
                 }
-                TextButton(
-                    onClick = {
-                        selectedTypeFilter = "ALL"
-                        selectedPeriodFilter = "ALL"
-                    },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                ) {
-                    Text("Limpiar", style = MaterialTheme.typography.labelSmall, color = emeraldColors.primaryDeep)
+                if (filteredMovements.isNotEmpty()) {
+                    TextButton(
+                        onClick = clearAllMovementFilters,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                    ) {
+                        Text("Limpiar", style = MaterialTheme.typography.labelSmall, color = emeraldColors.primaryDeep)
+                    }
                 }
             }
         }
@@ -2350,10 +2392,7 @@ private fun CreditCardMovementsSection(
                     if (activeFilterCount > 0) {
                         Spacer(Modifier.height(4.dp))
                         OutlinedButton(
-                            onClick = {
-                                selectedTypeFilter = "ALL"
-                                selectedPeriodFilter = "ALL"
-                            },
+                            onClick = clearAllMovementFilters,
                             shape = RoundedCornerShape(10.dp),
                         ) {
                             Text("Restablecer filtros")
@@ -2494,8 +2533,7 @@ private fun CreditCardMovementsSection(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            selectedTypeFilter = "ALL"
-                            selectedPeriodFilter = "ALL"
+                            clearAllMovementFilters()
                             showFilterSheet = false
                         },
                         modifier = Modifier.weight(1f).height(48.dp),

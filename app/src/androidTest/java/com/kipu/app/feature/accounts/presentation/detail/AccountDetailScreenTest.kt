@@ -2,11 +2,17 @@ package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.kipu.app.ui.component.LocalBalanceMasked
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
@@ -18,6 +24,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performSemanticsAction
@@ -272,6 +279,60 @@ class AccountDetailScreenTest {
         compose.runOnIdle {
             assertFalse(archived)
             assertFalse(navigatedBack)
+        }
+    }
+
+    @Test
+    fun archiveDialogShowsAffiliatedWalletAndFullBalanceNoteAtLargeFontScalesWithoutArchiving() {
+        val target = account()
+        val wallet = account().copy(
+            alias = "Billetera QA ficticia",
+            type = AccountType.DIGITAL_WALLET,
+            preset = AccountPreset.YAPE,
+            linkedAccountId = target.id,
+            initialBalance = Money(0L, Currency.PEN),
+        )
+        var archived = false
+        var fontScale by mutableFloatStateOf(1f)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                MaterialTheme {
+                    AccountDetailContent(
+                        account = target,
+                        card = null,
+                        currentBalance = Money(2_500L, Currency.PEN),
+                        affiliatedWallets = listOf(wallet),
+                        creditCardSummary = null,
+                        isLoading = false,
+                        onNavigateBack = {},
+                        onSaveAppearance = { _, _ -> },
+                        onCorrectOpeningBalance = {},
+                        onArchive = { archived = true },
+                        onReactivate = {},
+                    )
+                }
+            }
+        }
+
+        listOf(1f, 1.3f, 2f).forEach { scale ->
+            compose.runOnIdle { fontScale = scale }
+            compose.waitForIdle()
+
+            compose.onNodeWithText("Archivar cuenta").performScrollTo().performClick()
+            compose.onNodeWithText("Billetera QA ficticia está afiliada a esta cuenta", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Aún tiene saldo:").assertIsDisplayed()
+            if (scale > 1f) {
+                compose.onNodeWithTag("archive_confirmation_content", useUnmergedTree = true)
+                    .performScrollToNode(hasText("Considera transferirlo antes de archivar."))
+            }
+            compose.onNodeWithText("Considera transferirlo antes de archivar.").assertIsDisplayed()
+            compose.onNodeWithText("Cancelar").assertIsDisplayed()
+            compose.onNodeWithText("Archivar").assertIsDisplayed()
+            compose.runOnIdle { assertFalse(archived) }
+
+            pressBack()
+            compose.runOnIdle { assertFalse(archived) }
         }
     }
 

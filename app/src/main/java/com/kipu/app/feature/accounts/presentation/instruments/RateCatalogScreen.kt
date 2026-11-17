@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.border
@@ -34,7 +34,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Lock
@@ -74,6 +73,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -83,10 +83,12 @@ import com.kipu.app.core.finance.domain.model.CardId
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.feature.accounts.presentation.FinancialTerminology
+import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
 import com.kipu.app.feature.accounts.domain.model.CreditProductReference
 import com.kipu.app.feature.accounts.domain.model.RateReference
 import com.kipu.app.feature.accounts.presentation.AccountUiEvent
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -166,14 +168,6 @@ fun RateCatalogScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Atrás")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* Share info */ }) {
-                        Icon(Icons.Rounded.Share, contentDescription = "Compartir tarifario")
-                    }
-                    IconButton(onClick = { /* Help info */ }) {
-                        Icon(Icons.Rounded.HelpOutline, contentDescription = "Ayuda sobre tasas")
                     }
                 },
             )
@@ -750,9 +744,10 @@ private fun PersonalTeaSimulatorCard(
 
 @Composable
 private fun CardContextHeader(card: CreditCard, productName: String?) {
+    val emeraldColors = rememberCalmEmeraldColors()
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1E2C)),
+        colors = CardDefaults.cardColors(containerColor = emeraldColors.surfaceCard),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -771,20 +766,20 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFFBBF24),
+                        color = emeraldColors.warningBg,
                     ) {
                         Text(
                             text = card.issuer.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF1E293B),
+                            color = emeraldColors.warningText,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                     Text(
                         text = "Crédito",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFCBD5E1),
+                        color = emeraldColors.secondaryMuted,
                     )
                 }
 
@@ -794,7 +789,7 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF162D3F),
+                        color = emeraldColors.pillTrack,
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -805,13 +800,13 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
+                                    .background(emeraldColors.incomeText)
                             )
                             Text(
                                 text = if (card.currency == Currency.PEN) "Soles (S/)" else "Dólares ($)",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFFCBD5E1),
+                                color = emeraldColors.secondaryMuted,
                             )
                         }
                     }
@@ -820,8 +815,7 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                     Box(
                         modifier = Modifier
                             .size(width = 28.dp, height = 18.dp)
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(4.dp))
-                            .background(Color(0xFF1E293B)),
+                            .border(1.dp, emeraldColors.borderSubtle, RoundedCornerShape(4.dp)),
                     )
                 }
             }
@@ -832,7 +826,7 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                     text = "TARJETA TITULAR",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
+                    color = emeraldColors.secondaryMuted,
                     letterSpacing = 1.sp,
                     fontSize = 10.sp,
                 )
@@ -840,54 +834,68 @@ private fun CardContextHeader(card: CreditCard, productName: String?) {
                     text = card.alias ?: productName ?: "${card.issuer} ${card.network.name}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = emeraldColors.primaryText,
                 )
                 Text(
                     text = "${card.network.name} •••• ${card.lastFourDigits}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF94A3B8),
+                    color = emeraldColors.secondaryMuted,
                 )
             }
 
-            // Bottom row: Authorized line + personal rate status
-            Row(
+            // Keep the rate status from collapsing beside a long credit line at large font scales.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Shield,
-                        contentDescription = null,
-                        tint = Color(0xFF14B8A6),
-                        modifier = Modifier.size(14.dp),
-                    )
-                    val isMasked = LocalBalanceMasked.current
-                    val limitDisplay = if (isMasked) "••••••" else "${card.currency.name} ${formatMinorUnits(card.creditLimitMinorUnits)}"
-                    Text(
-                        text = "${FinancialTerminology.TOTAL_CREDIT_LINE}: $limitDisplay",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFCBD5E1),
-                        modifier = Modifier.semantics {
-                            if (isMasked) {
-                                contentDescription = "${FinancialTerminology.TOTAL_CREDIT_LINE}: Monto oculto"
-                            }
-                        },
-                    )
-                }
-
-                Text(
-                    text = if (card.personalTeaBps != null) "Tasa personalizada" else "Sin tasa personalizada",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (card.personalTeaBps != null) Color(0xFF10B981) else Color(0xFFF59E0B),
-                )
+                CreditCardLimitLabel(card)
+                PersonalTeaStatusLabel(card)
             }
         }
     }
+}
+
+@Composable
+private fun CreditCardLimitLabel(card: CreditCard) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Shield,
+            contentDescription = null,
+            tint = emeraldColors.primaryDeep,
+            modifier = Modifier.size(14.dp),
+        )
+        val isMasked = LocalBalanceMasked.current
+        Text(
+            text = "${FinancialTerminology.TOTAL_CREDIT_LINE}:",
+            style = MaterialTheme.typography.labelSmall,
+            color = emeraldColors.primaryText,
+        )
+        MoneyText(
+            minorUnits = card.creditLimitMinorUnits,
+            currency = card.currency,
+            isMasked = isMasked,
+            style = MaterialTheme.typography.labelSmall,
+            color = emeraldColors.primaryText,
+        )
+    }
+}
+
+@Composable
+private fun PersonalTeaStatusLabel(card: CreditCard) {
+    val emeraldColors = rememberCalmEmeraldColors()
+    Text(
+        text = if (card.personalTeaBps != null) "Tasa personalizada" else "Sin tasa personalizada",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = if (card.personalTeaBps != null) emeraldColors.incomeText else emeraldColors.warningText,
+    )
 }
 
 @Composable
@@ -924,7 +932,12 @@ private fun PersonalTeaComparisonCard(
     }
 
     val deltaMaxPercent = if (maxFloat > 0f) (((teaFloat - maxFloat) / maxFloat) * 100.0).roundToInt() else 0
-    val chipText = if (!hasSbsRange) "Sin dato SBS" else if (deltaMaxPercent <= 0) "$deltaMaxPercent% del máximo" else "+$deltaMaxPercent% del máximo"
+    val chipText = when {
+        teaBps == null -> "Sin TEA personal"
+        !hasSbsRange -> "Sin dato SBS"
+        deltaMaxPercent <= 0 -> "$deltaMaxPercent% del máximo"
+        else -> "+$deltaMaxPercent% del máximo"
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(
@@ -937,10 +950,12 @@ private fun PersonalTeaComparisonCard(
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 // Header with title and delta chip
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
+                    maxItemsInEachRow = if (isCompactAccountsLayout()) 1 else 2,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "Comparativa vs. Tarifario Oficial",
@@ -964,7 +979,11 @@ private fun PersonalTeaComparisonCard(
                 }
 
                 Text(
-                    text = "Visualiza dónde se ubica tu tasa acordada frente al rango tarifario publicado por ${card.issuer} y registrado ante la SBS.",
+                    text = if (teaBps == null) {
+                        "Agrega una TEA personal para compararla con el rango tarifario publicado por ${card.issuer} y registrado ante la SBS."
+                    } else {
+                        "Visualiza dónde se ubica tu tasa acordada frente al rango tarifario publicado por ${card.issuer} y registrado ante la SBS."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = themeColors.inkSecondary,
                 )
@@ -1348,13 +1367,23 @@ private fun ReferentialRateCard(rate: CreditProductReference, currency: Currency
 
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         val feeMinor = if (currency == Currency.PEN) rate.membershipFeePenMinor else rate.membershipFeeUsdMinor
-                        val feeSym = if (currency == Currency.PEN) "S/ " else "$ "
-                        Text(
-                            text = formatCatalogFee(feeMinor, feeSym),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = themeColors.inkPrimary,
-                        )
+                        if (feeMinor != null) {
+                            MoneyText(
+                                minorUnits = feeMinor,
+                                currency = currency,
+                                isMasked = LocalBalanceMasked.current,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = themeColors.inkPrimary,
+                            )
+                        } else {
+                            Text(
+                                text = "Sin dato SBS",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = themeColors.inkSecondary,
+                            )
+                        }
                         Text(
                             text = "Por año",
                             style = MaterialTheme.typography.labelSmall,
