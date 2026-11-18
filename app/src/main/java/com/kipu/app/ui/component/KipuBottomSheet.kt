@@ -6,9 +6,12 @@ import com.kipu.app.ui.theme.kipuBottomSheetProperties
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +46,7 @@ fun KipuBottomSheet(
         sheetState = sheetState,
         shape = shape,
         containerColor = containerColor,
-        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+        contentWindowInsets = { WindowInsets.statusBars.only(WindowInsetsSides.Top) },
         modifier = modifier.imePadding(),
     ) {
         KipuModalSystemBars()

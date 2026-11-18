@@ -91,6 +91,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kipu.app.ui.component.WithKipuPickerLocale
 import com.kipu.app.R
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.core.finance.domain.model.Money
@@ -699,56 +700,60 @@ private fun PeriodRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RangeDialog(today: LocalDate, onDismiss: () -> Unit, onApply: (LocalDate, LocalDate) -> Unit) {
-    val todayUtc = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    val state = rememberDateRangePickerState(
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayUtc
-            override fun isSelectableYear(year: Int): Boolean = year <= today.year
-        },
-    )
-    fun date(millis: Long?): LocalDate? = millis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-    val start = date(state.selectedStartDateMillis)
-    val end = date(state.selectedEndDateMillis) ?: start
-    val monthNames = stringArrayResource(R.array.analytics_month_short).toList()
-    val startLabel = if (start != null) {
-        stringResource(R.string.analytics_range_date_summary, start.dayOfMonth, monthNames[start.monthValue - 1], start.year)
-    } else {
-        stringResource(R.string.analytics_range_choose_date)
-    }
-    val endLabel = if (end != null) {
-        stringResource(R.string.analytics_range_date_summary, end.dayOfMonth, monthNames[end.monthValue - 1], end.year)
-    } else {
-        stringResource(R.string.analytics_range_choose_date)
-    }
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { if (start != null && end != null) onApply(start, end) }, enabled = start != null && end != null) {
-                Text(stringResource(R.string.analytics_range_apply))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.analytics_range_cancel)) } },
-    ) {
-        DateRangePicker(
-            state = state,
-            title = { Text(stringResource(R.string.analytics_range_title), modifier = Modifier.padding(start = 24.dp, top = 16.dp), style = MaterialTheme.typography.titleMedium) },
-            headline = {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(stringResource(R.string.analytics_range_start), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(startLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(stringResource(R.string.analytics_range_end), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(endLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    }
+    WithKipuPickerLocale {
+        val todayUtc = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val state = rememberDateRangePickerState(
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayUtc
+                override fun isSelectableYear(year: Int): Boolean = year <= today.year
+            },
+        )
+        fun date(millis: Long?): LocalDate? = millis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+        val start = date(state.selectedStartDateMillis)
+        val end = date(state.selectedEndDateMillis) ?: start
+        val monthNames = stringArrayResource(R.array.analytics_month_short).toList()
+        val startLabel = if (start != null) {
+            stringResource(R.string.analytics_range_date_summary, start.dayOfMonth, monthNames[start.monthValue - 1], start.year)
+        } else {
+            stringResource(R.string.analytics_range_choose_date)
+        }
+        val endLabel = if (end != null) {
+            stringResource(R.string.analytics_range_date_summary, end.dayOfMonth, monthNames[end.monthValue - 1], end.year)
+        } else {
+            stringResource(R.string.analytics_range_choose_date)
+        }
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = { if (start != null && end != null) onApply(start, end) }, enabled = start != null && end != null) {
+                    Text(stringResource(R.string.analytics_range_apply))
                 }
             },
-            modifier = Modifier.heightIn(max = 560.dp),
-        )
+            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.analytics_range_cancel)) } },
+        ) {
+            WithKipuPickerLocale {
+                DateRangePicker(
+                    state = state,
+                    title = { Text(stringResource(R.string.analytics_range_title), modifier = Modifier.padding(start = 24.dp, top = 16.dp), style = MaterialTheme.typography.titleMedium) },
+                    headline = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(stringResource(R.string.analytics_range_start), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(startLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(stringResource(R.string.analytics_range_end), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(endLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    },
+                    modifier = Modifier.heightIn(max = 560.dp),
+                )
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.kipu.app.feature.movements.presentation
 
+import com.kipu.app.ui.component.WithKipuPickerLocale
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
@@ -28,6 +29,7 @@ import com.kipu.app.ui.component.MoneyText
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.FlowRow
@@ -102,6 +104,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -262,36 +265,40 @@ fun QuickMovementBottomSheet(
     }
 
     if (showDatePicker) {
-        val state = rememberDatePickerState(
-            initialSelectedDateMillis = toUtcDateMillis(uiState.occurredAt),
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        state.selectedDateMillis?.let { selectedDateMillis ->
-                            viewModel.onOccurredAtChanged(
-                                datePickerMillisToLocalInstant(selectedDateMillis, uiState.occurredAt),
-                            )
-                        }
-                        showDatePicker = false
-                    },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Text("Listo", color = emeraldColors.primaryDeep)
+        WithKipuPickerLocale {
+            val state = rememberDatePickerState(
+                initialSelectedDateMillis = toUtcDateMillis(uiState.occurredAt),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            state.selectedDateMillis?.let { selectedDateMillis ->
+                                viewModel.onOccurredAtChanged(
+                                    datePickerMillisToLocalInstant(selectedDateMillis, uiState.occurredAt),
+                                )
+                            }
+                            showDatePicker = false
+                        },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text("Listo", color = emeraldColors.primaryDeep)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDatePicker = false },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text("Cancelar", color = emeraldColors.secondaryMuted)
+                    }
+                },
+            ) {
+                WithKipuPickerLocale {
+                    DatePicker(state = state)
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDatePicker = false },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Text("Cancelar", color = emeraldColors.secondaryMuted)
-                }
-            },
-        ) {
-            DatePicker(state = state)
+            }
         }
     }
 
@@ -495,32 +502,38 @@ fun QuickMovementContent(
             if (offline) {
                 KipuOfflineBanner(message = "Puedes registrar movimientos. Se sincronizarán al recuperar la conexión.")
             }
-            // 3 Standalone Type Pills
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CalmEmeraldTypeTab(
-                    type = MovementType.EXPENSE,
-                    label = stringResource(R.string.movement_type_expense),
-                    selected = uiState.type == MovementType.EXPENSE,
-                    onSelect = { onTypeSelected(MovementType.EXPENSE) },
-                    modifier = Modifier.weight(1f),
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val labels = listOf(
+                    MovementType.EXPENSE to stringResource(R.string.movement_type_expense),
+                    MovementType.INCOME to stringResource(R.string.movement_type_income),
+                    MovementType.TRANSFER to stringResource(R.string.movement_type_transfer),
                 )
-                CalmEmeraldTypeTab(
-                    type = MovementType.INCOME,
-                    label = stringResource(R.string.movement_type_income),
-                    selected = uiState.type == MovementType.INCOME,
-                    onSelect = { onTypeSelected(MovementType.INCOME) },
-                    modifier = Modifier.weight(1f),
-                )
-                CalmEmeraldTypeTab(
-                    type = MovementType.TRANSFER,
-                    label = stringResource(R.string.movement_type_transfer),
-                    selected = uiState.type == MovementType.TRANSFER,
-                    onSelect = { onTypeSelected(MovementType.TRANSFER) },
-                    modifier = Modifier.weight(1f),
-                )
+                val gap = 8.dp
+                val cellWidth = (maxWidth - gap * (labels.size - 1)) / labels.size
+                val textMeasurer = rememberTextMeasurer()
+                val labelStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                val density = LocalDensity.current
+                val stackIcon = density.fontScale > 1.15f || labels.any { (_, label) ->
+                    with(density) {
+                        val labelWidth = textMeasurer.measure(label, style = labelStyle).size.width.toDp()
+                        labelWidth + 36.dp > cellWidth // 16 dp icon, 4 dp gap, 16 dp horizontal padding.
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    labels.forEach { (type, label) ->
+                        CalmEmeraldTypeTab(
+                            type = type,
+                            label = label,
+                            selected = uiState.type == type,
+                            onSelect = { onTypeSelected(type) },
+                            stackIcon = stackIcon,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
 
             // Hero Type-Tinted Amount Card
@@ -1263,6 +1276,7 @@ private fun CalmEmeraldTypeTab(
     label: String,
     selected: Boolean,
     onSelect: () -> Unit,
+    stackIcon: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -1308,7 +1322,7 @@ private fun CalmEmeraldTypeTab(
             .semantics { this.selected = selected }
             .testTag("tab_${type.name.lowercase()}"),
     ) {
-        if (LocalDensity.current.fontScale > 1.15f) {
+        if (stackIcon) {
             Column(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp).heightIn(min = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

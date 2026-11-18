@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -61,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.*
 import androidx.navigation.compose.composable
+import com.kipu.app.R
 import com.kipu.app.core.finance.domain.MoneyInputParser
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
@@ -68,12 +70,15 @@ import com.kipu.app.feature.movements.presentation.QuickMovementViewModel
 import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.feature.receipts.domain.ReceiptCandidateEdit
 import com.kipu.app.feature.receipts.presentation.ReceiptReviewScreen
+import com.kipu.app.ui.component.WithKipuPickerLocale
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 const val RECEIPTS_ROUTE = "receipts"
@@ -385,6 +390,7 @@ private fun ReceiptInfoNotice(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReceiptMetadataEditor(
     candidate: ReceiptCandidate,
@@ -395,8 +401,7 @@ internal fun ReceiptMetadataEditor(
     onDiscard: (() -> Unit)? = null,
 ) {
     val lima = remember { ZoneId.of("America/Lima") }
-    val context = LocalContext.current
-    val timestamp = candidate.occurredAt?.let { java.time.Instant.ofEpochMilli(it).atZone(lima) }
+    val timestamp = candidate.occurredAt?.let { Instant.ofEpochMilli(it).atZone(lima) }
     var amount by rememberSaveable(candidate.id) { mutableStateOf(candidate.amountMinor?.let { BigDecimal.valueOf(it, 2).toPlainString() }.orEmpty()) }
     var date by rememberSaveable(candidate.id) { mutableStateOf(timestamp?.toLocalDate()?.toString().orEmpty()) }
     var time by rememberSaveable(candidate.id) { mutableStateOf(timestamp?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()) }
@@ -408,6 +413,8 @@ internal fun ReceiptMetadataEditor(
         null -> null
     }) }
     var error by rememberSaveable(candidate.id) { mutableStateOf<String?>(null) }
+    var showDatePicker by rememberSaveable(candidate.id) { mutableStateOf(false) }
+    var showTimePicker by rememberSaveable(candidate.id) { mutableStateOf(false) }
     val palette = rememberCalmEmeraldColors()
     val scheme = MaterialTheme.colorScheme
 
@@ -495,12 +502,7 @@ internal fun ReceiptMetadataEditor(
                             onValueChange = { date = it },
                             label = "Fecha",
                             icon = Icons.Filled.CalendarToday,
-                            onPick = {
-                                val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
-                                android.app.DatePickerDialog(context, { _, year, month, day ->
-                                    date = LocalDate.of(year, month + 1, day).toString()
-                                }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
-                            },
+                            onPick = { showDatePicker = true },
                             displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
                             modifier = fieldModifier.testTag("receipt_date"),
                         )
@@ -509,12 +511,7 @@ internal fun ReceiptMetadataEditor(
                             onValueChange = { time = it },
                             label = "Hora",
                             icon = Icons.Filled.AccessTime,
-                            onPick = {
-                                val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
-                                android.app.TimePickerDialog(context, { _, hour, minute ->
-                                    time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                }, initial.hour, initial.minute, true).show()
-                            },
+                            onPick = { showTimePicker = true },
                             modifier = fieldModifier.testTag("receipt_time"),
                         )
                     }
@@ -606,6 +603,66 @@ internal fun ReceiptMetadataEditor(
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
             }
+        }
+    }
+
+    if (showDatePicker) {
+        WithKipuPickerLocale {
+            val initial = runCatching { LocalDate.parse(date) }.getOrElse { LocalDate.now(lima) }
+            val picker = rememberDatePickerState(
+                initialSelectedDateMillis = initial
+                    .takeIf { it.year in DatePickerDefaults.YearRange }
+                    ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        enabled = picker.selectedDateMillis != null,
+                        onClick = {
+                            picker.selectedDateMillis?.let { millis ->
+                                date = Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC).toLocalDate().toString()
+                            }
+                            showDatePicker = false
+                        },
+                    ) { Text(stringResource(R.string.optional_date_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text(stringResource(R.string.optional_date_cancel))
+                    }
+                },
+            ) {
+                WithKipuPickerLocale {
+                    DatePicker(state = picker, showModeToggle = false)
+                }
+            }
+        }
+    }
+
+    if (showTimePicker) {
+        val initial = runCatching { LocalTime.parse(time) }.getOrElse { LocalTime.now(lima) }
+        val picker = rememberTimePickerState(
+            initialHour = initial.hour,
+            initialMinute = initial.minute,
+            is24Hour = true,
+        )
+        TimePickerDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Hora") },
+            confirmButton = {
+                TextButton(onClick = {
+                    time = LocalTime.of(picker.hour, picker.minute).format(DateTimeFormatter.ofPattern("HH:mm"))
+                    showTimePicker = false
+                }) { Text(stringResource(R.string.optional_date_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.optional_date_cancel))
+                }
+            },
+        ) {
+            WithKipuPickerLocale { TimePicker(state = picker) }
         }
     }
 }

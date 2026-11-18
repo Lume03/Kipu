@@ -147,40 +147,44 @@ internal fun KipuOptionalDateField(
 
     if (showPicker && enabled) {
         // Composing this state only while open also discards a cancelled selection on reopening.
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = optionalDatePickerInitialMillis(value),
-            yearRange = OptionalDatePickerYears,
-        )
-        DatePickerDialog(
-            onDismissRequest = ::closePicker,
-            modifier = Modifier.testTag("$tag-dialog"),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (enabled) {
-                            pickerState.selectedDateMillis?.let { onValueChange(optionalDatePickerIso(it)) }
-                            closePicker()
-                        }
-                    },
-                    enabled = enabled && pickerState.selectedDateMillis != null,
-                    modifier = Modifier.testTag("$tag-confirm"),
-                ) { Text(stringResource(R.string.optional_date_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = ::closePicker, modifier = Modifier.testTag("$tag-cancel")) {
-                    Text(stringResource(R.string.optional_date_cancel))
+        WithKipuPickerLocale {
+            val pickerState = rememberDatePickerState(
+                initialSelectedDateMillis = optionalDatePickerInitialMillis(value),
+                yearRange = OptionalDatePickerYears,
+            )
+            DatePickerDialog(
+                onDismissRequest = ::closePicker,
+                modifier = Modifier.testTag("$tag-dialog"),
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (enabled) {
+                                pickerState.selectedDateMillis?.let { onValueChange(optionalDatePickerIso(it)) }
+                                closePicker()
+                            }
+                        },
+                        enabled = enabled && pickerState.selectedDateMillis != null,
+                        modifier = Modifier.testTag("$tag-confirm"),
+                    ) { Text(stringResource(R.string.optional_date_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = ::closePicker, modifier = Modifier.testTag("$tag-cancel")) {
+                        Text(stringResource(R.string.optional_date_cancel))
+                    }
+                },
+            ) {
+                Column {
+                    if (optionalDateIsOutsidePickerRange(value)) {
+                        Text(stringResource(R.string.optional_date_outside_calendar_range))
+                    }
+                    WithKipuPickerLocale {
+                        DatePicker(
+                            state = pickerState,
+                            showModeToggle = false,
+                            modifier = Modifier.testTag("$tag-picker"),
+                        )
+                    }
                 }
-            },
-        ) {
-            Column {
-                if (optionalDateIsOutsidePickerRange(value)) {
-                    Text(stringResource(R.string.optional_date_outside_calendar_range))
-                }
-                DatePicker(
-                    state = pickerState,
-                    showModeToggle = false,
-                    modifier = Modifier.testTag("$tag-picker"),
-                )
             }
         }
     }

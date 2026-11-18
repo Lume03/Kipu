@@ -22,6 +22,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.kipu.app.ui.component.WithKipuPickerLocale
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import com.kipu.app.feature.categories.presentation.components.MerchantAvatar
 import com.kipu.app.feature.categories.presentation.components.MerchantLogoDrawables
@@ -105,16 +106,22 @@ fun RecurrenceRegistrationScreen(
     }
     val frequencyOptions = linkedMapOf("WEEKLY" to "Semanal", "BIWEEKLY" to "Quincenal", "MONTHLY" to "Mensual", "ANNUALLY" to "Anual", "CUSTOM" to "Personalizada")
     if (showDatePicker) {
-        val picker = rememberDatePickerState(initialSelectedDateMillis = parsedDate?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = { TextButton(onClick = {
-                picker.selectedDateMillis?.let { nextDueDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }
-                validationError = null
-                showDatePicker = false
-            }, modifier = Modifier.testTag("recurrence_date_confirm")) { Text("Listo") } },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") } },
-        ) { DatePicker(state = picker, modifier = Modifier.testTag("recurrence_date_picker")) }
+        WithKipuPickerLocale {
+            val picker = rememberDatePickerState(initialSelectedDateMillis = parsedDate?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli())
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = { TextButton(onClick = {
+                    picker.selectedDateMillis?.let { nextDueDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }
+                    validationError = null
+                    showDatePicker = false
+                }, modifier = Modifier.testTag("recurrence_date_confirm")) { Text("Listo") } },
+                dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") } },
+            ) {
+                WithKipuPickerLocale {
+                    DatePicker(state = picker, modifier = Modifier.testTag("recurrence_date_picker"))
+                }
+            }
+        }
     }
     Column(
         Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),

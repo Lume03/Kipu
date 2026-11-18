@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -114,7 +115,7 @@ internal fun ReferenceSelector(
                         fontWeight = if (isCustomSelected) FontWeight.SemiBold else FontWeight.Normal,
                     ),
                     color = if (isCustomSelected) themeColors.primary else themeColors.inkSecondary,
-                    maxLines = 1,
+                    maxLines = if (LocalDensity.current.fontScale >= 1.3f) 2 else 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.End,
                     modifier = Modifier.weight(1f, fill = false)
