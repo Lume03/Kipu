@@ -62,8 +62,6 @@ import com.kipu.app.feature.plans.domain.model.BillingProductKind
 import com.kipu.app.feature.plans.domain.model.CommercialOption
 import com.kipu.app.feature.plans.domain.model.LocalizedBillingOffer
 import com.kipu.app.feature.plans.domain.model.PurchaseLifecycle
-import com.kipu.app.ui.theme.KipuSelectionRing
-import com.kipu.app.ui.theme.KipuSurfaceContainerLowest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -168,7 +166,7 @@ private fun PurchaseOfferCard(
     developmentMode: Boolean = false,
 ) {
     val borderColor by animateColorAsState(
-        targetValue = if (selected) KipuSelectionRing else MaterialTheme.colorScheme.outlineVariant,
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         animationSpec = if (reduceMotion) tween(0) else spring(dampingRatio = 0.78f, stiffness = 480f),
         label = "purchase-card-border",
     )
@@ -186,7 +184,10 @@ private fun PurchaseOfferCard(
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .testTag("purchase-option-${offer.product.option.name.lowercase()}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = KipuSurfaceContainerLowest),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
         border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation),
     ) {
@@ -205,7 +206,7 @@ private fun PurchaseOfferCard(
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = stringResource(R.string.purchase_option_selected_content_description),
-                        tint = KipuSelectionRing,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -294,7 +295,10 @@ private fun LoadingOffers(reduceMotion: Boolean) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KipuSurfaceContainerLowest),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
