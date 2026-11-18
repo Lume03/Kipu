@@ -260,6 +260,27 @@ class NotificationsViewModelTest {
         assertFalse(model.state.value.isLoading)
     }
 
+    @Test
+    fun `retry failure before emission preserves last snapshot`() = runTest(dispatcher) {
+        var subscriptions = 0
+        val repository = object : NotificationsRepository by FakeRepository(emptyMap()) {
+            override fun observeActive(userId: String): Flow<List<AppNotification>> = kotlinx.coroutines.flow.flow {
+                if (subscriptions++ == 0) emit(listOf(notice("cached", userId, "SYSTEM", NOW)))
+                throw java.io.IOException("read interrupted")
+            }
+        }
+        val model = viewModel(repository)
+        assertEquals(listOf("cached"), model.state.value.visibleNotifications.map { it.id })
+        org.junit.Assert.assertTrue(model.state.value.hasLoadError)
+
+        model.refresh()
+
+        assertEquals(listOf("cached"), model.state.value.visibleNotifications.map { it.id })
+        assertEquals(1, model.unreadCount.value)
+        org.junit.Assert.assertTrue(model.state.value.hasLoadError)
+        org.junit.Assert.assertNotNull(model.state.value.errorMessage)
+    }
+
     private fun viewModel(
         repository: NotificationsRepository,
         access: MutableStateFlow<LocalAccess> = MutableStateFlow(available(USER_A)),

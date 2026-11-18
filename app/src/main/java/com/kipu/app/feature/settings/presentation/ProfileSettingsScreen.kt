@@ -283,7 +283,7 @@ fun ProfileSettingsScreen(
                                         viewModel.stepMonthStart(-1)
                                     },
                                     enabled = state.monthStart > 1,
-                                    modifier = Modifier.size(36.dp).semantics {
+                                    modifier = Modifier.size(48.dp).semantics {
                                         contentDescription = "Disminuir día de corte"
                                     },
                                 ) {
@@ -302,7 +302,7 @@ fun ProfileSettingsScreen(
                                         viewModel.stepMonthStart(1)
                                     },
                                     enabled = state.monthStart < 28,
-                                    modifier = Modifier.size(36.dp).semantics {
+                                    modifier = Modifier.size(48.dp).semantics {
                                         contentDescription = "Aumentar día de corte"
                                     },
                                 ) {

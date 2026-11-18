@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -764,7 +765,7 @@ fun CategoryRootCard(
                         style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
                     )
                     Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(itemVerticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Surface(shape = RoundedCornerShape(4.dp), color = colors.surfaceVariant) {
                             Text(if (item.category.isCustom) "Personalizada" else "Predeterminada",
                                 Modifier.padding(horizontal = 5.dp, vertical = 2.dp),

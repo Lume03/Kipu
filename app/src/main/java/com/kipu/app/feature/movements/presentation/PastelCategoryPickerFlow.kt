@@ -709,14 +709,18 @@ private fun BrowseCategoriesView(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = PastelDesignTokens.TextMain,
                 )
-                Spacer(modifier = Modifier.width(10.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -2347,9 +2351,9 @@ internal fun CustomPastelColorDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Actions: Restablecer & Aplicar color
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -2359,7 +2363,7 @@ internal fun CustomPastelColorDialog(
                             currentValue = hsv[2]
                         },
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .heightIn(min = 48.dp),
                         shape = RoundedCornerShape(12.dp),
                     ) {
@@ -2369,7 +2373,7 @@ internal fun CustomPastelColorDialog(
                     Button(
                         onClick = { onApplyColor(currentHex) },
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .heightIn(min = 48.dp)
                             .testTag("color_modal_apply_button"),
                         shape = RoundedCornerShape(12.dp),

@@ -103,10 +103,10 @@ class NotificationsViewModel @Inject constructor(
         if (userId == null) {
             flowOf(NotificationSourceState(null))
         } else {
+            var latest = NotificationSourceState(userId)
             retryRequests.flatMapLatest {
                 flow {
-                    var latest = NotificationSourceState(userId, loading = true)
-                    emit(latest)
+                    emit(latest.copy(loading = true, error = null))
                     try {
                         repository.observeActive(userId).collect { rows ->
                             latest = NotificationSourceState(userId, rows)
