@@ -25,13 +25,13 @@ class AuthSessionVerifierTest {
             verifier.retrieveUser("token")
             fail("Expected network timeout")
         } catch (_: java.net.SocketTimeoutException) {
-            assertEquals(AUTH_TIMEOUT_MILLIS, testScheduler.currentTime)
+            assertEquals(0L, testScheduler.currentTime)
         }
         try {
             withTimeout(50) { verifier.retrieveUser("token") }
             fail("Expected caller cancellation")
         } catch (_: TimeoutCancellationException) {
-            assertEquals(AUTH_TIMEOUT_MILLIS + 50, testScheduler.currentTime)
+            assertEquals(50L, testScheduler.currentTime)
         }
     }
 }

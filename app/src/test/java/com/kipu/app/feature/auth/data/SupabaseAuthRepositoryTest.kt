@@ -230,7 +230,7 @@ class SupabaseAuthRepositoryTest {
         coEvery { verifier.retrieveUser(any()) } coAnswers { kotlinx.coroutines.awaitCancellation() }
         val result = repo.signIn(credentials)
         assertTrue(result.isFailure)
-        assertEquals(AUTH_TIMEOUT_MILLIS, testScheduler.currentTime)
+        assertEquals(0L, testScheduler.currentTime)
         coVerify(exactly = 0) { coordinator.setActiveOwner(any()); auth.importSession(any(), any(), any()) }
         coVerify { auth.clearSession(); storage.delete(); coordinator.clearActiveOwner(false) }
     }

@@ -94,8 +94,19 @@ class SupabaseAuthenticatedSessionProviderTest {
     @Test
     fun `revoked refresh credential requests login once and preserves local session`() = runTest {
         val provider = provider()
-        val error = mockk<io.github.jan.supabase.auth.exception.AuthRestException>()
-        every { error.errorCode } returns io.github.jan.supabase.auth.exception.AuthErrorCode.RefreshTokenAlreadyUsed
+        val request = mockk<io.ktor.client.request.HttpRequest> {
+            every { url } returns io.ktor.http.Url("https://example.test")
+            every { headers } returns io.ktor.http.Headers.Empty
+            every { method } returns io.ktor.http.HttpMethod.Post
+        }
+        val call = mockk<io.ktor.client.call.HttpClientCall> { every { this@mockk.request } returns request }
+        val response = mockk<io.ktor.client.statement.HttpResponse> {
+            every { this@mockk.call } returns call
+            every { status } returns io.ktor.http.HttpStatusCode.Unauthorized
+        }
+        val error = io.github.jan.supabase.auth.exception.AuthRestException(
+            "refresh_token_already_used", "revoked", response,
+        )
         coEvery { auth.refreshSession(any()) } throws error
         assertNull(provider.refreshSession())
         assertTrue(remote.value is RemoteSession.ReauthenticationRequired)

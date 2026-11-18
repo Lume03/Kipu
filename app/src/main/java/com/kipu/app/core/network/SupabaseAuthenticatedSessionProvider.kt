@@ -6,6 +6,7 @@ import com.kipu.app.core.session.SessionCoordinator
 import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.core.session.LocalAccess
 import com.kipu.app.feature.auth.data.AuthSessionGate
+import com.kipu.app.feature.auth.data.withIsolatedNetworkCall
 import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -50,7 +51,7 @@ class SupabaseAuthenticatedSessionProvider @Inject constructor(
         // Automatic SDK storage loading is disabled: waiting for its Initializing status
         // here can deadlock before Kipu has imported its own encrypted session.
         val refreshed = try {
-            supabaseClient.auth.refreshSession(stored.refreshToken)
+            withIsolatedNetworkCall { supabaseClient.auth.refreshSession(stored.refreshToken) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {

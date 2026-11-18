@@ -299,7 +299,7 @@ class SupabaseAuthRepository @Inject constructor(
                         val current = sessionStorage.load()?.let(StoredAuthSession::parse) ?: return@exclusive true
                         if (current.userId != stored.userId) return@exclusive true
                         val candidate = if (current.hasValidAccessToken(Instant.now())) current else {
-                            val refreshed = supabaseClient.auth.refreshSession(current.refreshToken)
+                            val refreshed = withIsolatedNetworkCall { supabaseClient.auth.refreshSession(current.refreshToken) }
                             check(refreshed.user?.id == current.userId) { "Auth user mismatch" }
                             StoredAuthSession.fromUserSession(refreshed, current.userId, Instant.now())
                         }
@@ -391,7 +391,7 @@ class SupabaseAuthRepository @Inject constructor(
 
             var refreshError: Exception? = null
             val refreshed = try {
-                supabaseClient.auth.refreshSession(stored.refreshToken)
+                withIsolatedNetworkCall { supabaseClient.auth.refreshSession(stored.refreshToken) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {

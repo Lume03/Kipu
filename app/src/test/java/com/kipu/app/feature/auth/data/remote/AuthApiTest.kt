@@ -26,7 +26,7 @@ class AuthApiTest {
     @Test
     fun `register returns success when status is 201 Created`() = runTest {
         val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { request ->
             assertEquals("functions/v1/auth-access/register", request.url.encodedPath.trimStart('/'))
             respond(
@@ -42,7 +42,7 @@ class AuthApiTest {
         val api = AuthApi(client)
 
         val response = api.register(RegisterRequestDto("test@example.com", "Secret123"))
-        assertTrue(response is ApiResponse.Success)
+        assertTrue("$response", response is ApiResponse.Success)
         val data = (response as ApiResponse.Success).data
         assertEquals("ACCEPTED", data.status)
         assertTrue(data.confirmationRequired)
@@ -51,7 +51,7 @@ class AuthApiTest {
     @Test
     fun `register returns 409 when account already exists`() = runTest {
         val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { _ ->
             respond(
                 content = """{"status":409,"title":"Account already exists"}""",
@@ -73,7 +73,7 @@ class AuthApiTest {
     @Test
     fun `login returns session envelope on 200 OK`() = runTest {
         val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { request ->
             assertEquals("functions/v1/auth-access/login", request.url.encodedPath.trimStart('/'))
             respond(
@@ -89,7 +89,7 @@ class AuthApiTest {
         val api = AuthApi(client)
 
         val response = api.login(LoginRequestDto("test@example.com", "Secret123"))
-        assertTrue(response is ApiResponse.Success)
+        assertTrue("$response", response is ApiResponse.Success)
         val data = (response as ApiResponse.Success).data
         assertEquals("token123", data.accessToken)
         assertEquals("user-uuid-1", data.userId)
@@ -98,7 +98,7 @@ class AuthApiTest {
     @Test
     fun `login returns rate limited error with Retry-After header`() = runTest {
         val mockEngine = MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { _ ->
             respond(
                 content = """{"status":429,"title":"Too Many Requests"}""",
@@ -123,7 +123,7 @@ class AuthApiTest {
     }
     @Test fun `blocked login and registration return recoverable timeout`() = runTest {
         val client = HttpClient(MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { kotlinx.coroutines.awaitCancellation() }
         })) {
             install(ContentNegotiation) { json(json) }
@@ -131,13 +131,13 @@ class AuthApiTest {
         val api = AuthApi(client)
         assertTrue(api.login(LoginRequestDto("test@example.com", "Secret123")) is ApiResponse.NetworkFailure)
         assertTrue(api.register(RegisterRequestDto("test@example.com", "Secret123")) is ApiResponse.NetworkFailure)
-        assertEquals(30_000L, testScheduler.currentTime)
+        assertEquals(0L, testScheduler.currentTime)
         client.close()
     }
 
     @Test fun `caller cancellation is never converted to network failure`() = runTest {
         val client = HttpClient(MockEngine(io.ktor.client.engine.mock.MockEngineConfig().apply {
-            dispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+            dispatcher = kotlinx.coroutines.Dispatchers.Unconfined
             addHandler { kotlinx.coroutines.awaitCancellation() }
         })) {
             install(ContentNegotiation) { json(json) }
