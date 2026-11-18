@@ -33,10 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -290,6 +292,12 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
 private fun DepositTotals(statement: StatementImport, lines: List<StatementImportLine>) {
     val palette = rememberCalmEmeraldColors()
     val isMasked = LocalBalanceMasked.current
+    val labelStyle = MaterialTheme.typography.bodySmall
+    val textMeasurer = rememberTextMeasurer()
+    val flowLabels = listOf("Cargos", "Abonos")
+    val labelWidth = with(LocalDensity.current) {
+        flowLabels.maxOf { textMeasurer.measure(it, style = labelStyle, maxLines = 1).size.width }.toDp()
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf(Currency.PEN to statement.reconciledPen, Currency.USD to statement.reconciledUsd).forEach { (currency, matches) ->
             if (lines.any { it.currency == currency } || currency in statement.accountTotals) Column(Modifier.weight(1f).testTag("statement_deposit_totals_${currency.name}"), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -312,9 +320,10 @@ private fun DepositTotals(statement: StatementImport, lines: List<StatementImpor
                         },
                     )
                 }
-                listOf(false, true).forEach { credit ->
+                flowLabels.forEachIndexed { index, label ->
+                    val credit = index == 1
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (credit) "Abonos" else "Cargos", Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
+                        Text(label, Modifier.width(labelWidth), style = labelStyle, color = palette.secondaryMuted, softWrap = false)
                         val total = if (credit) totals?.creditsMinor else totals?.debitsMinor
                         val flowDisplay = total?.let { (if (credit) "+" else "−") + statementSymbol(currency) + (if (isMasked) "••••••" else statementPlainAmount(it)) }
                             ?: statementFlowTotal(lines, currency, credit, isMasked = isMasked)
@@ -392,7 +401,7 @@ private fun ToolsRow(state: StatementReviewUiState, editable: Boolean, onSelectA
             verticalAlignment = Alignment.CenterVertically) {
             TriStateCheckbox(state = toggle, onClick = { onSelectAll(toggle != ToggleableState.On) }, enabled = editable,
                 modifier = Modifier.semantics { contentDescription = "Seleccionar todo" })
-            Text("Seleccionar todo", fontWeight = FontWeight.SemiBold, color = palette.primaryText, maxLines = 1)
+            Text("Seleccionar todo", fontWeight = FontWeight.SemiBold, color = palette.primaryText, maxLines = 2)
         }
         Surface(onClick = onCategorize, enabled = editable && missing > 0, shape = RoundedCornerShape(20.dp), color = palette.tealTint(.14f), contentColor = palette.primaryDeep,
             modifier = Modifier.heightIn(min = 44.dp).testTag("statement_categorize")) {

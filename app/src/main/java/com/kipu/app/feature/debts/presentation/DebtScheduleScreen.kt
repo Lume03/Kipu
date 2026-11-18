@@ -78,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -87,6 +88,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.feature.debts.domain.DebtAmountParser
@@ -696,12 +698,9 @@ private fun ScheduleProjectionTab(
     }
 
     // Section: Cronograma proyectado
-    Row(
+    Layout(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        content = {
             Text("Cronograma proyectado", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             Surface(
                 shape = RoundedCornerShape(6.dp),
@@ -712,12 +711,28 @@ private fun ScheduleProjectionTab(
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = themeColors.inkPrimary,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    softWrap = false,
                 )
             }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(modifier = Modifier.size(6.dp).background(semanticColors.warningText, CircleShape))
+                Text("Sin amortizar", style = MaterialTheme.typography.labelSmall, color = semanticColors.warningText, softWrap = false)
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box(modifier = Modifier.size(6.dp).background(semanticColors.warningText, CircleShape))
-            Text("Sin amortizar", style = MaterialTheme.typography.labelSmall, color = semanticColors.warningText)
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val gap = 8.dp.roundToPx()
+        val available = Constraints(maxWidth = width)
+        val (title, counter, status) = measurables.map { it.measure(available) }
+        val fitsOnOneRow = title.width + gap + counter.width + status.width <= width
+        val metadataHeight = maxOf(counter.height, status.height)
+        val height = if (fitsOnOneRow) maxOf(title.height, metadataHeight) else title.height + gap + metadataHeight
+        val metadataTop = if (fitsOnOneRow) 0 else title.height + gap
+        val rowHeight = if (fitsOnOneRow) height else metadataHeight
+        layout(width, height) {
+            title.placeRelative(0, if (fitsOnOneRow) (height - title.height) / 2 else 0)
+            counter.placeRelative(if (fitsOnOneRow) title.width + gap else 0, metadataTop + (rowHeight - counter.height) / 2)
+            status.placeRelative(width - status.width, metadataTop + (rowHeight - status.height) / 2)
         }
     }
 
