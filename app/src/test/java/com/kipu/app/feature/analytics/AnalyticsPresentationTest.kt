@@ -12,6 +12,7 @@ import com.kipu.app.feature.analytics.presentation.AnalyticsRequest
 import com.kipu.app.feature.analytics.presentation.PercentLabel
 import com.kipu.app.feature.analytics.presentation.activeCount
 import com.kipu.app.feature.analytics.presentation.categoryShares
+import com.kipu.app.feature.analytics.presentation.comparisonRangeLabels
 import com.kipu.app.feature.analytics.presentation.comparisonFractions
 import com.kipu.app.feature.analytics.presentation.datesUi
 import com.kipu.app.feature.analytics.presentation.selectableMonths
@@ -65,6 +66,16 @@ class AnalyticsPresentationTest {
         assertFalse(closedDates.partial)
         assertEquals("31 oct 2026", closedDates.end)
     }
+
+    @Test fun comparisonRangeLabelsIncludeBothMonthsAndYearsWhenNeeded() {
+        val range = AnalyticsPeriod(LocalDate.of(2026, 10, 15), LocalDate.of(2026, 11, 14), zone)
+        assertEquals("15 oct" to "14 nov 2026", range.comparisonRangeLabels(months))
+        val yearBoundary = AnalyticsPeriod(LocalDate.of(2025, 12, 15), LocalDate.of(2026, 1, 14), zone)
+        assertEquals("15 dic 2025" to "14 ene 2026", yearBoundary.comparisonRangeLabels(months))
+        assertEquals(null, currentPeriodForTest().comparisonRangeLabels(months))
+    }
+
+    private fun currentPeriodForTest() = AnalyticsPeriod.currentMonth(today, zone)
 
     @Test fun categorySharesUseNetAmountsAndSortDescending() {
         val result = AnalyticsCalculator.calculate(

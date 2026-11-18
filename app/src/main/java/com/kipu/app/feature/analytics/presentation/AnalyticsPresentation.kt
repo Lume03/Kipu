@@ -84,6 +84,12 @@ fun AnalyticsPeriod.datesUi(monthNames: List<String>, partial: Boolean) = Period
     partial = partial,
 )
 
+fun AnalyticsPeriod.comparisonRangeLabels(monthNames: List<String>): Pair<String, String>? {
+    if (YearMonth.from(start) == YearMonth.from(endInclusive)) return null
+    val from = if (start.year == endInclusive.year) "${start.dayOfMonth} ${monthNames[start.monthValue - 1]}" else start.shortLabel(monthNames)
+    return from to endInclusive.shortLabel(monthNames)
+}
+
 /** One bar of the category breakdown; [share] is 0..1 of the currency total. */
 data class CategoryShareUi(val categoryId: String?, val name: String?, val amount: Money, val share: Float, val percentText: String)
 

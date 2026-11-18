@@ -120,6 +120,13 @@ class AnalyticsScreenTest {
         assertEquals(emptyList<AnalyticsPeriod>(), requested)
     }
 
+    @Test fun freeFiltersShowPremiumNoticeWithoutOpeningSheet() {
+        show(AnalyticsUiState.Content(result(currentPeriod, 1_000), premium = false))
+        compose.onNodeWithTag(ANALYTICS_FILTERS_TAG).performClick()
+        compose.onNodeWithTag(ANALYTICS_RESTRICTED_TAG).assertExists()
+        compose.onNodeWithTag(ANALYTICS_FILTER_APPLY_TAG).assertDoesNotExist()
+    }
+
     @Test fun filtersSheetListsSelectorRowsInsteadOfOptionChips() {
         var current = 0
         show(AnalyticsUiState.Content(result(currentPeriod, 1_000), premium = true), onCurrent = { current++ })

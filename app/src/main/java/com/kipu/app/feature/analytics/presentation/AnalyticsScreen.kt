@@ -307,8 +307,8 @@ fun AnalyticsScreen(
                         }
                         item(key = "subline") {
                             PeriodSubline(
-                                result = data.result, monthNames = monthNames, filterCount = ui.filters.activeCount(),
-                                onOpenFilters = { showFilters = true },
+                                result = data.result, monthNames = monthNames, filterCount = ui.filters.activeCount(), premium = data.premium,
+                                onOpenFilters = { if (data.premium) showFilters = true else restricted = true },
                             )
                         }
                         if (restricted && state is AnalyticsUiState.Content) item(key = "restricted") {
@@ -425,7 +425,7 @@ private fun AnalyticsHeader(
 }
 
 @Composable
-private fun PeriodSubline(result: PeriodResult, monthNames: List<String>, filterCount: Int, onOpenFilters: () -> Unit) {
+private fun PeriodSubline(result: PeriodResult, monthNames: List<String>, filterCount: Int, premium: Boolean, onOpenFilters: () -> Unit) {
     val colors = rememberCalmEmeraldColors()
     val dates = result.period.datesUi(monthNames, result.partial)
     // Inside one year the year is noise and makes the line wrap next to the tag and the filters.
@@ -457,6 +457,10 @@ private fun PeriodSubline(result: PeriodResult, monthNames: List<String>, filter
                 if (filterCount > 0) stringResource(R.string.analytics_filters_count, filterCount) else stringResource(R.string.analytics_filters),
                 color = colors.primaryDeep, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge,
             )
+            if (!premium) {
+                Spacer(Modifier.size(4.dp))
+                Icon(Icons.Outlined.Lock, contentDescription = stringResource(R.string.analytics_premium_badge), tint = colors.warningText, modifier = Modifier.size(12.dp))
+            }
         }
     }
 }
@@ -998,7 +1002,10 @@ private fun ComparisonCard(
 private fun comparisonPeriodLabel(result: PeriodResult, fullMonthNames: List<String>): String {
     val period = result.period
     val month = fullMonthNames[period.start.monthValue - 1]
-    return if (result.partial) {
+    val range = period.comparisonRangeLabels(stringArrayResource(R.array.analytics_month_short).toList())
+    return if (range != null) {
+        stringResource(R.string.analytics_range_label, range.first, range.second)
+    } else if (result.partial) {
         stringResource(R.string.analytics_comparison_partial_period, month, period.start.year, period.endInclusive.dayOfMonth)
     } else {
         stringResource(R.string.analytics_comparison_period, month, period.start.year)
