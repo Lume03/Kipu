@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kipu.app.feature.receipts.domain.ReceiptCandidate
 import com.kipu.app.ui.component.LocalBalanceMasked
-import com.kipu.app.ui.component.formatMoneyTextDisplay
+import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.math.BigDecimal
 
@@ -64,25 +64,13 @@ fun ReceiptSavedContent(
             }
             Spacer(Modifier.size(6.dp))
             Text(if (income) "Ingreso registrado" else "Gasto registrado", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = palette.primaryText)
-            saved.amountMinor?.let {
-                val isMasked = LocalBalanceMasked.current
+            saved.amountMinor?.let { amountMinor ->
                 val sign = if (income) "+" else "−"
-                val amountDisplay = formatMoneyTextDisplay(
-                    BigDecimal.valueOf(it, 2).setScale(2).toPlainString(),
-                    "${sign}S/",
-                    isMasked,
-                )
-                Text(
-                    text = amountDisplay,
-                    fontWeight = FontWeight.ExtraBold,
-                    style = MaterialTheme.typography.displaySmall,
+                MoneyText(
+                    amount = "$sign${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}",
+                    currencySymbol = "S/",
                     color = tone,
-                    maxLines = 1,
-                    modifier = Modifier.semantics {
-                        if (isMasked) {
-                            contentDescription = if (income) "Ingreso oculto" else "Gasto oculto"
-                        }
-                    },
+                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold),
                 )
             }
             saved.recipient?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = palette.secondaryMuted, textAlign = TextAlign.Center) }

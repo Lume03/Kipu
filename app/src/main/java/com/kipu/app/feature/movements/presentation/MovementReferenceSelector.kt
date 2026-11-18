@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -113,7 +112,6 @@ internal fun ReferenceSelector(
                     text = summary,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = if (isCustomSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        fontSize = 13.sp
                     ),
                     color = if (isCustomSelected) themeColors.primary else themeColors.inkSecondary,
                     maxLines = 1,

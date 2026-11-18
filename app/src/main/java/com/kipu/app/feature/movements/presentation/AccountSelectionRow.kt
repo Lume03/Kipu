@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -40,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.accounts.domain.model.Account
 import com.kipu.app.feature.accounts.domain.model.AccountPreset
@@ -101,6 +102,8 @@ internal fun AccountSelectionRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center,
@@ -109,7 +112,6 @@ internal fun AccountSelectionRow(
                 text = alias,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                     color = TextPrimarySlate,
                 ),
                 maxLines = 1,
@@ -122,44 +124,68 @@ internal fun AccountSelectionRow(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = TextSecondarySlate,
-                    fontSize = 12.sp,
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+
+            if (isLargeFont) {
+                Spacer(modifier = Modifier.height(4.dp))
+                if (balance != null) {
+                    MoneyText(
+                        money = balance,
+                        color = amountColor,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                        ),
+                    )
+                    Text(
+                        text = statusText,
+                        color = statusColor,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                    )
+                } else {
+                    Text(
+                        text = missingBalanceText,
+                        color = TextSecondarySlate,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        if (!isLargeFont) {
+            Spacer(modifier = Modifier.width(8.dp))
 
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (balance != null) {
-                MoneyText(
-                    money = balance,
-                    color = amountColor,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                    ),
-                )
-                Text(
-                    text = statusText,
-                    color = statusColor,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
-                    ),
-                )
-            } else {
-                Text(
-                    text = missingBalanceText,
-                    color = TextSecondarySlate,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(88.dp),
-                )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (balance != null) {
+                    MoneyText(
+                        money = balance,
+                        color = amountColor,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                        ),
+                    )
+                    Text(
+                        text = statusText,
+                        color = statusColor,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                    )
+                } else {
+                    Text(
+                        text = missingBalanceText,
+                        color = TextSecondarySlate,
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.End,
+                    )
+                }
             }
         }
 

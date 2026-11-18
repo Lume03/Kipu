@@ -50,6 +50,7 @@ import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.KipuChipTone
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
 /** Official mark of the bank or wallet that sent the notification (initials only if the asset is missing). */
@@ -135,7 +136,7 @@ internal fun CaptureNotice(
                     ) {
                         Button(
                             onClick = onAction,
-                            modifier = Modifier.heightIn(min = 44.dp),
+                            modifier = Modifier.heightIn(min = 48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (tone == CaptureNoticeTone.ERROR) scheme.error else if (tone == CaptureNoticeTone.WARNING) palette.warningText else palette.primaryDeep,
@@ -143,7 +144,7 @@ internal fun CaptureNotice(
                             ),
                         ) { Text(actionLabel, fontWeight = FontWeight.Bold) }
                         if (secondaryLabel != null && onSecondary != null) {
-                            androidx.compose.material3.TextButton(onClick = onSecondary, modifier = Modifier.heightIn(min = 44.dp)) {
+                            androidx.compose.material3.TextButton(onClick = onSecondary, modifier = Modifier.heightIn(min = 48.dp)) {
                                 Text(secondaryLabel, fontWeight = FontWeight.Bold, color = fg)
                             }
                         }
@@ -163,6 +164,8 @@ internal fun CaptureDiscardDialog(
     amount: String? = null,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
+    val effectiveAmount = if (isMasked && amount != null) "monto oculto" else amount
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).testTag("capture_discard_dialog"),
@@ -186,9 +189,9 @@ internal fun CaptureDiscardDialog(
                         if (merchant != null) {
                             append("La captura de ")
                             withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(merchant) }
-                            if (amount != null) {
+                            if (effectiveAmount != null) {
                                 append(" por ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(amount) }
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = palette.primaryText)) { append(effectiveAmount) }
                             }
                             append(" saldrá de tus pendientes y se borrará el texto detectado.")
                         } else {
@@ -214,7 +217,10 @@ internal fun CaptureDiscardDialog(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("capture_confirm_discard"),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB91C1C), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
                 ) {
                     Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))

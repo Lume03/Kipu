@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
+import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -114,6 +115,7 @@ fun StatementScanOverlay(summary: StatementScanSummary?, onFinished: () -> Unit)
 
 @Composable
 private fun ScanScene(clock: () -> Float, summary: StatementScanSummary?, waitingForResult: Boolean, onSkip: () -> Unit) {
+    val palette = rememberCalmEmeraldColors()
     val rows = summary?.sample.orEmpty()
     Box(Modifier.fillMaxSize().testTag("statement_scan")
         .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF0B5F58), Color(0xFF073F3A)), Offset(0f, 0f), Offset(300f, 2200f)))) {

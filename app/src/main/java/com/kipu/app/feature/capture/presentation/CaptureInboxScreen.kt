@@ -82,6 +82,9 @@ import com.kipu.app.feature.capture.domain.CaptureInstrumentKind
 import com.kipu.app.feature.capture.domain.CaptureReason
 import com.kipu.app.ui.component.KipuChipTone
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.MoneyText
+import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
 private enum class InboxFilter(val label: String) { ALL("Todas"), MISSING("Faltan datos"), READY("Solo confirmar") }
@@ -283,7 +286,7 @@ private fun FilterPill(label: String, count: Int, selected: Boolean, onClick: ()
         shape = CircleShape,
         color = if (selected) palette.primaryDeep else palette.surfaceCard,
         border = if (selected) null else BorderStroke(1.dp, palette.borderSubtle),
-        modifier = Modifier.heightIn(min = 44.dp).semantics { this.selected = selected },
+        modifier = Modifier.heightIn(min = 48.dp).semantics { this.selected = selected },
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -378,19 +381,37 @@ private fun AssociationCard(candidate: CaptureCandidateRecord, onClick: () -> Un
                 Icon(Icons.Outlined.SyncAlt, contentDescription = null, tint = palette.primaryDeep)
             }
             Column(Modifier.weight(1f)) {
-                Text(
-                    listOfNotNull(candidate.merchantSourceText ?: candidate.provider.displayName(), amount?.let { "$sign$it" }).joinToString(" · "),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = palette.primaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        candidate.merchantSourceText ?: candidate.provider.displayName(),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.primaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (candidate.amountMinor != null) {
+                        Text("·", style = MaterialTheme.typography.titleSmall, color = palette.secondaryMuted)
+                        val rawAmount = formatMinorUnits(candidate.amountMinor)
+                        val sym = currencySymbol(candidate.currency)
+                        MoneyText(
+                            amount = "$sign$rawAmount",
+                            currencySymbol = sym,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = palette.primaryText,
+                        )
+                    }
+                }
                 Text("Elige a qué pago esperado corresponde.", style = MaterialTheme.typography.bodySmall, color = palette.incomeText)
             }
             Button(
                 onClick = onClick,
-                modifier = Modifier.heightIn(min = 44.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = palette.primaryDeep, contentColor = palette.onPrimaryDeep),
             ) { Text("Elegir", fontWeight = FontWeight.Bold) }
@@ -495,6 +516,7 @@ private fun CaptureCandidateCard(
     modifier: Modifier = Modifier,
 ) {
     val palette = rememberCalmEmeraldColors()
+    val isMasked = LocalBalanceMasked.current
     val amount = formatCaptureAmount(candidate.amountMinor, candidate.currency)
     val missing = candidate.missingFields()
     val title = candidate.merchantSourceText?.takeIf(String::isNotBlank) ?: "Comercio sin identificar"
@@ -509,7 +531,8 @@ private fun CaptureCandidateCard(
         null -> "Movimiento"
     }
     val whenLabel = captureRelativeDateTime(candidate.occurredAt ?: candidate.createdAt)
-    val summary = "$directionLabel de ${amount ?: "monto pendiente"} en $title, ${candidate.provider.displayName()}, $whenLabel, " +
+    val amountSpoken = if (isMasked) "monto oculto" else (amount ?: "monto pendiente")
+    val summary = "$directionLabel de $amountSpoken en $title, ${candidate.provider.displayName()}, $whenLabel, " +
         candidate.confidence.displayName().lowercase() + if (missing.isNotEmpty()) ", faltan ${missing.size} datos" else ""
     val primaryReason = candidate.confidenceReasons.firstOrNull()
 
@@ -534,12 +557,24 @@ private fun CaptureCandidateCard(
                         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${candidate.provider.displayName()} · $whenLabel", style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted)
                     }
-                    Text(
-                        text = amount?.let { "$sign$it" } ?: "Sin monto",
-                        style = if (amount == null) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (amount == null) palette.secondaryMuted else amountColor,
-                    )
+                    if (candidate.amountMinor != null) {
+                        val rawAmount = formatMinorUnits(candidate.amountMinor)
+                        val sym = currencySymbol(candidate.currency)
+                        MoneyText(
+                            amount = "$sign$rawAmount",
+                            currencySymbol = sym,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = amountColor,
+                        )
+                    } else {
+                        Text(
+                            text = "Sin monto",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = palette.secondaryMuted,
+                        )
+                    }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ConfidenceChip(candidate.confidence)

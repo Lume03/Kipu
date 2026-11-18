@@ -186,7 +186,7 @@ internal fun StatementLineEditSheet(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(statementSymbol(line.currency).trim(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = palette.secondaryMuted)
                         TextField(amount, { amount = it }, singleLine = true, enabled = !state.busy, modifier = Modifier.weight(1f).testTag("statement_edit_amount"),
-                            textStyle = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = palette.primaryText),
+                            textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold, color = palette.primaryText),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, disabledContainerColor = Color.Transparent,
                                 focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, errorIndicatorColor = Color.Transparent,
@@ -240,7 +240,7 @@ internal fun StatementLineEditSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("COMERCIO")
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(1.5.dp, palette.borderSubtle, RoundedCornerShape(16.dp))
-                        .clickable(enabled = !state.busy) { showMerchant = true }.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp).heightIn(min = 44.dp)
+                        .clickable(enabled = !state.busy) { showMerchant = true }.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp).heightIn(min = 48.dp)
                         .testTag("statement_edit_merchant"),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (merchant != null) StatementMerchantLogo(merchant, size = 40.dp)
@@ -268,7 +268,7 @@ internal fun StatementLineEditSheet(
                     val picked = state.categoriesFor(line.kind).find { it.id == category }
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (picked == null) statementTone("warn").bg else palette.surfaceCard)
                         .border(1.5.dp, if (picked == null) statementTone("warn").border else palette.borderSubtle, RoundedCornerShape(16.dp))
-                        .clickable(enabled = !state.busy) { showCategory = true }.padding(horizontal = 12.dp, vertical = 10.dp).testTag("statement_edit_category"),
+                        .clickable(enabled = !state.busy) { showCategory = true }.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 10.dp).testTag("statement_edit_category"),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatementCategoryTile(picked, size = 40.dp)
                         Column(Modifier.weight(1f)) {
@@ -286,7 +286,7 @@ internal fun StatementLineEditSheet(
                 if (kind == StatementLineKind.CARD_PAYMENT) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel("CUENTA DE ORIGEN")
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(1.5.dp, palette.borderSubtle, RoundedCornerShape(16.dp))
-                        .clickable(enabled = !state.busy) { showSource = true }.padding(horizontal = 12.dp, vertical = 12.dp),
+                        .clickable(enabled = !state.busy) { showSource = true }.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Filled.AccountBalance, null, tint = palette.primaryDeep)
                         Text(state.accounts.find { (it.linkedAccountId?.value ?: it.id.value) == sourceAccount }?.alias ?: "Elegir cuenta de origen",

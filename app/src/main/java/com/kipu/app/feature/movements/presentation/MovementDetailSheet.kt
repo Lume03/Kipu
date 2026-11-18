@@ -1,6 +1,12 @@
 package com.kipu.app.feature.movements.presentation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -26,7 +33,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.R
 import com.kipu.app.feature.movements.domain.model.*
 import com.kipu.app.ui.component.KipuBottomSheet
@@ -34,6 +40,7 @@ import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.formatMoneyTextDisplay
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import java.time.Instant
 import java.time.ZoneId
@@ -63,6 +70,7 @@ fun MovementDetailSheet(
     onVoidRejectedRefund: () -> Unit = {},
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val tx = item.transaction
     val voided = tx.status == TransactionStatus.VOIDED
     val terminalError = tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT
@@ -126,14 +134,15 @@ fun MovementDetailSheet(
                     text = "Detalle del movimiento",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
                     ),
-                    modifier = Modifier.semantics { heading() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() },
                 )
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .testTag("btn_close_movement_detail"),
                 ) {
                     Icon(
@@ -167,57 +176,8 @@ fun MovementDetailSheet(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     // Merchant Header with badges
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        when (tx.type) {
-                                            MovementType.EXPENSE -> emeraldColors.expenseBg
-                                            MovementType.INCOME -> emeraldColors.incomeBg
-                                            MovementType.TRANSFER -> emeraldColors.transferBg
-                                        }
-                                    ),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = typeIcon,
-                                    contentDescription = null,
-                                    tint = when (tx.type) {
-                                        MovementType.EXPENSE -> emeraldColors.expenseText
-                                        MovementType.INCOME -> emeraldColors.incomeText
-                                        MovementType.TRANSFER -> emeraldColors.primaryDeep
-                                    },
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
-                            Column {
-                                if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
-                                    text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    color = emeraldColors.secondaryMuted,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = merchantDisplay,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-
-                        // Badges: Type & Verification
+                    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+                    val badgesContent = @Composable {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             // Type pill
                             Surface(
@@ -250,10 +210,43 @@ fun MovementDetailSheet(
 
                             // Verified badge
                             if (!voided) {
+                                val isSynced = tx.syncStatus == MovementSyncStatus.SYNCED
+                                val badgeBg = when {
+                                    pending -> emeraldColors.warningBg
+                                    isSynced -> emeraldColors.incomeBg
+                                    correctionRejected -> MaterialTheme.colorScheme.errorContainer
+                                    else -> emeraldColors.expenseBg
+                                }
+                                val badgeBorder = when {
+                                    pending -> emeraldColors.warningBorder
+                                    isSynced -> emeraldColors.incomeBorder
+                                    correctionRejected -> MaterialTheme.colorScheme.error
+                                    else -> emeraldColors.expenseBorder
+                                }
+                                val badgeTint = when {
+                                    pending -> emeraldColors.warningText
+                                    isSynced -> emeraldColors.incomeText
+                                    correctionRejected -> MaterialTheme.colorScheme.onErrorContainer
+                                    else -> emeraldColors.expenseText
+                                }
+                                val badgeIcon = when {
+                                    pending -> Icons.Rounded.Sync
+                                    isSynced -> Icons.Rounded.CheckCircle
+                                    else -> Icons.Rounded.Cancel
+                                }
+                                val badgeText = when {
+                                    terminalError -> "No sincronizado"
+                                    pending -> "Pendiente de sincronizar"
+                                    correctionRejected -> "Corrección no aplicada"
+                                    isSynced -> "Sincronizado"
+                                    tx.syncStatus == MovementSyncStatus.CONFLICT -> "Conflicto de sincronización"
+                                    else -> "No se pudo sincronizar"
+                                }
+
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (pending) emeraldColors.warningBg else if (correctionRejected) MaterialTheme.colorScheme.errorContainer else emeraldColors.incomeBg,
-                                    border = BorderStroke(1.dp, if (pending) emeraldColors.warningBorder else if (correctionRejected) MaterialTheme.colorScheme.error else emeraldColors.incomeBorder),
+                                    color = badgeBg,
+                                    border = BorderStroke(1.dp, badgeBorder),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -261,26 +254,130 @@ fun MovementDetailSheet(
                                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                                     ) {
                                         Icon(
-                                            imageVector = if (pending) Icons.Rounded.Sync else if (correctionRejected) Icons.Rounded.Cancel else Icons.Rounded.CheckCircle,
+                                            imageVector = badgeIcon,
                                             contentDescription = null,
-                                            tint = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
+                                            tint = badgeTint,
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
-                                            text = when {
-                                                terminalError -> "No sincronizado"
-                                                pending -> "Pendiente de sincronizar"
-                                                correctionRejected -> "Corrección no aplicada"
-                                                tx.syncStatus == MovementSyncStatus.SYNCED -> "Sincronizado"
-                                                tx.syncStatus == MovementSyncStatus.CONFLICT -> "Conflicto de sincronización"
-                                                else -> "No se pudo sincronizar"
-                                            },
+                                            text = badgeText,
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = if (pending) emeraldColors.warningText else if (correctionRejected) MaterialTheme.colorScheme.onErrorContainer else emeraldColors.incomeText,
+                                            color = badgeTint,
                                         )
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    if (isLargeFont) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            when (tx.type) {
+                                                MovementType.EXPENSE -> emeraldColors.expenseBg
+                                                MovementType.INCOME -> emeraldColors.incomeBg
+                                                MovementType.TRANSFER -> emeraldColors.transferBg
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = typeIcon,
+                                        contentDescription = null,
+                                        tint = when (tx.type) {
+                                            MovementType.EXPENSE -> emeraldColors.expenseText
+                                            MovementType.INCOME -> emeraldColors.incomeText
+                                            MovementType.TRANSFER -> emeraldColors.primaryDeep
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
+                                        text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = emeraldColors.secondaryMuted,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = merchantDisplay,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.padding(start = 56.dp),
+                            ) {
+                                badgesContent()
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            when (tx.type) {
+                                                MovementType.EXPENSE -> emeraldColors.expenseBg
+                                                MovementType.INCOME -> emeraldColors.incomeBg
+                                                MovementType.TRANSFER -> emeraldColors.transferBg
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = typeIcon,
+                                        contentDescription = null,
+                                        tint = when (tx.type) {
+                                            MovementType.EXPENSE -> emeraldColors.expenseText
+                                            MovementType.INCOME -> emeraldColors.incomeText
+                                            MovementType.TRANSFER -> emeraldColors.primaryDeep
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column {
+                                    if (debtSettlement || !item.merchantName.isNullOrBlank() || tx.type == MovementType.TRANSFER) Text(
+                                        text = if (debtSettlement) "OPERACIÓN DE DEUDA" else if (tx.type == MovementType.EXPENSE) "COMERCIO" else if (tx.type == MovementType.INCOME) "ORIGEN" else "OPERACIÓN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = emeraldColors.secondaryMuted,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = merchantDisplay,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+
+                            badgesContent()
                         }
                     }
 
@@ -314,7 +411,6 @@ fun MovementDetailSheet(
                             color = amountColor,
                             style = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 32.sp,
                             ),
                             modifier = Modifier.testTag("detail_amount"),
                         )
@@ -559,7 +655,11 @@ fun MovementDetailSheet(
                 )
             }
 
-            AnimatedVisibility(visible = showRevisions) {
+            AnimatedVisibility(
+                visible = showRevisions,
+                enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+            ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -748,36 +848,69 @@ private fun DetailRow(
     value: String,
     iconColor: Color,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.weight(1f),
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+    if (isLargeFont) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(20.dp),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.padding(start = 30.dp),
             )
         }
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f, fill = false),
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -487,34 +488,67 @@ internal fun ReceiptMetadataEditor(
                         modifier = Modifier.fillMaxWidth().testTag("receipt_amount"),
                     )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ReceiptEditorField(
-                            value = date,
-                            onValueChange = { date = it },
-                            label = "Fecha",
-                            icon = Icons.Filled.CalendarToday,
-                            onPick = {
-                                val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
-                                android.app.DatePickerDialog(context, { _, year, month, day ->
-                                    date = LocalDate.of(year, month + 1, day).toString()
-                                }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
-                            },
-                            displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
-                            modifier = Modifier.weight(1f).testTag("receipt_date"),
-                        )
-                        ReceiptEditorField(
-                            value = time,
-                            onValueChange = { time = it },
-                            label = "Hora",
-                            icon = Icons.Filled.AccessTime,
-                            onPick = {
-                                val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
-                                android.app.TimePickerDialog(context, { _, hour, minute ->
-                                    time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                }, initial.hour, initial.minute, true).show()
-                            },
-                            modifier = Modifier.weight(1f).testTag("receipt_time"),
-                        )
+                    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+                    if (isLargeFont) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ReceiptEditorField(
+                                value = date,
+                                onValueChange = { date = it },
+                                label = "Fecha",
+                                icon = Icons.Filled.CalendarToday,
+                                onPick = {
+                                    val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
+                                    android.app.DatePickerDialog(context, { _, year, month, day ->
+                                        date = LocalDate.of(year, month + 1, day).toString()
+                                    }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
+                                },
+                                displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
+                                modifier = Modifier.fillMaxWidth().testTag("receipt_date"),
+                            )
+                            ReceiptEditorField(
+                                value = time,
+                                onValueChange = { time = it },
+                                label = "Hora",
+                                icon = Icons.Filled.AccessTime,
+                                onPick = {
+                                    val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
+                                    android.app.TimePickerDialog(context, { _, hour, minute ->
+                                        time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
+                                    }, initial.hour, initial.minute, true).show()
+                                },
+                                modifier = Modifier.fillMaxWidth().testTag("receipt_time"),
+                            )
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ReceiptEditorField(
+                                value = date,
+                                onValueChange = { date = it },
+                                label = "Fecha",
+                                icon = Icons.Filled.CalendarToday,
+                                onPick = {
+                                    val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
+                                    android.app.DatePickerDialog(context, { _, year, month, day ->
+                                        date = LocalDate.of(year, month + 1, day).toString()
+                                    }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
+                                },
+                                displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
+                                modifier = Modifier.weight(1f).testTag("receipt_date"),
+                            )
+                            ReceiptEditorField(
+                                value = time,
+                                onValueChange = { time = it },
+                                label = "Hora",
+                                icon = Icons.Filled.AccessTime,
+                                onPick = {
+                                    val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
+                                    android.app.TimePickerDialog(context, { _, hour, minute ->
+                                        time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
+                                    }, initial.hour, initial.minute, true).show()
+                                },
+                                modifier = Modifier.weight(1f).testTag("receipt_time"),
+                            )
+                        }
                     }
 
                     ReceiptEditorField(
@@ -606,28 +640,56 @@ private fun ReceiptDirectionSelector(
 ) {
     val palette = rememberCalmEmeraldColors()
     val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(if (palette.isDark) scheme.surfaceContainer else Color(0xFFEFF3F7), RoundedCornerShape(16.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        ReceiptDirectionOption(
-            label = "Envié · Gasto",
-            icon = Icons.Filled.NorthEast,
-            selected = selectedType == MovementType.EXPENSE,
-            income = false,
-            onClick = { onSelect(MovementType.EXPENSE) },
-            modifier = Modifier.weight(1f),
-        )
-        ReceiptDirectionOption(
-            label = "Recibí · Ingreso",
-            icon = Icons.Filled.ArrowDownward,
-            selected = selectedType == MovementType.INCOME,
-            income = true,
-            onClick = { onSelect(MovementType.INCOME) },
-            modifier = Modifier.weight(1f),
-        )
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+
+    if (isLargeFont) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .background(if (palette.isDark) scheme.surfaceContainer else palette.pillTrack, RoundedCornerShape(16.dp))
+                .padding(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ReceiptDirectionOption(
+                label = "Envié · Gasto",
+                icon = Icons.Filled.NorthEast,
+                selected = selectedType == MovementType.EXPENSE,
+                income = false,
+                onClick = { onSelect(MovementType.EXPENSE) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ReceiptDirectionOption(
+                label = "Recibí · Ingreso",
+                icon = Icons.Filled.ArrowDownward,
+                selected = selectedType == MovementType.INCOME,
+                income = true,
+                onClick = { onSelect(MovementType.INCOME) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .background(if (palette.isDark) scheme.surfaceContainer else palette.pillTrack, RoundedCornerShape(16.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ReceiptDirectionOption(
+                label = "Envié · Gasto",
+                icon = Icons.Filled.NorthEast,
+                selected = selectedType == MovementType.EXPENSE,
+                income = false,
+                onClick = { onSelect(MovementType.EXPENSE) },
+                modifier = Modifier.weight(1f),
+            )
+            ReceiptDirectionOption(
+                label = "Recibí · Ingreso",
+                icon = Icons.Filled.ArrowDownward,
+                selected = selectedType == MovementType.INCOME,
+                income = true,
+                onClick = { onSelect(MovementType.INCOME) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

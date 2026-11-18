@@ -135,15 +135,23 @@ internal data class StatementTone(val bg: Color, val fg: Color, val border: Colo
 
 @Composable
 internal fun statementTone(name: String): StatementTone {
-    val dark = rememberCalmEmeraldColors().isDark
+    val palette = rememberCalmEmeraldColors()
     return when (name) {
-        "ok" -> StatementTone(if (dark) Color(0xFF0A301D) else Color(0xFFDCFCE7), if (dark) Color(0xFF86EFAC) else Color(0xFF166534), if (dark) Color(0xFF14532D) else Color(0xFFA7E3BC))
-        "warn" -> StatementTone(if (dark) Color(0xFF3A2A0B) else Color(0xFFFEF3C7), if (dark) Color(0xFFFCD34D) else Color(0xFF8A4B00), if (dark) Color(0xFF6B4A12) else Color(0xFFF3D58A))
-        "bad" -> StatementTone(if (dark) Color(0xFF3B1216) else Color(0xFFFDECEC), if (dark) Color(0xFFFCA5A5) else Color(0xFFB42F2F), if (dark) Color(0xFF7F1D1D) else Color(0xFFF0B4B4))
-        "violet" -> StatementTone(if (dark) Color(0xFF2A1A44) else Color(0xFFF0E4F7), if (dark) Color(0xFFD8B4FE) else Color(0xFF6E2A8C), if (dark) Color(0xFF4A2A70) else Color(0xFFE0CBEE))
-        "blue" -> StatementTone(if (dark) Color(0xFF11284A) else Color(0xFFE6EEFA), if (dark) Color(0xFF93C5FD) else Color(0xFF1E4E9E), if (dark) Color(0xFF1E3A8A) else Color(0xFFC5D7F2))
-        "teal" -> rememberCalmEmeraldColors().let { StatementTone(it.primaryDeep.copy(alpha = .12f), it.primaryDeep, it.primaryDeep.copy(alpha = .3f)) }
-        else -> rememberCalmEmeraldColors().let { StatementTone(it.pillTrack, it.secondaryMuted, it.borderSubtle) }
+        "ok" -> StatementTone(palette.incomeBg, palette.incomeText, palette.incomeBorder)
+        "warn" -> StatementTone(palette.warningBg, palette.warningText, palette.warningBorder)
+        "bad" -> StatementTone(palette.expenseBg, palette.expenseText, palette.expenseBorder)
+        "violet" -> StatementTone(
+            if (palette.isDark) Color(0xFF2A1A44) else Color(0xFFF0E4F7),
+            if (palette.isDark) Color(0xFFD8B4FE) else Color(0xFF6E2A8C),
+            if (palette.isDark) Color(0xFF4A2A70) else Color(0xFFE0CBEE)
+        )
+        "blue" -> StatementTone(
+            if (palette.isDark) Color(0xFF11284A) else Color(0xFFE6EEFA),
+            if (palette.isDark) Color(0xFF93C5FD) else Color(0xFF1E4E9E),
+            if (palette.isDark) Color(0xFF1E3A8A) else Color(0xFFC5D7F2)
+        )
+        "teal" -> StatementTone(palette.primaryDeep.copy(alpha = .12f), palette.primaryDeep, palette.primaryDeep.copy(alpha = .3f))
+        else -> StatementTone(palette.pillTrack, palette.secondaryMuted, palette.borderSubtle)
     }
 }
 

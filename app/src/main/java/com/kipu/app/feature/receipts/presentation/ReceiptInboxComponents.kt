@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,11 +55,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kipu.app.R
@@ -90,7 +93,7 @@ internal fun ReceiptEmptyHero(onHowToShare: () -> Unit, modifier: Modifier = Mod
         Column(Modifier.padding(20.dp)) {
             ReceiptTravelArt(Modifier.fillMaxWidth().height(132.dp))
             Text("Pasa tus Yapes a Kipu en 3 toques", Modifier.padding(top = 16.dp), color = Color.White,
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp, lineHeight = 30.sp)
+                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             Text("Comparte el comprobante desde Yape y Kipu lo lee por ti.", Modifier.padding(top = 8.dp),
                 color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyLarge)
             Surface(onClick = onHowToShare, shape = RoundedCornerShape(16.dp), color = Color.White, contentColor = Color(0xFF0B5F58),
@@ -141,17 +144,21 @@ private fun ReceiptTravelArt(modifier: Modifier) {
             val head = Path().apply { moveTo(endX - 9.dp.toPx(), y - 9.dp.toPx()); lineTo(endX + 2.dp.toPx(), y + 3.dp.toPx()); lineTo(endX - 13.dp.toPx(), y + 6.dp.toPx()) }
             drawPath(head, Color.White.copy(alpha = .9f), style = Stroke(2.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
-        Column(Modifier.offset(14.dp, 8.dp).size(110.dp, 118.dp).rotate(-6f)
-            .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Color(0xFF042824), spotColor = Color(0xFF042824))
-            .clip(RoundedCornerShape(16.dp)).background(Color.White).padding(horizontal = 12.dp, vertical = 11.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("Yape", Modifier.clip(RoundedCornerShape(50)).background(YapeVioletTint).padding(horizontal = 9.dp, vertical = 1.dp),
-                color = YapeViolet, fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.ExtraBold)
-            Box(Modifier.size(24.dp).background(YapeViolet, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = Color.White)
+        CompositionLocalProvider(
+            LocalDensity provides Density(density = LocalDensity.current.density, fontScale = 1f)
+        ) {
+            Column(Modifier.offset(14.dp, 8.dp).size(110.dp, 118.dp).rotate(-6f)
+                .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Color(0xFF042824), spotColor = Color(0xFF042824))
+                .clip(RoundedCornerShape(16.dp)).background(Color.White).padding(horizontal = 12.dp, vertical = 11.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text("Yape", Modifier.clip(RoundedCornerShape(50)).background(YapeVioletTint).padding(horizontal = 9.dp, vertical = 1.dp),
+                    color = YapeViolet, fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.ExtraBold)
+                Box(Modifier.size(24.dp).background(YapeViolet, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Check, null, Modifier.size(15.dp), tint = Color.White)
+                }
+                Text("S/ 25.00", color = Color(0xFF2A1235), fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                Text("Carlos M.", color = Color(0xFF5B4A66), fontSize = 11.sp, lineHeight = 14.sp)
             }
-            Text("S/ 25.00", color = Color(0xFF2A1235), fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-            Text("Carlos M.", color = Color(0xFF5B4A66), fontSize = 11.sp, lineHeight = 14.sp)
         }
         Image(painterResource(R.drawable.kipu_logo), "Kipu", Modifier.align(Alignment.TopEnd).offset(x = (-12).dp, y = 28.dp).size(84.dp).rotate(4f)
             .shadow(14.dp, RoundedCornerShape(26.dp), ambientColor = Color(0xFF042824), spotColor = Color(0xFF042824)))
@@ -183,21 +190,23 @@ internal fun ReceiptActionRow(icon: ImageVector, title: String, subtitle: String
     modifier: Modifier = Modifier, dashed: Boolean = false) {
     val palette = rememberCalmEmeraldColors()
     val shape = RoundedCornerShape(18.dp)
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
     Row(modifier.fillMaxWidth().heightIn(min = 68.dp).clip(shape)
         .then(if (dashed) Modifier.background(palette.tealTint(.07f)).drawBehind {
             drawRoundRect(palette.primaryDeep.copy(alpha = .45f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
                 style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(7.dp.toPx(), 5.dp.toPx()))))
         } else Modifier.background(palette.surfaceCard).border(1.dp, palette.borderSubtle, shape))
         .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(palette.tealTint()), contentAlignment = Alignment.Center) {
+        verticalAlignment = if (isLargeFont) Alignment.Top else Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.padding(top = if (isLargeFont) 2.dp else 0.dp).size(40.dp).clip(RoundedCornerShape(13.dp)).background(palette.tealTint()), contentAlignment = Alignment.Center) {
             Icon(icon, null, Modifier.size(22.dp), tint = palette.primaryDeep)
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.primaryText)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = palette.secondaryMuted)
         }
-        Icon(Icons.Filled.ChevronRight, null, tint = palette.secondaryMuted)
+        Icon(Icons.Filled.ChevronRight, null, Modifier.padding(top = if (isLargeFont) 2.dp else 0.dp), tint = palette.secondaryMuted)
     }
 }
 

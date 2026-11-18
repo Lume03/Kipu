@@ -741,7 +741,10 @@ fun MovementEditorContent(
                 Button(
                     onClick = onConfirmDiscard,
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB91C1C), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)

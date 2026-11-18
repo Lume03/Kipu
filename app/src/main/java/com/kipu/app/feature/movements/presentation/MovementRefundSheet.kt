@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -116,7 +117,10 @@ fun MovementRefundSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Registrar reembolso", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                androidx.compose.material3.IconButton(onClick = onDismiss, modifier = Modifier.testTag("btn_close_refund")) {
+                androidx.compose.material3.IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp).testTag("btn_close_refund"),
+                ) {
                     Icon(Icons.Rounded.Close, contentDescription = "Cerrar reembolso")
                 }
             }

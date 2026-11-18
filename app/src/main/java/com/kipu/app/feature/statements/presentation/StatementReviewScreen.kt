@@ -95,7 +95,6 @@ fun StatementReviewScreen(
     var cardPicker by remember { mutableStateOf(false) }
     var categoryPicker by remember { mutableStateOf(false) }
     var editId by remember { mutableStateOf<String?>(null) }
-    var menu by remember { mutableStateOf(false) }
     var discardDialog by remember { mutableStateOf(false) }
     var confirmSheet by remember { mutableStateOf(false) }
     var registerRequested by remember { mutableStateOf(false) }
@@ -113,10 +112,8 @@ fun StatementReviewScreen(
                 navigationIcon = { IconButton(onClick = onBack, enabled = !state.busy) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") } },
                 actions = {
                     if (statement?.status == StatementImportStatus.PENDING && state.successCount == null) {
-                        IconButton(onClick = { menu = true }, enabled = !state.busy) { Icon(Icons.Filled.MoreVert, "Más opciones") }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Descartar importación") }, onClick = { menu = false; discardDialog = true },
-                                leadingIcon = { Icon(Icons.Filled.DeleteOutline, null) })
+                        IconButton(onClick = { discardDialog = true }, enabled = !state.busy, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Filled.DeleteOutline, "Descartar importación")
                         }
                     }
                 }, colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.background, titleContentColor = palette.primaryText,
@@ -264,7 +261,7 @@ private fun ReviewHero(state: StatementReviewUiState, statement: StatementImport
                     }
                     Column(Modifier.weight(1f)) {
                         Text(if (deposit) "Elige tu tarjeta de débito" else "Elige la tarjeta", fontWeight = FontWeight.Bold, color = palette.primaryText)
-                        Text(if (deposit && state.debitCards.isEmpty()) "Agrega los últimos 4 dígitos de tu tarjeta de débito en Cuentas › editar cuenta" else if (deposit) "Los movimientos se registrarán en su cuenta vinculada" else "Necesaria para registrar",
+                        Text(if (deposit && state.debitCards.isEmpty()) "Agrega los últimos 4 dígitos de tu tarjeta de débito en Mi dinero › editar cuenta" else if (deposit) "Los movimientos se registrarán en su cuenta vinculada" else "Necesaria para registrar",
                             style = MaterialTheme.typography.bodySmall, color = statementTone("warn").fg)
                     }
                     Icon(Icons.Filled.ChevronRight, null, tint = statementTone("warn").fg)
@@ -618,6 +615,7 @@ private fun StatementRegisteringOverlay() {
 
 @Composable
 private fun StatementSuccess(state: StatementReviewUiState, lines: List<StatementImportLine>, onViewMovements: () -> Unit, onDone: () -> Unit) {
+    val palette = rememberCalmEmeraldColors()
     val registered = lines.filter { it.status == StatementImportLineStatus.REGISTERED }
     val categorized = registered.count { it.categoryId != null }
     Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF073F3A))))) {
@@ -668,7 +666,8 @@ private fun StatementDiscardDialog(busy: Boolean, onDismiss: () -> Unit, onDisca
                 Text("Se descartarán los movimientos pendientes y lo que ya elegiste. Los movimientos que ya registraste se conservan; tu saldo no cambia.",
                     style = MaterialTheme.typography.bodyMedium, color = palette.secondaryMuted, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(6.dp))
-                Button(onClick = onDiscard, enabled = !busy, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = bad.fg, contentColor = Color.White),
+                Button(onClick = onDiscard, enabled = !busy, shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp).testTag("statement_confirm_discard")) {
                     Icon(Icons.Filled.DeleteOutline, null, Modifier.size(19.dp)); Spacer(Modifier.width(9.dp)); Text("Sí, descartar", fontWeight = FontWeight.Bold)
                 }

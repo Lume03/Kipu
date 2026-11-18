@@ -129,6 +129,7 @@ import com.kipu.app.feature.accounts.domain.model.CreditCard
 import com.kipu.app.core.finance.domain.model.Money
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.symbol
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuMotionTokens
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
@@ -417,7 +418,6 @@ fun QuickMovementContent(
                     text = stringResource(R.string.movement_register_title),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
                     ),
                     color = emeraldColors.primaryText,
                     modifier = Modifier.weight(1f, fill = false),
@@ -639,7 +639,6 @@ fun QuickMovementContent(
                             Text(
                                 "0.00",
                                 style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontSize = 32.sp,
                                     fontFeatureSettings = "tnum",
                                     fontWeight = FontWeight.Bold,
                                     color = emeraldColors.secondaryMuted,
@@ -650,14 +649,12 @@ fun QuickMovementContent(
                             Text(
                                 "$signPrefix$currSymbol",
                                 style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontSize = 32.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = heroText,
                                 )
                             )
                         },
                         textStyle = MaterialTheme.typography.headlineLarge.copy(
-                            fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
                             fontFeatureSettings = "tnum",
                             color = heroText,
@@ -721,8 +718,8 @@ fun QuickMovementContent(
                     }
                     else -> Icons.Default.AccountBalanceWallet
                 }
-                val bg = if (emeraldColors.isDark) Color(0xFF134E4A) else Color(0xFFE6F7F3)
-                val tint = if (emeraldColors.isDark) Color(0xFF5EEAD4) else Color(0xFF075E52)
+                val bg = emeraldColors.incomeBg
+                val tint = emeraldColors.incomeText
                 Triple(icon, bg, tint)
             }
 
@@ -808,7 +805,7 @@ fun QuickMovementContent(
                             supportingText = destinationCard?.let { "Pago de tarjeta · Reduce la deuda" } ?: selectedDestination?.let { "${accountTypeLabel(it.type)} · ${it.currency.name}" }
                                 ?: if (!hasDestinations) "Se requiere otra cuenta distinta en ${uiState.currency}" else "Elige la cuenta que recibirá el monto",
                             icon = Icons.Default.AccountBalanceWallet,
-                            iconBg = if (emeraldColors.isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),
+                            iconBg = emeraldColors.transferBg,
                             iconTint = emeraldColors.transferBlue,
                             onClick = { showDestinationAccountPicker = true },
                             modifier = Modifier.testTag("selector_destination_account"),
@@ -980,11 +977,8 @@ fun QuickMovementContent(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Keep these optional controls in one visibility group so resizing the sheet
                     // (for example, when the keyboard opens) cannot hide the merchant selector.
-                    val (dateBg, dateTint) = if (emeraldColors.isDark) {
-                        Color(0xFF082F49) to Color(0xFF7DD3FC)
-                    } else {
-                        Color(0xFFE0F2FE) to Color(0xFF0284C7)
-                    }
+                    val dateBg = emeraldColors.transferBg
+                    val dateTint = emeraldColors.transferBlue
                     val formattedDate = remember(uiState.occurredAt) { formatTransactionDate(uiState.occurredAt) }
 
                     if (uiState.type != MovementType.TRANSFER || uiState.selectedApplicationId == null) {
@@ -1054,7 +1048,7 @@ fun QuickMovementContent(
         val saveButtonText = if (uiState.selectedApplicationId != null) when (uiState.type) {
             MovementType.EXPENSE -> "Aplicar pago de principal"
             MovementType.INCOME -> "Aplicar cobro de principal"
-            MovementType.TRANSFER -> "Confirmar traslado y reserva"
+            MovementType.TRANSFER -> "Confirmar aporte a meta"
         } else when (uiState.type) {
             MovementType.EXPENSE -> "Guardar gasto"
             MovementType.INCOME -> "Guardar ingreso"
@@ -1067,7 +1061,7 @@ fun QuickMovementContent(
                 enabled = false,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    disabledContainerColor = if (emeraldColors.isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),
+                    disabledContainerColor = emeraldColors.borderSubtle,
                     disabledContentColor = emeraldColors.secondaryMuted,
                 ),
                 modifier = Modifier
@@ -1327,9 +1321,14 @@ private fun CalmEmeraldTypeTab(
             ) {
                 Icon(icon, contentDescription = null, tint = animatedText, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.height(4.dp))
-                Text(label, style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 12.sp), color = animatedText, textAlign = TextAlign.Center)
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    ),
+                    color = animatedText,
+                    textAlign = TextAlign.Center,
+                )
             }
         } else {
             Row(
@@ -1345,7 +1344,6 @@ private fun CalmEmeraldTypeTab(
                     text = label,
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 13.sp,
                     ),
                     color = animatedText,
                     textAlign = TextAlign.Center,
@@ -1388,7 +1386,6 @@ private fun CurrencyCapsuleTab(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 11.sp,
                 ),
                 color = textColor,
             )
@@ -1431,7 +1428,7 @@ private fun TransferAccountRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                style = MaterialTheme.typography.labelSmall,
                 color = emeraldColors.secondaryMuted,
             )
             Text(
@@ -1441,7 +1438,7 @@ private fun TransferAccountRow(
             )
             Text(
                 text = supportingText,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                style = MaterialTheme.typography.labelSmall,
                 color = emeraldColors.secondaryMuted,
             )
         }
@@ -1454,14 +1451,8 @@ private fun TransferAccountRow(
     }
 }
 
-private fun formatMoneyInline(money: Money): String {
-    val currency = when (money.currency.name) {
-        "PEN" -> "S/"
-        "USD" -> "$"
-        else -> money.currency.name
-    }
-    return "$currency ${formatMinorUnits(money.minorUnits)}"
-}
+private fun formatMoneyInline(money: Money): String =
+    "${money.currency.symbol()} ${formatMinorUnits(money.minorUnits)}"
 
 private fun formatTransactionDate(timestamp: Long): String {
     val date = Date(timestamp)

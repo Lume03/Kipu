@@ -1,6 +1,5 @@
 package com.kipu.app.feature.capture.presentation
 
-import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
@@ -64,7 +63,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -82,6 +80,7 @@ import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.KipuChipTone
 import com.kipu.app.ui.component.KipuStatusChip
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlin.math.min
 
@@ -141,8 +140,7 @@ private fun Modifier.reveal(clock: Clock, start: Float, duration: Float = 0.5f, 
 @Composable
 fun CaptureHowItWorksScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
     val palette = rememberCalmEmeraldColors()
-    val context = LocalContext.current
-    val animationsOff = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+    val animationsOff = rememberReducedMotionEnabled()
     var run by rememberSaveable { mutableIntStateOf(0) }
     val time = remember { Animatable(0f) }
     val clock: Clock = remember(time) { { time.value } }
