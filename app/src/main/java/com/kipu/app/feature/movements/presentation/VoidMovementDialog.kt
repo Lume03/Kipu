@@ -211,7 +211,7 @@ fun VoidMovementDialog(
                                     )
                                     Text(
                                         text = if (tx.type == MovementType.TRANSFER) {
-                                            "${item.sourceAccountAlias ?: "Origen"} ? ${item.destinationAccountAlias ?: "Destino"}"
+                                            "${item.sourceAccountAlias ?: "Origen"} → ${item.destinationAccountAlias ?: "Destino"}"
                                         } else {
                                             item.sourceAccountAlias ?: "Cuenta"
                                         },
