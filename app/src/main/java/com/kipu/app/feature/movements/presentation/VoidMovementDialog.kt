@@ -11,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,18 +46,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.ParagraphIntrinsics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kipu.app.R
 import com.kipu.app.feature.movements.domain.model.MovementType
 import com.kipu.app.feature.movements.domain.model.TransactionItem
+import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
+import com.kipu.app.ui.component.formatMoneyTextDisplay
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 
@@ -151,63 +158,103 @@ fun VoidMovementDialog(
                     border = BorderStroke(1.dp, emeraldColors.borderSubtle),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(emeraldColors.pillTrack),
-                                contentAlignment = Alignment.Center,
+                    BoxWithConstraints(Modifier.fillMaxWidth().padding(14.dp)) {
+                        val iconSize = 40.dp
+                        val iconSpacing = 12.dp
+                        val density = LocalDensity.current
+                        val titleStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                        val amountStyle = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFeatureSettings = "tnum",
+                        )
+                        val amount = formatMinorUnits(tx.amountMinor)
+                        val displayedAmount = formatMoneyTextDisplay(amount, currencySymbol, LocalBalanceMasked.current)
+                        val amountWidth = rememberTextMeasurer().measure(displayedAmount, style = amountStyle).size.width
+                        val titleMinWidth = ParagraphIntrinsics(
+                            text = title,
+                            style = titleStyle,
+                            density = density,
+                            fontFamilyResolver = LocalFontFamilyResolver.current,
+                        ).minIntrinsicWidth
+                        val fullTitleWidth = constraints.maxWidth - with(density) {
+                            iconSize.roundToPx() + iconSpacing.roundToPx()
+                        }
+                        val stackAmount = titleMinWidth > fullTitleWidth - amountWidth
+
+                        val details: @Composable (Modifier) -> Unit = { detailsModifier ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(iconSpacing),
+                                modifier = detailsModifier,
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.ReceiptLong,
-                                    contentDescription = null,
-                                    tint = emeraldColors.primaryDeep,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = if (tx.type == MovementType.TRANSFER) {
-                                        "${item.sourceAccountAlias ?: "Origen"} → ${item.destinationAccountAlias ?: "Destino"}"
-                                    } else {
-                                        item.sourceAccountAlias ?: "Cuenta"
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = emeraldColors.secondaryMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(iconSize)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(emeraldColors.pillTrack),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Rounded.ReceiptLong,
+                                        contentDescription = null,
+                                        tint = emeraldColors.primaryDeep,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = title,
+                                        style = titleStyle,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = if (titleMinWidth <= fullTitleWidth) 2 else 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = if (tx.type == MovementType.TRANSFER) {
+                                            "${item.sourceAccountAlias ?: "Origen"} ? ${item.destinationAccountAlias ?: "Destino"}"
+                                        } else {
+                                            item.sourceAccountAlias ?: "Cuenta"
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = emeraldColors.secondaryMuted,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
-                        MoneyText(
-                            amount = formatMinorUnits(tx.amountMinor),
-                            currencySymbol = currencySymbol,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = when (tx.type) {
-                                MovementType.EXPENSE -> emeraldColors.expenseText
-                                MovementType.INCOME -> emeraldColors.incomeText
-                                MovementType.TRANSFER -> emeraldColors.primaryDeep
-                            },
-                        )
+                        val amountText: @Composable (Modifier) -> Unit = { amountModifier ->
+                            MoneyText(
+                                amount = amount,
+                                modifier = amountModifier,
+                                currencySymbol = currencySymbol,
+                                style = amountStyle,
+                                color = when (tx.type) {
+                                    MovementType.EXPENSE -> emeraldColors.expenseText
+                                    MovementType.INCOME -> emeraldColors.incomeText
+                                    MovementType.TRANSFER -> emeraldColors.primaryDeep
+                                },
+                            )
+                        }
+
+                        if (stackAmount) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                details(Modifier.fillMaxWidth())
+                                amountText(Modifier.align(Alignment.End))
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                details(Modifier.weight(1f))
+                                amountText(Modifier)
+                            }
+                        }
                     }
                 }
 

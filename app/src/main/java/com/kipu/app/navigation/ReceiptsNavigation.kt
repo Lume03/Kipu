@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.ReceiptLong
@@ -641,6 +642,8 @@ internal fun ReceiptMetadataEditor(
     }
 
     if (showTimePicker) {
+        val prefersTimeInput = LocalDensity.current.fontScale >= 1.3f
+        var useTimeInput by rememberSaveable { mutableStateOf(prefersTimeInput) }
         val initial = runCatching { LocalTime.parse(time) }.getOrElse { LocalTime.now(lima) }
         val picker = rememberTimePickerState(
             initialHour = initial.hour,
@@ -650,6 +653,14 @@ internal fun ReceiptMetadataEditor(
         TimePickerDialog(
             onDismissRequest = { showTimePicker = false },
             title = { Text("Hora") },
+            modeToggleButton = {
+                IconButton(onClick = { useTimeInput = !useTimeInput }) {
+                    Icon(
+                        imageVector = if (useTimeInput) Icons.Filled.AccessTime else Icons.Filled.Keyboard,
+                        contentDescription = if (useTimeInput) "Elegir hora con el reloj" else "Introducir hora con el teclado",
+                    )
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     time = LocalTime.of(picker.hour, picker.minute).format(DateTimeFormatter.ofPattern("HH:mm"))
@@ -662,7 +673,15 @@ internal fun ReceiptMetadataEditor(
                 }
             },
         ) {
-            WithKipuPickerLocale { TimePicker(state = picker) }
+            WithKipuPickerLocale {
+                if (useTimeInput) {
+                    Box(Modifier.widthIn(min = 256.dp), contentAlignment = Alignment.Center) {
+                        TimeInput(state = picker)
+                    }
+                } else {
+                    TimePicker(state = picker)
+                }
+            }
         }
     }
 }
