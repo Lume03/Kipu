@@ -3,12 +3,16 @@ package com.kipu.app.feature.notifications.presentation
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.hasText
@@ -17,11 +21,72 @@ import com.kipu.app.feature.notifications.domain.AppNotification
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class NotificationCenterScreenTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun failedReadShowsRetryWithoutTheEmptySuccessMessage() {
+        var retries = 0
+        compose.setContent {
+            KipuTheme {
+                NotificationCenterScreen(
+                    state = NotificationsUiState(errorMessage = "No pudimos cargar tus notificaciones.", hasLoadError = true),
+                    unreadCount = 0, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
+                    onDismiss = {}, onOpenNotification = {}, onNavigateBack = {},
+                    onRefresh = { retries++ }, reducedMotion = true,
+                )
+            }
+        }
+        compose.onNodeWithTag("notification-error").assertIsDisplayed()
+        compose.onNodeWithText("Todo al día. No tienes avisos pendientes").assertDoesNotExist()
+        compose.onNodeWithText("Reintentar").performClick()
+        assertEquals(1, retries)
+        captureIssue99("notifications-read-error")
+    }
+
+    @Test
+    fun refreshingKeepsCachedContentVisibleAtTwoHundredPercent() {
+        val notice = AppNotification(
+            id = "qa", userId = "qa-owner", title = "Aviso de prueba", body = "Datos sintéticos",
+            notificationType = "SYSTEM", referenceEntityType = null, referenceEntityId = null,
+            isRead = false, createdAt = Instant.parse("2026-11-16T00:00:00Z"), deletedAt = null,
+        )
+        val notices = listOf(notice, notice.copy(id = "qa-read", title = "Otro aviso de prueba", isRead = true))
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                KipuTheme(darkTheme = true) {
+                    NotificationCenterScreen(
+                        state = NotificationsUiState(notifications = notices, visibleNotifications = notices, isRefreshing = true),
+                        unreadCount = 1, onFilterSelected = {}, onMarkAllRead = {}, onMarkRead = {},
+                        onDismiss = {}, onOpenNotification = {}, onNavigateBack = {}, reducedMotion = true,
+                    )
+                }
+            }
+        }
+        compose.onNodeWithText("Actualizando…").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Aviso de prueba", useUnmergedTree = true).assertIsDisplayed()
+        captureIssue99("notifications-dark-font200-refresh")
+        compose.onNodeWithContentDescription("Borrar leídas").assertIsDisplayed()
+        val actionBounds = compose.onNodeWithText("Marcar todas como leídas").getUnclippedBoundsInRoot()
+        val screenBounds = compose.onRoot().getUnclippedBoundsInRoot()
+        assertTrue("La acción debe caber al 200 % sin recortes laterales",
+            actionBounds.left >= screenBounds.left && actionBounds.right <= screenBounds.right)
+    }
+
+    private fun captureIssue99(name: String) {
+        compose.waitForIdle()
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val file = java.io.File(instrumentation.targetContext.filesDir, "issue99-evidence/$name.png")
+        file.parentFile!!.mkdirs()
+        val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+    }
 
     @Test
     fun emptyCenterShowsApprovedCopyOnFirstLocalRender() {

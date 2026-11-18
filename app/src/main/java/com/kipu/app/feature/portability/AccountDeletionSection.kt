@@ -48,7 +48,7 @@ fun AccountDeletionSection(viewModel: AccountDeletionViewModel, onCompleted: () 
                             TextButton(onClick = { uri.openUri("https://play.google.com/store/account/subscriptions") }) { Text("Gestionar suscripción en Google Play") }
                         }
                         DeletionStep.REAUTH -> {
-                            Text("Introduce la contraseña del correo con el que inicias sesión en Kipu. Necesitas conexión a Internet.")
+                            Text("Introduce la contraseña de tu cuenta Kipu. Necesitas conexión a Internet.")
                             if (viewModel.recoveryMode) OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo de la cuenta") }, singleLine = true, enabled = !state.busy)
                             OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Contraseña actual") },
                                 visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy)

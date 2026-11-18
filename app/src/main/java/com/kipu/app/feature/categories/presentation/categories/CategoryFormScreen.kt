@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -188,6 +189,7 @@ fun CategoryFormContent(
 ) {
     val colors = rememberKipuColors()
     val isSubcategory = parentId != null
+    val stackParentAction = LocalDensity.current.fontScale > 1f
     var showParentChooserDialog by remember { mutableStateOf(false) }
     var showIconCatalogDialog by remember { mutableStateOf(false) }
     var showColorModalDialog by remember { mutableStateOf(false) }
@@ -325,7 +327,7 @@ fun CategoryFormContent(
                             )
                         }
 
-                        if (!isEditing && availableRoots.isNotEmpty()) {
+                        if (!isEditing && availableRoots.isNotEmpty() && !stackParentAction) {
                             TextButton(
                                 onClick = { showParentChooserDialog = true },
                                 modifier = Modifier
@@ -339,6 +341,22 @@ fun CategoryFormContent(
                                     fontSize = 13.sp,
                                 )
                             }
+                        }
+                    }
+                    if (!isEditing && availableRoots.isNotEmpty() && stackParentAction) {
+                        TextButton(
+                            onClick = { showParentChooserDialog = true },
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .heightIn(min = 48.dp)
+                                .testTag("category_form_change_parent_button"),
+                        ) {
+                            Text(
+                                text = "Cambiar >",
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primaryText,
+                                fontSize = 13.sp,
+                            )
                         }
                     }
                 }
@@ -397,7 +415,7 @@ fun CategoryFormContent(
                             )
                         }
 
-                        if (!isEditing && availableRoots.isNotEmpty()) {
+                        if (!isEditing && availableRoots.isNotEmpty() && !stackParentAction) {
                             TextButton(
                                 onClick = { showParentChooserDialog = true },
                                 modifier = Modifier
@@ -413,28 +431,65 @@ fun CategoryFormContent(
                             }
                         }
                     }
+                    if (!isEditing && availableRoots.isNotEmpty() && stackParentAction) {
+                        TextButton(
+                            onClick = { showParentChooserDialog = true },
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .heightIn(min = 48.dp)
+                                .testTag("category_form_change_parent_button"),
+                        ) {
+                            Text(
+                                text = "Vincular a padre >",
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primaryText,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
                 }
             }
 
             // 2. NOMBRE DE LA SUBCATEGORÍA / CATEGORÍA
             Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
+                val nameLabel = if (isSubcategory) "NOMBRE DE LA SUBCATEGORÍA" else "NOMBRE DE LA CATEGORÍA"
+                val nameCount = "(${name.length}/30)"
+                if (stackParentAction) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = nameLabel,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.inkSecondary,
+                            letterSpacing = 1.sp,
+                        )
+                        Text(
+                            text = nameCount,
+                            modifier = Modifier.align(Alignment.End),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.inkSecondary,
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
                     Text(
-                        text = if (isSubcategory) "NOMBRE DE LA SUBCATEGORÍA" else "NOMBRE DE LA CATEGORÍA",
+                        text = nameLabel,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.inkSecondary,
                         letterSpacing = 1.sp,
                     )
                     Text(
-                        text = "(${name.length}/30)",
+                        text = nameCount,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.inkSecondary,
                     )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))

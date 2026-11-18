@@ -17,15 +17,17 @@ import com.kipu.app.feature.notifications.domain.UNAVAILABLE_DESTINATION_MESSAGE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -47,6 +49,22 @@ data class NotificationsUiState(
     val isLoading: Boolean = false,
     val pendingDismissal: PendingNotificationDismissal? = null,
     val emptyMessage: String = "Todo al día. No tienes avisos pendientes",
+    val isRefreshing: Boolean = false,
+    val errorMessage: String? = null,
+    val hasLoadError: Boolean = false,
+)
+
+private data class NotificationSourceState(
+    val userId: String?,
+    val rows: List<AppNotification> = emptyList(),
+    val loading: Boolean = false,
+    val error: String? = null,
+)
+
+private data class NotificationRefreshState(
+    val userId: String? = null,
+    val refreshing: Boolean = false,
+    val error: String? = null,
 )
 
 sealed interface NotificationsUiEvent {
@@ -79,11 +97,28 @@ class NotificationsViewModel @Inject constructor(
         .map { access -> (access as? LocalAccess.Available)?.userId }
         .distinctUntilChanged()
 
+    private val retryRequests = MutableStateFlow(0L)
+    private val refreshState = MutableStateFlow(NotificationRefreshState())
     private val sourceNotifications = activeUserId.flatMapLatest { userId ->
         if (userId == null) {
-            flowOf(emptyList())
+            flowOf(NotificationSourceState(null))
         } else {
-            repository.observeActive(userId).catch { emit(emptyList()) }
+            retryRequests.flatMapLatest {
+                flow {
+                    var latest = NotificationSourceState(userId, loading = true)
+                    emit(latest)
+                    try {
+                        repository.observeActive(userId).collect { rows ->
+                            latest = NotificationSourceState(userId, rows)
+                            emit(latest)
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        emit(latest.copy(loading = false, error = "No pudimos cargar tus notificaciones. Inténtalo nuevamente."))
+                    }
+                }
+            }
         }
     }
 
@@ -96,7 +131,11 @@ class NotificationsViewModel @Inject constructor(
         sourceNotifications,
         selectedFilter,
         pendingDismissals,
-    ) { userId, rows, filter, pending ->
+        refreshState,
+    ) { userId, source, filter, pending, refresh ->
+        val currentSource = source.takeIf { it.userId == userId }
+        val currentRefresh = refresh.takeIf { it.userId == userId }
+        val rows = currentSource?.rows.orEmpty()
         val hiddenIds = pending.values.filter { it.userId == userId }.mapTo(hashSetOf()) { it.notificationId }
         val ordered = rows.asSequence()
             .filter { it.userId == userId && it.deletedAt == null && it.id !in hiddenIds }
@@ -115,12 +154,17 @@ class NotificationsViewModel @Inject constructor(
             visibleNotifications = visible,
             selectedFilter = filter,
             pendingDismissal = pending.values.firstOrNull { it.userId == userId && it.phase == NotificationDismissalPhase.PENDING },
+            isLoading = userId != null && (currentSource == null || currentSource.loading) && ordered.isEmpty(),
+            isRefreshing = currentRefresh?.refreshing == true,
+            errorMessage = currentSource?.error ?: currentRefresh?.error,
+            hasLoadError = currentSource?.error != null,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotificationsUiState())
 
-    val unreadCount: StateFlow<Int> = activeUserId.flatMapLatest { userId ->
-        if (userId == null) flowOf(0) else dismissalQueue.observeUnreadCount(userId)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val unreadCount: StateFlow<Int> = state
+        .map { current -> current.notifications.count { !it.isRead } }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     init {
         viewModelScope.launch {
@@ -144,7 +188,33 @@ class NotificationsViewModel @Inject constructor(
 
     fun refresh() {
         val userId = currentUserId() ?: return
-        viewModelScope.launch { repository.refresh(userId) }
+        if (refreshState.value.userId == userId && refreshState.value.refreshing) return
+        if (state.value.hasLoadError) retryRequests.value += 1
+        refreshState.value = NotificationRefreshState(userId, refreshing = true)
+        viewModelScope.launch {
+            try {
+                val result = repository.refresh(userId)
+                if (currentUserId() == userId) {
+                    refreshState.value = NotificationRefreshState(
+                        userId,
+                        error = if (result.isFailure) "No pudimos actualizar tus notificaciones. Tus avisos guardados siguen disponibles." else null,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (currentUserId() == userId) {
+                    refreshState.value = NotificationRefreshState(
+                        userId,
+                        error = "No pudimos actualizar tus notificaciones. Tus avisos guardados siguen disponibles.",
+                    )
+                }
+            } finally {
+                if (refreshState.value.userId == userId && refreshState.value.refreshing) {
+                    refreshState.value = refreshState.value.copy(refreshing = false)
+                }
+            }
+        }
     }
 
     fun markRead(notificationId: String) {

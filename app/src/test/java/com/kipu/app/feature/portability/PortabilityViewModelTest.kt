@@ -31,10 +31,13 @@ class PortabilityViewModelTest {
             assertEquals(2, vm.state.value.pending?.total)
             vm.restore(); advanceUntilIdle()
             assertEquals(RestoreStatus.PARTIAL, vm.state.value.restore?.status)
+            assertEquals(PortabilityMessageKind.WARNING, vm.state.value.messageKind)
             vm.restore(true); advanceUntilIdle()
             assertEquals(RestoreStatus.COMPLETED, vm.state.value.restore?.status)
+            assertEquals(PortabilityMessageKind.SUCCESS, vm.state.value.messageKind)
             vm.export(mockk<Uri>(), true); advanceUntilIdle()
             assertTrue(vm.state.value.message!!.startsWith("No se pudo"))
+            assertEquals(PortabilityMessageKind.ERROR, vm.state.value.messageKind)
             every { session.currentOwner } returns LocalOwner("other")
             vm.restore(); advanceUntilIdle()
             coVerify(exactly = 2) { restore(any(), any()) }

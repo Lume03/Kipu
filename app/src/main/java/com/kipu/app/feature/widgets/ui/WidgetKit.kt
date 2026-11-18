@@ -118,13 +118,14 @@ internal object WidgetLinks {
 
 internal fun Money.text(hide: Boolean, decimals: Boolean = false): String {
     if (hide) return "${currency.symbol()} ••••"
-    val units = formatMinorUnits(kotlin.math.abs(minorUnits))
-    val body = if (decimals) units else units.substringBefore('.')
+    val units = formatMinorUnits(minorUnits).removePrefix("-")
+    // Compact labels may omit zero decimals, but must never silently discard cents.
+    val body = if (decimals || minorUnits % 100L != 0L) units else units.substringBefore('.')
     return (if (minorUnits < 0) "−" else "") + currency.symbol() + " " + body
 }
 
 internal fun Money.signed(hide: Boolean): String =
-    if (hide) "${currency.symbol()} ••••" else (if (minorUnits < 0) "−" else "+") + text(false)
+    if (hide) text(true) else (if (minorUnits < 0) "" else "+") + text(false)
 
 private val shortDate = DateTimeFormatter.ofPattern("EEE d MMM", Locale("es", "PE"))
 private val dayMonth = DateTimeFormatter.ofPattern("d MMM", Locale("es", "PE"))
@@ -272,9 +273,14 @@ internal fun ActionChip(text: String, action: Action, filled: Boolean = true, ic
 @Composable
 internal fun RoundAction(glyph: Bitmap, action: Action, description: String, size: Dp = 40.dp) {
     Box(
-        modifier = GlanceModifier.size(size).background(WColors.brand).cornerRadius(size / 2).clickable(action),
+        modifier = GlanceModifier.size(maxOf(size, 48.dp)).clickable(action),
         contentAlignment = Alignment.Center,
-    ) { Pic(glyph, size * 0.55f, description = description, tint = WColors.onBrand) }
+    ) {
+        Box(
+            modifier = GlanceModifier.size(size).background(WColors.brand).cornerRadius(size / 2),
+            contentAlignment = Alignment.Center,
+        ) { Pic(glyph, size * 0.55f, description = description, tint = WColors.onBrand) }
+    }
 }
 
 @Composable

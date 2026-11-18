@@ -1940,7 +1940,7 @@ internal fun CustomPastelColorDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
@@ -2039,13 +2039,13 @@ internal fun CustomPastelColorDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text("Tono", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PastelDesignTokens.TextMain)
+                            Text("Tono", modifier = Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PastelDesignTokens.TextMain)
                             Text("${currentHue.toInt()}°", fontSize = 12.sp, color = PastelDesignTokens.TextMuted)
                         }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(36.dp),
+                                .heightIn(min = 48.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Box(
@@ -2067,7 +2067,7 @@ internal fun CustomPastelColorDialog(
                                 onValueChange = { currentHue = it },
                                 valueRange = 0f..360f,
                                 thumb = { ColorPickerThumb() },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Tono" },
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color.White,
                                     activeTrackColor = Color.Transparent,
@@ -2082,13 +2082,13 @@ internal fun CustomPastelColorDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text("Suavidad / Saturación", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PastelDesignTokens.TextMain)
+                            Text("Suavidad / Saturación", modifier = Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PastelDesignTokens.TextMain)
                             Text("${(currentSaturation * 100).toInt()}%", fontSize = 12.sp, color = PastelDesignTokens.TextMuted)
                         }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(36.dp),
+                                .heightIn(min = 48.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Box(
@@ -2107,7 +2107,7 @@ internal fun CustomPastelColorDialog(
                                 onValueChange = { currentSaturation = it },
                                 valueRange = 0f..1f,
                                 thumb = { ColorPickerThumb() },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Saturación" },
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color.White,
                                     activeTrackColor = Color.Transparent,
@@ -2360,7 +2360,7 @@ internal fun CustomPastelColorDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .heightIn(min = 48.dp),
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Text("Restablecer", color = PastelDesignTokens.TextMuted, fontWeight = FontWeight.SemiBold)
@@ -2370,7 +2370,7 @@ internal fun CustomPastelColorDialog(
                         onClick = { onApplyColor(currentHex) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .heightIn(min = 48.dp)
                             .testTag("color_modal_apply_button"),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = rememberKipuColors().primary),

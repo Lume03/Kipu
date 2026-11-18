@@ -194,7 +194,7 @@ internal fun SetupOtpContent(
                 }
                 if (!compact) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("¿Correo equivocado?", color = colors.secondaryMuted, style = MaterialTheme.typography.bodyMedium)
-                    Text("Cámbialo", Modifier.heightIn(min = 44.dp).clickable(onClick = onChangeEmail).padding(horizontal = 6.dp, vertical = 12.dp),
+                    Text("Cámbialo", Modifier.heightIn(min = 48.dp).clickable(onClick = onChangeEmail).padding(horizontal = 6.dp, vertical = 12.dp),
                         color = colors.primaryDeep, fontWeight = FontWeight.ExtraBold)
                 }
                 Spacer(Modifier.height(12.dp))
@@ -345,13 +345,13 @@ private fun OtpMessage(state: SetupOtpState) {
 private fun OtpTimer(state: SetupOtpState, onResend: () -> Unit) {
     val colors = rememberCalmEmeraldColors()
     if (state.resendSeconds > 0) {
-        Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             Icon(Icons.Rounded.Schedule, null, Modifier.size(16.dp), tint = colors.secondaryMuted)
             Text("Podrás pedir otro en ${formatClock(state.resendSeconds)}", color = colors.secondaryMuted, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         }
     } else if (state.lockedSeconds == 0) {
         Row(
-            Modifier.heightIn(min = 44.dp).clickable(onClick = onResend).padding(horizontal = 12.dp).testTag("setup-otp-resend"),
+            Modifier.heightIn(min = 48.dp).clickable(onClick = onResend).padding(horizontal = 12.dp).testTag("setup-otp-resend"),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Icon(Icons.Rounded.Refresh, null, Modifier.size(17.dp), tint = colors.primaryDeep)

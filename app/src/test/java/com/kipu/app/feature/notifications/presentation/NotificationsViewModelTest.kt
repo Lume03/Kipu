@@ -176,6 +176,90 @@ class NotificationsViewModelTest {
         assertEquals(1, repository.markReadCalls)
     }
 
+    @Test
+    fun `local read failure is visible and retry resubscribes to the source`() = runTest(dispatcher) {
+        var fail = true
+        var subscriptions = 0
+        val rows = listOf(notice("cached", USER_A, "SYSTEM", NOW))
+        val repository = object : NotificationsRepository by FakeRepository(emptyMap()) {
+            override fun observeActive(userId: String): Flow<List<AppNotification>> = kotlinx.coroutines.flow.flow {
+                subscriptions++
+                if (fail) throw java.io.IOException("local read")
+                emit(rows)
+            }
+        }
+        val model = viewModel(repository)
+        org.junit.Assert.assertTrue(model.state.value.hasLoadError)
+        org.junit.Assert.assertNotNull(model.state.value.errorMessage)
+        assertFalse(model.state.value.isLoading)
+        val subscriptionsBeforeRetry = subscriptions
+        fail = false
+        model.refresh()
+        assertEquals(subscriptionsBeforeRetry + 1, subscriptions)
+        assertEquals(listOf("cached"), model.state.value.notifications.map { it.id })
+        assertEquals(1, model.unreadCount.value)
+        assertFalse(model.state.value.hasLoadError)
+        org.junit.Assert.assertNull(model.state.value.errorMessage)
+    }
+
+    @Test
+    fun `failed remote refresh keeps cached notices and exposes progress and retry`() = runTest(dispatcher) {
+        val result = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+        var calls = 0
+        val repository = object : NotificationsRepository by FakeRepository(mapOf(USER_A to listOf(notice("cached", USER_A, "SYSTEM", NOW)))) {
+            override suspend fun refresh(userId: String): Result<Unit> {
+                calls++
+                return result.await()
+            }
+        }
+        val model = viewModel(repository)
+        model.refresh()
+        org.junit.Assert.assertTrue(model.state.value.isRefreshing)
+        assertEquals(listOf("cached"), model.state.value.notifications.map { it.id })
+        model.refresh()
+        assertEquals(1, calls)
+        result.complete(Result.failure(java.io.IOException("offline")))
+        assertFalse(model.state.value.isRefreshing)
+        assertFalse(model.state.value.hasLoadError)
+        org.junit.Assert.assertNotNull(model.state.value.errorMessage)
+        assertEquals(listOf("cached"), model.state.value.notifications.map { it.id })
+    }
+
+    @Test
+    fun `old refresh failure cannot expose an error or cached rows to another owner`() = runTest(dispatcher) {
+        val result = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+        val access = MutableStateFlow<LocalAccess>(available(USER_A))
+        val repository = object : NotificationsRepository by FakeRepository(mapOf(
+            USER_A to listOf(notice("private-a", USER_A, "SYSTEM", NOW)),
+            USER_B to listOf(notice("private-b", USER_B, "SYSTEM", NOW)),
+        )) {
+            override suspend fun refresh(userId: String) = result.await()
+        }
+        val model = viewModel(repository, access)
+        model.refresh()
+        access.value = available(USER_B)
+        result.complete(Result.failure(java.io.IOException("old request")))
+        assertEquals(USER_B, model.state.value.activeUserId)
+        assertEquals(listOf("private-b"), model.state.value.notifications.map { it.id })
+        org.junit.Assert.assertNull(model.state.value.errorMessage)
+        assertFalse(model.state.value.isRefreshing)
+    }
+
+    @Test
+    fun `local stream failure preserves its last snapshot and never reports an empty success`() = runTest(dispatcher) {
+        val repository = object : NotificationsRepository by FakeRepository(emptyMap()) {
+            override fun observeActive(userId: String): Flow<List<AppNotification>> = kotlinx.coroutines.flow.flow {
+                emit(listOf(notice("cached", userId, "SYSTEM", NOW)))
+                throw java.io.IOException("read interrupted")
+            }
+        }
+        val model = viewModel(repository)
+        assertEquals(listOf("cached"), model.state.value.notifications.map { it.id })
+        org.junit.Assert.assertTrue(model.state.value.hasLoadError)
+        org.junit.Assert.assertNotNull(model.state.value.errorMessage)
+        assertFalse(model.state.value.isLoading)
+    }
+
     private fun viewModel(
         repository: NotificationsRepository,
         access: MutableStateFlow<LocalAccess> = MutableStateFlow(available(USER_A)),

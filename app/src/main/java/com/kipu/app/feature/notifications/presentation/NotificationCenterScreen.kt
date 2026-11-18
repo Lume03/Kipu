@@ -47,6 +47,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +85,8 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -97,7 +100,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun NotificationCenterScreen(
     state: NotificationsUiState,
@@ -116,6 +119,7 @@ fun NotificationCenterScreen(
     onUndoDismissal: (String) -> Unit = {},
     onCommitDismissal: (String) -> Unit = {},
     onCommitPendingDismissals: () -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     val disableMotion = reducedMotion ?: rememberReducedMotionEnabled()
     CommitNotificationDismissalsOnExit(onCommitPendingDismissals)
@@ -186,7 +190,11 @@ fun NotificationCenterScreen(
                             }
                         }
                         if (largeText && (unreadCount > 0 || readVisibleCount > 0)) {
-                            Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                itemVerticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 HeaderActions(
                                     showMarkAllRead = unreadCount > 0,
                                     showDismissRead = readVisibleCount > 0,
@@ -204,17 +212,40 @@ fun NotificationCenterScreen(
                 modifier = Modifier.fillMaxSize().padding(insets),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                NotificationFilterButton(
-                    selected = state.selectedFilter,
-                    onClick = { showFilterSheet = true },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    NotificationFilterButton(
+                        selected = state.selectedFilter,
+                        onClick = { showFilterSheet = true },
+                    )
+                    TextButton(onClick = onRefresh, enabled = !state.isRefreshing) {
+                        Text(if (state.isRefreshing) "Actualizando…" else "Actualizar")
+                    }
+                }
+                if (state.isRefreshing) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Actualizando notificaciones" },
+                    )
+                }
+                state.errorMessage?.let { message ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("notification-error"),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    ) {
+                        Column(Modifier.padding(16.dp).semantics { liveRegion = LiveRegionMode.Polite }) {
+                            Text(message, color = MaterialTheme.colorScheme.onErrorContainer)
+                            TextButton(onClick = onRefresh, enabled = !state.isRefreshing) { Text("Reintentar") }
+                        }
+                    }
+                }
 
                 when {
                     state.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                     else -> {
                         Box(Modifier.fillMaxSize()) {
-                            if (state.visibleNotifications.isEmpty()) {
+                            if (state.visibleNotifications.isEmpty() && (state.errorMessage == null || state.notifications.isNotEmpty())) {
                                 val message = if (state.notifications.isEmpty()) state.emptyMessage else "No hay avisos en esta categoría."
                                 Column(
                                     modifier = Modifier.fillMaxSize().padding(32.dp).testTag("notification-empty"),

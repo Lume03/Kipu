@@ -11,6 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,10 +52,28 @@ fun DataPrivacyScreen(
             OutlinedButton(onClick = { confirmation = "json" }, enabled = !state.busy && state.pending != null, modifier = Modifier.fillMaxWidth()) { Text("Exportar todos mis datos en JSON") }
             OutlinedButton(onClick = { confirmation = "restore" }, enabled = !state.busy && state.pending != null, modifier = Modifier.fillMaxWidth()) { Text("Restaurar mis datos") }
             state.restore?.let { result ->
-                result.modules.forEach { (name, success) -> Text("$name: ${if (success) "completado" else "fallido, reintentable"}") }
+                result.modules.forEach { (name, success) -> Text("${restoreModuleName(name)}: ${if (success) "completado" else "no se pudo restaurar; puedes reintentar"}") }
                 if (result.status != RestoreStatus.COMPLETED) TextButton(onClick = { viewModel.restore(true) }, enabled = !state.busy) { Text("Reintentar solo los fallidos") }
             }
-            state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+            state.message?.let { message ->
+                val title = when (state.messageKind) {
+                    PortabilityMessageKind.SUCCESS -> "Operación completada"
+                    PortabilityMessageKind.WARNING -> "Atención"
+                    PortabilityMessageKind.ERROR -> "No se pudo completar"
+                    null -> "Información"
+                }
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (state.messageKind == PortabilityMessageKind.ERROR) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(title, style = MaterialTheme.typography.titleSmall)
+                        Text(message)
+                    }
+                }
+            }
             if (!state.busy) TextButton(onClick = viewModel::refresh) { Text("Actualizar pendientes") }
             HorizontalDivider()
             Text("La suscripción se gestiona en Google Play. Restaurar datos no restaura ni concede una suscripción Premium.", style = MaterialTheme.typography.bodyMedium)
@@ -70,6 +91,18 @@ fun DataPrivacyScreen(
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancelar") } },
         )
     }
+}
+
+private fun restoreModuleName(module: String): String = when (module) {
+    "goals" -> "Metas"
+    "movements" -> "Movimientos"
+    "debts" -> "Deudas"
+    "recurrences" -> "Recurrencias"
+    "budgets" -> "Presupuestos"
+    "categories" -> "Categorías y comercios"
+    "profile" -> "Perfil y preferencias"
+    "instruments" -> "Cuentas y tarjetas"
+    else -> module
 }
 
 private fun pendingModuleName(queue: String): String = when (queue) {
