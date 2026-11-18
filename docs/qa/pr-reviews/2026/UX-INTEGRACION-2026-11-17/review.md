@@ -48,3 +48,24 @@ Ninguno bloquea; se pueden resolver en un PR corto por módulo.
 - [ ] Barra inferior a 200 %: "Movimientos" y "Planificación" se recortan (zona compartida, `ux/compartido`).
 - [ ] #104: cierre de la app al recrear la pantalla con una petición de auth en curso.
 - [ ] Revisar los issues #96–#99 y cerrarlos cuando cada módulo resuelva o justifique sus pendientes.
+
+## Cierre del integrador (2026-11-17)
+
+Los pendientes de arriba se resolvieron en `main` con estos commits, probados en el Galaxy A16 (cuenta Premium) a fuente 1.0, 1.3 y 2.0; suite unitaria en verde en cada paso y logcat sin cierres de la app:
+
+| Commit | Qué resuelve |
+|---|---|
+| `f7d168d6` | #104: llamadas de auth y renovación de sesión aisladas en IO; la app ya no se cierra al girar o cambiar la fuente durante una carga (16 cambios seguidos en el A16 sin cierre) |
+| `588d07bb` | #103: Cerrar visible en el selector de categoría, "No consume cupo" y "Restablecer" sin partir palabras, botones −/+ de 48dp, reintento de notificaciones que conserva la lista |
+| `e91e4673` | #101/#105: pestañas de Planificación en una línea con autoajuste; rango en la etiqueta de comparación; filtros de Análisis Premium en Free (candado y aviso) |
+| `77cca564` | #102: contenido definido una sola vez entre la versión normal y la de fuente grande (sin cambio visual) |
+| `9f48537a` | Línea discreta "Sin conexión · se sincronizará al volver" en las cuatro pestañas (reemplaza el banner grande de Movimientos); barra inferior a fuente grande con solo la etiqueta seleccionada |
+| `68c57977` | #94: borrado del código sin entrada (editor antiguo de clasificación, interruptor de saldos, consentimiento de comprobantes, tarjeta de calendario y tarjeta de patrimonio; el widget se conserva), callbacks sin efecto y errores del importador de PDF visibles en un snackbar |
+
+Las tareas de documentación de los autores (tablas de #97 y #96) quedan cubiertas por este informe.
+
+### Observaciones de la prueba final (no bloquean)
+- **Comparación de Análisis:** la comparación siempre es mes contra mes anterior, aunque el resumen use un rango personalizado; la etiqueta de rango solo aplica si el periodo comparado abarca varios meses. Si se quiere comparar rangos personalizados, es un cambio funcional aparte.
+- **Sin conexión:** en una pasada, tras cambiar la fuente de 200 % a 100 % con la app abierta y en modo avión, la línea no apareció; al reabrir la app y desconectar de nuevo apareció en las cuatro pestañas, y a 200 % siempre. Revisar el estado inicial de `rememberNetworkOffline` tras recrear la Activity.
+- Detalles visuales menores: el título "Notificaciones" deja la "s" en otra línea a 100 % en el A16; a 200 % se abrevian el subtítulo del periodo en Movimientos y el chip "Ahorros / débito" en Importar, y el título de Análisis se parte cuando muestra un rango.
+- Sin cobertura en dispositivo: editor de comprobantes Yape (no había pendientes) y el snackbar del importador de PDF (no se importaron archivos).
