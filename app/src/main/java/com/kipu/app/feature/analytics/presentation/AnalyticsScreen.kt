@@ -120,6 +120,7 @@ import com.kipu.app.ui.component.KipuErrorState
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.KipuSkeletonBlock
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.RootTabTopBar
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.loadingSemantics
@@ -261,14 +262,16 @@ fun AnalyticsScreen(
             modifier = modifier.testTag(ANALYTICS_SCREEN_TAG),
             containerColor = colors.background,
             topBar = {
-                AnalyticsHeader(
-                    periodLabel = periodLabel,
-                    periodEnabled = state !is AnalyticsUiState.Locked && state !is AnalyticsUiState.NoOwner,
-                    masked = masked,
-                    onToggleMask = { masked = !masked },
-                    onPeriod = { showPeriod = true },
-                    onNavigateBack = onNavigateBack,
-                )
+                RootTabTopBar {
+                    AnalyticsHeader(
+                        periodLabel = periodLabel,
+                        periodEnabled = state !is AnalyticsUiState.Locked && state !is AnalyticsUiState.NoOwner,
+                        masked = masked,
+                        onToggleMask = { masked = !masked },
+                        onPeriod = { showPeriod = true },
+                        onNavigateBack = onNavigateBack,
+                    )
+                }
             },
         ) { padding ->
             LazyColumn(

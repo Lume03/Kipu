@@ -115,11 +115,13 @@ import com.kipu.app.ui.component.KipuOfflineBanner
 import com.kipu.app.ui.component.KipuPendingSyncTag
 import com.kipu.app.ui.component.KipuSkeletonBlock
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.RootTabTopBar
 import com.kipu.app.ui.component.MovementAvatarPresentation
 import com.kipu.app.ui.component.loadingSemantics
 import com.kipu.app.ui.component.MoneyText
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.component.movementAvatarPresentation
+import com.kipu.app.ui.component.rememberNetworkOffline
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.launch
@@ -249,66 +251,68 @@ fun MovementHistoryRoute(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.movements_title),
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        color = emeraldColors.primaryText,
-                    )
-                },
-                actions = {
-                    onNavigateToImport?.let { openImport ->
+            RootTabTopBar {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.movements_title),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = emeraldColors.primaryText,
+                        )
+                    },
+                    actions = {
+                        onNavigateToImport?.let { openImport ->
+                            IconButton(
+                                onClick = openImport,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("btn_import_movements")
+                                    .semantics { contentDescription = "Importar movimientos" },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.FileUpload,
+                                    contentDescription = null,
+                                    tint = emeraldColors.primaryText,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        }
                         IconButton(
-                            onClick = openImport,
+                            onClick = onToggleMasked,
                             modifier = Modifier
                                 .size(48.dp)
-                                .testTag("btn_import_movements")
-                                .semantics { contentDescription = "Importar movimientos" },
+                                .testTag("btn_toggle_amounts")
+                                .semantics {
+                                    role = Role.Switch
+                                    contentDescription = if (masked) "Mostrar importes" else "Ocultar importes"
+                                },
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.FileUpload,
+                                imageVector = if (masked) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                                 contentDescription = null,
                                 tint = emeraldColors.primaryText,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
-                    }
-                    IconButton(
-                        onClick = onToggleMasked,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .testTag("btn_toggle_amounts")
-                            .semantics {
-                                role = Role.Switch
-                                contentDescription = if (masked) "Mostrar importes" else "Ocultar importes"
-                            },
-                    ) {
-                        Icon(
-                            imageVector = if (masked) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = null,
-                            tint = emeraldColors.primaryText,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .semantics { contentDescription = settingsContentDescription },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = null,
-                            tint = emeraldColors.secondaryMuted,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = emeraldColors.background),
-            )
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .semantics { contentDescription = settingsContentDescription },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = null,
+                                tint = emeraldColors.secondaryMuted,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = emeraldColors.background),
+                )
+            }
         },
         containerColor = emeraldColors.background,
         modifier = modifier.fillMaxSize(),
@@ -434,11 +438,6 @@ fun MovementHistoryRoute(
                                 "$pendingSyncCount movimientos pendientes de sincronizar; tus saldos ya están actualizados."
                             },
                             modifier = Modifier.testTag("banner_pending_sync"),
-                        )
-                    } else if (offline) {
-                        KipuOfflineBanner(
-                            message = "Sin conexión a internet. Mostrando los movimientos guardados en tu dispositivo.",
-                            modifier = Modifier.testTag("banner_offline"),
                         )
                     }
 

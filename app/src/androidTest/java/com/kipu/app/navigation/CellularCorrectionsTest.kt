@@ -101,7 +101,11 @@ class CellularCorrectionsTest {
                 }
             }
         }
-        listOf("Dinero", "Movimientos", "Planificación", "Análisis").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+        compose.onNodeWithText("Planificación").assertIsDisplayed()
+        listOf("Dinero", "Movimientos", "Análisis").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
+            compose.onNodeWithContentDescription(it).assertIsDisplayed()
+        }
         capture("barra-texto-grande")
     }
 

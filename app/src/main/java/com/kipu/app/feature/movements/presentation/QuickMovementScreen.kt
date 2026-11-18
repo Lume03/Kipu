@@ -3,18 +3,13 @@ package com.kipu.app.feature.movements.presentation
 import com.kipu.app.ui.theme.KipuModalSystemBars
 import com.kipu.app.ui.theme.kipuBottomSheetProperties
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ArrowUpward
 import com.kipu.app.ui.component.BrandLogo
 import com.kipu.app.ui.component.KipuBrand
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.KipuOfflineBanner
+import com.kipu.app.ui.component.rememberNetworkOffline
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -1686,23 +1681,4 @@ private fun datePickerMillisToLocalInstant(selectedDateMillis: Long, occurredAt:
     val selectedDate = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneOffset.UTC).toLocalDate()
     val existingLocalTime = Instant.ofEpochMilli(occurredAt).atZone(zone).toLocalTime()
     return selectedDate.atTime(existingLocalTime).atZone(zone).toInstant().toEpochMilli()
-}
-
-@Composable
-internal fun rememberNetworkOffline(): Boolean {
-    val context = LocalContext.current
-    val connectivity = remember(context) { context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
-    fun connected(): Boolean = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
-        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
-    var offline by remember { mutableStateOf(!connected()) }
-    DisposableEffect(connectivity) {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { offline = !connected() }
-            override fun onLost(network: Network) { offline = !connected() }
-            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { offline = !connected() }
-        }
-        connectivity.registerDefaultNetworkCallback(callback)
-        onDispose { connectivity.unregisterNetworkCallback(callback) }
-    }
-    return offline
 }

@@ -11,22 +11,36 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
+import com.kipu.app.ui.component.KipuNetworkStatus
+import com.kipu.app.ui.component.LocalRootTabStatus
+import com.kipu.app.ui.component.RootTabTopBar
 import com.kipu.app.ui.theme.KipuTheme
 
 class RetainedRootTabsTest {
@@ -152,15 +166,18 @@ class RetainedRootTabsTest {
         compose.onNodeWithTag("kipu_bottom_navigation_pill").assertIsDisplayed()
     }
 
-    @Test fun movementsLabelFitsInTheSelectedTabAtCompactWidthAndLargerText() {
+    @Test fun largeTextShowsOnlyTheSelectedLabelAndKeepsAccessibleNames() {
+        val route = mutableStateOf(MOVEMENTS_HISTORY_ROUTE)
+        val fontScale = mutableStateOf(1.3f)
         compose.setContent {
             KipuTheme {
                 val density = LocalDensity.current
-                CompositionLocalProvider(LocalDensity provides Density(density.density, 1.3f)) {
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale.value)) {
                     KipuNavigationBar(
-                        currentRoute = MOVEMENTS_HISTORY_ROUTE,
+                        currentRoute = route.value,
                         onNavigateToDinero = {},
                         onNavigateToMovimientos = {},
+                        onNavigateToPlanificacion = { route.value = PLANNING_ROUTE },
                         onRegisterClick = {},
                         modifier = Modifier.width(360.dp),
                     )
@@ -168,7 +185,61 @@ class RetainedRootTabsTest {
             }
         }
 
-        compose.onNodeWithTag("nav_label_movimientos", useUnmergedTree = true)
-            .assertIsDisplayed()
+        val labels = mapOf(
+            "dinero" to "Dinero",
+            "movimientos" to "Movimientos",
+            "planificacion" to "Planificación",
+            "analisis" to "Análisis",
+        )
+        fun assertSelectedLabel(selected: String) {
+            labels.forEach { (item, name) ->
+                compose.onNodeWithContentDescription(name).assertIsDisplayed()
+                val label = compose.onNodeWithTag("nav_label_$item", useUnmergedTree = true)
+                if (item == selected) {
+                    label.assertIsDisplayed()
+                    val layouts = mutableListOf<TextLayoutResult>()
+                    label.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                    assertFalse(layouts.single().hasVisualOverflow)
+                } else {
+                    label.assertDoesNotExist()
+                }
+            }
+        }
+        assertSelectedLabel("movimientos")
+        compose.runOnIdle { fontScale.value = 2f }
+        assertSelectedLabel("movimientos")
+        compose.onNodeWithContentDescription("Planificación").performClick()
+        assertSelectedLabel("planificacion")
+    }
+
+    @Test fun offlineStatusAppearsOnceAcrossRootTabsAndClearsOnReconnect() {
+        val selected = mutableIntStateOf(RootTab.MONEY)
+        val offline = mutableStateOf(false)
+        val message = "Sin conexión · se sincronizará al volver"
+        compose.setContent {
+            KipuTheme {
+                CompositionLocalProvider(LocalRootTabStatus provides { KipuNetworkStatus(offline.value) }) {
+                    RetainedRootTabs(selectedTabIndex = selected, pageCount = RootTab.COUNT) {
+                        repeat(RootTab.COUNT) { tab ->
+                            RetainedRootPage(active = selected.intValue == tab) {
+                                RootTabTopBar { Text("Tab $tab") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.runOnIdle { offline.value = true }
+        repeat(RootTab.COUNT) { tab ->
+            compose.runOnIdle { selected.intValue = tab }
+            compose.onAllNodesWithText(message, useUnmergedTree = true).assertCountEquals(1)
+            compose.onNodeWithText(message).assertIsDisplayed().assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite),
+            )
+        }
+        compose.runOnIdle { offline.value = false }
+        compose.onNodeWithText(message).assertDoesNotExist()
     }
 }

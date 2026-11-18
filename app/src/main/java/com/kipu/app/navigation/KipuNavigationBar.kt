@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -74,7 +75,7 @@ fun KipuNavigationBar(
     val isPlanificacionSelected = currentRoute == PLANNING_ROUTE
     val isAnalisisSelected = currentRoute == ANALYSIS_ROUTE
     val colors = rememberCalmEmeraldColors()
-    val largeText = LocalDensity.current.fontScale > 1.3f
+    val largeText = LocalDensity.current.fontScale >= 1.3f
 
     Surface(
         modifier = modifier
@@ -86,7 +87,7 @@ fun KipuNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = if (largeText) 8.dp else 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -106,7 +107,6 @@ fun KipuNavigationBar(
                         label = "Dinero",
                         tag = "nav_item_dinero",
                         largeText = largeText,
-                        modifier = Modifier.weight(1f),
                     )
                     KipuRootNavigationItem(
                         selected = isMovimientosSelected,
@@ -115,7 +115,6 @@ fun KipuNavigationBar(
                         label = "Movimientos",
                         tag = "nav_item_movimientos",
                         largeText = largeText,
-                        modifier = Modifier.weight(1f),
                     )
                     KipuRootNavigationItem(
                         selected = isPlanificacionSelected,
@@ -124,7 +123,6 @@ fun KipuNavigationBar(
                         label = "Planificación",
                         tag = "nav_item_planificacion",
                         largeText = largeText,
-                        modifier = Modifier.weight(1f),
                     )
                     KipuRootNavigationItem(
                         selected = isAnalisisSelected,
@@ -133,7 +131,6 @@ fun KipuNavigationBar(
                         label = "Análisis",
                         tag = "nav_item_analisis",
                         largeText = largeText,
-                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -169,14 +166,13 @@ fun KipuNavigationBar(
 }
 
 @Composable
-private fun KipuRootNavigationItem(
+private fun RowScope.KipuRootNavigationItem(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,
     label: String,
     tag: String,
     largeText: Boolean,
-    modifier: Modifier = Modifier,
 ) {
     val colors = rememberCalmEmeraldColors()
     val reducedMotion = rememberReducedMotionEnabled()
@@ -199,7 +195,8 @@ private fun KipuRootNavigationItem(
     )
 
     Column(
-        modifier = modifier
+        modifier = Modifier
+            .weight(if (largeText && selected) 2f else 1f)
             .heightIn(min = if (largeText) 76.dp else 56.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(
@@ -233,17 +230,19 @@ private fun KipuRootNavigationItem(
                 modifier = Modifier.size(22.dp),
             )
         }
-        run {
+        if (!largeText || selected) {
             // One line that shrinks instead of clipping or splitting a word with large system text.
+            val textStyle = MaterialTheme.typography.labelSmall
             BasicText(
                 text = label,
                 color = { contentColor },
                 maxLines = 1,
                 softWrap = false,
                 autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 10.sp),
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = textStyle.copy(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
+                    letterSpacing = if (largeText) 0.sp else textStyle.letterSpacing,
                     textAlign = TextAlign.Center,
                 ),
                 modifier = Modifier.fillMaxWidth().testTag("nav_label_${tag.removePrefix("nav_item_")}"),

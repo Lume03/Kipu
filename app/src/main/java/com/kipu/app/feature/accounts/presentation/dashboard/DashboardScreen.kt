@@ -82,6 +82,7 @@ import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
 import com.kipu.app.feature.notifications.presentation.UnreadNotificationBadge
 import com.kipu.app.ui.component.KipuErrorState
 import com.kipu.app.ui.component.LocalBalanceMasked
+import com.kipu.app.ui.component.RootTabTopBar
 import com.kipu.app.ui.theme.rememberCalmEmeraldColors
 import kotlinx.coroutines.launch
 
@@ -146,12 +147,14 @@ fun DashboardScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                DashboardTopBar(
-                    displayName = displayName,
-                    unreadNotificationCount = unreadNotificationCount,
-                    onNavigateToNotifications = onNavigateToNotifications,
-                    onNavigateToSettings = onNavigateToSettings,
-                )
+                RootTabTopBar {
+                    DashboardTopBar(
+                        displayName = displayName,
+                        unreadNotificationCount = unreadNotificationCount,
+                        onNavigateToNotifications = onNavigateToNotifications,
+                        onNavigateToSettings = onNavigateToSettings,
+                    )
+                }
             },
             containerColor = emeraldColors.background,
             modifier = modifier,

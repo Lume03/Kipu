@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import com.kipu.app.feature.auth.presentation.LocalSessionEntryCurtain
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +35,9 @@ import com.kipu.app.feature.accounts.presentation.instruments.UnifiedInstrumentF
 import com.kipu.app.feature.accounts.presentation.instruments.RateCatalogScreen
 import com.kipu.app.feature.settings.presentation.SettingsViewModel
 import com.kipu.app.feature.movements.domain.model.WalletPaymentChannel
+import com.kipu.app.ui.component.KipuNetworkStatus
+import com.kipu.app.ui.component.LocalRootTabStatus
+import com.kipu.app.ui.component.rememberNetworkOffline
 
 const val ACCOUNTS_DASHBOARD_ROUTE = "accounts/dashboard"
 const val ACCOUNT_FORM_ROUTE = "accounts/create"
@@ -106,34 +110,37 @@ fun NavGraphBuilder.accountsDestinations(navController: NavController) {
         val selectedTabIndex = handle.getStateFlow(ROOT_TAB_KEY, RootTab.MONEY).collectAsStateWithLifecycle()
         val moneySelected = remember { derivedStateOf { selectedTabIndex.value == RootTab.MONEY } }
         val movementsSelected = remember { derivedStateOf { selectedTabIndex.value == RootTab.MOVEMENTS } }
+        val offline = rememberNetworkOffline()
         BackHandler(enabled = selectedTabIndex.value != RootTab.MONEY) { handle[ROOT_TAB_KEY] = RootTab.MONEY }
-        RetainedRootTabs(selectedTabIndex = selectedTabIndex, pageCount = RootTab.COUNT) {
-            RetainedRootPage(active = moneySelected.value) {
-                AccountsRootContent(navController, backStackEntry, moneySelected)
-            }
-            RetainedRootPage(active = movementsSelected.value) {
-                MovementHistoryContent(navController, backStackEntry, movementsSelected)
-            }
-            val planningSelected = selectedTabIndex.value == RootTab.PLANNING
-            RetainedRootPage(active = planningSelected) {
-                PlanningRootContent(navController, backStackEntry, active = planningSelected)
-            }
-            RetainedRootPage(active = selectedTabIndex.value == RootTab.ANALYSIS) {
-                AnalyticsRoute(
-                    onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
-                    onNavigateToBasicHistory = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
-                    navigation = AnalyticsNavigation(
-                        onOpenAccount = navController::navigateToAccountDetail,
-                        onOpenCard = { navController.navigateToCardDetail(it) },
-                        onOpenAccounts = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MONEY },
-                        onOpenGoals = navController::navigateToGoals,
-                        onOpenDues = navController::navigateToUpcomingDues,
-                        onOpenDebts = { navController.navigateToPlanning(PlanningTab.DEBTS) },
-                        onAddAccount = navController::navigateToAccountForm,
-                        onOpenMovements = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
-                    ),
-                    viewModel = hiltViewModel(backStackEntry),
-                )
+        CompositionLocalProvider(LocalRootTabStatus provides { KipuNetworkStatus(offline) }) {
+            RetainedRootTabs(selectedTabIndex = selectedTabIndex, pageCount = RootTab.COUNT) {
+                RetainedRootPage(active = moneySelected.value) {
+                    AccountsRootContent(navController, backStackEntry, moneySelected)
+                }
+                RetainedRootPage(active = movementsSelected.value) {
+                    MovementHistoryContent(navController, backStackEntry, movementsSelected)
+                }
+                val planningSelected = selectedTabIndex.value == RootTab.PLANNING
+                RetainedRootPage(active = planningSelected) {
+                    PlanningRootContent(navController, backStackEntry, active = planningSelected)
+                }
+                RetainedRootPage(active = selectedTabIndex.value == RootTab.ANALYSIS) {
+                    AnalyticsRoute(
+                        onNavigateToPlans = { navController.navigate(PLAN_PURCHASE_ROUTE) },
+                        onNavigateToBasicHistory = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
+                        navigation = AnalyticsNavigation(
+                            onOpenAccount = navController::navigateToAccountDetail,
+                            onOpenCard = { navController.navigateToCardDetail(it) },
+                            onOpenAccounts = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MONEY },
+                            onOpenGoals = navController::navigateToGoals,
+                            onOpenDues = navController::navigateToUpcomingDues,
+                            onOpenDebts = { navController.navigateToPlanning(PlanningTab.DEBTS) },
+                            onAddAccount = navController::navigateToAccountForm,
+                            onOpenMovements = { backStackEntry.savedStateHandle[ROOT_TAB_KEY] = RootTab.MOVEMENTS },
+                        ),
+                        viewModel = hiltViewModel(backStackEntry),
+                    )
+                }
             }
         }
     }

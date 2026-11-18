@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -16,6 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.kipu.app.ui.component.LocalRootTabStatus
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
@@ -79,7 +81,10 @@ internal fun RetainedRootPage(active: Boolean, content: @Composable () -> Unit) 
             .fillMaxSize()
             .then(if (active) Modifier else Modifier.clearAndSetSemantics { })
             .rootTabInputShield(active = active),
-    ) { content() }
+    ) {
+        val status = LocalRootTabStatus.current
+        CompositionLocalProvider(LocalRootTabStatus provides if (active) status else null, content = content)
+    }
 }
 
 /** Swallows touches on retained pages that are composed but not the selected one. */

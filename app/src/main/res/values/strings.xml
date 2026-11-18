@@ -505,4 +505,5 @@
         <item>noviembre</item>
         <item>diciembre</item>
     </string-array>
+    <string name="root_network_offline">Sin conexión · se sincronizará al volver</string>
 </resources>

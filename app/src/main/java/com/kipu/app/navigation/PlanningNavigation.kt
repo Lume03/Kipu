@@ -71,6 +71,7 @@ import com.kipu.app.feature.debts.presentation.DebtListScreen
 import com.kipu.app.feature.debts.presentation.DebtListViewModel
 import com.kipu.app.feature.goals.presentation.GoalListScreen
 import com.kipu.app.feature.goals.presentation.GoalListViewModel
+import com.kipu.app.ui.component.RootTabTopBar
 import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 import com.kipu.app.ui.theme.KipuEasingTokens
 import com.kipu.app.ui.theme.KipuMotionTokens
@@ -144,10 +145,12 @@ internal fun PlanningRootContent(navController: NavController, backStackEntry: N
     }
 
     Column(Modifier.fillMaxSize().testTag("planning_screen")) {
-        PlanningHeader(
-            onNotifications = navController::navigateToNotifications,
-            onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
-        )
+        RootTabTopBar {
+            PlanningHeader(
+                onNotifications = navController::navigateToNotifications,
+                onSettings = { navController.navigate(PROFILE_SETTINGS_ROUTE) },
+            )
+        }
         PlanningSegmentedTabs(
             selected = selectedTab,
             onSelect = { tab -> handle[PLANNING_TAB_KEY] = tab.ordinal },
