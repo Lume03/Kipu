@@ -1057,7 +1057,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                     .weight(1f)
                     .height(44.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isExpenseSelected) semanticColors.expenseCoral else Color.Transparent)
+                    .background(if (isExpenseSelected) semanticColors.expenseBg else Color.Transparent)
                     .clickable { onSelected(CategoryTab.EXPENSE) }
                     .semantics {
                         role = Role.Tab
@@ -1073,7 +1073,7 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
+                        tint = semanticColors.expenseText,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1081,19 +1081,20 @@ internal fun CategoryTypeTabs(selectedTab: CategoryTab, expenseCount: Int, incom
                         text = "Gastos",
                         fontSize = 14.sp,
                         fontWeight = if (isExpenseSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
+                        color = semanticColors.expenseText,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = CircleShape,
-                        color = if (isExpenseSelected) colors.onPrimary.copy(alpha = 0.25f) else colors.surfaceVariant,
+                        color = if (isExpenseSelected) semanticColors.expenseBg else colors.surfaceVariant,
+                        border = if (isExpenseSelected) BorderStroke(1.dp, semanticColors.expenseBorder) else null,
                     ) {
                         Text(
                             text = "$expenseCount",
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isExpenseSelected) colors.onPrimary else semanticColors.expenseText,
+                            color = semanticColors.expenseText,
                         )
                     }
                 }

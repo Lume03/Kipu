@@ -73,7 +73,11 @@ fun AccountDeletionSection(viewModel: AccountDeletionViewModel, onCompleted: () 
                 when (state.step) {
                     DeletionStep.SUMMARY -> TextButton(onClick = viewModel::continueToReauthentication, enabled = !state.busy) { Text("Continuar") }
                     DeletionStep.REAUTH -> TextButton(onClick = { viewModel.reauthenticate(password, email); password = "" }, enabled = !state.busy && password.isNotEmpty() && (!viewModel.recoveryMode || email.isNotBlank())) { Text("Verificar") }
-                    DeletionStep.CONFIRM -> TextButton(onClick = viewModel::confirm, enabled = !state.busy && acceptsLoss) { Text("Eliminar definitivamente", color = MaterialTheme.colorScheme.error) }
+                    DeletionStep.CONFIRM -> TextButton(
+                        onClick = viewModel::confirm,
+                        enabled = !state.busy && acceptsLoss,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Eliminar definitivamente") }
                     DeletionStep.STATUS -> Column {
                         TextButton(onClick = viewModel::retry, enabled = !state.busy) { Text("Consultar y reintentar") }
                         if (state.request?.remote != DeletionRemote.COMPLETED) TextButton(onClick = viewModel::continueToReauthentication, enabled = !state.busy) { Text("Volver a verificar identidad") }

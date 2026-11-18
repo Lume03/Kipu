@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -115,6 +116,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -144,6 +146,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -153,6 +156,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -2189,114 +2193,150 @@ internal fun CustomPastelColorDialog(
                     }
 
                     // 4. NUMERIC INPUTS: HEX & RGB
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // HEX Input
-                        OutlinedTextField(
-                            value = hexText,
-                            onValueChange = { input ->
-                                hexText = input
-                                val parsed = PastelColorUtils.hexToColor(input, Color.Unspecified)
-                                if (parsed != Color.Unspecified) {
-                                    val hsv = PastelColorUtils.colorToHsv(parsed)
-                                    currentHue = hsv[0]
-                                    currentSaturation = hsv[1]
-                                    currentValue = hsv[2]
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(1.4f)
-                                .heightIn(min = 48.dp)
-                                .testTag("color_modal_hex_input"),
-                            label = { Text("HEX", fontSize = 11.sp) },
-                            singleLine = true,
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { clipboardManager.setText(AnnotatedString(currentHex)) },
-                                    modifier = Modifier.size(36.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copiar HEX",
-                                        tint = PastelDesignTokens.TealPrimary,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                        )
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val fieldSpacing = 8.dp
+                        val density = LocalDensity.current
+                        val textStyle = LocalTextStyle.current
+                        val measurer = rememberTextMeasurer()
+                        val hexTextWidth = remember(measurer, textStyle, density) {
+                            "0123456789ABCDEF".maxOf { digit ->
+                                measurer.measure("#" + digit.toString().repeat(6), style = textStyle).size.width
+                            }
+                        }
+                        val rgbTextWidth = measurer.measure("000", style = textStyle).size.width
+                        // Include Material's text padding, the HEX copy target, and the caret.
+                        val minHexWidth = with(density) { hexTextWidth.toDp() } + 70.dp
+                        val minRgbWidth = with(density) { rgbTextWidth.toDp() } + 34.dp
+                        val fitsInOneRow = maxWidth >= minHexWidth + minRgbWidth * 3 + fieldSpacing * 3
+                        val hexWidth = if (fitsInOneRow) {
+                            ((maxWidth - fieldSpacing * 3) / 3.8f * 1.4f)
+                                .coerceIn(minHexWidth, maxWidth - minRgbWidth * 3 - fieldSpacing * 3)
+                        } else {
+                            maxWidth
+                        }
+                        val rgbWidth = if (fitsInOneRow) {
+                            with(density) {
+                                (constraints.maxWidth - hexWidth.roundToPx() - fieldSpacing.roundToPx()).toDp()
+                            }
+                        } else {
+                            maxWidth
+                        }
 
-                        // R
-                        OutlinedTextField(
-                            value = rText,
-                            onValueChange = { input ->
-                                rText = input
-                                val r = input.toIntOrNull()
-                                if (r != null && r in 0..255) {
-                                    val newCol = Color(r, (currentColor.green * 255).toInt(), (currentColor.blue * 255).toInt())
-                                    val hsv = PastelColorUtils.colorToHsv(newCol)
-                                    currentHue = hsv[0]
-                                    currentSaturation = hsv[1]
-                                    currentValue = hsv[2]
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(0.8f)
-                                .heightIn(min = 48.dp),
-                            label = { Text("R", fontSize = 11.sp) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(10.dp),
-                        )
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(fieldSpacing),
+                            verticalArrangement = Arrangement.spacedBy(fieldSpacing),
+                        ) {
+                            // HEX Input
+                            OutlinedTextField(
+                                value = hexText,
+                                onValueChange = { input ->
+                                    hexText = input
+                                    val parsed = PastelColorUtils.hexToColor(input, Color.Unspecified)
+                                    if (parsed != Color.Unspecified) {
+                                        val hsv = PastelColorUtils.colorToHsv(parsed)
+                                        currentHue = hsv[0]
+                                        currentSaturation = hsv[1]
+                                        currentValue = hsv[2]
+                                    }
+                                },
+                                modifier = Modifier
+                                    .width(hexWidth)
+                                    .heightIn(min = 48.dp)
+                                    .testTag("color_modal_hex_input"),
+                                label = { Text("HEX", fontSize = 11.sp) },
+                                singleLine = true,
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { clipboardManager.setText(AnnotatedString(currentHex)) },
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Copiar HEX",
+                                            tint = PastelDesignTokens.TealPrimary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                            )
 
-                        // G
-                        OutlinedTextField(
-                            value = gText,
-                            onValueChange = { input ->
-                                gText = input
-                                val g = input.toIntOrNull()
-                                if (g != null && g in 0..255) {
-                                    val newCol = Color((currentColor.red * 255).toInt(), g, (currentColor.blue * 255).toInt())
-                                    val hsv = PastelColorUtils.colorToHsv(newCol)
-                                    currentHue = hsv[0]
-                                    currentSaturation = hsv[1]
-                                    currentValue = hsv[2]
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(0.8f)
-                                .heightIn(min = 48.dp),
-                            label = { Text("G", fontSize = 11.sp) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(10.dp),
-                        )
+                            Row(
+                                modifier = Modifier.width(rgbWidth),
+                                horizontalArrangement = Arrangement.spacedBy(fieldSpacing),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                // R
+                                OutlinedTextField(
+                                    value = rText,
+                                    onValueChange = { input ->
+                                        rText = input
+                                        val r = input.toIntOrNull()
+                                        if (r != null && r in 0..255) {
+                                            val newCol = Color(r, (currentColor.green * 255).toInt(), (currentColor.blue * 255).toInt())
+                                            val hsv = PastelColorUtils.colorToHsv(newCol)
+                                            currentHue = hsv[0]
+                                            currentSaturation = hsv[1]
+                                            currentValue = hsv[2]
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .heightIn(min = 48.dp),
+                                    label = { Text("R", fontSize = 11.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    shape = RoundedCornerShape(10.dp),
+                                )
 
-                        // B
-                        OutlinedTextField(
-                            value = bText,
-                            onValueChange = { input ->
-                                bText = input
-                                val b = input.toIntOrNull()
-                                if (b != null && b in 0..255) {
-                                    val newCol = Color((currentColor.red * 255).toInt(), (currentColor.green * 255).toInt(), b)
-                                    val hsv = PastelColorUtils.colorToHsv(newCol)
-                                    currentHue = hsv[0]
-                                    currentSaturation = hsv[1]
-                                    currentValue = hsv[2]
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(0.8f)
-                                .heightIn(min = 48.dp),
-                            label = { Text("B", fontSize = 11.sp) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(10.dp),
-                        )
+                                // G
+                                OutlinedTextField(
+                                    value = gText,
+                                    onValueChange = { input ->
+                                        gText = input
+                                        val g = input.toIntOrNull()
+                                        if (g != null && g in 0..255) {
+                                            val newCol = Color((currentColor.red * 255).toInt(), g, (currentColor.blue * 255).toInt())
+                                            val hsv = PastelColorUtils.colorToHsv(newCol)
+                                            currentHue = hsv[0]
+                                            currentSaturation = hsv[1]
+                                            currentValue = hsv[2]
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .heightIn(min = 48.dp),
+                                    label = { Text("G", fontSize = 11.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    shape = RoundedCornerShape(10.dp),
+                                )
+
+                                // B
+                                OutlinedTextField(
+                                    value = bText,
+                                    onValueChange = { input ->
+                                        bText = input
+                                        val b = input.toIntOrNull()
+                                        if (b != null && b in 0..255) {
+                                            val newCol = Color((currentColor.red * 255).toInt(), (currentColor.green * 255).toInt(), b)
+                                            val hsv = PastelColorUtils.colorToHsv(newCol)
+                                            currentHue = hsv[0]
+                                            currentSaturation = hsv[1]
+                                            currentValue = hsv[2]
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .heightIn(min = 48.dp),
+                                    label = { Text("B", fontSize = 11.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    shape = RoundedCornerShape(10.dp),
+                                )
+                            }
+                        }
                     }
 
                     // 5. RECOMMENDED PASTEL CHIPS (Colección Kipu Soft Pastels)

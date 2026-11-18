@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -17,11 +18,9 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.action.clickable
 import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -33,7 +32,10 @@ import com.kipu.app.feature.widgets.di.widgetDataProvider
 
 /** «Libre para gastar»: what can be spent today without touching goals or the payments that are coming. */
 class FreeToSpendWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(widgetSizes)
+    // The summary tiles below the legend need more height than the shared tall layout.
+    override val sizeMode = SizeMode.Responsive(
+        widgetSizes - DpSize(220.dp, 200.dp) + DpSize(220.dp, 260.dp),
+    )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val state = widgetDataProvider(context).load()

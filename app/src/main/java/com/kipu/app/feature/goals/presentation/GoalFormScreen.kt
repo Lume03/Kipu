@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.SolidColor
@@ -71,6 +72,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kipu.app.ui.component.LocalBalanceMasked
@@ -393,10 +395,14 @@ fun GoalFormScreen(
     }
 
     if (iconSheetVisible) {
+        val columns = if (LocalDensity.current.fontScale >= 1.3f) 3 else 4
         ModalBottomSheet(onDismissRequest = { iconSheetVisible = false }) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text("Elige un icono", style = MaterialTheme.typography.titleLarge)
-                goalIcons.chunked(4).forEach { options ->
+                goalIcons.chunked(columns).forEach { options ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         options.forEach { option ->
                             Column(
@@ -408,8 +414,11 @@ fun GoalFormScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 GoalIconBadge(option.key)
-                                Text(option.label, style = MaterialTheme.typography.labelSmall)
+                                Text(option.label, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
                             }
+                        }
+                        repeat(columns - options.size) {
+                            Spacer(Modifier.weight(1f))
                         }
                     }
                 }
