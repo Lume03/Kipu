@@ -26,6 +26,7 @@ import com.kipu.app.feature.budgets.domain.ExpenseBudgetConsumptionReader
 import com.kipu.app.feature.budgets.domain.RenewBudgetPeriods
 import com.kipu.app.feature.budgets.domain.RunBudgetMaintenance
 import com.kipu.app.feature.categories.data.local.CategoryEntity
+import com.kipu.app.feature.home.domain.NetWorthSummary
 import com.kipu.app.feature.movements.data.local.BalanceProjectionStore
 import com.kipu.app.feature.movements.data.local.LedgerEntryEntity
 import com.kipu.app.feature.movements.data.local.MovementLocalDataSource
@@ -180,7 +181,7 @@ class MovementRefundBudgetIntegrationTest {
     }
 
     @Test
-    fun returningHomeAfterCrossMonthRefundRefreshesNetWorthAndBothRelevantDates() = runBlocking {
+    fun crossMonthRefundRefreshesNetWorthAndBothRelevantDates() = runBlocking {
         val instruments = io.mockk.mockk<com.kipu.app.feature.accounts.domain.FinancialInstrumentsRepository>()
         val account = com.kipu.app.feature.accounts.domain.model.Account(
             id = com.kipu.app.core.finance.domain.model.AccountId(accountId),
@@ -203,17 +204,13 @@ class MovementRefundBudgetIntegrationTest {
         io.mockk.every { debts.observeDebts(ownerId) } returns kotlinx.coroutines.flow.flowOf(emptyList())
         val summary = com.kipu.app.feature.home.domain.ObserveNetWorthSummary(
             com.kipu.app.feature.accounts.domain.usecase.ObserveFinancialDashboard(instruments), debts)
-        suspend fun returnHome(): com.kipu.app.feature.home.presentation.NetWorthUiState.Content {
-            val model = com.kipu.app.feature.home.presentation.HomeNetWorthViewModel(summary, session)
-            return kotlinx.coroutines.withTimeout(5_000) {
-                model.state.first { it is com.kipu.app.feature.home.presentation.NetWorthUiState.Content }
-                    as com.kipu.app.feature.home.presentation.NetWorthUiState.Content
-            }
+        suspend fun currentNetWorth() = kotlinx.coroutines.withTimeout(5_000) {
+            summary(ownerId).first { it is NetWorthSummary.Available } as NetWorthSummary.Available
         }
-        assertEquals(-10_000L, returnHome().byCurrency.single().netWorth.minorUnits)
+        assertEquals(-10_000L, currentNetWorth().byCurrency.single().netWorth.minorUnits)
         val purchaseBefore = database.movementDao().getTransactionById(ownerId, purchaseId)!!
         assertTrue(refund(4_000, "home-refund", "home-refund-key") is RefundTransactionResult.Success)
-        val after = returnHome()
+        val after = currentNetWorth()
         assertEquals(-6_000L, after.byCurrency.single().realAssets.minorUnits)
         assertEquals(-6_000L, after.byCurrency.single().netWorth.minorUnits)
         assertEquals(6_000L, consumed("2026-09-01", "2026-10-01"))

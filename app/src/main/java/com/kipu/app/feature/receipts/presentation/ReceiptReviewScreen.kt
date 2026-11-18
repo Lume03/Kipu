@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SwipeLeft
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -520,23 +519,6 @@ private fun ReceiptDiscardConfirmationDialog(
             }
         }
     }
-}
-
-/** Explicit consent is separate from choosing the app in Android's share sheet. */
-@Composable
-fun ReceiptShareConsentDialog(onAccept: () -> Unit, onDecline: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDecline,
-        title = { Text("Leer comprobante en este dispositivo") },
-        text = {
-            Text(
-                "Kipu analizará localmente la imagen compartida para proponer un movimiento. " +
-                    "No guardará la imagen ni el texto reconocido. Revisa y confirma el movimiento antes de registrarlo.",
-            )
-        },
-        confirmButton = { Button(onClick = onAccept) { Text("Continuar") } },
-        dismissButton = { TextButton(onClick = onDecline) { Text("Cancelar") } },
-    )
 }
 
 private fun receiptInitials(name: String?): String {

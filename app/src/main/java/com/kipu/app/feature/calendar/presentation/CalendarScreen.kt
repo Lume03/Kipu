@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CreditCard
@@ -736,34 +735,5 @@ private fun DetailRow(label: String, value: @Composable () -> Unit) {
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = colors.secondaryMuted)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { value() }
-    }
-}
-
-/** Acceso desde Inicio al calendario financiero. */
-@Composable
-fun CalendarEntryCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    KipuCard(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("home_calendar_entry")
-            .semantics(mergeDescendants = true) {},
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(Icons.Default.DateRange, contentDescription = null)
-            Column(Modifier.weight(1f)) {
-                Text("Calendario financiero", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Movimientos, cierres, vencimientos y cuotas del mes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
-        }
     }
 }

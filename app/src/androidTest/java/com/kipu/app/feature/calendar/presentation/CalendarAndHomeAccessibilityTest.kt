@@ -21,10 +21,6 @@ import com.kipu.app.feature.calendar.domain.CalendarEventKind
 import com.kipu.app.feature.calendar.domain.CalendarEventSource
 import com.kipu.app.feature.calendar.domain.CalendarEventStatus
 import com.kipu.app.feature.calendar.domain.CalendarMonth
-import com.kipu.app.feature.home.domain.CurrencyNetWorth
-import com.kipu.app.feature.home.presentation.NetWorthCard
-import com.kipu.app.feature.home.presentation.NetWorthUiState
-import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.theme.KipuTheme
 import java.time.LocalDate
 import java.time.YearMonth
@@ -130,20 +126,6 @@ class CalendarAndHomeAccessibilityTest {
     }
 
     @Test
-    fun netWorthCardHidesAmountsWhenMasked() {
-        val money = { units: Long -> Money(units * 100, Currency.PEN) }
-        val state = NetWorthUiState.Content(listOf(CurrencyNetWorth(Currency.PEN, money(1000), money(200), money(300))))
-        compose.setContent {
-            KipuTheme {
-                CompositionLocalProvider(LocalBalanceMasked provides true) { NetWorthCard(state = state, onRetry = {}) }
-            }
-        }
-
-        compose.onNodeWithTag("home_net_worth_card").assertExists()
-        assertTrue(compose.onAllNodesWithTextCount("900.00") == 0)
-    }
-
-    @Test
     fun largeTextCalendarRetainsEventAndSourceAction() {
         var opened = false
         compose.setContent {
@@ -158,21 +140,6 @@ class CalendarAndHomeAccessibilityTest {
         compose.onNodeWithTag(CALENDAR_EVENT_TAG_PREFIX + "large").performScrollTo().assertIsDisplayed().performClick()
         compose.onNodeWithTag(CALENDAR_OPEN_SOURCE_TAG).assertIsDisplayed().performClick()
         assertTrue(opened)
-    }
-
-    @Test
-    fun largeTextHomeRetainsExpandActionAndMaskedBreakdown() {
-        val money = { units: Long -> Money(units * 100, Currency.PEN) }
-        compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 2f), LocalBalanceMasked provides true) {
-                KipuTheme { NetWorthCard(NetWorthUiState.Content(listOf(CurrencyNetWorth(Currency.PEN, money(1000), money(200), money(300)))), {}) }
-            }
-        }
-        compose.onNodeWithText("Ver detalle").performClick()
-        compose.onNodeWithText("Ocultar").assertIsDisplayed()
-        compose.onNodeWithText("Por cobrar", useUnmergedTree = true).assertIsDisplayed()
-        assertEquals(0, compose.onAllNodesWithTextCount("900.00"))
-        assertEquals(0, compose.onAllNodesWithTextCount("200.00"))
     }
 
     private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.onAllNodesWithTextCount(text: String): Int =

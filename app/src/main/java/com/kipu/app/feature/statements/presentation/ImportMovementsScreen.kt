@@ -47,6 +47,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,7 +99,6 @@ fun ImportMovementsScreen(
     viewModel: StatementImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val palette = rememberCalmEmeraldColors()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -117,6 +119,7 @@ fun ImportMovementsScreen(
         onPick = viewModel::requestImport, onResume = viewModel::resumeImport, onAcceptConsent = viewModel::acceptConsent, onCancelConsent = viewModel::cancelConsent,
         onPassword = viewModel::passwordChanged, onSubmitPassword = viewModel::submitPassword, onCancelPassword = viewModel::cancelPassword,
         onDismissNotice = viewModel::dismissNotice, onDismissPremium = viewModel::dismissPremium,
+        onDismissMessage = viewModel::dismissMessage,
         onScanFinished = {
             val id = state.openImportId
             viewModel.clearScan()
@@ -142,9 +145,17 @@ internal fun ImportMovementsContent(
     onDismissNotice: () -> Unit,
     onDismissPremium: () -> Unit,
     onScanFinished: () -> Unit,
+    onDismissMessage: () -> Unit,
 ) {
     val palette = rememberCalmEmeraldColors()
-    Scaffold(containerColor = palette.background, topBar = {
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(state.message) {
+        state.message?.let { message ->
+            snackbar.showSnackbar(message, actionLabel = "Cerrar", duration = SnackbarDuration.Long)
+            onDismissMessage()
+        }
+    }
+    Scaffold(containerColor = palette.background, snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = 4.dp)) }, topBar = {
         TopAppBar(title = { Text("Importar movimientos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.background, titleContentColor = palette.primaryText,

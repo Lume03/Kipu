@@ -61,7 +61,6 @@ fun MovementDetailSheet(
     receiptAttached: Boolean = false,
     onAttachReceipt: () -> Unit = {},
     onOpenReceipt: () -> Unit = {},
-    onRemoveReceipt: () -> Unit = {},
     onRegisterRecurrence: () -> Unit = {},
     canRegisterRefund: Boolean = false,
     refundRemainingMinor: Long = 0L,

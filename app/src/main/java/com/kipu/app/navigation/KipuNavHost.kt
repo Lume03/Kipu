@@ -34,7 +34,6 @@ fun NavGraphBuilder.appDestinations(
     planSelectionDestination(navController = navController, onConfirmed = { navController.navigate(BIOMETRIC_ROUTE) })
     settingsDestinations(navController = navController, onSignOut = onSignOut)
     accountsDestinations(navController = navController)
-    movementDestinations(navController = navController)
     receiptDestinations(navController)
     statementDestinations(navController)
     captureDestinations(navController = navController)

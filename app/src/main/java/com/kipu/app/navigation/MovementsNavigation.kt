@@ -91,9 +91,6 @@ fun NavGraphBuilder.movementsDestinations(
         )
     ) { backStackEntry ->
         val transactionId = backStackEntry.arguments?.getString("transactionId").orEmpty()
-        val historyEntry = navController.previousBackStackEntry
-        val merchantName = backStackEntry.arguments?.getString("merchantName")
-            ?: historyEntry?.savedStateHandle?.remove<String>("movement_editor_merchant_name")
         MovementEditorRoute(
             transactionId = transactionId,
             onDismiss = { navController.popBackStack() },

@@ -34,8 +34,6 @@ import com.kipu.app.feature.accounts.domain.model.FinancialDashboardData
 import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
-import com.kipu.app.feature.home.domain.CurrencyNetWorth
-import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.ui.theme.KipuTheme
 import io.mockk.every
 import io.mockk.mockk
@@ -44,7 +42,6 @@ import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -58,7 +55,7 @@ class DashboardRedesignStatesTest {
 
     @Test
     fun h1WalletsAppearUnderTheirAccountAndDoNotAddToBankMoney() {
-        show(populatedViewModel(), netWorth = netWorthContent())
+        show(populatedViewModel())
 
         compose.onNodeWithText("S/ 1,197.70").assertIsDisplayed()
         compose.onNodeWithText("S/ 1,097.70").assertIsDisplayed()
@@ -72,7 +69,7 @@ class DashboardRedesignStatesTest {
 
     @Test
     fun h2MaskHidesEveryAmount() {
-        show(populatedViewModel(masked = true), netWorth = netWorthContent())
+        show(populatedViewModel(masked = true))
 
         assertEquals(0, compose.onAllNodesWithText("1,197.70", substring = true).fetchSemanticsNodes().size)
         compose.onNodeWithContentDescription("Mostrar importes").assertExists()
@@ -80,34 +77,13 @@ class DashboardRedesignStatesTest {
     }
 
     @Test
-    fun h3NetWorthExpandsIntoItsComponents() {
-        show(populatedViewModel(), netWorth = netWorthContent())
-
-        compose.onNodeWithText("Ver detalle").performClick()
-        compose.onNodeWithText("Activos reales").assertIsDisplayed()
-        compose.onNodeWithText("Por cobrar").assertIsDisplayed()
-        compose.onNodeWithText("Pasivos pendientes").assertIsDisplayed()
-        compose.onNodeWithText("1,052.30", substring = true).assertExists()
-        capture("H3-patrimonio")
-    }
-
-    @Test
     fun h4ArchivedInstrumentsExpand() {
-        show(populatedViewModel(), netWorth = netWorthContent())
+        show(populatedViewModel())
 
         compose.scrolled("Cuentas y tarjetas archivadas", false).performClick()
         compose.scrolled("Cuenta BCP (anterior)", false).assertIsDisplayed()
         compose.scrolled("Conservan su historial", true).assertIsDisplayed()
         capture("H4-archivadas")
-    }
-
-    @Test
-    fun h6UnavailableNetWorthIsNeverZero() {
-        show(populatedViewModel(), netWorth = NetWorthUiState.Error("No se pudo calcular tu patrimonio."))
-
-        compose.onNodeWithText("No disponible").assertIsDisplayed()
-        compose.onNodeWithText("no significa S/ 0.00", substring = true).assertIsDisplayed()
-        capture("H6-no-disponible")
     }
 
     @Test
@@ -127,20 +103,18 @@ class DashboardRedesignStatesTest {
         every { viewModel.dashboardUiState } returns MutableStateFlow(
             DashboardUiState(isLoading = false, errorMessage = "boom"),
         )
-        var netWorthRetried = false
-        show(viewModel, onRetryNetWorth = { netWorthRetried = true })
+        show(viewModel)
 
         compose.onNodeWithText("No pudimos cargar tu dinero").assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithText("S/ 0.00", substring = true).fetchSemanticsNodes().size)
         capture("H8-error")
         compose.onNodeWithText("Reintentar").performClick()
-        compose.runOnIdle { assertTrue(netWorthRetried) }
         verify { viewModel.retryDashboard() }
     }
 
     @Test
     fun h1DarkThemeAndLargeTextKeepActionsReachable() {
-        show(populatedViewModel(), netWorth = netWorthContent(), dark = true, fontScale = 1.3f)
+        show(populatedViewModel(), dark = true, fontScale = 1.3f)
 
         compose.onNodeWithText("Mi dinero").assertIsDisplayed()
         compose.scrolled("Cuentas y efectivo", false).assertIsDisplayed()
@@ -160,10 +134,8 @@ class DashboardRedesignStatesTest {
 
     private fun show(
         viewModel: AccountsViewModel,
-        netWorth: NetWorthUiState? = null,
         dark: Boolean = false,
         fontScale: Float = 1f,
-        onRetryNetWorth: () -> Unit = {},
     ) {
         compose.setContent {
             val density = LocalDensity.current
@@ -174,8 +146,6 @@ class DashboardRedesignStatesTest {
                         viewModel = viewModel,
                         onNavigateToNewAccount = {},
                         onNavigateToNewCard = {},
-                        netWorthState = netWorth,
-                        onRetryNetWorth = onRetryNetWorth,
                         onNavigateToCalendar = {},
                         modifier = Modifier.fillMaxSize().testTag(ROOT),
                     )
@@ -192,17 +162,6 @@ class DashboardRedesignStatesTest {
             compose.onNodeWithTag(ROOT).captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, output)
         }
     }
-
-    private fun netWorthContent() = NetWorthUiState.Content(
-        listOf(
-            CurrencyNetWorth(
-                currency = Currency.PEN,
-                realAssets = Money(119_770, Currency.PEN),
-                receivables = Money(15_000, Currency.PEN),
-                liabilities = Money(240_000, Currency.PEN),
-            ),
-        ),
-    )
 
     private fun populatedViewModel(masked: Boolean = false): AccountsViewModel {
         val cash = account("1", "Efectivo demo", AccountType.CASH, AccountPreset.CASH)

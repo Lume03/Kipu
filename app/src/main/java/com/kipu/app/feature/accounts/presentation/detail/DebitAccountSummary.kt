@@ -59,6 +59,6 @@ internal fun DebitAccountSummary(
                 }
             }
         }
-        AccountQuickActions(null, null, onMovements)
+        AccountQuickActions(onMovements)
     }
 }

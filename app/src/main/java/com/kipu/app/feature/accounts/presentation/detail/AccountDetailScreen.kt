@@ -543,8 +543,6 @@ fun AccountDetailContent(
     linkedAccount: Account? = null,
     affiliatedWallets: List<Account> = emptyList(),
     onRetry: () -> Unit = {},
-    onNavigateToSpend: ((Account) -> Unit)? = null,
-    onNavigateToTransfer: ((Account) -> Unit)? = null,
     debitAccount: Account? = null,
     onNavigateToLinkedAccount: (String) -> Unit = {},
     cardInstallmentsState: CardInstallmentsUiState = CardInstallmentsUiState(isLoading = false),
@@ -870,8 +868,6 @@ fun AccountDetailContent(
                             else -> true
                         }
                         AccountQuickActions(
-                            onSpend = onNavigateToSpend?.takeIf { !archived }?.let { spend -> { spend(target) } },
-                            onTransfer = onNavigateToTransfer?.takeIf { !archived }?.let { transfer -> { transfer(target) } },
                             onMovements = if (canOpenMovementHistory) ({ onNavigateToMovements(target) }) else null,
                         )
 

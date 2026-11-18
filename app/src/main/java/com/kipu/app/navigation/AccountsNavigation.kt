@@ -292,7 +292,6 @@ private fun AccountsRootContent(navController: NavController, backStackEntry: Na
             onFeedbackConsumed = { backStackEntry.savedStateHandle[ACCOUNT_DASHBOARD_FEEDBACK_KEY] = null },
             openRegisterMovement = openRegisterMovement && selected.value,
             onConsumeRegisterMovement = { backStackEntry.savedStateHandle["open_register_movement"] = false },
-            onNavigateToGoals = { navController.navigateToPlanning(PlanningTab.GOALS) },
             onNavigateToCalendar = { navController.navigateToCalendar() },
         )
 }

@@ -1,7 +1,6 @@
 package com.kipu.app.feature.accounts.presentation.detail
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,8 +18,6 @@ import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material.icons.rounded.NorthEast
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,14 +37,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -171,80 +165,33 @@ private fun SharedBalanceTag(text: String) {
     }
 }
 
-/** C1-C3 quick actions. Spend and transfer only appear when the host wires them. */
 @Composable
 internal fun AccountQuickActions(
-    onSpend: (() -> Unit)?,
-    onTransfer: (() -> Unit)?,
     onMovements: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    if (onSpend == null && onTransfer == null && onMovements == null) return
-    if (onSpend == null && onTransfer == null && onMovements != null) {
-        val colors = rememberCalmEmeraldColors()
-        Surface(
-            onClick = onMovements,
-            shape = RoundedCornerShape(20.dp),
-            color = colors.surfaceCard,
-            border = BorderStroke(1.dp, colors.borderSubtle),
-            modifier = modifier.fillMaxWidth().testTag("account_view_movements"),
-        ) {
-            Row(
-                Modifier.padding(16.dp).heightIn(min = 48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Icon(Icons.AutoMirrored.Rounded.ReceiptLong, null, tint = colors.primaryText)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Ver movimientos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                }
-                Icon(Icons.Rounded.ChevronRight, null, tint = colors.primaryText)
-            }
-        }
-        return
-    }
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        onSpend?.let { QuickActionTile("Gasto", Icons.Rounded.NorthEast, it, Modifier.weight(1f).testTag("account_action_spend")) }
-        onTransfer?.let { QuickActionTile("Transferir", Icons.Rounded.SwapHoriz, it, Modifier.weight(1f).testTag("account_action_transfer")) }
-        onMovements?.let {
-            QuickActionTile("Movimientos", Icons.AutoMirrored.Rounded.ReceiptLong, it, Modifier.weight(1f).testTag("account_view_movements"))
-        }
-    }
-}
-
-@Composable
-private fun QuickActionTile(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+    if (onMovements == null) return
     val colors = rememberCalmEmeraldColors()
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+        onClick = onMovements,
+        shape = RoundedCornerShape(20.dp),
+        color = colors.surfaceCard,
         border = BorderStroke(1.dp, colors.borderSubtle),
-        modifier = modifier
-            .heightIn(min = 72.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier.fillMaxWidth().testTag("account_view_movements"),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        Row(
+            Modifier.padding(16.dp).heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(icon, contentDescription = null, tint = colors.primaryDeep, modifier = Modifier.size(24.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.primaryText,
-            )
+            Icon(Icons.AutoMirrored.Rounded.ReceiptLong, null, tint = colors.primaryText)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Ver movimientos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            Icon(Icons.Rounded.ChevronRight, null, tint = colors.primaryText)
         }
     }
 }
-
 
 @Composable
 internal fun AccountOpeningBalanceRow(account: Account, enabled: Boolean, onCorrect: () -> Unit) {

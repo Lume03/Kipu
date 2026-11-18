@@ -627,10 +627,6 @@ fun MovementHistoryRoute(
                     }
                 }
             },
-            onRemoveReceipt = {
-                receiptPreferences.edit().remove(movementReceiptPreferenceKey(item)).apply()
-                receiptUriText = null
-            },
             onRegisterRecurrence = {
                 recurrenceSource = item
                 showRecurrenceList = false

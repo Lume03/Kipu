@@ -5,7 +5,6 @@ import com.kipu.app.core.session.LocalOwner
 import com.kipu.app.core.session.RemoteSession
 import com.kipu.app.feature.settings.domain.model.ProfilePreferenceDelta
 import com.kipu.app.feature.settings.domain.model.UserProfile
-import com.kipu.app.feature.settings.presentation.formatMaskedAmount
 import java.time.Instant
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -24,18 +23,6 @@ class AuthFeatureBoundaryTest {
         assertFalse("Raw email must be redacted in logs", redacted.contains("test.user@example.com"))
         assertTrue(redacted.contains("[REDACTED_PASSWORD]"))
         assertTrue(redacted.contains("[REDACTED_EMAIL]"))
-    }
-
-    @Test
-    fun `boundary test - balance masking does not alter financial values`() {
-        val actualBalance = "S/ 1,250.50"
-
-        val maskedOutput = formatMaskedAmount(actualBalance, hideBalances = true)
-        val unmaskedOutput = formatMaskedAmount(actualBalance, hideBalances = false)
-
-        assertEquals("••••••", maskedOutput)
-        assertEquals("S/ 1,250.50", unmaskedOutput)
-        assertEquals("Original balance amount must remain intact", "S/ 1,250.50", actualBalance)
     }
 
     @Test

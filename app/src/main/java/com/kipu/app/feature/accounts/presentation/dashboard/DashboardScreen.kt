@@ -76,8 +76,6 @@ import com.kipu.app.feature.accounts.presentation.AccountsViewModel
 import com.kipu.app.feature.accounts.presentation.DashboardUiState
 import com.kipu.app.feature.accounts.presentation.InstrumentsUiState
 import com.kipu.app.feature.accounts.presentation.isCompactAccountsLayout
-import com.kipu.app.feature.home.presentation.NetWorthCard
-import com.kipu.app.feature.home.presentation.NetWorthUiState
 import com.kipu.app.feature.movements.presentation.QuickMovementBottomSheet
 import com.kipu.app.feature.notifications.presentation.UnreadNotificationBadge
 import com.kipu.app.ui.component.KipuErrorState
@@ -101,13 +99,9 @@ fun DashboardScreen(
     onFeedbackConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     onNavigateToPlans: () -> Unit = {},
-    onNavigateToMovements: () -> Unit = {},
     onToggleMasked: (() -> Unit)? = null,
     openRegisterMovement: Boolean = false,
     onConsumeRegisterMovement: () -> Unit = {},
-    onNavigateToGoals: () -> Unit = {},
-    netWorthState: NetWorthUiState? = null,
-    onRetryNetWorth: () -> Unit = {},
     onNavigateToCalendar: (() -> Unit)? = null,
     profileViewModel: DashboardProfileViewModel = hiltViewModel(),
 ) {
@@ -179,10 +173,7 @@ fun DashboardScreen(
                             title = "No pudimos cargar tu dinero",
                             message = "Tus datos están a salvo en tu cuenta. Revisa tu conexión e inténtalo de nuevo. " +
                                 "Mientras tanto no mostramos cifras para no confundirte con ceros.",
-                            onRetry = {
-                                viewModel.retryDashboard()
-                                onRetryNetWorth()
-                            },
+                            onRetry = { viewModel.retryDashboard() },
                             modifier = Modifier.padding(top = 20.dp).testTag(DASHBOARD_ERROR_TAG),
                         )
                     }
@@ -214,8 +205,6 @@ fun DashboardScreen(
                             onNavigateToPlans = onNavigateToPlans,
                             onNavigateToNewAccount = onNavigateToNewAccount,
                             onNavigateToNewCard = onNavigateToNewCard,
-                            netWorthState = netWorthState,
-                            onRetryNetWorth = onRetryNetWorth,
                             onNavigateToCalendar = onNavigateToCalendar,
                         )
                     }
@@ -375,7 +364,6 @@ internal fun shouldShowEmptyDashboard(
 internal fun EmptyDashboardContent(
     onNavigateToNewAccount: () -> Unit,
     onNavigateToNewCard: () -> Unit,
-    onNavigateToGoals: () -> Unit = {},
     modifier: Modifier = Modifier,
     onNavigateToPlans: () -> Unit = {},
     onNavigateToCalendar: (() -> Unit)? = null,
@@ -400,7 +388,7 @@ internal fun EmptyDashboardContent(
     )
 }
 
-/** H1–H6: hero, net worth, calendar, plan, accounts with their wallets, credit cards and archive. */
+/** H1–H6: hero, calendar, plan, accounts with their wallets, credit cards and archive. */
 @Composable
 private fun DashboardContent(
     data: FinancialDashboardData?,
@@ -418,8 +406,6 @@ private fun DashboardContent(
     onNavigateToNewAccount: () -> Unit,
     onNavigateToNewCard: () -> Unit,
     modifier: Modifier = Modifier,
-    netWorthState: NetWorthUiState? = null,
-    onRetryNetWorth: () -> Unit = {},
     onNavigateToCalendar: (() -> Unit)? = null,
 ) {
     val emeraldColors = rememberCalmEmeraldColors()
@@ -512,12 +498,6 @@ private fun DashboardContent(
             )
         }
 
-        // HU-39: patrimonio sits under the hero; credit lines and reserves never add to it.
-        if (netWorthState != null && !isFirstUse) {
-            item(key = "net_worth_summary") {
-                NetWorthCard(state = netWorthState, onRetry = onRetryNetWorth)
-            }
-        }
         if (onNavigateToCalendar != null) {
             item(key = "calendar_entry") { DashboardCalendarEntryCard(onClick = onNavigateToCalendar) }
         }

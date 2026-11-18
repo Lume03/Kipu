@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -82,7 +83,8 @@ class StatementEvidenceTest(private val mode: String) {
         CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) { KipuTheme(darkTheme = dark, content = content) }
     }
 
-    @Composable private fun Hub(state: StatementImportUiState) = ImportMovementsContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    @Composable private fun Hub(state: StatementImportUiState, onDismissMessage: () -> Unit = {}) =
+        ImportMovementsContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onDismissMessage)
     private val pending = StatementImport("old", owner, "fp2", "BCP", "0771", LocalDate.of(2026, 7, 27), LocalDate.of(2026, 8, 25), LocalDate.of(2026, 9, 22),
         true, true, null, StatementImportStatus.PENDING, 1000, 604801000)
 
@@ -110,6 +112,19 @@ class StatementEvidenceTest(private val mode: String) {
         compose.runOnIdle { state.value = StatementImportUiState(showPremium = true) }
         compose.onNodeWithTag("statement_premium").assertExists()
         capture("premium")
+    }
+
+    @Test fun hubShowsAndDismissesImportFailure() {
+        val message = "No pudimos cargar las importaciones pendientes."
+        val state = mutableStateOf(StatementImportUiState(message = message))
+        compose.setContent {
+            Themed { Hub(state.value) { state.value = state.value.copy(message = null) } }
+        }
+
+        compose.onNodeWithText(message).assertIsDisplayed()
+        compose.onNodeWithText("Cerrar").performClick()
+        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.runOnIdle { assertEquals(null, state.value.message) }
     }
 
     @Test fun importNotices() {
