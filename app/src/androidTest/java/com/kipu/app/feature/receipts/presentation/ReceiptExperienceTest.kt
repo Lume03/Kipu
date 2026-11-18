@@ -2,6 +2,9 @@ package com.kipu.app.feature.receipts.presentation
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.kipu.app.feature.receipts.domain.*
@@ -16,6 +19,33 @@ class ReceiptExperienceTest {
     private val candidate = ReceiptCandidate("one", "owner", amountMinor = 2500, occurredAt = 1000,
         recipient = "Carlos M.", reference = "00123456", referenceFingerprint = "ref", imageFingerprint = "img",
         status = ReceiptCandidateStatus.PENDING, createdAt = 1, updatedAt = 1, isIncome = false)
+
+    @Test fun candidateContentClickAndDiscardSurviveFontScaleChanges() {
+        var fontScale by mutableFloatStateOf(1f)
+        var clicks = 0
+        var discards = 0
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                KipuTheme { ReceiptInboxRow(candidate, isNew = true, onClick = { clicks++ }, onDiscard = { discards++ }) }
+            }
+        }
+        for (scale in listOf(1f, 2f)) {
+            compose.runOnIdle { fontScale = scale }
+            compose.onAllNodesWithText("Carlos M.").assertCountEquals(1)
+            compose.onNodeWithText("Nuevo").assertIsDisplayed()
+            compose.onNodeWithText("−S/ 25.00").assertIsDisplayed()
+            val row = compose.onNodeWithTag("receipt_candidate_one")
+            row.performClick()
+            val discard = row.fetchSemanticsNode().config[SemanticsActions.CustomActions].single()
+            assertEquals("Descartar comprobante", discard.label)
+            compose.runOnIdle { discard.action() }
+        }
+        compose.runOnIdle {
+            assertEquals(2, clicks)
+            assertEquals(2, discards)
+        }
+    }
 
     @Test fun guideCanAdvanceByHandAndShowsFinalFooter() {
         compose.mainClock.autoAdvance = false

@@ -874,6 +874,82 @@ fun TransactionRow(
         border = BorderStroke(1.dp, emeraldColors.borderSubtle),
         modifier = modifier.testTag("tx_row_${tx.id}"),
     ) {
+        val avatar: @Composable () -> Unit = {
+            TransactionIconAvatar(
+                item = item,
+                isVoided = isVoided,
+                iconBg = iconBg,
+                iconTint = iconTint,
+            )
+        }
+        val status: @Composable () -> Unit = {
+            when {
+                // Anulado = borrado lógico: el movimiento deja de contar en los totales
+                tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT -> RowStatusPill(
+                    text = "No se pudo sincronizar",
+                    background = emeraldColors.expenseBg,
+                    content = emeraldColors.expenseText,
+                )
+                isVoided -> RowStatusPill(
+                    text = "Anulado",
+                    background = emeraldColors.pillTrack,
+                    content = emeraldColors.secondaryMuted,
+                    modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
+                )
+                isPending -> KipuPendingSyncTag(
+                    label = if (offline) "Pendiente de sincronizar" else "Sincronizando",
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .testTag("tx_pending_tag_${tx.id}"),
+                )
+                tx.syncStatus == MovementSyncStatus.CONFLICT -> RowStatusPill(
+                    text = "Requiere revisión",
+                    background = emeraldColors.warningBg,
+                    content = emeraldColors.warningText,
+                )
+            }
+        }
+        val details: @Composable () -> Unit = {
+            com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.MOVEMENT, tx.id, compact = true)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
+                ),
+                color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
+                maxLines = if (isLargeFont) 2 else 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = emeraldColors.secondaryMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .then(if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier),
+                )
+            }
+        }
+        val amount: @Composable () -> Unit = {
+            MoneyText(
+                amount = "$amountPrefix${formatMinorUnits(tx.amountMinor)}",
+                currencySymbol = currencySymbol(tx.currency),
+                color = amountColor,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = "tnum",
+                    textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
+                ),
+                modifier = Modifier.testTag("tx_amount_${tx.id}"),
+            )
+        }
         if (isLargeFont) {
             Column(
                 modifier = Modifier
@@ -886,88 +962,16 @@ fun TransactionRow(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    TransactionIconAvatar(
-                        item = item,
-                        isVoided = isVoided,
-                        iconBg = iconBg,
-                        iconTint = iconTint,
-                    )
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.MOVEMENT, tx.id, compact = true)
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
-                            ),
-                            color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = emeraldColors.secondaryMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .weight(1f, fill = false)
-                                    .then(if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier),
-                            )
-                        }
-                    }
+                    avatar()
+                    Column(modifier = Modifier.weight(1f)) { details() }
                 }
-
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 58.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 58.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column {
-                        when {
-                            tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT -> RowStatusPill(
-                                text = "No se pudo sincronizar",
-                                background = emeraldColors.expenseBg,
-                                content = emeraldColors.expenseText,
-                            )
-                            isVoided -> RowStatusPill(
-                                text = "Anulado",
-                                background = emeraldColors.pillTrack,
-                                content = emeraldColors.secondaryMuted,
-                                modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
-                            )
-                            isPending -> KipuPendingSyncTag(
-                                label = if (offline) "Pendiente de sincronizar" else "Sincronizando",
-                                modifier = Modifier
-                                    .padding(top = 4.dp)
-                                    .testTag("tx_pending_tag_${tx.id}"),
-                            )
-                            tx.syncStatus == MovementSyncStatus.CONFLICT -> RowStatusPill(
-                                text = "Requiere revisión",
-                                background = emeraldColors.warningBg,
-                                content = emeraldColors.warningText,
-                            )
-                        }
-                    }
-
-                    MoneyText(
-                        amount = "$amountPrefix${formatMinorUnits(tx.amountMinor)}",
-                        currencySymbol = currencySymbol(tx.currency),
-                        color = amountColor,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFeatureSettings = "tnum",
-                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
-                        ),
-                        modifier = Modifier.testTag("tx_amount_${tx.id}"),
-                    )
+                    Column { status() }
+                    amount()
                 }
             }
         } else {
@@ -978,82 +982,14 @@ fun TransactionRow(
                     .heightIn(min = 72.dp)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
-                TransactionIconAvatar(
-                    item = item,
-                    isVoided = isVoided,
-                    iconBg = iconBg,
-                    iconTint = iconTint,
-                )
-
+                avatar()
                 Spacer(modifier = Modifier.width(14.dp))
-
                 Column(modifier = Modifier.weight(1f)) {
-                    com.kipu.app.ui.component.EntitySyncNotice(com.kipu.app.core.sync.SyncModule.MOVEMENT, tx.id, compact = true)
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
-                        ),
-                        color = if (isVoided) emeraldColors.secondaryMuted else emeraldColors.primaryText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = emeraldColors.secondaryMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .then(if (paymentChannel != null) Modifier.testTag("tx_payment_channel_${tx.id}") else Modifier),
-                        )
-                    }
-                    when {
-                        // Anulado = borrado lógico: el movimiento deja de contar en los totales
-                        tx.syncStatus == MovementSyncStatus.FAILED_PERMANENT -> RowStatusPill(
-                            text = "No se pudo sincronizar",
-                            background = emeraldColors.expenseBg,
-                            content = emeraldColors.expenseText,
-                        )
-                        isVoided -> RowStatusPill(
-                            text = "Anulado",
-                            background = emeraldColors.pillTrack,
-                            content = emeraldColors.secondaryMuted,
-                            modifier = Modifier.testTag("tx_voided_badge_${tx.id}"),
-                        )
-                        isPending -> KipuPendingSyncTag(
-                            label = if (offline) "Pendiente de sincronizar" else "Sincronizando",
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .testTag("tx_pending_tag_${tx.id}"),
-                        )
-                        tx.syncStatus == MovementSyncStatus.CONFLICT -> RowStatusPill(
-                            text = "Requiere revisión",
-                            background = emeraldColors.warningBg,
-                            content = emeraldColors.warningText,
-                        )
-                    }
+                    details()
+                    status()
                 }
-
                 Spacer(modifier = Modifier.width(10.dp))
-
-                MoneyText(
-                    amount = "$amountPrefix${formatMinorUnits(tx.amountMinor)}",
-                    currencySymbol = currencySymbol(tx.currency),
-                    color = amountColor,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontFeatureSettings = "tnum",
-                        textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None,
-                    ),
-                    modifier = Modifier.testTag("tx_amount_${tx.id}"),
-                )
+                amount()
             }
         }
     }

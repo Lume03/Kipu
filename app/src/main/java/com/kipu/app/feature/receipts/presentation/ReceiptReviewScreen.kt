@@ -306,13 +306,62 @@ internal fun ReceiptInboxRow(candidate: ReceiptCandidate, isNew: Boolean, onClic
     val isLargeFont = LocalDensity.current.fontScale >= 1.3f
     val named = !candidate.recipient.isNullOrBlank()
 
+    val rowModifier = Modifier.fillMaxWidth()
+        .background(if (solid) palette.surfaceCard else Color.Transparent)
+        .background(if (isNew) palette.tealTint(.1f) else Color.Transparent)
+        .drawBehind { if (isNew) drawRect(palette.primaryDeep, Offset.Zero, Size(4.dp.toPx(), size.height)) }
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .testTag("receipt_candidate_${candidate.id}")
+        .semantics { onDiscard?.let { discard -> customActions = listOf(CustomAccessibilityAction("Descartar comprobante") { discard(); true }) } }
+    val avatar: @Composable () -> Unit = {
+        Box(Modifier.then(if (isLargeFont) Modifier.padding(top = 2.dp) else Modifier).size(if (compact) 40.dp else 44.dp).clip(CircleShape).background(if (named) palette.tealTint(.14f) else palette.pillTrack), contentAlignment = Alignment.Center) {
+            if (named) Text(receiptInitials(candidate.recipient), fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
+                style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall)
+            else Icon(Icons.Filled.Person, null, Modifier.size(22.dp), tint = palette.secondaryMuted)
+        }
+    }
+    val details: @Composable () -> Unit = {
+        Text(candidate.recipient?.takeIf(String::isNotBlank) ?: "Sin contraparte", fontWeight = FontWeight.Bold, color = palette.primaryText,
+            style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, maxLines = if (isLargeFont) 3 else 2, overflow = TextOverflow.Ellipsis)
+        if (missing > 0 && !registered) {
+            Text("Faltan $missing datos", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.warningText,
+                modifier = Modifier.padding(top = 3.dp))
+        } else {
+            Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (!registered) Icon(receiptTypeIcon(candidate.isIncome), null, Modifier.size(14.dp), tint = tone)
+                Text(candidate.occurredAt?.let { receiptWhen(it, registered) } ?: "Fecha por completar", style = MaterialTheme.typography.bodySmall,
+                    color = palette.secondaryMuted, maxLines = 2)
+            }
+        }
+    }
+    val amount: @Composable () -> Unit = {
+        candidate.amountMinor?.let { amountMinor ->
+            val sign = if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else ""
+            MoneyText(
+                amount = "$sign${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}",
+                currencySymbol = "S/",
+                color = tone,
+                style = (if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium).copy(
+                    fontWeight = FontWeight.ExtraBold,
+                ),
+            )
+        }
+    }
+    val status: @Composable () -> Unit = {
+        if (!registered) when {
+            isNew -> ReceiptStateChip("Nuevo", ChipTone.Solid)
+            missing == 0 -> ReceiptStateChip("Listo", ChipTone.Ready, readyChipIcon())
+            else -> ReceiptStateChip("Completar", ChipTone.Warning)
+        }
+    }
+    val chevron: @Composable () -> Unit = {
+        if (!registered) Icon(Icons.Filled.ChevronRight, null,
+            Modifier.then(if (isLargeFont) Modifier.padding(top = 2.dp) else Modifier).size(20.dp),
+            tint = palette.secondaryMuted.copy(alpha = .8f))
+    }
     if (isLargeFont) {
         Column(
-            Modifier.fillMaxWidth().background(if (solid) palette.surfaceCard else Color.Transparent).background(if (isNew) palette.tealTint(.1f) else Color.Transparent)
-                .drawBehind { if (isNew) drawRect(palette.primaryDeep, Offset.Zero, Size(4.dp.toPx(), size.height)) }
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick).testTag("receipt_candidate_${candidate.id}")
-                .semantics { onDiscard?.let { discard -> customActions = listOf(CustomAccessibilityAction("Descartar comprobante") { discard(); true }) } }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+            rowModifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
@@ -320,110 +369,32 @@ internal fun ReceiptInboxRow(candidate: ReceiptCandidate, isNew: Boolean, onClic
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(
-                    Modifier.padding(top = 2.dp).size(if (compact) 40.dp else 44.dp).clip(CircleShape)
-                        .background(if (named) palette.tealTint(.14f) else palette.pillTrack),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (named) Text(receiptInitials(candidate.recipient), fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
-                        style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall)
-                    else Icon(Icons.Filled.Person, null, Modifier.size(22.dp), tint = palette.secondaryMuted)
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(candidate.recipient?.takeIf(String::isNotBlank) ?: "Sin contraparte", fontWeight = FontWeight.Bold, color = palette.primaryText,
-                        style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    if (missing > 0 && !registered) {
-                        Text("Faltan $missing datos", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.warningText,
-                            modifier = Modifier.padding(top = 3.dp))
-                    } else {
-                        Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            if (!registered) Icon(receiptTypeIcon(candidate.isIncome), null, Modifier.size(14.dp), tint = tone)
-                            Text(candidate.occurredAt?.let { receiptWhen(it, registered) } ?: "Fecha por completar", style = MaterialTheme.typography.bodySmall,
-                                color = palette.secondaryMuted, maxLines = 2)
-                        }
-                    }
-                }
-                if (!registered) {
-                    Icon(
-                        Icons.Filled.ChevronRight,
-                        null,
-                        Modifier.padding(top = 2.dp).size(20.dp),
-                        tint = palette.secondaryMuted.copy(alpha = .8f),
-                    )
-                }
+                avatar()
+                Column(Modifier.weight(1f)) { details() }
+                chevron()
             }
             Row(
                 Modifier.fillMaxWidth().padding(start = if (compact) 52.dp else 56.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (!registered) {
-                    when {
-                        isNew -> ReceiptStateChip("Nuevo", ChipTone.Solid)
-                        missing == 0 -> ReceiptStateChip("Listo", ChipTone.Ready, readyChipIcon())
-                        else -> ReceiptStateChip("Completar", ChipTone.Warning)
-                    }
-                } else {
-                    Spacer(Modifier.width(1.dp))
-                }
-                candidate.amountMinor?.let { amountMinor ->
-                    val sign = if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else ""
-                    MoneyText(
-                        amount = "$sign${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}",
-                        currencySymbol = "S/",
-                        color = tone,
-                        style = (if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium).copy(
-                            fontWeight = FontWeight.ExtraBold,
-                        ),
-                    )
-                }
+                if (!registered) status() else Spacer(Modifier.width(1.dp))
+                amount()
             }
         }
     } else {
-        Row(Modifier.fillMaxWidth().background(if (solid) palette.surfaceCard else Color.Transparent).background(if (isNew) palette.tealTint(.1f) else Color.Transparent)
-            .drawBehind { if (isNew) drawRect(palette.primaryDeep, Offset.Zero, Size(4.dp.toPx(), size.height)) }
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick).testTag("receipt_candidate_${candidate.id}")
-            .semantics { onDiscard?.let { discard -> customActions = listOf(CustomAccessibilityAction("Descartar comprobante") { discard(); true }) } }
-            .heightIn(min = if (compact) 68.dp else 80.dp).padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(if (compact) 40.dp else 44.dp).clip(CircleShape).background(if (named) palette.tealTint(.14f) else palette.pillTrack), contentAlignment = Alignment.Center) {
-                if (named) Text(receiptInitials(candidate.recipient), fontWeight = FontWeight.ExtraBold, color = palette.primaryDeep,
-                    style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleSmall)
-                else Icon(Icons.Filled.Person, null, Modifier.size(22.dp), tint = palette.secondaryMuted)
-            }
-            Column(Modifier.weight(1f)) {
-                Text(candidate.recipient?.takeIf(String::isNotBlank) ?: "Sin contraparte", fontWeight = FontWeight.Bold, color = palette.primaryText,
-                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (missing > 0 && !registered) {
-                    Text("Faltan $missing datos", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = palette.warningText,
-                        modifier = Modifier.padding(top = 3.dp))
-                } else {
-                    Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        if (!registered) Icon(receiptTypeIcon(candidate.isIncome), null, Modifier.size(14.dp), tint = tone)
-                        Text(candidate.occurredAt?.let { receiptWhen(it, registered) } ?: "Fecha por completar", style = MaterialTheme.typography.bodySmall,
-                            color = palette.secondaryMuted, maxLines = 2)
-                    }
-                }
-            }
+        Row(
+            rowModifier.heightIn(min = if (compact) 68.dp else 80.dp).padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            avatar()
+            Column(Modifier.weight(1f)) { details() }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                candidate.amountMinor?.let { amountMinor ->
-                    val sign = if (candidate.isIncome == true) "+" else if (candidate.isIncome == false) "−" else ""
-                    MoneyText(
-                        amount = "$sign${BigDecimal.valueOf(amountMinor, 2).setScale(2).toPlainString()}",
-                        currencySymbol = "S/",
-                        color = tone,
-                        style = (if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium).copy(
-                            fontWeight = FontWeight.ExtraBold,
-                        ),
-                    )
-                }
-                if (!registered) when {
-                    isNew -> ReceiptStateChip("Nuevo", ChipTone.Solid)
-                    missing == 0 -> ReceiptStateChip("Listo", ChipTone.Ready, readyChipIcon())
-                    else -> ReceiptStateChip("Completar", ChipTone.Warning)
-                }
+                amount()
+                status()
             }
-            if (!registered) Icon(Icons.Filled.ChevronRight, null, Modifier.size(20.dp), tint = palette.secondaryMuted.copy(alpha = .8f))
+            chevron()
         }
     }
 }

@@ -628,114 +628,64 @@ private fun MovementFiltersSheetContent(
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             // Preset buttons row
                             val isLargeScale = LocalDensity.current.fontScale >= 1.2f
+                            val firstPresets: @Composable RowScope.() -> Unit = {
+                                FilterPresetChip(
+                                    label = "Hoy",
+                                    selected = isTodayPreset,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
+                                )
+                                FilterPresetChip(
+                                    label = "7 días",
+                                    selected = is7DaysPreset,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
+                                )
+                            }
+                            val remainingPresets: @Composable RowScope.() -> Unit = {
+                                FilterPresetChip(
+                                    label = "Este mes",
+                                    selected = isMonthPreset,
+                                    modifier = Modifier.weight(if (isLargeScale) 1f else 1.2f),
+                                    onClick = {
+                                        val firstDay = today.withDayOfMonth(1)
+                                        val lastDay = today.withDayOfMonth(today.lengthOfMonth())
+                                        updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
+                                    }
+                                )
+                                if (isCustomRange) {
+                                    FilterPresetChip(
+                                        label = "Personalizado",
+                                        selected = true,
+                                        modifier = Modifier.weight(if (isLargeScale) 1f else 1.5f),
+                                        onClick = { dates = true }
+                                    )
+                                } else {
+                                    FilterPresetChip(
+                                        label = if (isYearPreset) "Año" else "Todos",
+                                        selected = !isPeriodActive || isYearPreset,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = {
+                                            if (isPeriodActive && !isYearPreset) {
+                                                // Toggle to Year
+                                                updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
+                                            } else {
+                                                // Clean
+                                                updateDraft(draft.copy(fromDate = "", toDate = ""))
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                             if (isLargeScale) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        FilterPresetChip(
-                                            label = "Hoy",
-                                            selected = isTodayPreset,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
-                                        )
-                                        FilterPresetChip(
-                                            label = "7 días",
-                                            selected = is7DaysPreset,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
-                                        )
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        FilterPresetChip(
-                                            label = "Este mes",
-                                            selected = isMonthPreset,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = {
-                                                val firstDay = today.withDayOfMonth(1)
-                                                val lastDay = today.withDayOfMonth(today.lengthOfMonth())
-                                                updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
-                                            }
-                                        )
-                                        if (isCustomRange) {
-                                            FilterPresetChip(
-                                                label = "Personalizado",
-                                                selected = true,
-                                                modifier = Modifier.weight(1f),
-                                                onClick = { dates = true }
-                                            )
-                                        } else {
-                                            FilterPresetChip(
-                                                label = if (isYearPreset) "Año" else "Todos",
-                                                selected = !isPeriodActive || isYearPreset,
-                                                modifier = Modifier.weight(1f),
-                                                onClick = {
-                                                    if (isPeriodActive && !isYearPreset) {
-                                                        // Toggle to Year
-                                                        updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
-                                                    } else {
-                                                        // Clean
-                                                        updateDraft(draft.copy(fromDate = "", toDate = ""))
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), content = firstPresets)
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), content = remainingPresets)
                                 }
                             } else {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    FilterPresetChip(
-                                        label = "Hoy",
-                                        selected = isTodayPreset,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { updateDraft(draft.copy(fromDate = today.toString(), toDate = today.toString())) }
-                                    )
-                                    FilterPresetChip(
-                                        label = "7 días",
-                                        selected = is7DaysPreset,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { updateDraft(draft.copy(fromDate = today.minusDays(6).toString(), toDate = today.toString())) }
-                                    )
-                                    FilterPresetChip(
-                                        label = "Este mes",
-                                        selected = isMonthPreset,
-                                        modifier = Modifier.weight(1.2f),
-                                        onClick = {
-                                            val firstDay = today.withDayOfMonth(1)
-                                            val lastDay = today.withDayOfMonth(today.lengthOfMonth())
-                                            updateDraft(draft.copy(fromDate = firstDay.toString(), toDate = lastDay.toString()))
-                                        }
-                                    )
-                                    if (isCustomRange) {
-                                        FilterPresetChip(
-                                            label = "Personalizado",
-                                            selected = true,
-                                            modifier = Modifier.weight(1.5f),
-                                            onClick = { dates = true }
-                                        )
-                                    } else {
-                                        FilterPresetChip(
-                                            label = if (isYearPreset) "Año" else "Todos",
-                                            selected = !isPeriodActive || isYearPreset,
-                                            modifier = Modifier.weight(1f),
-                                            onClick = {
-                                                if (isPeriodActive && !isYearPreset) {
-                                                    // Toggle to Year
-                                                    updateDraft(draft.copy(fromDate = today.withDayOfYear(1).toString(), toDate = today.withMonth(12).withDayOfMonth(31).toString()))
-                                                } else {
-                                                    // Clean
-                                                    updateDraft(draft.copy(fromDate = "", toDate = ""))
-                                                }
-                                            }
-                                        )
-                                    }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    firstPresets()
+                                    remainingPresets()
                                 }
                             }
 

@@ -489,65 +489,42 @@ internal fun ReceiptMetadataEditor(
                     )
 
                     val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+                    val dateTimeFields: @Composable (Modifier) -> Unit = { fieldModifier ->
+                        ReceiptEditorField(
+                            value = date,
+                            onValueChange = { date = it },
+                            label = "Fecha",
+                            icon = Icons.Filled.CalendarToday,
+                            onPick = {
+                                val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
+                                android.app.DatePickerDialog(context, { _, year, month, day ->
+                                    date = LocalDate.of(year, month + 1, day).toString()
+                                }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
+                            },
+                            displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
+                            modifier = fieldModifier.testTag("receipt_date"),
+                        )
+                        ReceiptEditorField(
+                            value = time,
+                            onValueChange = { time = it },
+                            label = "Hora",
+                            icon = Icons.Filled.AccessTime,
+                            onPick = {
+                                val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
+                                android.app.TimePickerDialog(context, { _, hour, minute ->
+                                    time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
+                                }, initial.hour, initial.minute, true).show()
+                            },
+                            modifier = fieldModifier.testTag("receipt_time"),
+                        )
+                    }
                     if (isLargeFont) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ReceiptEditorField(
-                                value = date,
-                                onValueChange = { date = it },
-                                label = "Fecha",
-                                icon = Icons.Filled.CalendarToday,
-                                onPick = {
-                                    val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
-                                    android.app.DatePickerDialog(context, { _, year, month, day ->
-                                        date = LocalDate.of(year, month + 1, day).toString()
-                                    }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
-                                },
-                                displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
-                                modifier = Modifier.fillMaxWidth().testTag("receipt_date"),
-                            )
-                            ReceiptEditorField(
-                                value = time,
-                                onValueChange = { time = it },
-                                label = "Hora",
-                                icon = Icons.Filled.AccessTime,
-                                onPick = {
-                                    val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
-                                    android.app.TimePickerDialog(context, { _, hour, minute ->
-                                        time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                    }, initial.hour, initial.minute, true).show()
-                                },
-                                modifier = Modifier.fillMaxWidth().testTag("receipt_time"),
-                            )
+                            dateTimeFields(Modifier.fillMaxWidth())
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            ReceiptEditorField(
-                                value = date,
-                                onValueChange = { date = it },
-                                label = "Fecha",
-                                icon = Icons.Filled.CalendarToday,
-                                onPick = {
-                                    val initial = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now(lima))
-                                    android.app.DatePickerDialog(context, { _, year, month, day ->
-                                        date = LocalDate.of(year, month + 1, day).toString()
-                                    }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
-                                },
-                                displayValue = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) }.getOrDefault(date),
-                                modifier = Modifier.weight(1f).testTag("receipt_date"),
-                            )
-                            ReceiptEditorField(
-                                value = time,
-                                onValueChange = { time = it },
-                                label = "Hora",
-                                icon = Icons.Filled.AccessTime,
-                                onPick = {
-                                    val initial = runCatching { LocalTime.parse(time) }.getOrDefault(LocalTime.now(lima))
-                                    android.app.TimePickerDialog(context, { _, hour, minute ->
-                                        time = LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                    }, initial.hour, initial.minute, true).show()
-                                },
-                                modifier = Modifier.weight(1f).testTag("receipt_time"),
-                            )
+                            dateTimeFields(Modifier.weight(1f))
                         }
                     }
 

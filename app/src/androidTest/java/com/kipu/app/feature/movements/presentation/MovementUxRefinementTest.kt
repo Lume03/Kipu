@@ -34,6 +34,25 @@ class MovementUxRefinementTest {
         currency = "PEN", sourceAccountId = "cash", occurredAt = 1_758_000_000_000, status = status),
         sourceAccountAlias = "Efectivo", categoryName = "Alimentación")
 
+    @Test fun transactionContentAndClickSurviveFontScaleChanges() {
+        var fontScale by mutableFloatStateOf(1f)
+        var clicks = 0
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                KipuTheme { TransactionRow(item(TransactionStatus.VOIDED), onClick = { clicks++ }) }
+            }
+        }
+        for (scale in listOf(1f, 2f)) {
+            compose.runOnIdle { fontScale = scale }
+            compose.onAllNodesWithText("Alimentación").assertCountEquals(1)
+            compose.onNodeWithTag("tx_voided_badge_ux-movement", useUnmergedTree = true).assertIsDisplayed()
+            compose.onNodeWithTag("tx_amount_ux-movement", useUnmergedTree = true).assertIsDisplayed()
+            compose.onNodeWithTag("tx_row_ux-movement").performClick()
+        }
+        compose.runOnIdle { assertEquals(2, clicks) }
+    }
+
     @Test fun voidedDetailIsReadableAndOffersNoFinancialActions() {
         compose.setContent { KipuTheme { MovementDetailSheet(item(TransactionStatus.VOIDED), emptyList(), false, false, {}, {}, {}) } }
         compose.onNodeWithText("Este movimiento fue anulado.", substring = true).performScrollTo().assertIsDisplayed()
