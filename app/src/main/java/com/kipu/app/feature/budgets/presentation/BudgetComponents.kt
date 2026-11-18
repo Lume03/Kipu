@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -245,9 +246,9 @@ internal fun BudgetQuotaDialog(limit: Int, onDismiss: () -> Unit, onSeePlans: ()
             Icon(Icons.Default.WorkspacePremium, null, tint = colors.warningText)
             Text("Llegaste al límite del Plan Free", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Tienes $limit de $limit presupuestos activos. Finaliza uno para crear otro.")
-            androidx.compose.material3.Button(onClick = onSeePlans, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            androidx.compose.material3.Button(onClick = onSeePlans, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(top = 8.dp),
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.warningAmber, contentColor = colors.primaryText)) { Text("Ver planes") }
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Entendido") }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Entendido") }
         }
     }
 }

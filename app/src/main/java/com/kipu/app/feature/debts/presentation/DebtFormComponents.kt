@@ -32,7 +32,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kipu.app.ui.component.LocalBalanceMasked
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberPlanningColors
@@ -87,7 +86,7 @@ internal fun DebtAmountCard(
                 Text(
                     debtCurrencySymbol(currencyCode),
                     color = colors.primaryDeep,
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.width(10.dp))
@@ -145,7 +144,7 @@ private fun DebtCurrencyToggle(selected: String, onSelect: (String) -> Unit, ena
                     .clip(RoundedCornerShape(11.dp))
                     .background(if (isSelected) MaterialTheme.colorScheme.surface else colors.pillTrack)
                     .selectable(isSelected, enabled = enabled, role = Role.RadioButton) { onSelect(currency) }
-                    .heightIn(min = 44.dp)
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {

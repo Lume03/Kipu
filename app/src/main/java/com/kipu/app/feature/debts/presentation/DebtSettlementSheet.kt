@@ -58,6 +58,7 @@ import com.kipu.app.feature.debts.domain.model.DebtSummary
 import com.kipu.app.ui.component.KipuFilterChip
 import com.kipu.app.ui.component.formatMinorUnits
 import com.kipu.app.ui.theme.rememberPlanningColors
+import com.kipu.app.ui.motion.rememberReducedMotionEnabled
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +74,7 @@ fun DebtSettlementSheet(
 ) {
     val themeColors = rememberKipuColors()
     val colors = rememberPlanningColors()
+    val reducedMotion = rememberReducedMotionEnabled()
     val principalMinor = DebtAmountParser.toMinorUnits(state.principalAmount)
     val interestMinor = DebtAmountParser.toNonNegativeMinorUnits(state.interestAmount)
     val principalTooHigh = principalMinor != null && principalMinor > debt.remainingPrincipalMinor
@@ -172,7 +174,11 @@ fun DebtSettlementSheet(
                         selectedLabelColor = colors.onPrimaryDeep,
                     ),
                 )
-                AnimatedVisibility(visible = principalTooHigh) {
+                AnimatedVisibility(
+                    visible = principalTooHigh,
+                    enter = reducedMotionEnterTransition(reducedMotion),
+                    exit = reducedMotionExitTransition(reducedMotion),
+                ) {
                     Text(
                         "El principal supera el saldo pendiente.",
                         color = colors.expenseText,
@@ -203,7 +209,11 @@ fun DebtSettlementSheet(
                 isError = interestMinor == null,
                 modifier = Modifier.fillMaxWidth().testTag("settlement-interest"),
             )
-            AnimatedVisibility(visible = interestMinor == null) {
+            AnimatedVisibility(
+                visible = interestMinor == null,
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
+            ) {
                 Text(
                     "Revisa el interés; usa hasta dos decimales y no un monto negativo.",
                     color = colors.expenseText,
@@ -237,7 +247,11 @@ fun DebtSettlementSheet(
                 }
             }
 
-            AnimatedVisibility(visible = needsInterestCategory) {
+            AnimatedVisibility(
+                visible = needsInterestCategory,
+                enter = reducedMotionEnterTransition(reducedMotion),
+                exit = reducedMotionExitTransition(reducedMotion),
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().animateContentSize(),
                     color = MaterialTheme.colorScheme.surface,

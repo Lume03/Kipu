@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Flag
@@ -57,7 +56,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -286,7 +284,7 @@ fun PlanningSegmentedTabs(
             modifier = Modifier
                 .offset(x = indicatorOffset)
                 .width(tabWidth)
-                .height(if (largeText) 64.dp else 48.dp),
+                .height(if (largeText) 72.dp else 48.dp),
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp,
@@ -298,7 +296,7 @@ fun PlanningSegmentedTabs(
                 Row(
                     modifier = Modifier
                         .width(tabWidth)
-                        .heightIn(min = if (largeText) 64.dp else 48.dp)
+                        .heightIn(min = if (largeText) 72.dp else 48.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -319,16 +317,14 @@ fun PlanningSegmentedTabs(
                         Icon(tab.icon(), contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                     }
-                    // Labels are single words: shrink to fit rather than breaking "Presupuestos" mid-word.
+                    // Large text may use a second line instead of cutting a tab label.
                     BasicText(
                         tab.label,
                         color = { contentColor },
-                        maxLines = 1,
-                        softWrap = false,
-                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
+                        maxLines = if (largeText) 2 else 1,
+                        softWrap = largeText,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 14.sp,
                             textAlign = TextAlign.Center,
                         ),
                     )
