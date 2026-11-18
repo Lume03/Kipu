@@ -25,7 +25,7 @@ internal fun BudgetFinishDialog(content: BudgetDetailContent, onConfirm: () -> U
     Dialog(onDismissRequest = onCancel) {
         Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceCard,
             modifier = Modifier.fillMaxWidth().testTag("budget_finish_dialog")) {
-            Column(Modifier.heightIn(max = 680.dp).verticalScroll(rememberScrollState()).padding(22.dp),
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Surface(shape = CircleShape, color = colors.incomeBg) {
                     Icon(Icons.Rounded.Archive, null, Modifier.padding(18.dp).size(28.dp), tint = colors.primaryDeep)

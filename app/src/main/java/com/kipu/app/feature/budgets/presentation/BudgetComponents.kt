@@ -1,9 +1,9 @@
 package com.kipu.app.feature.budgets.presentation
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.kipu.app.core.finance.domain.model.Currency
 import com.kipu.app.feature.budgets.domain.BudgetConsumption
@@ -218,28 +219,47 @@ internal fun BudgetProgressBar(
 internal fun BudgetAmountsRow(consumption: BudgetConsumption, currencyCode: String, modifier: Modifier = Modifier,
     thresholdsBps: List<Int> = com.kipu.app.feature.budgets.domain.Budget.DEFAULT_THRESHOLDS_BPS) {
     val colors = rememberPlanningColors()
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-        Column(Modifier.weight(1f).testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
+    Layout(modifier = modifier.fillMaxWidth(), content = {
+        Column(Modifier.testTag("budget_consumed").semantics(mergeDescendants = true) {}) {
             Text("Consumido", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow {
                 BudgetMoney(consumption.consumedMinor, currencyCode,
-                    modifier = Modifier.alignByBaseline().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.alignByBaseline().width(IntrinsicSize.Max),
                     style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Row(Modifier.alignBy(FirstBaseline).horizontalScroll(rememberScrollState())) {
+                Row(Modifier.alignBy(FirstBaseline).width(IntrinsicSize.Max)) {
                     Text(" / ", Modifier.alignByBaseline(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     BudgetMoney(consumption.limitMinor, currencyCode, modifier = Modifier.alignByBaseline().testTag("budget_limit"),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        Column(Modifier.weight(1f).testTag("budget_remaining").semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.End) {
+        Column(Modifier.testTag("budget_remaining").semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.End) {
             Text(if (consumption.isExceeded) "Te pasaste" else "Restante", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             BudgetMoney(
                 if (consumption.isExceeded) -consumption.remainingMinor else consumption.remainingMinor,
-                currencyCode, modifier = Modifier.horizontalScroll(rememberScrollState()),
+                currencyCode, modifier = Modifier.width(IntrinsicSize.Max),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                 color = if (consumption.isExceeded) colors.expenseText else if (consumption.needsAttention(thresholdsBps)) colors.warningText else colors.primaryDeep)
+        }
+    }) { (consumed, remaining), constraints ->
+        val width = constraints.maxWidth
+        val gap = 8.dp.roundToPx()
+        val columnsWidth = (width - gap).coerceAtLeast(0)
+        val consumedWidth = (columnsWidth + 1) / 2
+        val remainingWidth = columnsWidth - consumedWidth
+        val fitsInColumns = consumed.minIntrinsicWidth(Constraints.Infinity) <= consumedWidth &&
+            remaining.minIntrinsicWidth(Constraints.Infinity) <= remainingWidth
+        val consumedBlock = consumed.measure(Constraints.fixedWidth(if (fitsInColumns) consumedWidth else width))
+        val remainingBlock = remaining.measure(Constraints.fixedWidth(if (fitsInColumns) remainingWidth else width))
+        val height = if (fitsInColumns) {
+            maxOf(consumedBlock.height, remainingBlock.height)
+        } else {
+            consumedBlock.height + gap + remainingBlock.height
+        }
+        layout(width, height) {
+            consumedBlock.placeRelative(0, if (fitsInColumns) height - consumedBlock.height else 0)
+            remainingBlock.placeRelative(width - remainingBlock.width, height - remainingBlock.height)
         }
     }
 }
